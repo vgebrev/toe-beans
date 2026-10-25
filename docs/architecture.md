@@ -1,0 +1,413 @@
+# Toe Beans — Architecture
+
+**Version:** 0.1 (draft for iteration)
+**Date:** 25 October 2026
+**Status:** Proposed. Nothing here is accepted until it's marked **Accepted** in the decision log (§2).
+**Inputs:** `docs/requirements.md` v1.0 (baselined)
+
+This document records the technical decisions, domain model and system structure for the Toe Beans MVP. Every decision weighs alternatives against the requirement IDs (FR-xx / NFR-xx). Free-tier figures were checked against public sources in October 2026. They change often, so re-verify them before committing (see §11).
+
+---
+
+## 1. Architectural drivers
+
+These requirements shape the architecture most. Everything else is fairly conventional CRUD.
+
+| Driver | Source | Consequence |
+|---|---|---|
+| Push reminders while the PWA is closed | FR-12, NFR-16 | Something on the server must wake up on a schedule, find due reminders and send Web Push. This isn't a simple "free web host" problem, because most free hosts sleep. |
+| Household isolation on every operation | NFR-01, NFR-02, scenario 9 | Authorization must be structural (enforced in repositories), not remembered per endpoint. |
+| Extractable backend | NFR-06, NFR-08, NFR-15 | The backend is a separate package with no SvelteKit imports. The frontend talks to it only over HTTP. |
+| Free hosting, self-host fallback | NFR-07 | All infrastructure sits behind ports so the cloud and self-hosted deployments differ only in adapters and config. |
+| Durable data and photos | NFR-05, NFR-10, scenario 10 | External database and object storage, with backups that we schedule ourselves (the free database tier has no backups). |
+| Concurrent caregivers | NFR-13 | Optimistic concurrency on every mutable aggregate. |
+| Android/Chrome PWA | NFR-03 | Web Push via VAPID works in Chrome without a native wrapper. No need for an iOS-driven design. |
+
+---
+
+## 2. Decision log
+
+Status: **P** = proposed, **A** = accepted, **R** = rejected/superseded. Each decision is detailed in the section noted.
+
+| # | Decision | Recommendation | Status | § |
+|---|---|---|---|---|
+| D1 | Language | TypeScript end-to-end (Node 22 LTS or later) | P | 3.1 |
+| D2 | Frontend framework | SvelteKit (Svelte 5) with `adapter-node` | P | 3.2 |
+| D3 | Frontend ↔ backend contract | Versioned JSON HTTP API (`/api/v1`) in `+server.ts` routes. No form actions or remote functions for domain operations. | P | 3.3 |
+| D4 | Backend structure | DDD-layered package in a pnpm workspace, with boundaries enforced by lint | P | 4 |
+| D5 | Identity provider | Auth0 (free plan), via the OIDC Authorization Code + PKCE flow handled by the server (BFF) | P | 3.4 |
+| D6 | Database | MongoDB (Atlas free cluster), official driver, no ODM | P | 3.5 |
+| D7 | Photo storage | Cloudflare R2 (S3 API) | P | 3.6 |
+| D8 | Push scheduling | Mongo-backed job collection plus an idempotent `tick` that both external cron and an in-process loop can trigger | P | 6 |
+| D9 | Hosting | Google Cloud Run + Cloud Scheduler as the primary candidate, validated by spike. Self-host behind IIS as the fallback. | P | 8 |
+| D10 | Observability | pino JSON logs to the platform log sink, Sentry for errors, an external uptime monitor. OpenTelemetry deferred. | P | 9 |
+| D11 | Email for invitations | Resend (free tier) behind an `EmailSender` port | P | 3.7 |
+| D12 | UI toolkit | Tailwind CSS + shadcn-svelte (Bits UI primitives) | P | `ui.md` |
+
+---
+
+## 3. Technology choices and alternatives
+
+### 3.1 Language: TypeScript
+
+| Option | For | Against |
+|---|---|---|
+| **TypeScript on Node** ✅ | One language and toolchain. Shared request/response schemas between UI and API. Matches the agreed SvelteKit and "Node-compatible core" constraint. Mature `web-push`, `openid-client`, Mongo driver and `sharp`. | Weaker runtime type guarantees, so validation must be explicit at boundaries. |
+| C# / .NET (minimal APIs) | Excellent DDD ergonomics, strong typing, first-class on IIS (the fallback host). | Two languages and two build pipelines. Breaks the "single full-stack SvelteKit container" baseline (NFR-06). No shared types without code generation. |
+| Go | Tiny images, fast cold starts (nice for scale-to-zero). | Two languages. Less ergonomic for rich domain modelling. Same NFR-06 conflict. |
+
+TypeScript wins mainly because it's the only option that satisfies the baseline without a scope change. If extraction ever happens, the extracted API stays on Node (Fastify) under NFR-15. A .NET rewrite is not part of the plan.
+
+### 3.2 Frontend: SvelteKit
+
+| Option | For | Against |
+|---|---|---|
+| **SvelteKit** ✅ | Small bundles (good for mid-range Android). Built-in service worker support. Can build both SSR and static, which makes the later split realistic. Already agreed. | Smaller component ecosystem than React. |
+| Next.js (React) | Largest ecosystem. | Heavier client. Server Components/actions pull logic into the framework, the opposite of NFR-15. Static export is constrained. |
+| Nuxt (Vue) | Comparable to SvelteKit. | No advantage that justifies reopening the decision. |
+| Angular | Strong structure. | Heavy for a small PWA. Not a full-stack framework. |
+
+**Rendering mode:** SSR on, with universal `load` functions (`+page.ts`) that call the API through SvelteKit's `fetch`. Because pages never call backend code directly, switching to `adapter-static` later is mostly a config change (`ssr = false`, set an API base URL). Server-only `+page.server.ts` loads are allowed only for auth/session bootstrapping.
+
+### 3.3 Frontend ↔ backend contract
+
+- REST-style JSON under `/api/v1/...`, implemented in `src/routes/api/v1/**/+server.ts`.
+- Each route handler does four things: parse the request → call `backend.http.<handler>(ctx, input)` → map the result to a `Response`. It contains no business logic.
+- Request/response schemas (Zod) live in `packages/contracts`. Both the API and a typed client in the web app import them.
+- Errors use RFC 9457 `application/problem+json`, with stable `type` codes (e.g. `toe-beans/conflict`, `toe-beans/forbidden`).
+- Optimistic concurrency: `GET` returns an `ETag` holding the aggregate version. Mutations require `If-Match`, and a stale version returns `412`, which the UI shows as "someone else changed this" (NFR-13).
+
+**Why not SvelteKit form actions or remote functions?** They're more ergonomic, but they bind the client to SvelteKit's server runtime, so the static split would need a rewrite. The HTTP API costs a little boilerplate and keeps the split cheap.
+
+### 3.4 Identity: OIDC via a server-side BFF
+
+**Pattern:** the SvelteKit server is a confidential OIDC client (Authorization Code + PKCE). After the callback it validates the ID token, upserts the `User`, and creates a server-side session (a Mongo `sessions` collection with a TTL index). The browser holds only an opaque `__Host-` cookie (`HttpOnly; Secure; SameSite=Lax`). No tokens reach the browser.
+
+The library is **`openid-client`** (framework-agnostic, certified), used inside `backend/infrastructure/auth`. Auth.js/SvelteKitAuth was considered and rejected because it couples sessions to SvelteKit (NFR-15).
+
+| Provider | Free tier (Oct 2026, verify) | Notes |
+|---|---|---|
+| **Auth0** ✅ | ~25k MAU, social + database connections, Universal Login | Mature standards-compliant OIDC, named in the requirements. Big price jump if ever outgrown, which is irrelevant at 2–5 users. |
+| Logto Cloud | Reports conflict: 5k or 50k MAU. Self-hostable OSS. | Good OIDC, nice UI. Self-host is a fallback path. |
+| Zitadel Cloud | Free tier exists, not verified | Strong OIDC, OSS, self-hostable. |
+| Clerk | ~50k MRU | SDK-centric, so we'd adopt their components and session model rather than plain OIDC. Poor fit for a portable backend. |
+| WorkOS AuthKit | ~1M MAU | Generous, OIDC-capable, but tuned for B2B. |
+| Keycloak / Authentik (self-host) | Free, no caps | One more stateful service to run and patch. Only sensible on the self-host path. |
+| Google sign-in directly | Free | Simplest of all, but every caregiver needs a Google account (likely, on Android) and it locks out other login methods. Keep it as a connection *inside* Auth0 instead. |
+
+Auth0 is recommended with Google and email/password connections enabled. The design only depends on generic OIDC discovery, so changing provider is a config change plus a user-identity migration (users are keyed by `(issuer, subject)`).
+
+**Rules:**
+- Email invitations require the IdP's `email_verified=true` and a matching email (FR-01).
+- CSRF protection comes from `SameSite=Lax` cookies plus an `Origin` check in `hooks.server.ts` for all non-GET `/api` requests.
+- **After extraction:** the standalone API keeps cookie sessions if it's same-site (e.g. `api.` subdomain), or switches to bearer access tokens validated against JWKS. The `AuthContext` port hides which one is in use.
+
+### 3.5 Database: MongoDB
+
+| Option | For | Against |
+|---|---|---|
+| **MongoDB (Atlas free)** ✅ | Document model fits the aggregates. The free cluster is a 3-node replica set, so **multi-document transactions work**. Can run in GCP regions next to Cloud Run. Trivial to self-host in Docker. | Free cluster: ~512 MB, **no backups**, shared resources, may be paused if idle. |
+| PostgreSQL + JSONB (Neon / Supabase free) | Relational integrity for memberships/invites, JSONB for flexible bits, excellent tooling. | Requirements specify a *document database* (NFR-05). Neon scales to zero (cold queries). Supabase pauses idle free projects. |
+| Firestore | Generous free quota, serverless, same GCP project as Cloud Run. | Proprietary query model, hard to self-host, so it fails the fallback path. |
+| Self-hosted MongoDB | Full control, backups via volume snapshots. | Only on the self-host path. |
+
+**Usage rules:**
+- Official `mongodb` driver. **No Mongoose**: domain entities are plain TypeScript classes, and repository mappers convert to and from persistence documents. This keeps the domain free of persistence concerns.
+- Every document has `_id` (UUIDv7 string: sortable, generated in the domain), `householdId` (except `users`), `version`, `createdAt`, `updatedAt` and `schemaVersion`.
+- Optimistic concurrency: `updateOne({_id, householdId, version}, {$set..., $inc:{version:1}})`. Zero matches means conflict.
+- Migrations: a small runner (`backend/infrastructure/persistence/migrations`) records applied migrations in a `_migrations` collection and runs on startup behind a lock. It's forward-only. Documents also carry `schemaVersion` so mappers can read old shapes lazily.
+- Size check: 2 dogs × ~10 sessions/day × 5 years ≈ 36k small documents, which fits easily in 512 MB. Photos are **not** stored in Mongo.
+
+### 3.6 Photo storage
+
+| Option | For | Against |
+|---|---|---|
+| **Cloudflare R2** ✅ | ~10 GB free, zero egress, S3-compatible API. | One more vendor account. |
+| Backblaze B2 | ~10 GB free, S3-compatible. | Egress rules more complex. |
+| Google Cloud Storage | Same project as Cloud Run. | Free tier only in US regions. Egress billed. |
+| GridFS in Atlas | No extra vendor. | Eats into the 512 MB. |
+| Local volume / MinIO | Self-host path. | No durability on serverless hosts. |
+
+Code depends on a `PhotoStore` port (`put`, `getStream`, `delete`). The adapters are S3-compatible (R2, MinIO, B2) and local-filesystem (self-host/dev).
+
+**Upload pipeline:**
+1. The client downscales the image before upload, so Android camera photos stay small on mobile data.
+2. The server validates type and size (≤ 10 MB in).
+3. `sharp` re-encodes to WebP, which **strips EXIF and GPS location**. It produces two sizes: 1024 px and 256 px thumbnails.
+4. Files are stored under random keys (`households/{hid}/dogs/{dogId}/{photoId}-{size}.webp`).
+
+**Serving:** `GET /api/v1/dogs/{id}/photo?size=thumb` authorizes household membership and then streams the bytes with `Cache-Control: private, max-age=86400` and an ETag (NFR-02, scenario 9). Presigned redirects were considered. Streaming is simpler and keeps object URLs out of the client entirely. Revisit only if bandwidth becomes an issue.
+
+### 3.7 Email (invitations)
+
+Email invitations need a transactional sender. The options are Resend (free tier, ~100/day), Brevo (free, ~300/day) and Auth0's built-in email (only for auth flows, so it doesn't fit). They sit behind an `EmailSender` port with a console adapter for dev. Volume is a handful of emails ever. Shareable invite links work without any email provider, so links ship first (see backlog).
+
+---
+
+## 4. System structure
+
+### 4.1 Repository layout (pnpm workspace)
+
+```
+toe-beans/
+├─ apps/
+│  └─ web/                      SvelteKit app: UI + thin /api/v1 adapter + service worker
+│     ├─ src/routes/(app)/…     pages
+│     ├─ src/routes/api/v1/…    +server.ts adapters → backend http handlers
+│     ├─ src/lib/api-client/    typed fetch client built on @toe-beans/contracts
+│     ├─ src/hooks.server.ts    composition root wiring, session → AuthContext, origin check
+│     └─ src/service-worker.ts  static asset caching, push + notificationclick handlers
+├─ packages/
+│  ├─ contracts/                Zod request/response DTOs, problem codes, shared enums
+│  └─ backend/                  framework-independent backend (no SvelteKit imports)
+│     ├─ src/domain/            entities, value objects, domain services, domain events
+│     ├─ src/application/       use cases (commands/queries), ports (interfaces), AuthContext
+│     ├─ src/infrastructure/    Mongo repositories, R2/S3 store, OIDC, web-push, email, clock
+│     ├─ src/http/              framework-neutral handlers: (ctx, validatedInput) → Result
+│     ├─ src/worker/            notification tick/dispatcher
+│     └─ src/composition.ts     createBackend(config) → { http, worker, auth }
+├─ content/exercises/           curated exercise library (YAML/Markdown, versioned)
+├─ docker/                      Dockerfile, compose files (dev, self-host)
+└─ docs/
+```
+
+### 4.2 Layer rules
+
+```
+ apps/web (SvelteKit adapter) ──► backend/http ──► backend/application ──► backend/domain
+                                                         ▲
+                                   backend/infrastructure ┘ (implements application ports)
+```
+
+- **domain** depends on nothing: no driver types, no Zod, no Node built-ins except `crypto` for IDs.
+- **application** depends on domain and declares ports (`DogRepository`, `PhotoStore`, `PushSender`, `Clock`, `UnitOfWork`, `EmailSender`). Use cases receive an `AuthContext {userId, householdId, role}` explicitly. They never read a request.
+- **infrastructure** implements the ports. It's the only layer that imports `mongodb`, `@aws-sdk/client-s3`, `web-push` or `openid-client`.
+- **http** maps validated DTOs ↔ use-case inputs and Results ↔ status codes. It can be mounted by SvelteKit now and Fastify later.
+- **apps/web** may import only `@toe-beans/backend` (the `composition` and `http` exports) and `@toe-beans/contracts`. Client-side code may import only `contracts`.
+- Enforced with `eslint-plugin-boundaries` (or dependency-cruiser) in CI.
+
+### 4.3 Extraction path (later, if needed)
+
+1. Add `apps/api` (Fastify) that calls the same `createBackend()` and mounts `backend/http` handlers. Each route is about 10 lines of glue.
+2. Switch `apps/web` to `adapter-static` with `ssr = false` and point the API client at `PUBLIC_API_BASE_URL`.
+3. Move session cookies to a shared parent domain, or switch to bearer tokens (§3.4).
+4. Run the worker as its own process (`node dist/worker.js`). It's already separate code.
+
+### 4.4 Household isolation by construction
+
+- Repositories for household-owned data take `householdId` as a **required argument on every method** and always include it in the filter. No method looks up by `_id` alone.
+- `householdId` comes only from `AuthContext`, which is resolved from the session's membership, never from the request body or URL.
+- Cross-household access returns **404, not 403**, so IDs don't leak (scenario 9).
+- A shared repository test suite runs against every repository: "data written for household A is invisible via household B".
+
+---
+
+## 5. Domain model
+
+### 5.1 Bounded contexts
+
+| Context | Aggregates | Requirements |
+|---|---|---|
+| **Identity & Household** | `User`, `Household` (with `Membership`s), `Invitation` | FR-01 |
+| **Dogs** | `Dog` (with `ProfilePhoto` reference) | FR-02 |
+| **Training** | `Exercise` (read-only library), `Cue`, `TrainingPlan` (series), `PlannedSession`, `SessionLog` | FR-03, 04, 05, 07 |
+| **Journal** | `BehaviourEvent` | FR-08 |
+| **Care** | `CareTask` | FR-10 |
+| **Notifications** | `PushSubscription`, `ReminderPreference`, `NotificationJob` | FR-12 |
+| *Read models* | Today, History timeline | FR-06, FR-09 (queries across contexts, no own aggregate) |
+
+The contexts are modules in one package, not services. Contexts reference each other by ID only.
+
+### 5.2 Aggregates (P0)
+
+Common fields (`_id`, `householdId`, `version`, timestamps, `schemaVersion`) are omitted below.
+
+**User** — `issuer`, `subject` (unique pair), `email`, `emailVerified`, `displayName`, `avatarUrl?`, `defaultHouseholdId?`, `deletedAt?`
+
+**Household** — `name`, `timeZone` (IANA, used for all scheduling), `memberships[]: {userId, role: owner|caregiver, joinedAt}`
+- Invariant: at least one owner.
+- Phase 1 supports a single household per user in the UI, but the model allows more.
+
+**Invitation** — `kind: email|link`, `email?`, `tokenHash` (SHA-256; the raw token is shown once), `expiresAt`, `maxUses` (email = 1), `useCount`, `revokedAt?`, `createdBy`
+- Accepting requires authentication, a valid unexpired unrevoked token, and for email invites `email_verified` with a matching email. The household comes from the invitation and is never client-supplied.
+
+**Dog** — `name`, `birthDate?` | `estimatedBirthDate?` (`{date, precision: month|year}`), `adoptionDate?`, `notes?`, `photo: {photoId, updatedAt}` (required), `archivedAt?`
+- Archiving rather than deleting keeps history intact.
+
+**Exercise** (library, content-owned) — `id` (stable slug, e.g. `recall-basic`), `contentVersion`, `title`, `skillArea` (name-recognition | recall | toileting | greetings | settling | doorbell | barking | loose-leash | cats), `goal`, `setup`, `steps[]`, `suggestedDurationMin`, `successCriteria`, `ifStruggling`, `safetyNotes?`
+- Loaded from `content/exercises/` at startup into an in-memory catalogue (disposable cache, allowed by NFR-08). Not stored in Mongo.
+- Logs record `exerciseId` + `contentVersion`.
+
+**Cue** — `label` (spoken word), `meaning`, `handSignal?`, `rewardConvention?`, `notes?`
+- Household-wide, editable by any caregiver (FR-04).
+
+**TrainingPlan** (recurring series) — `dogId`, `exerciseId`, `recurrence` (subset of RFC 5545: `FREQ=DAILY|WEEKLY; BYDAY; INTERVAL; UNTIL|COUNT`), `timeOfDay`, `startDate`, `endedAt?`
+
+**PlannedSession** — `dogId`, `exerciseId`, `scheduledAt` (UTC instant derived from the household time zone), `planId?`, `occurrenceKey?`, `status: planned|completed|skipped|cancelled`, `sessionLogId?`
+- Recurring plans **materialise occurrences over a rolling horizon** (e.g. 21 days, extended by the tick). Each occurrence can then be edited, skipped or rescheduled individually and get its own reminders.
+- Unique index on `(planId, occurrenceKey)` makes materialisation idempotent.
+- Skipped and cancelled sessions never count as completed (FR-05).
+
+**SessionLog** — `dogId`, `exerciseId`, `exerciseContentVersion`, `plannedSessionId?`, `caregiverId`, `practisedAt`, `outcome: successful|partial|not_yet|not_assessed` (default `not_assessed`), `durationMin?`, `emotionalState?: relaxed|uncertain|stressed`, `environment?: home|garden|public|other` + `environmentNote?`, `notes?`, `deletedAt?`
+- Completion is the existence of the log. Outcome is a separate field (FR-07, §6 of requirements).
+- Logging against a `PlannedSession` sets that session to `completed` in the same transaction.
+
+**BehaviourEvent** — `dogId`, `occurredAt`, `category` (cat-interaction | barking | fear | toileting-accident | visitor | other), `trigger?`, `response?`, `notes?`, `recordedBy`, `deletedAt?`
+
+**CareTask** — `dogId`, `category` (vaccination | parasite-prevention | vet-appointment | puppy-school | sterilisation-consult | other), `title`, `dueAt` (date or date-time), `status: upcoming|completed|cancelled`, `completedAt?`, `notes?`, `history[]` (status changes, append-only)
+- Updating never erases history (FR-10). No veterinary dates are assumed (NFR-14).
+
+**PushSubscription** — `userId`, `endpoint` (unique), `keys`, `deviceLabel`, `userAgent`, `createdAt`, `lastSuccessAt?`, `failureCount`, `disabledAt?`
+- The endpoint is treated as a secret (NFR-02). It's never logged in full.
+
+**ReminderPreference** (per member) — `trainingLeadMin` (e.g. 0, 15), `careLeadDays`/`careTimeOfDay`, `enabled`, `quietHours?` (P1)
+
+**NotificationJob** — see §6.
+
+### 5.3 Deletion and soft delete
+
+- Logs and events: soft delete (`deletedAt`) after UI confirmation, hidden from queries. Purged after 30 days, which gives undo and recovery.
+- Personal data deletion route (NFR-02): deleting a user removes memberships, push subscriptions and sessions, and anonymises `caregiverId` references. Deleting a household removes all its documents and photo objects. Implemented as a use case with a test.
+
+---
+
+## 6. Notifications and scheduling
+
+### 6.1 Model
+
+```
+NotificationJob {
+  _id, householdId, userId, subscriptionId,
+  subject: { type: 'plannedSession' | 'careTask', id },
+  subjectVersion,               // version of the subject when the job was created
+  dueAt,                        // UTC
+  status: 'pending' | 'sending' | 'sent' | 'cancelled' | 'failed',
+  attempts, lockedUntil?, lastError?, sentAt?,
+  dedupeKey                     // unique: subject.type:subject.id:subjectVersion:subscriptionId
+}
+```
+
+### 6.2 Lifecycle
+
+1. **Plan.** Whenever a subject is created, rescheduled, completed, skipped or cancelled, the use case calls `ReminderPlanner.replan(subject)` **in the same Mongo transaction**. That cancels `pending` jobs for the subject and inserts new ones for each subscribed member device, using their `ReminderPreference`.
+2. **Tick.** `worker.tick(now)`:
+   1. Extend the recurring-plan horizon.
+   2. Claim due jobs atomically with `findOneAndUpdate({status:'pending', dueAt ≤ now}, {status:'sending', lockedUntil: now+60s})`, so concurrent ticks never double-claim.
+   3. Re-load the subject and **skip if its version or status changed** (a second guard against stale reminders, scenario 5).
+   4. Send via `web-push` (VAPID) with a TTL so stale notifications expire in the push service, plus a `tag` so the OS replaces duplicates.
+   5. Mark `sent`, or on failure `pending` with backoff (max 3 attempts), then `failed`. A `404/410` response from the push service disables the subscription.
+   6. Recover `sending` jobs whose `lockedUntil` has passed.
+3. **Click.** The service worker's `notificationclick` handler opens or focuses `/{deep-link}` (e.g. `/sessions/{id}`) carried in the payload. Payloads carry minimal data: dog name, exercise title and link, no notes.
+
+### 6.3 Triggering the tick (host-independent)
+
+The tick is idempotent and safe to call concurrently, so it can run from any trigger:
+
+| Trigger | When used |
+|---|---|
+| `POST /internal/tick` authenticated with an OIDC token from Cloud Scheduler (or a shared secret header) | Scale-to-zero hosts (Cloud Run, Render). Runs every minute. |
+| In-process `setInterval` loop (`WORKER_MODE=inline`) | Always-on hosts (self-host, Oracle VM, dev) |
+| Separate worker process (`node worker.js`) | After extraction or at scale |
+
+Reminder precision is therefore about ±1 minute. The UI never promises exact times (NFR-16).
+
+Agenda, Bree and BullMQ were considered. Agenda adds little over ~150 lines of our own code against the same collection. BullMQ needs Redis, one more free-tier dependency.
+
+---
+
+## 7. Cross-cutting concerns
+
+- **Validation:** Zod at the HTTP boundary (shape). The domain enforces invariants itself (meaning). Both return typed errors that map to problem+json.
+- **Time:** all instants are stored in UTC. Recurrence and "today" are computed in `Household.timeZone` using `Temporal` (polyfill until native) or `date-fns-tz`. A `Clock` port makes tests deterministic.
+- **IDs:** UUIDv7 generated in the domain, so no round trip is needed and they sort by time.
+- **Transactions:** a `UnitOfWork` port wraps a Mongo session. It's used for log + session status, subject + reminder replan, and invitation accept + membership.
+- **Configuration:** env vars only, validated at startup with Zod. The process fails fast on missing config. Secrets come from the platform secret store (Cloud Run secrets / Docker secrets) and never sit in the image or the repo.
+- **Rate limiting:** a small in-memory limiter on auth callback, invite accept and uploads. It's per instance, which is acceptable at this scale and documented as such.
+- **Security headers:** a CSP with `script-src 'self'` (SvelteKit CSP config with nonces), HSTS, `Referrer-Policy: same-origin`, `Permissions-Policy` limited to notifications and camera.
+- **PWA caching:** the service worker precaches only build assets and an offline fallback page. **API responses and photos are never cached by the service worker** (NFR-04: no stale personal data, no false "saved").
+
+---
+
+## 8. Deployment and hosting
+
+### 8.1 Container
+
+- One multi-stage Dockerfile (Node 22 slim or distroless). Output: the `adapter-node` server, which also serves `/internal/tick` and optionally runs the inline worker.
+- Runs as a non-root user and listens on `PORT`. `GET /healthz` is the liveness check (process up). `GET /readyz` is the readiness check (Mongo ping, config loaded).
+- The image is built in CI and pushed to GHCR (free for public images; private images use Artifact Registry's free 0.5 GB on the Cloud Run path).
+
+### 8.2 Hosting options
+
+Free always-on compute has largely disappeared. This matters because of NFR-16.
+
+| Option | Cost reality (Oct 2026, verify) | Push scheduling | Verdict |
+|---|---|---|---|
+| **A. Google Cloud Run + Cloud Scheduler** | Free tier: ~2M requests, 180k vCPU-s, 360k GiB-s per month. Cloud Scheduler: 3 free jobs. **Needs a billing account (card)**, so set a low budget alert (e.g. $1). | Scheduler hits `/internal/tick` every minute: ~43k requests/month, well within the free tier. | ✅ **Primary candidate.** Cold start of a few seconds on first open (NFR-09 loading feedback). Atlas can sit in the same GCP region. |
+| B. Oracle Cloud Always Free VM | Ampere A1 allowance reportedly cut to 2 OCPU / 12 GB in June 2026. Idle instances can be reclaimed. Capacity is often unavailable. | Inline worker, always on. Could also run Mongo and MinIO locally. | Strong runner-up for an "always-on and free" setup, but it carries account and reclamation risk and is a VM we have to patch. |
+| C. Render free web service | 750 h/month, sleeps after 15 min idle, ~30–60 s cold start. | External cron (cron-job.org / GitHub Actions) pinging tick every minute. Effectively keeps it awake, which is against the spirit of the tier. | Fallback. Cold starts hurt UX if it does sleep. |
+| D. Koyeb / Fly.io / Railway | Free compute removed or now needs a card plus a trial (reports conflict). | — | Not recommended. |
+| E. **Self-host: Docker behind IIS** | Hardware and electricity already paid for. | Inline worker. Mongo + MinIO (or local volume) in compose. | ✅ **Agreed fallback** (NFR-07). |
+
+**Recommended topology (option A):**
+
+```
+Android Chrome PWA ──HTTPS──► Cloud Run (toe-beans container, min-instances 0)
+                                 │  ├─► MongoDB Atlas free (same GCP region)
+                                 │  ├─► Cloudflare R2 (photos)
+                                 │  ├─► Auth0 (OIDC)
+                                 │  ├─► FCM via Web Push (VAPID)
+                                 │  └─► Resend (invite emails)
+Cloud Scheduler ──every 1 min──► POST /internal/tick (OIDC-authenticated)
+GitHub Actions ──nightly──► mongodump → encrypted → R2 backups bucket
+```
+
+**Self-host topology (option E):** IIS with URL Rewrite + ARR reverse-proxies `https://toebeans.<domain>` to `localhost:3000`. TLS comes from win-acme (Let's Encrypt). `docker compose` runs `app` (with `WORKER_MODE=inline`), `mongo` (a single-node replica set so transactions work) with a named volume, and `minio` or a bind-mounted photo directory. A scheduled `mongodump` writes to an external drive or R2. ARR must pass `X-Forwarded-Proto/Host`; set SvelteKit `ORIGIN`, `PROTOCOL_HEADER` and `HOST_HEADER` accordingly. Web Push needs only outbound HTTPS.
+
+The spike in backlog slice S-1 decides between A and E based on measured cold start, scheduler reliability and the experience on both test phones.
+
+### 8.3 Environments
+
+`local` (docker compose: Mongo + MinIO + app, Auth0 dev tenant), `prod`. A separate staging environment isn't justified at this scale. Preview deploys are optional later.
+
+---
+
+## 9. Observability
+
+| Need | Choice | Alternatives considered |
+|---|---|---|
+| Structured logs (NFR-12) | **pino** JSON to stdout, collected by Cloud Logging (free allotment) or `docker logs` with rotation. Per-request `requestId`. Redacts tokens, cookies, push endpoints and emails. | Grafana Cloud Loki (free ~50 GB, 14-day retention) if self-hosting needs a hosted UI. |
+| Errors | **Sentry** free Developer plan (~5k errors/month, 1 user), server + browser SDK, PII scrubbing on | GlitchTip (self-host, Sentry-compatible), Grafana Cloud. |
+| Uptime and health | UptimeRobot or Better Stack free, hitting `/healthz` | Cloud Monitoring uptime checks. |
+| Metrics and traces | **Deferred.** Code is instrumented through a thin `Telemetry` port so OpenTelemetry → Grafana Cloud can be added without touching use cases. | — |
+| Notification diagnostics | `NotificationJob` records double as an audit trail. An owner-only "Delivery log" screen shows recent sends and failures per device. | — |
+
+---
+
+## 10. Quality and delivery
+
+- **Tests:**
+  - Vitest for domain and application, using in-memory adapters.
+  - Integration tests for repositories against real MongoDB (Testcontainers, or `mongodb-memory-server` in replica-set mode).
+  - Playwright end-to-end with Pixel/Galaxy device emulation for the critical flows.
+  - Mandatory suites: household isolation for every repository and endpoint (§4.4), reminder replan/dedupe, outcome counting rules.
+- **CI (GitHub Actions):** install → lint (ESLint + boundaries) → `svelte-check`/`tsc` → unit → integration → build image → (main) deploy.
+- **Manual acceptance:** scenario checklist on both physical phones per release (backlog slice S-14), recording Android/Chrome versions.
+- **Backups and restore (NFR-10):**
+  - Nightly `mongodump --archive --gzip`, encrypted with `age`, stored in a dedicated R2 bucket with a 30-day lifecycle.
+  - Weekly `rclone` copy of the photo bucket.
+  - A restore runbook at `docs/runbooks/restore.md`, tested before go-live and quarterly after.
+
+---
+
+## 11. Open questions and risks
+
+| # | Item | Plan |
+|---|---|---|
+| Q1 | Is a billing-enabled GCP account acceptable as "genuinely free"? | Decide before the S-1 spike. Otherwise compare B and E. |
+| Q2 | Atlas free cluster idle pausing with very low traffic | The every-minute tick keeps the connection active. Monitor during the spike. |
+| Q3 | Which region? Latency from the users' location to the GCP + Atlas region | Pick the nearest region where Atlas offers free GCP clusters. |
+| Q4 | Android battery optimisation (Xiaomi MIUI/HyperOS especially) delaying push | Test on the Redmi early (S-1). Document the settings in an in-app help page. |
+| Q5 | Do caregivers have a custom domain? Needed for self-host TLS, nice to have on Cloud Run | Confirm. |
+| Q6 | Exercise content authorship and review for training safety (NFR-14) | Draft with sources, user review before release. |
+| R1 | Free-tier terms change without notice (e.g. Oracle, Koyeb in 2026) | Everything sits behind ports, the self-host compose is maintained and tested, and costs are reviewed quarterly. |
+| R2 | Multi-vendor sprawl (GCP, Atlas, R2, Auth0, Resend, Sentry) | Accepted for a free setup. Secrets are listed in `docs/runbooks/accounts.md` (names only, no values). |
