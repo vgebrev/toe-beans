@@ -2,7 +2,7 @@
 
 **Version:** 0.2 (draft for iteration)
 **Date:** 28 October 2026
-**Inputs:** `docs/requirements.md` v1.0, `docs/architecture.md` v0.2, `docs/ui.md` v0.2
+**Inputs:** `docs/requirements.md` v1.0, `docs/architecture.md` v0.3, `docs/ui.md` v0.4
 
 Work is organised as **vertical slices**: each delivers a usable end-to-end increment through UI → API → application → domain → persistence, with tests. Slices are ordered by **dependency and risk**. The riskiest unknowns (push with the app closed, free hosting) are spiked first, before building on them.
 
@@ -19,6 +19,7 @@ Work is organised as **vertical slices**: each delivers a usable end-to-end incr
 | 2026-10-28 | Review round 2: Nunito, AI-assisted logo, per-device theme. Icon library evaluated. First mock-ups published (Today, Quick log, Exercise, brand sheet, both themes). |
 | 2026-10-28 | Review round 3: Nunito confirmed as the body font after a side-by-side comparison in the mock-ups. |
 | 2026-10-28 | Review round 3 (cont.): dark primary softened to `#C98A4B`, Hugeicons free adopted, mock-up layouts accepted for the MVP. UI design questions closed. |
+| 2026-10-28 | S-1.0 done: free Atlas in South Africa only on AWS Cape Town. Architecture v0.3 adopts Cloud Run Johannesburg + Atlas Cape Town, with a database round-trip budget and open-access-list safeguards. |
 
 **Next up:** review and accept the decisions in `architecture.md` §2, then S-1 (spikes) and S0 (foundations) in parallel.
 
@@ -44,9 +45,10 @@ Work is organised as **vertical slices**: each delivers a usable end-to-end incr
 |---|---|---|
 | S-1.1 | Minimal SvelteKit + service worker PWA, installable on both phones | ⬜ |
 | S-1.2 | Web Push via VAPID: subscribe, send from the server, receive **with the PWA closed** on the Galaxy S23 FE and Redmi Note 12 Pro. Record battery and optimisation settings needed (especially MIUI/HyperOS). | ⬜ |
-| S-1.0 | Check which South African regions Atlas offers for free clusters (Q7). Pick the region pair using the co-location rule (architecture §8.4). | ⬜ |
-| S-1.3 | Deploy to Cloud Run (`africa-south1` or the region from S-1.0), with Cloud Scheduler calling `/internal/tick` every minute. Measure cold start against the **≤ 5 s** budget, tick reliability over 48 h, and confirm **$0** in billing reports for a Tier 2 region (Q9). Budget alert on. | ⬜ |
-| S-1.4 | Atlas free cluster co-located with Cloud Run. Measure latency from both phones and confirm transactions work. | ⬜ |
+| S-1.0 | Check which South African regions Atlas offers for free clusters (Q7). **Result: AWS `af-south-1` (Cape Town) only.** Topology: Cloud Run Johannesburg + Atlas Cape Town (architecture §8.4). | ✅ |
+| S-1.3 | Deploy to Cloud Run (`africa-south1`, Johannesburg), with Cloud Scheduler calling `/internal/tick` every minute. Measure cold start against the **≤ 5 s** budget, tick reliability over 48 h, and confirm **$0** in billing reports for a Tier 2 region (Q9). Budget alert on. | ⬜ |
+| S-1.4 | Atlas free cluster on AWS `af-south-1` (Cape Town). Measure the Cloud Run → Atlas round trip and the warm Today API time (≤ 250 ms p95 budget), plus end-to-end latency from both phones. Confirm transactions work. Set up the access list and least-privilege users as in architecture §8.4. | ⬜ |
+| S-1.4b | *Only if S-1.4 misses its budget:* try topology 1b (the same image on AWS Lambda in Cape Town via Lambda Web Adapter, plus an EventBridge tick) and compare | ⬜ |
 | S-1.4a | Custom domain `toebeans.gebrev.com` on Cloud Run: try domain mapping, then a Firebase Hosting rewrite (`__session` cookie constraint), then a Cloudflare Worker (Q8). | ⬜ |
 | S-1.5 | Fallback check: the same image under docker compose behind IIS (ARR + win-acme), push working end-to-end | ⬜ |
 | S-1.6 | Write the outcome into architecture D9 and mark it Accepted | ⬜ |

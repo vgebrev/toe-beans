@@ -7,7 +7,7 @@
 **Changes in 0.3:** review round 2. Nunito is the body font, the logo will be AI-assisted, and the theme is chosen per device (defaulting to the system setting). Added an icon library evaluation (Hugeicons preferred, Phosphor as the alternative) and a link to the mock-ups canvas.
 **Date:** 28 October 2026
 **Status:** Proposed
-**Inputs:** `docs/requirements.md` v1.0, `docs/architecture.md` v0.2
+**Inputs:** `docs/requirements.md` v1.0, `docs/architecture.md` v0.3
 
 **Changes in 0.2:** first review round.
 - Care keeps its own tab, and Done sessions show who logged them.
