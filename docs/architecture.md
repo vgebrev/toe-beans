@@ -405,6 +405,8 @@ The spike in backlog slice S-1 decides between A and E based on measured cold st
 
 Never put the app and the database on different continents.
 
+**Overseas single-region alternatives (rejected, review round 4).** We considered putting both Cloud Run and Atlas in `europe-west1` or `southamerica-east1`. That makes database calls ~1–2 ms, but every phone ↔ app round trip rises to ~150–170 ms (Europe) or an unpredictable ~120–300+ ms (São Paulo, depending on mobile-network routing). Connection setup, photos and every API call pay that cost, while the local topology only pays ~25 ms per *sequential* database call (≤ 3 per request). Europe would only win at about 6 or more sequential database calls per request. **Decision: stay in South Africa.** Revisit if the app gains meaningful usage outside the founding household, a signal the user will track; a move is then a redeploy plus a database migration. Europe's genuine advantages (Tier 1 pricing, Cloud Run domain mapping, a single provider) are noted for that review.
+
 **Database round-trip budget (option 1).** At about 25 ms per round trip, *sequential* database calls are the main latency cost.
 - Aim for at most **3 sequential round trips** per API request.
 - Read models (Today, History) use one aggregation or a few `$in` batch lookups, never N+1 queries.
