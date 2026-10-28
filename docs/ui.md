@@ -1,9 +1,15 @@
 # Toe Beans — UI and Interaction Design
 
-**Version:** 0.1 (draft for iteration)
-**Date:** 25 October 2026
+**Version:** 0.2 (draft for iteration)
+**Date:** 28 October 2026
 **Status:** Proposed
-**Inputs:** `docs/requirements.md` v1.0, `docs/architecture.md` v0.1
+**Inputs:** `docs/requirements.md` v1.0, `docs/architecture.md` v0.2
+
+**Changes in 0.2:** first review round.
+- Care keeps its own tab, and Done sessions show who logged them.
+- Reminders default to the session time.
+- Delivery diagnostics UI is deferred.
+- Brand identity added: paw-print logo, Beagle light theme, German Shepherd dark theme, playful accessible type (§6.4).
 
 This document covers user journeys, information architecture, screen layouts and interaction conventions. The design target is an **installed PWA in Chrome on Android**, roughly 360–412 dp wide (Galaxy S23 FE, Redmi Note 12 Pro), used one-handed, often mid-training with treats in the other hand.
 
@@ -124,9 +130,9 @@ Settings → Notifications (also offered during onboarding and via a Today banne
 | Unsupported browser | "This browser can't show reminders. Use Chrome on Android." | — |
 | Not installed (Chrome, browser tab) | "Install Toe Beans for the most reliable reminders" | *Install* (or instructions) |
 | Permission not yet asked | Explanation of what will be sent and that times are approximate | **Turn on reminders**. Requests permission *only* on this tap. |
-| Granted + subscribed | "Reminders are on for this device ({device label})". Lead-time settings. | *Send test notification*, *Turn off on this device* |
+| Granted + subscribed | "Reminders are on for this device ({device label})". Lead-time settings: training defaults to **at the session time**; care tasks without a time remind at 08:00 on the day. | *Send test notification*, *Turn off on this device* |
 | Denied / revoked | "Notifications are blocked for Toe Beans" plus step-by-step Chrome/Android instructions, with a device note for Xiaomi battery settings | *Check again* |
-| Subscription failed | "Couldn't register this device" | *Retry*, link to diagnostics |
+| Subscription failed | "Couldn't register this device" | *Retry*. The failure is logged server-side; no diagnostics screen in Phase 1. |
 
 The screen also lists **other devices** of the current user, so they can be removed. A note always says: "Reminders can be delayed by your phone's battery or network settings. Today always shows what's due."
 
@@ -288,11 +294,59 @@ All deletes, archives, invite revocations and "turn off reminders" go through a 
 
 ### 6.4 Visual design
 
-- **Toolkit:** Tailwind CSS with shadcn-svelte components (Bits UI primitives for accessible sheets, dialogs and menus).
-- **Theme:** a warm, friendly palette (the name nods to paw pads, so soft pinks and browns with a calm neutral base). Light and dark themes follow the system.
-- **Type:** system font stack (Roboto on Android) for speed. Base size 16 px, line-height 1.5.
+- **Toolkit:** Tailwind CSS with shadcn-svelte components (Bits UI primitives for accessible sheets, dialogs and menus), restyled entirely through the brand tokens below.
 - **Icons:** Lucide.
 - **Motion:** subtle 150–200 ms transitions, respecting `prefers-reduced-motion`.
+
+#### Logo
+
+- **Mark:** a paw print, one main pad plus four toe beans, with rounded, chunky shapes and no outlines thinner than 2 px at 48 px.
+- **Wordmark:** "Toe Beans" in the display font beside the mark.
+- **Variants needed:**
+  - Full colour: brown paw on white (light) and tan paw on near-black (dark).
+  - **Maskable app icon:** paw centred within the 80% safe zone on a solid background.
+  - **Monochrome badge:** white silhouette on transparent, which Android requires for the notification badge.
+  - Favicon.
+- **Production:** produce the logo as SVG (hand-drawn or commissioned) and export the PNG sizes from it. Logo work is a backlog item (S0.9).
+
+#### Colour themes
+
+Light mode is **Beagle**: white coat with tan and brown patches. Dark mode is **German Shepherd**: black saddle with tan. The theme follows the system by default, with an override in Settings. All values are draft. The contrast ratios below are calculated (WCAG 2.x) and must be re-checked by an automated token-contrast test whenever a value changes.
+
+| Token | Beagle (light) | Ratio | German Shepherd (dark) | Ratio |
+|---|---|---|---|---|
+| `bg` | `#FFFBF5` warm white | — | `#141110` near-black | — |
+| `surface` (cards, sheets) | `#FFFFFF` | — | `#211C18` | — |
+| `text` | `#2B1D14` dark brown | 15.8 on bg | `#F3EADF` cream | 15.8 on bg, 14.2 on surface |
+| `text-muted` | `#6B5444` | 6.8 on bg | `#B5A493` | 7.8 on bg |
+| `primary` (buttons, links) | `#8A4B1F` saddle brown | 6.6 on bg | `#D9944F` tan | 7.4 on bg, 6.7 on surface |
+| `on-primary` (button text) | `#FFFFFF` | 6.8 on primary | `#1A110A` | 7.4 on primary |
+| `accent` (decorative only: illustrations, highlights) | `#C98A4B` tan | 2.8, **not for text or essential UI** | `#D9944F` | — |
+| `border` | `#E6D8C6` | decorative | `#3A312A` | decorative |
+| `danger` (destructive only) | `#B3261E` (white text 6.5) | — | `#F2867D` | 7.6 on bg |
+
+**Outcome badges** follow the kind-tone principle. Only destructive actions use red.
+
+| Outcome | Badge style |
+|---|---|
+| Successful | Green tint |
+| Partially successful | Amber tint |
+| Not yet successful | Soft blue tint, never red |
+| Not assessed | Neutral grey, outlined |
+
+Each badge shows an icon plus a text label. Hex values for these are to be defined alongside the dog accent palette (§5.5): about 6 colours, each with a light and a dark variant, distinguishable from each other and from `primary`.
+
+#### Typography
+
+The type pairs a playful display face with a highly legible body face. Both are open-source (SIL OFL), self-hosted as variable WOFF2 through `@fontsource-variable/*`, subset to Latin, `font-display: swap`, and precached by the service worker. That's an estimated ~60–100 KB total. Self-hosting also keeps the CSP at `'self'`.
+
+| Role | Proposed | Why | Alternatives |
+|---|---|---|---|
+| Display: wordmark, page titles, empty states (≥ 20 px) | **Fredoka** | Rounded and bouncy, matches the paw-print mark; legible at heading sizes | Baloo 2, Grandstander |
+| Body and UI (all text < 20 px) | **Nunito** | Friendly rounded terminals with open, clear letterforms; works at 14–16 px | **Atkinson Hyperlegible Next** (maximum legibility, less playful), Lexend |
+
+- Base size 16 px, line-height 1.5, minimum 14 px for secondary text. The display font is never used for body text or form controls.
+- Decision to confirm by looking at real screens in S0.9: Nunito body for character, or Atkinson Hyperlegible Next for maximum accessibility. The choice is a single token change.
 
 ---
 
@@ -309,10 +363,20 @@ Target **WCAG 2.2 AA**:
 
 ---
 
-## 8. Open UI questions
+## 8. UI decisions and open questions
 
-1. Should the bottom bar have **Care** as its own tab, or fold it into Plan as a calendar with both types? (Proposed: own tab, since the cadence differs.)
-2. Should a "Done" session on Today show *who* logged it? (Proposed: yes, since it's useful with two caregivers.)
-3. Default reminder lead time: at the session time, or 10 minutes before?
-4. Should the household owner see the delivery diagnostics screen in P0, or only through logs?
-5. Should we add brand and visual identity work (logo, palette) as a backlog item, or use a simple placeholder for MVP?
+### Resolved in review round 1
+
+| # | Question | Decision |
+|---|---|---|
+| 1 | Care as its own tab? | **Yes**, its own tab (§2.1). |
+| 2 | Show who logged a Done session? | **Yes**: "· by {name}" on Today and History. |
+| 3 | Default reminder lead time | **At the session time.** Reminders are a general nudge, not a strict schedule. |
+| 4 | Delivery diagnostics screen | **Deferred** beyond Phase 1. Diagnostics go through server logs. |
+| 5 | Brand and visual identity | **Yes.** Paw-print logo, Beagle (light) and German Shepherd (dark) themes, playful accessible fonts (§6.4). |
+
+### Open
+
+1. Body font: Nunito or Atkinson Hyperlegible Next? Decide on real screens (S0.9).
+2. Logo: hand-drawn or AI-assisted SVG, or commissioned?
+3. Should the theme override (light/dark/system) be per device (`localStorage`) or per user (synced)? Proposed: per device.

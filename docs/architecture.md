@@ -1,9 +1,11 @@
 # Toe Beans — Architecture
 
-**Version:** 0.1 (draft for iteration)
-**Date:** 25 October 2026
+**Version:** 0.2 (draft for iteration)
+**Date:** 28 October 2026
 **Status:** Proposed. Nothing here is accepted until it's marked **Accepted** in the decision log (§2).
 **Inputs:** `docs/requirements.md` v1.0 (baselined)
+
+**Changes in 0.2:** first review round. A billing-enabled GCP account is acceptable. The region is South Africa where possible, and cold starts of a few seconds are acceptable. The domain is `toebeans.gebrev.com`. The exercise content pipeline is defined, and the delivery diagnostics UI is deferred. Added D13–D14 (§8.4, §3.8) and new open questions Q7–Q9.
 
 This document records the technical decisions, domain model and system structure for the Toe Beans MVP. Every decision weighs alternatives against the requirement IDs (FR-xx / NFR-xx). Free-tier figures were checked against public sources in October 2026. They change often, so re-verify them before committing (see §11).
 
@@ -39,10 +41,12 @@ Status: **P** = proposed, **A** = accepted, **R** = rejected/superseded. Each de
 | D6 | Database | MongoDB (Atlas free cluster), official driver, no ODM | P | 3.5 |
 | D7 | Photo storage | Cloudflare R2 (S3 API) | P | 3.6 |
 | D8 | Push scheduling | Mongo-backed job collection plus an idempotent `tick` that both external cron and an in-process loop can trigger | P | 6 |
-| D9 | Hosting | Google Cloud Run + Cloud Scheduler as the primary candidate, validated by spike. Self-host behind IIS as the fallback. | P | 8 |
+| D9 | Hosting | Google Cloud Run + Cloud Scheduler as the primary candidate, validated by spike. Self-host behind IIS as the fallback. A billing-enabled account is acceptable (review round 1). | P | 8 |
 | D10 | Observability | pino JSON logs to the platform log sink, Sentry for errors, an external uptime monitor. OpenTelemetry deferred. | P | 9 |
 | D11 | Email for invitations | Resend (free tier) behind an `EmailSender` port | P | 3.7 |
-| D12 | UI toolkit | Tailwind CSS + shadcn-svelte (Bits UI primitives) | P | `ui.md` |
+| D12 | UI toolkit | Tailwind CSS + shadcn-svelte (Bits UI primitives), themed with Toe Beans brand tokens | P | `ui.md` §6.4 |
+| D13 | Region and domain | South Africa first: Cloud Run in `africa-south1` (Johannesburg), **with the app always co-located with the database**. Served at `toebeans.gebrev.com`. | P | 8.4 |
+| D14 | Exercise content pipeline | Curated from online sources, AI-assisted editing, mandatory human review, sources recorded per exercise | P | 3.8 |
 
 ---
 
@@ -81,7 +85,7 @@ TypeScript wins mainly because it's the only option that satisfies the baseline 
 
 ### 3.4 Identity: OIDC via a server-side BFF
 
-**Pattern:** the SvelteKit server is a confidential OIDC client (Authorization Code + PKCE). After the callback it validates the ID token, upserts the `User`, and creates a server-side session (a Mongo `sessions` collection with a TTL index). The browser holds only an opaque `__Host-` cookie (`HttpOnly; Secure; SameSite=Lax`). No tokens reach the browser.
+**Pattern:** the SvelteKit server is a confidential OIDC client (Authorization Code + PKCE). After the callback it validates the ID token, upserts the `User`, and creates a server-side session (a Mongo `sessions` collection with a TTL index). The browser holds only an opaque `__Host-` cookie (`HttpOnly; Secure; SameSite=Lax`). If Firebase Hosting fronts Cloud Run, the cookie must be named `__session` instead (§8.4). No tokens reach the browser.
 
 The library is **`openid-client`** (framework-agnostic, certified), used inside `backend/infrastructure/auth`. Auth.js/SvelteKitAuth was considered and rejected because it couples sessions to SvelteKit (NFR-15).
 
@@ -141,6 +145,20 @@ Code depends on a `PhotoStore` port (`put`, `getStream`, `delete`). The adapters
 ### 3.7 Email (invitations)
 
 Email invitations need a transactional sender. The options are Resend (free tier, ~100/day), Brevo (free, ~300/day) and Auth0's built-in email (only for auth flows, so it doesn't fit). They sit behind an `EmailSender` port with a console adapter for dev. Volume is a handful of emails ever. Shareable invite links work without any email provider, so links ship first (see backlog).
+
+### 3.8 Exercise content pipeline
+
+The starter library is code-owned content in `content/exercises/`, one YAML file per exercise. It's validated against a schema at build time.
+
+```
+research (articles, videos) ──► source notes ──► AI-assisted draft/edit ──► human review ──► merge
+   content/sources/*.md          per exercise       PR against content/          reviewedBy/At set
+```
+
+- **Original wording, attributed.** AI editing is used to synthesise and rewrite, not to copy. Exercises must not reproduce articles or video transcripts verbatim. Each exercise lists its `sources[]` (shown in the app as "Further reading").
+- **Safety gate (NFR-14).** The build fails if an exercise lacks `ifStruggling`, `reviewedBy` or `reviewedAt`. A lint step flags punitive or aversive vocabulary (e.g. "correct", "punish", "alpha", "dominance", "leash pop") for the human reviewer to check.
+- **Versioning.** Any substantive edit bumps `contentVersion`. Session logs keep the version they were practised against.
+- **Coverage check.** The build verifies that every one of the 9 skill areas in FR-03 has at least one exercise.
 
 ---
 
@@ -234,7 +252,7 @@ Common fields (`_id`, `householdId`, `version`, timestamps, `schemaVersion`) are
 **Dog** — `name`, `birthDate?` | `estimatedBirthDate?` (`{date, precision: month|year}`), `adoptionDate?`, `notes?`, `photo: {photoId, updatedAt}` (required), `archivedAt?`
 - Archiving rather than deleting keeps history intact.
 
-**Exercise** (library, content-owned) — `id` (stable slug, e.g. `recall-basic`), `contentVersion`, `title`, `skillArea` (name-recognition | recall | toileting | greetings | settling | doorbell | barking | loose-leash | cats), `goal`, `setup`, `steps[]`, `suggestedDurationMin`, `successCriteria`, `ifStruggling`, `safetyNotes?`
+**Exercise** (library, content-owned) — `id` (stable slug, e.g. `recall-basic`), `contentVersion`, `title`, `skillArea` (name-recognition | recall | toileting | greetings | settling | doorbell | barking | loose-leash | cats), `goal`, `setup`, `steps[]`, `suggestedDurationMin`, `successCriteria`, `ifStruggling`, `safetyNotes?`, `sources[]: {title, url, kind: article|video}`, `reviewedBy`, `reviewedAt` (see §3.8)
 - Loaded from `content/exercises/` at startup into an in-memory catalogue (disposable cache, allowed by NFR-08). Not stored in Mongo.
 - Logs record `exerciseId` + `contentVersion`.
 
@@ -260,7 +278,7 @@ Common fields (`_id`, `householdId`, `version`, timestamps, `schemaVersion`) are
 **PushSubscription** — `userId`, `endpoint` (unique), `keys`, `deviceLabel`, `userAgent`, `createdAt`, `lastSuccessAt?`, `failureCount`, `disabledAt?`
 - The endpoint is treated as a secret (NFR-02). It's never logged in full.
 
-**ReminderPreference** (per member) — `trainingLeadMin` (e.g. 0, 15), `careLeadDays`/`careTimeOfDay`, `enabled`, `quietHours?` (P1)
+**ReminderPreference** (per member) — `trainingLeadMin` (**default 0**: remind at the session time, since reminders are a general nudge and not a strict schedule), `careLeadDays` (default 0) / `careTimeOfDay` (default 08:00, used when a care task has a date but no time), `enabled`, `quietHours?` (P1)
 
 **NotificationJob** — see §6.
 
@@ -351,23 +369,63 @@ Free always-on compute has largely disappeared. This matters because of NFR-16.
 **Recommended topology (option A):**
 
 ```
-Android Chrome PWA ──HTTPS──► Cloud Run (toe-beans container, min-instances 0)
-                                 │  ├─► MongoDB Atlas free (same GCP region)
+Android Chrome PWA ──HTTPS (toebeans.gebrev.com)──► Cloud Run (africa-south1*, min-instances 0)
+                                 │  ├─► MongoDB Atlas free (same region*, see §8.4)
                                  │  ├─► Cloudflare R2 (photos)
                                  │  ├─► Auth0 (OIDC)
                                  │  ├─► FCM via Web Push (VAPID)
                                  │  └─► Resend (invite emails)
 Cloud Scheduler ──every 1 min──► POST /internal/tick (OIDC-authenticated)
 GitHub Actions ──nightly──► mongodump → encrypted → R2 backups bucket
+
+* Region subject to Atlas free-cluster availability (Q7); app and DB move together.
 ```
 
-**Self-host topology (option E):** IIS with URL Rewrite + ARR reverse-proxies `https://toebeans.<domain>` to `localhost:3000`. TLS comes from win-acme (Let's Encrypt). `docker compose` runs `app` (with `WORKER_MODE=inline`), `mongo` (a single-node replica set so transactions work) with a named volume, and `minio` or a bind-mounted photo directory. A scheduled `mongodump` writes to an external drive or R2. ARR must pass `X-Forwarded-Proto/Host`; set SvelteKit `ORIGIN`, `PROTOCOL_HEADER` and `HOST_HEADER` accordingly. Web Push needs only outbound HTTPS.
+**Self-host topology (option E):** IIS with URL Rewrite + ARR reverse-proxies `https://toebeans.gebrev.com` to `localhost:3000`. TLS comes from win-acme (Let's Encrypt). `docker compose` runs `app` (with `WORKER_MODE=inline`), `mongo` (a single-node replica set so transactions work) with a named volume, and `minio` or a bind-mounted photo directory. A scheduled `mongodump` writes to an external drive or R2. ARR must pass `X-Forwarded-Proto/Host`; set SvelteKit `ORIGIN`, `PROTOCOL_HEADER` and `HOST_HEADER` accordingly. Web Push needs only outbound HTTPS.
 
 The spike in backlog slice S-1 decides between A and E based on measured cold start, scheduler reliability and the experience on both test phones.
 
 ### 8.3 Environments
 
 `local` (docker compose: Mongo + MinIO + app, Auth0 dev tenant), `prod`. A separate staging environment isn't justified at this scale. Preview deploys are optional later.
+
+### 8.4 Region, latency and domain
+
+**Co-location rule.** The app and the database must be in the same region (or as close as possible). A request makes several database round trips but only one user round trip. So "user → distant app + DB" is fast, while "user → nearby app → distant DB" is slow on every query.
+
+| Priority | Topology | Expected user RTT |
+|---|---|---|
+| 1 | Cloud Run `africa-south1` + Atlas free in a South African region (GCP Johannesburg preferred, AWS Cape Town or Azure acceptable) | ~10–40 ms |
+| 2 | If Atlas has no free South African region: **both** Cloud Run and Atlas in the nearest region where Atlas offers a free GCP cluster (likely Europe) | ~150–200 ms per request. That's acceptable, because pages load with one or two API calls. |
+| 3 | Self-host in South Africa behind IIS (option E) | Local |
+
+Never mix a South African app with a distant database.
+
+**Other region notes:**
+- R2 has no African location; use the nearest location hint (Europe). Photos are cached privately by the browser after the first load, so this matters little.
+- Cloud Scheduler should be in the same region as Cloud Run, or the nearest region available.
+
+**Cold start budget.** At most 5 s from a cold container to the first response (review round 1: "a handful of seconds").
+- Mitigations: a small image, Cloud Run startup CPU boost, lazy initialisation of non-critical clients, and a pooled Mongo connection reused across requests.
+- The every-minute tick also keeps an instance warm for much of the day, though Cloud Run doesn't guarantee that.
+- If the budget is missed, `min-instances=1` fixes it but isn't free. That would reopen D9.
+
+**Domain.** The MVP is served at `https://toebeans.gebrev.com`. The `gebrev.com` DNS is owned by the user. A later move to `toebeans.co.za` must be configuration only:
+- `ORIGIN` / `PUBLIC_BASE_URL` env vars
+- OIDC callback and logout URLs registered in Auth0
+- the cookie domain (host-only `__Host-` cookies need no domain)
+- the VAPID `subject`
+
+Push subscriptions are tied to the origin, so a domain move means devices re-subscribe. The Notifications screen handles that as the "not yet asked" state.
+
+**Custom domain on Cloud Run (Q8)** — options, to be tried in this order during S-1:
+1. **Cloud Run domain mapping**, if it's supported in the chosen region. It's free, with a Google-managed certificate.
+2. **Firebase Hosting rewrite to Cloud Run.** Free tier, custom domain, managed certificate. Firebase Hosting **forwards only a cookie named `__session`**, so the session cookie would have to be renamed and lose the `__Host-` prefix (keep `Secure; HttpOnly; SameSite=Lax; Path=/`, no domain). It also adds a CDN hop.
+3. **Cloudflare proxy** (DNS proxied, plus a free Worker to rewrite the Host header to the `run.app` URL). This adds another dependency in the request path.
+
+The global external load balancer works everywhere but costs money, so it's rejected.
+
+On the self-host path, `toebeans.gebrev.com` points at the IIS host, with a win-acme certificate.
 
 ---
 
@@ -379,7 +437,7 @@ The spike in backlog slice S-1 decides between A and E based on measured cold st
 | Errors | **Sentry** free Developer plan (~5k errors/month, 1 user), server + browser SDK, PII scrubbing on | GlitchTip (self-host, Sentry-compatible), Grafana Cloud. |
 | Uptime and health | UptimeRobot or Better Stack free, hitting `/healthz` | Cloud Monitoring uptime checks. |
 | Metrics and traces | **Deferred.** Code is instrumented through a thin `Telemetry` port so OpenTelemetry → Grafana Cloud can be added without touching use cases. | — |
-| Notification diagnostics | `NotificationJob` records double as an audit trail. An owner-only "Delivery log" screen shows recent sends and failures per device. | — |
+| Notification diagnostics | `NotificationJob` records double as an audit trail, with structured logs for each send and failure (no endpoints or payload text). **No diagnostics UI in Phase 1** (review round 1). Investigation is done through logs and the database. | An owner-facing "Delivery log" screen in a later phase. |
 
 ---
 
@@ -403,11 +461,14 @@ The spike in backlog slice S-1 decides between A and E based on measured cold st
 
 | # | Item | Plan |
 |---|---|---|
-| Q1 | Is a billing-enabled GCP account acceptable as "genuinely free"? | Decide before the S-1 spike. Otherwise compare B and E. |
-| Q2 | Atlas free cluster idle pausing with very low traffic | The every-minute tick keeps the connection active. Monitor during the spike. |
-| Q3 | Which region? Latency from the users' location to the GCP + Atlas region | Pick the nearest region where Atlas offers free GCP clusters. |
-| Q4 | Android battery optimisation (Xiaomi MIUI/HyperOS especially) delaying push | Test on the Redmi early (S-1). Document the settings in an in-app help page. |
-| Q5 | Do caregivers have a custom domain? Needed for self-host TLS, nice to have on Cloud Run | Confirm. |
-| Q6 | Exercise content authorship and review for training safety (NFR-14) | Draft with sources, user review before release. |
+| Q1 | ~~Is a billing-enabled GCP account acceptable?~~ | **Resolved:** yes. A budget alert is mandatory (S14.1). |
+| Q2 | Atlas free cluster idle pausing; acceptable cold-start time | **Resolved:** cold starts of a few seconds are acceptable. The spike target is **≤ 5 s** for the first response from cold (§8.4). The every-minute tick keeps Atlas active; monitor this in the spike. |
+| Q3 | ~~Which region?~~ | **Resolved:** South Africa where possible. See §8.4 and Q7. |
+| Q4 | Android battery optimisation (Xiaomi MIUI/HyperOS especially) delaying push | **Noted, non-blocking.** Test on the Redmi during S-1 and document the settings in an in-app help page. It doesn't block development. |
+| Q5 | ~~Custom domain?~~ | **Resolved:** `toebeans.gebrev.com` for the MVP. Possibly `toebeans.co.za` later, so the origin must be pure config (§8.4). See Q8. |
+| Q6 | ~~Exercise content authorship~~ | **Resolved:** the user aggregates the catalogue from online articles and videos, edited with AI, and reviews it. Pipeline in §3.8. |
+| Q7 | Does Atlas offer free clusters in a South African region (GCP `africa-south1`, AWS `af-south-1`, Azure `southafricanorth`)? Not confirmed from docs. The Atlas UI only lists free-capable regions. | Check in the Atlas UI at the start of S-1. If none is available, apply the co-location rule (§8.4). |
+| Q8 | Cloud Run custom domain mapping may not be available in `africa-south1`, and the paid load balancer isn't free | Spike the options in §8.4, in order. |
+| Q9 | `africa-south1` is a Tier 2 Cloud Run pricing region. Confirm the free allowance applies and the expected monthly cost is $0. | Check billing reports during the 48 h spike run (S-1.3). |
 | R1 | Free-tier terms change without notice (e.g. Oracle, Koyeb in 2026) | Everything sits behind ports, the self-host compose is maintained and tested, and costs are reviewed quarterly. |
 | R2 | Multi-vendor sprawl (GCP, Atlas, R2, Auth0, Resend, Sentry) | Accepted for a free setup. Secrets are listed in `docs/runbooks/accounts.md` (names only, no values). |

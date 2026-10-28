@@ -4,9 +4,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project status
 
-Toe Beans is a mobile-first, installable PWA for puppy training and care, shared by caregivers in one household. The repo is **pre-implementation**: the only source of truth so far is `docs/requirements.md` (baselined v1.0, 25 Oct 2026). There is no code, build tooling, test runner or git history yet. When these are added, update this file with the actual build/lint/test commands, including how to run a single test.
+Toe Beans is a mobile-first, installable PWA for puppy training and care, shared by caregivers in one household. The repo is **pre-implementation**: the only source of truth so far is `docs/requirements.md` (baselined v1.0, 25 Oct 2026). There is no code, build tooling or test runner yet. When these are added, update this file with the actual build/lint/test commands, including how to run a single test.
 
-Design docs (v0.1 drafts, under review): `docs/architecture.md` (decision log, domain model, layering, hosting), `docs/ui.md` (journeys, layouts, interaction conventions), `docs/backlog.md` (vertical slices and current progress). Record technical trade-offs in the architecture decision log against requirement IDs (FR-xx / NFR-xx), not silently in code. Update slice status in the backlog as work lands.
+Design docs (v0.2 drafts, under review; each records its own changes in a "Changes in" line under the header): `docs/architecture.md` (decision log, domain model, layering, hosting), `docs/ui.md` (journeys, layouts, interaction conventions), `docs/backlog.md` (vertical slices and current progress). Record technical trade-offs in the architecture decision log against requirement IDs (FR-xx / NFR-xx), not silently in code. Update slice status in the backlog as work lands.
 
 ## Agreed architectural constraints
 

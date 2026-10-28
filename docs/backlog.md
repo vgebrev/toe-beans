@@ -1,8 +1,8 @@
 # Toe Beans — Backlog
 
-**Version:** 0.1 (draft for iteration)
-**Date:** 25 October 2026
-**Inputs:** `docs/requirements.md` v1.0, `docs/architecture.md` v0.1, `docs/ui.md` v0.1
+**Version:** 0.2 (draft for iteration)
+**Date:** 28 October 2026
+**Inputs:** `docs/requirements.md` v1.0, `docs/architecture.md` v0.2, `docs/ui.md` v0.2
 
 Work is organised as **vertical slices**: each delivers a usable end-to-end increment through UI → API → application → domain → persistence, with tests. Slices are ordered by **dependency and risk**. The riskiest unknowns (push with the app closed, free hosting) are spiked first, before building on them.
 
@@ -14,7 +14,8 @@ Work is organised as **vertical slices**: each delivers a usable end-to-end incr
 
 | Date | Note |
 |---|---|
-| 2026-10-25 | Requirements baselined (v1.0). Architecture, UI and backlog drafted (v0.1), under review. No code yet. |
+| 2026-10-25 | Requirements baselined (v1.0). Architecture, UI and backlog drafted (v0.1), under review. No code yet. Git repo initialised. |
+| 2026-10-28 | Review round 1 applied (v0.2). Hosting questions resolved: billing-enabled GCP is OK, South Africa region, `toebeans.gebrev.com`. Brand direction set. Diagnostics UI deferred. Content pipeline defined. |
 
 **Next up:** review and accept the decisions in `architecture.md` §2, then S-1 (spikes) and S0 (foundations) in parallel.
 
@@ -40,8 +41,10 @@ Work is organised as **vertical slices**: each delivers a usable end-to-end incr
 |---|---|---|
 | S-1.1 | Minimal SvelteKit + service worker PWA, installable on both phones | ⬜ |
 | S-1.2 | Web Push via VAPID: subscribe, send from the server, receive **with the PWA closed** on the Galaxy S23 FE and Redmi Note 12 Pro. Record battery and optimisation settings needed (especially MIUI/HyperOS). | ⬜ |
-| S-1.3 | Deploy to Cloud Run, with Cloud Scheduler calling `/internal/tick` every minute. Measure cold start, tick reliability over 48 h, and confirm free-tier usage in billing reports. | ⬜ |
-| S-1.4 | Atlas free cluster in the same GCP region. Measure latency and confirm transactions work. | ⬜ |
+| S-1.0 | Check which South African regions Atlas offers for free clusters (Q7). Pick the region pair using the co-location rule (architecture §8.4). | ⬜ |
+| S-1.3 | Deploy to Cloud Run (`africa-south1` or the region from S-1.0), with Cloud Scheduler calling `/internal/tick` every minute. Measure cold start against the **≤ 5 s** budget, tick reliability over 48 h, and confirm **$0** in billing reports for a Tier 2 region (Q9). Budget alert on. | ⬜ |
+| S-1.4 | Atlas free cluster co-located with Cloud Run. Measure latency from both phones and confirm transactions work. | ⬜ |
+| S-1.4a | Custom domain `toebeans.gebrev.com` on Cloud Run: try domain mapping, then a Firebase Hosting rewrite (`__session` cookie constraint), then a Cloudflare Worker (Q8). | ⬜ |
 | S-1.5 | Fallback check: the same image under docker compose behind IIS (ARR + win-acme), push working end-to-end | ⬜ |
 | S-1.6 | Write the outcome into architecture D9 and mark it Accepted | ⬜ |
 
@@ -58,6 +61,7 @@ Work is organised as **vertical slices**: each delivers a usable end-to-end incr
 | S0.6 | GitHub Actions: lint → typecheck → unit → integration (Testcontainers) → image build | ⬜ |
 | S0.7 | Vitest + Playwright setup with an Android device profile | ⬜ |
 | S0.8 | App shell: layout, bottom navigation, theme tokens, shadcn-svelte install, typed API client | ⬜ |
+| S0.9 | Brand: paw-print logo SVG and its variants (maskable icon, monochrome badge, favicon). Beagle and German Shepherd tokens with an automated contrast test. Self-hosted Fredoka + body font. Pick the body font on real screens (`ui.md` §6.4). | ⬜ |
 
 ### S1 Sign-in and sessions ⬜
 *FR-01 (partial), NFR-01, 02.*
@@ -95,9 +99,10 @@ Work is organised as **vertical slices**: each delivers a usable end-to-end incr
 
 | # | Task | Status |
 |---|---|---|
-| S4.1 | Content format and loader (`content/exercises/*.yaml`) with schema validation at build time | ⬜ |
-| S4.2 | Author starter exercises covering all 9 skill areas, reward-based, each with *If your puppy struggles* and safety notes | ⬜ |
-| S4.3 | **Content review** by the caregivers, plus source references | ⬜ |
+| S4.1 | Content format and loader (`content/exercises/*.yaml`). Schema validation, coverage check, required review fields and aversive-vocabulary lint at build time (architecture §3.8). | ⬜ |
+| S4.2 | Gather sources (articles and videos) per skill area into `content/sources/`. *User-led.* Can start immediately, in parallel with S0. | ⬜ |
+| S4.3 | AI-assisted drafting and editing of starter exercises covering all 9 skill areas: original wording, reward-based, each with *If your puppy struggles*, safety notes and `sources[]` | ⬜ |
+| S4.3a | **Human review** of each exercise (sets `reviewedBy`/`reviewedAt`) | ⬜ |
 | S4.4 | Library list and detail screens | ⬜ |
 
 ### S5 Cue dictionary ⬜
@@ -204,8 +209,14 @@ Work is organised as **vertical slices**: each delivers a usable end-to-end incr
 | P1-D Care records and contacts | FR-15 | Vet details, weight entries, health notes | ⬜ |
 | P1-E Data export | FR-16 | Owner-only JSON export of household records, with no secrets or push endpoints | ⬜ |
 | P1-F Draft persistence | NFR-04 | Unsent form drafts survive an app kill (`ui.md` §5.2) | ⬜ |
-| P1-G Delivery diagnostics screen | NFR-12 | Owner view of recent notification jobs and device failures | ⬜ |
 | P1-H Quiet hours | FR-12 | Per-member reminder suppression window | ⬜ |
+
+## Later phase (beyond Phase 1, not P2 scope cuts)
+
+| Item | Notes |
+|---|---|
+| Delivery diagnostics screen | Owner view of recent notification jobs and device failures. Deferred in review round 1; the data already exists in `NotificationJob`. |
+| Move to `toebeans.co.za` | Config-only domain switch (architecture §8.4). Devices re-subscribe to push. |
 
 ## P2 — Deferred (not planned)
 
