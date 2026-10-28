@@ -361,10 +361,10 @@ The type pairs a playful display face with a highly legible body face. Both are 
 | Role | Proposed | Why | Alternatives |
 |---|---|---|---|
 | Display: wordmark, page titles, empty states (≥ 20 px) | **Fredoka** | Rounded and bouncy, matches the paw-print mark; legible at heading sizes | Baloo 2, Grandstander |
-| Body and UI (all text < 20 px) | **Nunito** — *preferred (review round 2)* | Friendly rounded terminals with open, clear letterforms; works at 14–16 px | Atkinson Hyperlegible Next (maximum legibility, less playful), Lexend |
+| Body and UI (all text < 20 px) | **Nunito** — *confirmed (review round 3)* | Friendly rounded terminals with open, clear letterforms; works at 14–16 px | Atkinson Hyperlegible Next (maximum legibility, less playful), Lexend |
 
 - Base size 16 px, line-height 1.5, minimum 14 px for secondary text. The display font is never used for body text or form controls.
-- Nunito is the working choice, used in the mock-ups. Confirm it on a real phone at 100% and 200% font scaling (S0.9). Swapping fonts is a single token change.
+- **Nunito is confirmed** after a side-by-side comparison with Atkinson Hyperlegible Next in the mock-ups. The S13.4 accessibility pass still checks it at 200% font scaling on a real phone. Swapping fonts would be a single token change.
 
 ---
 
@@ -397,7 +397,7 @@ Target **WCAG 2.2 AA**:
 
 | # | Question | Decision |
 |---|---|---|
-| 6 | Body font | **Nunito**, to be confirmed on a real phone (S0.9). |
+| 6 | Body font | **Nunito**, confirmed in review round 3 after comparing it with Atkinson Hyperlegible Next in the mock-ups. |
 | 7 | Logo production | **AI-assisted**, cleaned up into SVG. |
 | 8 | Theme override scope | **Per device.** Defaults to the system setting, stored in `localStorage`. |
 
