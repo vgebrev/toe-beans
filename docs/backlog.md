@@ -18,6 +18,7 @@ Work is organised as **vertical slices**: each delivers a usable end-to-end incr
 | 2026-10-28 | Review round 1 applied (v0.2). Hosting questions resolved: billing-enabled GCP is OK, South Africa region, `toebeans.gebrev.com`. Brand direction set. Diagnostics UI deferred. Content pipeline defined. |
 | 2026-10-28 | Review round 2: Nunito, AI-assisted logo, per-device theme. Icon library evaluated. First mock-ups published (Today, Quick log, Exercise, brand sheet, both themes). |
 | 2026-10-28 | Review round 3: Nunito confirmed as the body font after a side-by-side comparison in the mock-ups. |
+| 2026-10-28 | Review round 3 (cont.): dark primary softened to `#C98A4B`, Hugeicons free adopted, mock-up layouts accepted for the MVP. UI design questions closed. |
 
 **Next up:** review and accept the decisions in `architecture.md` §2, then S-1 (spikes) and S0 (foundations) in parallel.
 
@@ -63,7 +64,7 @@ Work is organised as **vertical slices**: each delivers a usable end-to-end incr
 | S0.6 | GitHub Actions: lint → typecheck → unit → integration (Testcontainers) → image build | ⬜ |
 | S0.7 | Vitest + Playwright setup with an Android device profile | ⬜ |
 | S0.8 | App shell: layout, bottom navigation, theme tokens, shadcn-svelte install, typed API client | ⬜ |
-| S0.9 | Brand: AI-assisted paw-print logo cleaned into SVG, plus its variants (maskable icon, monochrome badge, favicon). Beagle and German Shepherd tokens with an automated contrast test. Per-device theme switch (system default, `localStorage`, no flash). Self-hosted Fredoka + Nunito (confirmed). Icon library: verify the Hugeicons free licence and pet/care coverage, otherwise Phosphor, behind an `<Icon>` wrapper (`ui.md` §6.4). | ⬜ |
+| S0.9 | Brand: AI-assisted paw-print logo cleaned into SVG, plus its variants (maskable icon, monochrome badge, favicon). Beagle and German Shepherd tokens with an automated contrast test. Per-device theme switch (system default, `localStorage`, no flash). Self-hosted Fredoka + Nunito (confirmed). Icon library: Hugeicons free (MIT) behind an `<Icon>` wrapper; map the pet/care icons we need (`ui.md` §6.4). | ⬜ |
 
 ### S1 Sign-in and sessions ⬜
 *FR-01 (partial), NFR-01, 02.*

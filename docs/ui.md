@@ -1,6 +1,8 @@
 # Toe Beans — UI and Interaction Design
 
-**Version:** 0.3 (draft for iteration)
+**Version:** 0.4 (draft for iteration)
+
+**Changes in 0.4:** review round 3. Nunito confirmed. The dark primary is softened to `#C98A4B`, the same tan as the light-theme accent. Hugeicons free (MIT) adopted. Mock-up layouts accepted for the MVP.
 
 **Changes in 0.3:** review round 2. Nunito is the body font, the logo will be AI-assisted, and the theme is chosen per device (defaulting to the system setting). Added an icon library evaluation (Hugeicons preferred, Phosphor as the alternative) and a link to the mock-ups canvas.
 **Date:** 28 October 2026
@@ -306,13 +308,13 @@ All icons go through one wrapper component (`<Icon name="…">`). That keeps the
 
 | Library | Licence | Styles | Pet coverage | Fit |
 |---|---|---|---|---|
-| **Hugeicons** (free set) — *user preference* | Rendering package is MIT. The licence of the free icon package (`@hugeicons/core-free-icons`) is **unclear**: the registry says MIT, but the readme says "All rights reserved". **Check the package's LICENSE file before adopting.** | Free set: Stroke Rounded only (~4.6k–5.4k icons). Pro: 10 styles. | To check (dog, cat, paw, bone, leash, syringe, vet) | Rounded stroke suits Fredoka/Nunito. Free has no filled style for active states, so the active tab uses a tinted pill, as in the mock-ups. |
+| **Hugeicons** (free set) — ✅ **chosen** | MIT (free set, per the user in review round 3). Only the free packages are used: `@hugeicons/svelte` + `@hugeicons/core-free-icons`, never `@hugeicons-pro/*`. | Free set: Stroke Rounded only (~4.6k–5.4k icons). Pro: 10 styles. | To check (dog, cat, paw, bone, leash, syringe, vet) | Rounded stroke suits Fredoka/Nunito. Free has no filled style for active states, so the active tab uses a tinted pill, as in the mock-ups. |
 | Phosphor | MIT | 6 weights, including **Fill** and Duotone | Dog, Cat, PawPrint, Bone and more | Closest alternative. Fill weight gives clear active and selected states. |
 | Lucide | ISC | Single stroke style | dog, cat, paw-print, bone | Solid, but plainer and more geometric than the brand. |
 | Tabler | MIT | Outline, plus a partial filled set | Good | Large set, but sharper corners. |
 | Material Symbols Rounded | Apache 2.0 | Variable (fill, weight, grade) | Pets, cruelty-free | Most Android-native, least distinctive. |
 
-**Proposal:** adopt **Hugeicons free (Stroke Rounded)** if its LICENSE permits use in an app and it covers the pet and care icons we need (backlog S0.9). Otherwise use **Phosphor** (Regular + Fill). Don't mix libraries; any gap gets a custom icon drawn to the same 24 px grid and 1.5 px rounded stroke.
+**Decision (review round 3):** **Hugeicons free (Stroke Rounded)**. Map the icons we need (dog, cat, paw, bone, leash, syringe, vet, nav tabs) during S0.9. Phosphor stays the fallback if the free set has gaps that custom icons can't cover. Don't mix libraries; any gap gets a custom icon drawn to the same 24 px grid and 1.5 px rounded stroke.
 
 #### Logo
 
@@ -337,9 +339,9 @@ Light mode is **Beagle**: white coat with tan and brown patches. Dark mode is **
 | `surface` (cards, sheets) | `#FFFFFF` | — | `#211C18` | — |
 | `text` | `#2B1D14` dark brown | 15.8 on bg | `#F3EADF` cream | 15.8 on bg, 14.2 on surface |
 | `text-muted` | `#6B5444` | 6.8 on bg | `#B5A493` | 7.8 on bg |
-| `primary` (buttons, links) | `#8A4B1F` saddle brown | 6.6 on bg | `#D9944F` tan | 7.4 on bg, 6.7 on surface |
-| `on-primary` (button text) | `#FFFFFF` | 6.8 on primary | `#1A110A` | 7.4 on primary |
-| `accent` (decorative only: illustrations, highlights) | `#C98A4B` tan | 2.8, **not for text or essential UI** | `#D9944F` | — |
+| `primary` (buttons, links) | `#8A4B1F` saddle brown | 6.6 on bg | `#C98A4B` soft tan (softened in review round 3, from `#D9944F`) | 6.5 on bg, 5.8 on surface, 5.2 on soft |
+| `on-primary` (button text) | `#FFFFFF` | 6.8 on primary | `#1A110A` | 6.4 on primary |
+| `accent` (decorative only: illustrations, highlights) | `#C98A4B` tan | 2.8, **not for text or essential UI** | `#C98A4B` (same as primary) | — |
 | `border` | `#E6D8C6` | decorative | `#3A312A` | decorative |
 | `danger` (destructive only) | `#B3261E` (white text 6.5) | — | `#F2867D` | 7.6 on bg |
 
@@ -401,7 +403,14 @@ Target **WCAG 2.2 AA**:
 | 7 | Logo production | **AI-assisted**, cleaned up into SVG. |
 | 8 | Theme override scope | **Per device.** Defaults to the system setting, stored in `localStorage`. |
 
+### Resolved in review round 3
+
+| # | Question | Decision |
+|---|---|---|
+| 9 | Icon library | **Hugeicons free** (Stroke Rounded, MIT). |
+| 10 | Mock-up layouts (Today, Quick log, Exercise detail, badges) | **Accepted for the MVP.** |
+| 11 | Dark primary colour | **`#C98A4B`**, softer than `#D9944F` and still AA (≥ 5.2:1 on every dark background). |
+
 ### Open
 
-1. Icon library: Hugeicons free (preferred, once its licence and coverage are checked) or Phosphor? (§6.4, Icons)
-2. Feedback on the mock-ups: layout of Today, the outcome grid in the quick log, and the badge styles.
+None at present.
