@@ -20,6 +20,7 @@ Work is organised as **vertical slices**: each delivers a usable end-to-end incr
 | 2026-10-28 | Review round 3: Nunito confirmed as the body font after a side-by-side comparison in the mock-ups. |
 | 2026-10-28 | Review round 3 (cont.): dark primary softened to `#C98A4B`, Hugeicons free adopted, mock-up layouts accepted for the MVP. UI design questions closed. |
 | 2026-10-28 | S-1.0 done: free Atlas in South Africa only on AWS Cape Town. Architecture v0.3 adopts Cloud Run Johannesburg + Atlas Cape Town, with a database round-trip budget and open-access-list safeguards. |
+| 2026-10-28 | S-1.1 started: spike PWA in `spikes/pwa` (SvelteKit 3.1, `adapter-node`, native service worker, manifest with maskable icons, `/offline` fallback). Chrome reports no installability errors. Next: install on both phones. |
 
 **Next up:** review and accept the decisions in `architecture.md` §2, then S-1 (spikes) and S0 (foundations) in parallel.
 
@@ -38,12 +39,12 @@ Work is organised as **vertical slices**: each delivers a usable end-to-end incr
 
 ## P0 — First usable MVP
 
-### S-1 Spikes: de-risk hosting and push ⬜
+### S-1 Spikes: de-risk hosting and push 🟨
 *Goal: decide D9 (hosting) with evidence. Throwaway code is allowed.*
 
 | # | Task | Status |
 |---|---|---|
-| S-1.1 | Minimal SvelteKit + service worker PWA, installable on both phones | ⬜ |
+| S-1.1 | Minimal SvelteKit + service worker PWA, installable on both phones. *Built in `spikes/pwa`; installability and offline fallback verified in desktop headless Chrome. Waiting on the on-device checklist in `spikes/pwa/README.md`.* | 🟨 |
 | S-1.2 | Web Push via VAPID: subscribe, send from the server, receive **with the PWA closed** on the Galaxy S23 FE and Redmi Note 12 Pro. Record battery and optimisation settings needed (especially MIUI/HyperOS). | ⬜ |
 | S-1.0 | Check which South African regions Atlas offers for free clusters (Q7). **Result: AWS `af-south-1` (Cape Town) only.** Topology: Cloud Run Johannesburg + Atlas Cape Town (architecture §8.4). | ✅ |
 | S-1.3 | Deploy to Cloud Run (`africa-south1`, Johannesburg), with Cloud Scheduler calling `/internal/tick` every minute. Measure cold start against the **≤ 5 s** budget, tick reliability over 48 h, and confirm **$0** in billing reports for a Tier 2 region (Q9). Budget alert on. | ⬜ |
