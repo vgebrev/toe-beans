@@ -1,6 +1,8 @@
 # Toe Beans — UI and Interaction Design
 
-**Version:** 0.2 (draft for iteration)
+**Version:** 0.3 (draft for iteration)
+
+**Changes in 0.3:** review round 2. Nunito is the body font, the logo will be AI-assisted, and the theme is chosen per device (defaulting to the system setting). Added an icon library evaluation (Hugeicons preferred, Phosphor as the alternative) and a link to the mock-ups canvas.
 **Date:** 28 October 2026
 **Status:** Proposed
 **Inputs:** `docs/requirements.md` v1.0, `docs/architecture.md` v0.2
@@ -268,7 +270,7 @@ All deletes, archives, invite revocations and "turn off reminders" go through a 
 
 ### 5.5 Dog identity
 
-- Every dog gets an avatar (its required photo) and an auto-assigned accent colour from an accessible palette, used for the card's left border and calendar dots.
+- Every dog gets an avatar (its required photo) and an auto-assigned accent colour from an accessible palette (light and dark variants), used for the avatar fallback, the switcher chip and calendar dots. Cards don't get coloured side borders.
 - Name text always accompanies the colour.
 
 ---
@@ -295,8 +297,22 @@ All deletes, archives, invite revocations and "turn off reminders" go through a 
 ### 6.4 Visual design
 
 - **Toolkit:** Tailwind CSS with shadcn-svelte components (Bits UI primitives for accessible sheets, dialogs and menus), restyled entirely through the brand tokens below.
-- **Icons:** Lucide.
 - **Motion:** subtle 150–200 ms transitions, respecting `prefers-reduced-motion`.
+- **Mock-ups:** [Toe Beans mock-ups canvas](https://claude.ai/artifact/BAuRdwCcZ5ULVhbSDMjxVU) (private). It shows Today, the Quick log sheet (interactive) and Exercise detail in both themes, plus a brand sheet. Icons and the logo in the mock-ups are placeholders.
+
+#### Icons
+
+All icons go through one wrapper component (`<Icon name="…">`). That keeps the library swappable and enforces `aria-hidden` for decorative icons and `aria-label` for icon-only buttons.
+
+| Library | Licence | Styles | Pet coverage | Fit |
+|---|---|---|---|---|
+| **Hugeicons** (free set) — *user preference* | Rendering package is MIT. The licence of the free icon package (`@hugeicons/core-free-icons`) is **unclear**: the registry says MIT, but the readme says "All rights reserved". **Check the package's LICENSE file before adopting.** | Free set: Stroke Rounded only (~4.6k–5.4k icons). Pro: 10 styles. | To check (dog, cat, paw, bone, leash, syringe, vet) | Rounded stroke suits Fredoka/Nunito. Free has no filled style for active states, so the active tab uses a tinted pill, as in the mock-ups. |
+| Phosphor | MIT | 6 weights, including **Fill** and Duotone | Dog, Cat, PawPrint, Bone and more | Closest alternative. Fill weight gives clear active and selected states. |
+| Lucide | ISC | Single stroke style | dog, cat, paw-print, bone | Solid, but plainer and more geometric than the brand. |
+| Tabler | MIT | Outline, plus a partial filled set | Good | Large set, but sharper corners. |
+| Material Symbols Rounded | Apache 2.0 | Variable (fill, weight, grade) | Pets, cruelty-free | Most Android-native, least distinctive. |
+
+**Proposal:** adopt **Hugeicons free (Stroke Rounded)** if its LICENSE permits use in an app and it covers the pet and care icons we need (backlog S0.9). Otherwise use **Phosphor** (Regular + Fill). Don't mix libraries; any gap gets a custom icon drawn to the same 24 px grid and 1.5 px rounded stroke.
 
 #### Logo
 
@@ -307,11 +323,13 @@ All deletes, archives, invite revocations and "turn off reminders" go through a 
   - **Maskable app icon:** paw centred within the 80% safe zone on a solid background.
   - **Monochrome badge:** white silhouette on transparent, which Android requires for the notification badge.
   - Favicon.
-- **Production:** produce the logo as SVG (hand-drawn or commissioned) and export the PNG sizes from it. Logo work is a backlog item (S0.9).
+- **Production:** **AI-assisted** design, cleaned up into a hand-tuned SVG (simple paths, no raster traces), with the PNG sizes exported from it. Check that the final mark doesn't resemble an existing trademark. Logo work is a backlog item (S0.9).
 
 #### Colour themes
 
-Light mode is **Beagle**: white coat with tan and brown patches. Dark mode is **German Shepherd**: black saddle with tan. The theme follows the system by default, with an override in Settings. All values are draft. The contrast ratios below are calculated (WCAG 2.x) and must be re-checked by an automated token-contrast test whenever a value changes.
+Light mode is **Beagle**: white coat with tan and brown patches. Dark mode is **German Shepherd**: black saddle with tan.
+
+**Theme selection is per device.** It defaults to *Match system* (`prefers-color-scheme`), with a Settings override (*System / Light / Dark*) stored in `localStorage`. An inline script in `app.html` applies the stored choice before first paint to avoid a flash of the wrong theme. If storage is unavailable it falls back to the system setting. The choice isn't synced to the user's account. All values are draft. The contrast ratios below are calculated (WCAG 2.x) and must be re-checked by an automated token-contrast test whenever a value changes.
 
 | Token | Beagle (light) | Ratio | German Shepherd (dark) | Ratio |
 |---|---|---|---|---|
@@ -343,10 +361,10 @@ The type pairs a playful display face with a highly legible body face. Both are 
 | Role | Proposed | Why | Alternatives |
 |---|---|---|---|
 | Display: wordmark, page titles, empty states (≥ 20 px) | **Fredoka** | Rounded and bouncy, matches the paw-print mark; legible at heading sizes | Baloo 2, Grandstander |
-| Body and UI (all text < 20 px) | **Nunito** | Friendly rounded terminals with open, clear letterforms; works at 14–16 px | **Atkinson Hyperlegible Next** (maximum legibility, less playful), Lexend |
+| Body and UI (all text < 20 px) | **Nunito** — *preferred (review round 2)* | Friendly rounded terminals with open, clear letterforms; works at 14–16 px | Atkinson Hyperlegible Next (maximum legibility, less playful), Lexend |
 
 - Base size 16 px, line-height 1.5, minimum 14 px for secondary text. The display font is never used for body text or form controls.
-- Decision to confirm by looking at real screens in S0.9: Nunito body for character, or Atkinson Hyperlegible Next for maximum accessibility. The choice is a single token change.
+- Nunito is the working choice, used in the mock-ups. Confirm it on a real phone at 100% and 200% font scaling (S0.9). Swapping fonts is a single token change.
 
 ---
 
@@ -375,8 +393,15 @@ Target **WCAG 2.2 AA**:
 | 4 | Delivery diagnostics screen | **Deferred** beyond Phase 1. Diagnostics go through server logs. |
 | 5 | Brand and visual identity | **Yes.** Paw-print logo, Beagle (light) and German Shepherd (dark) themes, playful accessible fonts (§6.4). |
 
+### Resolved in review round 2
+
+| # | Question | Decision |
+|---|---|---|
+| 6 | Body font | **Nunito**, to be confirmed on a real phone (S0.9). |
+| 7 | Logo production | **AI-assisted**, cleaned up into SVG. |
+| 8 | Theme override scope | **Per device.** Defaults to the system setting, stored in `localStorage`. |
+
 ### Open
 
-1. Body font: Nunito or Atkinson Hyperlegible Next? Decide on real screens (S0.9).
-2. Logo: hand-drawn or AI-assisted SVG, or commissioned?
-3. Should the theme override (light/dark/system) be per device (`localStorage`) or per user (synced)? Proposed: per device.
+1. Icon library: Hugeicons free (preferred, once its licence and coverage are checked) or Phosphor? (§6.4, Icons)
+2. Feedback on the mock-ups: layout of Today, the outcome grid in the quick log, and the badge styles.

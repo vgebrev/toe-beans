@@ -16,6 +16,7 @@ Work is organised as **vertical slices**: each delivers a usable end-to-end incr
 |---|---|
 | 2026-10-25 | Requirements baselined (v1.0). Architecture, UI and backlog drafted (v0.1), under review. No code yet. Git repo initialised. |
 | 2026-10-28 | Review round 1 applied (v0.2). Hosting questions resolved: billing-enabled GCP is OK, South Africa region, `toebeans.gebrev.com`. Brand direction set. Diagnostics UI deferred. Content pipeline defined. |
+| 2026-10-28 | Review round 2: Nunito, AI-assisted logo, per-device theme. Icon library evaluated. First mock-ups published (Today, Quick log, Exercise, brand sheet, both themes). |
 
 **Next up:** review and accept the decisions in `architecture.md` §2, then S-1 (spikes) and S0 (foundations) in parallel.
 
@@ -61,7 +62,7 @@ Work is organised as **vertical slices**: each delivers a usable end-to-end incr
 | S0.6 | GitHub Actions: lint → typecheck → unit → integration (Testcontainers) → image build | ⬜ |
 | S0.7 | Vitest + Playwright setup with an Android device profile | ⬜ |
 | S0.8 | App shell: layout, bottom navigation, theme tokens, shadcn-svelte install, typed API client | ⬜ |
-| S0.9 | Brand: paw-print logo SVG and its variants (maskable icon, monochrome badge, favicon). Beagle and German Shepherd tokens with an automated contrast test. Self-hosted Fredoka + body font. Pick the body font on real screens (`ui.md` §6.4). | ⬜ |
+| S0.9 | Brand: AI-assisted paw-print logo cleaned into SVG, plus its variants (maskable icon, monochrome badge, favicon). Beagle and German Shepherd tokens with an automated contrast test. Per-device theme switch (system default, `localStorage`, no flash). Self-hosted Fredoka + Nunito, confirmed on a real phone. Icon library: verify the Hugeicons free licence and pet/care coverage, otherwise Phosphor, behind an `<Icon>` wrapper (`ui.md` §6.4). | ⬜ |
 
 ### S1 Sign-in and sessions ⬜
 *FR-01 (partial), NFR-01, 02.*
