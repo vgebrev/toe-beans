@@ -39,6 +39,7 @@ Checklist for each phone (Galaxy S23 FE, Redmi Note 12 Pro):
 - [ ] The home-screen icon is the paw on cream, not clipped (maskable icon).
 - [ ] Launching from the icon opens without browser UI, and the page shows `standalone (installed)`.
 - [ ] Service worker shows `activated`.
-- [ ] With the server stopped (or flight mode), relaunching shows the *You're offline* page, not
-      Chrome's dinosaur.
+- [ ] In flight mode, relaunching shows the *You're offline* page, not Chrome's dinosaur. (Stopping
+      the server behind the tunnel doesn't test this: Cloudflare still answers with a 502 page, and
+      the service worker passes any real HTTP response through.)
 - [ ] Note the user agent and Chrome version from the page.
