@@ -16,3 +16,9 @@ for (const size of [192, 512]) {
 }
 await sharp(svg).resize(180, 180).png().toFile(out('apple-touch-icon.png'));
 await writeFile(out('favicon.svg'), svg);
+
+// Status-bar badge: Android only uses the alpha channel, so a white paw on transparent.
+const badge = Buffer.from(
+	svg.toString().replace(/<rect[^>]*\/>/, '').replace('fill="#8A4B1F"', 'fill="#FFFFFF"')
+);
+await sharp(badge).resize(96, 96).png().toFile(out('badge-96.png'));

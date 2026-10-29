@@ -1,4 +1,4 @@
-// Spike S-1.1 service worker. Precaches build output, static files and the offline page.
+// Spike S-1.1/S-1.2 service worker. Precaches build output, static files and the offline page.
 // Navigations go network-first and fall back to /offline. Anything else (future /api/*, photos)
 // is never cached (architecture §7: no stale personal data, no false "saved").
 import { self } from '$app/service-worker';
@@ -46,4 +46,49 @@ self.addEventListener('fetch', (event) => {
 	if (PRECACHED.has(url.pathname)) {
 		event.respondWith(caches.match(url.pathname).then((hit) => hit ?? fetch(request)));
 	}
+});
+
+// S-1.2: show pushes even when no window is open, and report receipt so delivery can be timed.
+type PushPayload = { pushId: string; device: string; sentAt: string; title: string; body: string; url: string };
+
+const ack = (event: 'received' | 'clicked', p: Partial<PushPayload>) =>
+	fetch('/api/push/ack', {
+		method: 'POST',
+		headers: { 'content-type': 'application/json' },
+		body: JSON.stringify({ event, pushId: p.pushId, device: p.device, sentAt: p.sentAt })
+	}).catch(() => undefined);
+
+self.addEventListener('push', (event) => {
+	const p: PushPayload = event.data?.json() ?? { title: 'Toe Beans', body: '', url: '/' };
+	event.waitUntil(
+		Promise.all([
+			self.registration.showNotification(p.title, {
+				body: p.body,
+				icon: '/icons/icon-192.png',
+				badge: '/icons/badge-96.png',
+				tag: p.pushId,
+				data: p
+			}),
+			ack('received', p)
+		])
+	);
+});
+
+self.addEventListener('notificationclick', (event) => {
+	event.notification.close();
+	const p: PushPayload = event.notification.data;
+	const target = new URL(p?.url ?? '/', self.location.origin).href;
+	event.waitUntil(
+		(async () => {
+			const windows = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+			const existing = windows[0];
+			if (existing) {
+				await existing.focus();
+				await existing.navigate(target);
+			} else {
+				await self.clients.openWindow(target);
+			}
+			await ack('clicked', p);
+		})()
+	);
 });

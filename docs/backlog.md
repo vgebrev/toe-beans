@@ -22,6 +22,7 @@ Work is organised as **vertical slices**: each delivers a usable end-to-end incr
 | 2026-10-28 | S-1.0 done: free Atlas in South Africa only on AWS Cape Town. Architecture v0.3 adopts Cloud Run Johannesburg + Atlas Cape Town, with a database round-trip budget and open-access-list safeguards. |
 | 2026-10-28 | S-1.1 started: spike PWA in `spikes/pwa` (SvelteKit 3.1, `adapter-node`, native service worker, manifest with maskable icons, `/offline` fallback). Chrome reports no installability errors. Next: install on both phones. |
 | 2026-10-29 | S-1.1 done: installed on both acceptance phones; offline fallback and reconnection confirmed in flight mode. Gateway-error fallback (502/503/504) added to S-1.3. Next: S-1.2 (Web Push with the app closed). |
+| 2026-10-29 | S-1.2 started: push test panel, VAPID subscribe/send, delayed sends with `high`/`normal` urgency, notification deep link, and a delivery log fed by the service worker. Works end to end in desktop Chrome. Next: phone checklist. |
 
 **Next up:** review and accept the decisions in `architecture.md` §2, then S-1 (spikes) and S0 (foundations) in parallel.
 
@@ -46,7 +47,7 @@ Work is organised as **vertical slices**: each delivers a usable end-to-end incr
 | # | Task | Status |
 |---|---|---|
 | S-1.1 | Minimal SvelteKit + service worker PWA, installable on both phones. **Result: installs on the Galaxy S23 FE and Redmi Note 12 Pro, shows the offline page in flight mode, and recovers once the connection returns.** Spike in `spikes/pwa`. | ✅ |
-| S-1.2 | Web Push via VAPID: subscribe, send from the server, receive **with the PWA closed** on the Galaxy S23 FE and Redmi Note 12 Pro. Record battery and optimisation settings needed (especially MIUI/HyperOS). | ⬜ |
+| S-1.2 | Web Push via VAPID: subscribe, send from the server, receive **with the PWA closed** on the Galaxy S23 FE and Redmi Note 12 Pro. Record battery and optimisation settings needed (especially MIUI/HyperOS). *Built in `spikes/pwa` and verified end to end in desktop Chrome (FCM accepted, service worker received in ~2 s). Waiting on the phone checklist in `spikes/pwa/README.md`.* | 🟨 |
 | S-1.0 | Check which South African regions Atlas offers for free clusters (Q7). **Result: AWS `af-south-1` (Cape Town) only.** Topology: Cloud Run Johannesburg + Atlas Cape Town (architecture §8.4). | ✅ |
 | S-1.3 | Deploy to Cloud Run (`africa-south1`, Johannesburg), with Cloud Scheduler calling `/internal/tick` every minute. Measure cold start against the **≤ 5 s** budget, tick reliability over 48 h, and confirm **$0** in billing reports for a Tier 2 region (Q9). Budget alert on. Also: the service worker shows a "Can't reach Toe Beans" page when a page load gets a 502/503/504 from the platform (found in S-1.1: gateway error pages bypass the offline fallback). | ⬜ |
 | S-1.4 | Atlas free cluster on AWS `af-south-1` (Cape Town). Measure the Cloud Run → Atlas round trip and the warm Today API time (≤ 250 ms p95 budget), plus end-to-end latency from both phones. Confirm transactions work. Set up the access list and least-privilege users as in architecture §8.4. | ⬜ |

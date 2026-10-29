@@ -10,16 +10,25 @@
 		"prepare": "svelte-kit sync || echo ''",
 		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
 		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
-		"icons": "node scripts/icons.mjs"
+		"icons": "node scripts/icons.mjs",
+		"vapid": "node scripts/vapid.mjs",
+		"start": "node --env-file=.env build"
 	},
 	"devDependencies": {
 		"@sveltejs/adapter-node": "6.0.0",
 		"@sveltejs/kit": "^3.0.0",
 		"@sveltejs/vite-plugin-svelte": "^7.2.0",
+		"@types/web-push": "^3.6.4",
 		"sharp": "^0.35.5",
 		"svelte": "^5.57.1",
 		"svelte-check": "^4.6.0",
 		"typescript": "^6.0.3",
 		"vite": "^8.3.0"
+	},
+	"dependencies": {
+		"web-push": "3.6.7"
+	},
+	"imports": {
+		"#lib/*": "./src/lib/*"
 	}
 }
