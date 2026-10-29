@@ -78,17 +78,8 @@ self.addEventListener('notificationclick', (event) => {
 	event.notification.close();
 	const p: PushPayload = event.notification.data;
 	const target = new URL(p?.url ?? '/', self.location.origin).href;
-	event.waitUntil(
-		(async () => {
-			const windows = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
-			const existing = windows[0];
-			if (existing) {
-				await existing.focus();
-				await existing.navigate(target);
-			} else {
-				await self.clients.openWindow(target);
-			}
-			await ack('clicked', p);
-		})()
-	);
+	// Always openWindow: on Android, Chrome hands in-scope URLs to the installed app. Focusing an
+	// existing client instead can pick a plain Chrome tab on the same origin, since the Clients API
+	// can't tell a browser tab from the standalone window.
+	event.waitUntil(Promise.all([self.clients.openWindow(target), ack('clicked', p)]));
 });
