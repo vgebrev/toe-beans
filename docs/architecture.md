@@ -1,13 +1,15 @@
 # Toe Beans — Architecture
 
-**Version:** 0.3 (draft for iteration)
-**Date:** 28 October 2026
+**Version:** 0.4 (draft for iteration)
+**Date:** 30 October 2026
 **Status:** Proposed. Nothing here is accepted until it's marked **Accepted** in the decision log (§2).
 **Inputs:** `docs/requirements.md` v1.0 (baselined)
 
 **Changes in 0.2:** first review round. A billing-enabled GCP account is acceptable. The region is South Africa where possible, and cold starts of a few seconds are acceptable. The domain is `toebeans.gebrev.com`. The exercise content pipeline is defined, and the delivery diagnostics UI is deferred. Added D13–D14 (§8.4, §3.8) and new open questions Q7–Q9.
 
 **Changes in 0.3:** S-1.0 result: Atlas offers a free South African cluster only on **AWS Cape Town (`af-south-1`)**, not on GCP Johannesburg. The topology is now Cloud Run Johannesburg + Atlas AWS Cape Town (cross-provider). Added a database round-trip budget, the database network-access approach (§8.4) and an AWS-only fallback topology. Q7 resolved.
+
+**Changes in 0.4:** S-1.1 and S-1.2 results. The PWA installs on both acceptance phones. Web Push reaches both phones with the app closed, but **only reliably once Chrome's battery restriction is lifted** (§6.4). Added a send policy (urgency `high`, TTL per reminder type), the notification-tap rule, Android delivery findings (§6.4) and risk R5. Q4 resolved.
 
 This document records the technical decisions, domain model and system structure for the Toe Beans MVP. Every decision weighs alternatives against the requirement IDs (FR-xx / NFR-xx). Free-tier figures were checked against public sources in October 2026. They change often, so re-verify them before committing (see §11).
 
@@ -314,10 +316,10 @@ NotificationJob {
    1. Extend the recurring-plan horizon.
    2. Claim due jobs atomically with `findOneAndUpdate({status:'pending', dueAt ≤ now}, {status:'sending', lockedUntil: now+60s})`, so concurrent ticks never double-claim.
    3. Re-load the subject and **skip if its version or status changed** (a second guard against stale reminders, scenario 5).
-   4. Send via `web-push` (VAPID) with a TTL so stale notifications expire in the push service, plus a `tag` so the OS replaces duplicates.
+   4. Send via `web-push` (VAPID) with **`Urgency: high`** (reminders are time-sensitive and always show a notification, so Android doesn't demote them) and a **TTL** so stale notifications expire in the push service: **1 h** for training reminders, **12 h** for care reminders. A deep-sleeping phone can take over a minute to collect a push (§6.4), so TTLs must never be short. Add a `tag` so the OS replaces duplicates.
    5. Mark `sent`, or on failure `pending` with backoff (max 3 attempts), then `failed`. A `404/410` response from the push service disables the subscription.
    6. Recover `sending` jobs whose `lockedUntil` has passed.
-3. **Click.** The service worker's `notificationclick` handler opens or focuses `/{deep-link}` (e.g. `/sessions/{id}`) carried in the payload. Payloads carry minimal data: dog name, exercise title and link, no notes.
+3. **Click.** The service worker's `notificationclick` handler always calls `clients.openWindow('/{deep-link}')` (e.g. `/sessions/{id}`) from the payload. It never focuses an existing client: the Clients API can't tell a Chrome tab from the installed app's window, and in S-1.2 focusing opened the link in a browser tab. Android routes in-scope URLs to the installed app, and the manifest's `launch_handler: navigate-existing` reuses its window. Payloads carry minimal data: dog name, exercise title and link, no notes.
 
 ### 6.3 Triggering the tick (host-independent)
 
@@ -329,9 +331,30 @@ The tick is idempotent and safe to call concurrently, so it can run from any tri
 | In-process `setInterval` loop (`WORKER_MODE=inline`) | Always-on hosts (self-host, Oracle VM, dev) |
 | Separate worker process (`node worker.js`) | After extraction or at scale |
 
-Reminder precision is therefore about ±1 minute. The UI never promises exact times (NFR-16).
+Reminder precision is therefore about ±1 minute from the tick, plus up to ~1–2 minutes when the phone is in deep sleep (§6.4). The UI never promises exact times (NFR-16).
 
 Agenda, Bree and BullMQ were considered. Agenda adds little over ~150 lines of our own code against the same collection. BullMQ needs Redis, one more free-tier dependency.
+
+### 6.4 Delivery on Android (spike S-1.2 findings)
+
+Tested on both acceptance phones with the spike harness in `spikes/pwa`, urgency `high`, phone locked. Raw logs are in `spikes/pwa/results/`.
+
+| Phone, Chrome battery setting | Short delays (≤ 3 min) | Long idle (30 min – 2 h, still, unplugged) |
+|---|---|---|
+| Galaxy S23 FE, default (and *Never sleeping apps* alone) | 5 of 9. Every miss was at 105–120 s locked. Misses were lost, or arrived much later (one 90 min late, when the next push woke Chrome). | 0 of 1 at 30 min (the 90-min-late one) |
+| Galaxy S23 FE, **Unrestricted** | 4 of 4, 2–4 s late | 4 of 4, 2–74 s late |
+| Redmi Note 12 Pro, default | 2 of 3 (missed one at 5 min) | 2 of 2 (30 min, 2 h); the phone was in use around the 2 h one, so not a clean idle test |
+| Redmi Note 12 Pro, **Battery saver: No restrictions** | 2 of 2, 4–30 s late | 1 of 1 at 45 min, 5 s late |
+
+What this shows:
+
+- **The push service is not the problem.** FCM accepted every send (`201`). Losses happen on the phone, when the manufacturer's battery management freezes Chrome so it can't wake the service worker. Urgency `high` gets the message to the phone but can't unfreeze Chrome.
+- **The setting that matters is on Chrome, not on Toe Beans.** The installed app is a WebAPK shell, and pushes are received and handled inside Chrome. Samsung: *Apps → Chrome → Battery → Unrestricted* (this also takes Chrome off the sleeping lists). Xiaomi: *Apps → Manage apps → Chrome → Battery saver → No restrictions* (a per-app policy that is always active, despite the name). Xiaomi's *Autostart* isn't offered for Chrome on the Redmi.
+- **With those settings, nothing was dropped**, but deep sleep adds up to ~75 s.
+- **An instant test notification proves nothing.** Every phone delivers while awake; failures start a minute or two after locking. A meaningful self-test asks the user to lock the phone and waits about 3 minutes.
+- Samples are small (13 sends on the S23 FE with the fix, 3 on the Redmi). Recheck during S12 and early household use.
+
+Consequences for the design: the reminders setup includes a "make reminders reliable" step with per-manufacturer instructions and a delayed test (`ui.md` J7), Today remains the source of truth for what's due, and TTLs are generous (§6.2). If reliability with these settings proves poor in real use, see R5.
 
 ---
 
@@ -486,7 +509,7 @@ On the self-host path, `toebeans.gebrev.com` points at the IIS host, with a win-
 | Q1 | ~~Is a billing-enabled GCP account acceptable?~~ | **Resolved:** yes. A budget alert is mandatory (S14.1). |
 | Q2 | Atlas free cluster idle pausing; acceptable cold-start time | **Resolved:** cold starts of a few seconds are acceptable. The spike target is **≤ 5 s** for the first response from cold (§8.4). The every-minute tick keeps Atlas active; monitor this in the spike. |
 | Q3 | ~~Which region?~~ | **Resolved:** South Africa where possible. See §8.4 and Q7. |
-| Q4 | Android battery optimisation (Xiaomi MIUI/HyperOS especially) delaying push | **Noted, non-blocking.** Test on the Redmi during S-1 and document the settings in an in-app help page. It doesn't block development. |
+| Q4 | ~~Android battery optimisation delaying push~~ | **Resolved (S-1.2):** both phones drop pushes at default settings once locked for a minute or two; lifting Chrome's battery restriction fixed it on both (§6.4). Guidance goes into the reminders setup (`ui.md` J7). Residual risk is R5. |
 | Q5 | ~~Custom domain?~~ | **Resolved:** `toebeans.gebrev.com` for the MVP. Possibly `toebeans.co.za` later, so the origin must be pure config (§8.4). See Q8. |
 | Q6 | ~~Exercise content authorship~~ | **Resolved:** the user aggregates the catalogue from online articles and videos, edited with AI, and reviews it. Pipeline in §3.8. |
 | Q7 | ~~Free Atlas cluster in South Africa?~~ | **Resolved (S-1.0):** only on AWS `af-south-1` (Cape Town). Topology 1 in §8.4. |
@@ -496,3 +519,4 @@ On the self-host path, `toebeans.gebrev.com` points at the IIS host, with a win-
 | R2 | Multi-vendor sprawl (GCP, Atlas, R2, Auth0, Resend, Sentry) | Accepted for a free setup. Secrets are listed in `docs/runbooks/accounts.md` (names only, no values). |
 | R3 | Atlas access list open to all IPs (`0.0.0.0/0`), because serverless hosts have no fixed outbound IP (§8.4) | TLS, strong rotated credentials, least-privilege users, Atlas alerts. Revisit if a free static-egress option appears, or on self-host (where the database isn't exposed at all). |
 | R4 | Cross-provider latency between Johannesburg and Cape Town is higher than estimated | Measured in S-1.4 against the 250 ms budget. Fallback is topology 1b. |
+| R5 | Push reliability depends on each user lifting Chrome's battery restriction, which they may skip or which an OS update may reset. A PWA can't request the exemption itself or schedule notifications on the device. | Setup step with per-manufacturer instructions and a delayed test (`ui.md` J7). Today always shows what's due. If real use is still unreliable, the escalation is a thin Android wrapper (Capacitor or a Trusted Web Activity) that schedules reminders on the device with exact alarms. That is a **scope change** (the requirements assume no native wrapper) and needs a recorded decision. |

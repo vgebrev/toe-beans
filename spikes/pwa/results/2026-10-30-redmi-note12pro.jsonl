@@ -1,0 +1,11 @@
+{"at":"2026-10-30T11:33:20.460Z","event":"scheduled","device":"Redmi phone","pushId":"641fe918","detail":"delay 30 s, due 2026-10-30T11:33:50.460Z, urgency high"}
+{"at":"2026-10-30T11:33:51.727Z","event":"sent","device":"Redmi phone","pushId":"641fe918","detail":"HTTP 201"}
+{"at":"2026-10-30T11:33:54.135Z","event":"received","device":"Redmi phone","pushId":"641fe918","detail":"3.7 s after send"}
+{"at":"2026-10-30T11:34:00.165Z","event":"clicked","device":"Redmi phone","pushId":"641fe918","detail":"9.7 s after send"}
+{"at":"2026-10-30T11:34:10.203Z","event":"scheduled","device":"Redmi phone","pushId":"626a0490","detail":"delay 60 s, due 2026-10-30T11:35:10.203Z, urgency high"}
+{"at":"2026-10-30T11:35:10.620Z","event":"sent","device":"Redmi phone","pushId":"626a0490","detail":"HTTP 201"}
+{"at":"2026-10-30T11:35:40.465Z","event":"received","device":"Redmi phone","pushId":"626a0490","detail":"30.3 s after send"}
+{"at":"2026-10-30T11:39:00.353Z","event":"scheduled","device":"Redmi phone","pushId":"5c969602","detail":"delay 2700 s, due 2026-10-30T12:24:00.353Z, urgency high"}
+{"at":"2026-10-30T12:24:01.612Z","event":"sent","device":"Redmi phone","pushId":"5c969602","detail":"HTTP 201"}
+{"at":"2026-10-30T12:24:05.615Z","event":"received","device":"Redmi phone","pushId":"5c969602","detail":"5.3 s after send"}
+{"at":"2026-10-30T12:24:37.623Z","event":"clicked","device":"Redmi phone","pushId":"5c969602","detail":"37.3 s after send"}

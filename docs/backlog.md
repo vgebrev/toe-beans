@@ -2,7 +2,7 @@
 
 **Version:** 0.2 (draft for iteration)
 **Date:** 28 October 2026
-**Inputs:** `docs/requirements.md` v1.0, `docs/architecture.md` v0.3, `docs/ui.md` v0.4
+**Inputs:** `docs/requirements.md` v1.0, `docs/architecture.md` v0.4, `docs/ui.md` v0.5
 
 Work is organised as **vertical slices**: each delivers a usable end-to-end increment through UI → API → application → domain → persistence, with tests. Slices are ordered by **dependency and risk**. The riskiest unknowns (push with the app closed, free hosting) are spiked first, before building on them.
 
@@ -25,8 +25,9 @@ Work is organised as **vertical slices**: each delivers a usable end-to-end incr
 | 2026-10-29 | S-1.2 started: push test panel, VAPID subscribe/send, delayed sends with `high`/`normal` urgency, notification deep link, and a delivery log fed by the service worker. Works end to end in desktop Chrome. Next: phone checklist. |
 | 2026-10-30 | S-1.2 Galaxy S23 FE result: with default settings and the screen locked, pushes arrive up to ~90 s, then fail from ~105 s on, or turn up much later (one arrived 90 min late, when the next push woke Chrome). FCM accepted every send (`HTTP 201`): Samsung freezes Chrome, so urgency `high` doesn't help. *Never sleeping apps* alone wasn't reliable. **Apps → Chrome → Battery → Unrestricted** fixed it: every delay up to 3 min arrived (One UI then drops Chrome from the never-sleeping list, since Unrestricted covers it). Taps open the installed app. Tally (log in `spikes/pwa/results/`): before *Unrestricted*, 5 of 9 sends received, all 4 misses at 105–120 s locked and none turned up later; after, 4 of 4 (120 s and three at 180 s). Redmi settings still to test. |
 | 2026-10-30 | S-1.2 Galaxy S23 FE idle run with *Unrestricted*, phone locked, still and unplugged: **4 of 4 received** (pushes at 45, 60, 90 and 120 min, so 15–45 min apart after the first). Lateness tracks idle time: 44 s after 45 min idle, 2 s after 15 min, 74 s and 35 s after 30 min. Nothing dropped. Implications: reminder TTL should be long (≥ 1 h), and the UI shouldn't promise to-the-second timing. Samsung side of S-1.2 done. |
+| 2026-10-30 | S-1.2 done. Redmi with Chrome *Battery saver: No restrictions*: 3 of 3, including 45 min locked, still and unplugged (5 s late). Xiaomi doesn't offer *Autostart* for Chrome. Architecture v0.4 (§6.4 findings, send policy, R5) and UI v0.5 (J7 reliability step, delayed test). |
 
-**Next up:** review and accept the decisions in `architecture.md` §2, then S-1 (spikes) and S0 (foundations) in parallel.
+**Next up:** S-1.3 (Cloud Run Johannesburg + Cloud Scheduler tick) and S-1.4 (Atlas Cape Town latency), then S-1.4a (domain). S0 foundations can start in parallel.
 
 ---
 
@@ -49,7 +50,7 @@ Work is organised as **vertical slices**: each delivers a usable end-to-end incr
 | # | Task | Status |
 |---|---|---|
 | S-1.1 | Minimal SvelteKit + service worker PWA, installable on both phones. **Result: installs on the Galaxy S23 FE and Redmi Note 12 Pro, shows the offline page in flight mode, and recovers once the connection returns.** Spike in `spikes/pwa`. | ✅ |
-| S-1.2 | Web Push via VAPID: subscribe, send from the server, receive **with the PWA closed** on the Galaxy S23 FE and Redmi Note 12 Pro. Record battery and optimisation settings needed (especially MIUI/HyperOS). *Built in `spikes/pwa` and verified end to end in desktop Chrome (FCM accepted, service worker received in ~2 s). Waiting on the phone checklist in `spikes/pwa/README.md`.* | 🟨 |
+| S-1.2 | Web Push via VAPID: subscribe, send from the server, receive **with the PWA closed** on the Galaxy S23 FE and Redmi Note 12 Pro. Record battery and optimisation settings needed (especially MIUI/HyperOS). **Result: works on both, but only reliably after lifting Chrome's battery restriction (Samsung *Unrestricted*, Xiaomi *No restrictions*). Without it, pushes are lost once the phone has been locked for 1–2 min. Deep sleep adds up to ~75 s. Findings in architecture §6.4, risk R5.** | ✅ |
 | S-1.0 | Check which South African regions Atlas offers for free clusters (Q7). **Result: AWS `af-south-1` (Cape Town) only.** Topology: Cloud Run Johannesburg + Atlas Cape Town (architecture §8.4). | ✅ |
 | S-1.3 | Deploy to Cloud Run (`africa-south1`, Johannesburg), with Cloud Scheduler calling `/internal/tick` every minute. Measure cold start against the **≤ 5 s** budget, tick reliability over 48 h, and confirm **$0** in billing reports for a Tier 2 region (Q9). Budget alert on. Also: the service worker shows a "Can't reach Toe Beans" page when a page load gets a 502/503/504 from the platform (found in S-1.1: gateway error pages bypass the offline fallback). | ⬜ |
 | S-1.4 | Atlas free cluster on AWS `af-south-1` (Cape Town). Measure the Cloud Run → Atlas round trip and the warm Today API time (≤ 250 ms p95 budget), plus end-to-end latency from both phones. Confirm transactions work. Set up the access list and least-privilege users as in architecture §8.4. | ⬜ |
@@ -181,7 +182,7 @@ Work is organised as **vertical slices**: each delivers a usable end-to-end incr
 | S12.3 | NotificationJob + `ReminderPlanner.replan` wired transactionally into session and care use cases | ⬜ |
 | S12.4 | `worker.tick`: atomic claim, stale-subject guard, retries/backoff, recovery of stuck `sending` jobs. Both trigger modes (HTTP endpoint and inline loop). | ⬜ |
 | S12.5 | Service worker `push` + `notificationclick` deep links, including the cancelled-item landing state | ⬜ |
-| S12.6 | Notifications settings state-machine screen and test notification | ⬜ |
+| S12.6 | Notifications settings state-machine screen, *Make reminders reliable* card (per-manufacturer steps) and the **delayed** test reminder (`ui.md` J7) | ⬜ |
 | S12.7 | Tests: reschedule/cancel produces no stale sends, concurrent ticks produce no duplicates, denied/revoked permission | ⬜ |
 
 ### S13 PWA polish and connectivity ⬜

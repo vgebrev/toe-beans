@@ -1,13 +1,15 @@
 # Toe Beans — UI and Interaction Design
 
-**Version:** 0.4 (draft for iteration)
+**Version:** 0.5 (draft for iteration)
+
+**Changes in 0.5:** S-1.2 push spike results (`architecture.md` §6.4). J7 gains a **Make reminders reliable** step with per-manufacturer battery instructions, and the test notification becomes a **delayed** test, because instant ones always arrive. Notification taps always open the installed app.
 
 **Changes in 0.4:** review round 3. Nunito confirmed. The dark primary is softened to `#C98A4B`, the same tan as the light-theme accent. Hugeicons free (MIT) adopted. Mock-up layouts accepted for the MVP.
 
 **Changes in 0.3:** review round 2. Nunito is the body font, the logo will be AI-assisted, and the theme is chosen per device (defaulting to the system setting). Added an icon library evaluation (Hugeicons preferred, Phosphor as the alternative) and a link to the mock-ups canvas.
-**Date:** 28 October 2026
+**Date:** 30 October 2026
 **Status:** Proposed
-**Inputs:** `docs/requirements.md` v1.0, `docs/architecture.md` v0.3
+**Inputs:** `docs/requirements.md` v1.0, `docs/architecture.md` v0.4
 
 **Changes in 0.2:** first review round.
 - Care keeps its own tab, and Done sessions show who logged them.
@@ -134,9 +136,21 @@ Settings → Notifications (also offered during onboarding and via a Today banne
 | Unsupported browser | "This browser can't show reminders. Use Chrome on Android." | — |
 | Not installed (Chrome, browser tab) | "Install Toe Beans for the most reliable reminders" | *Install* (or instructions) |
 | Permission not yet asked | Explanation of what will be sent and that times are approximate | **Turn on reminders**. Requests permission *only* on this tap. |
-| Granted + subscribed | "Reminders are on for this device ({device label})". Lead-time settings: training defaults to **at the session time**; care tasks without a time remind at 08:00 on the day. | *Send test notification*, *Turn off on this device* |
-| Denied / revoked | "Notifications are blocked for Toe Beans" plus step-by-step Chrome/Android instructions, with a device note for Xiaomi battery settings | *Check again* |
+| Granted + subscribed | "Reminders are on for this device ({device label})". Lead-time settings: training defaults to **at the session time**; care tasks without a time remind at 08:00 on the day. A **Make reminders reliable** card (below) until the user marks it done. | *Test reminders*, *Turn off on this device* |
+| Denied / revoked | "Notifications are blocked for Toe Beans" plus step-by-step Chrome/Android instructions | *Check again* |
 | Subscription failed | "Couldn't register this device" | *Retry*. The failure is logged server-side; no diagnostics screen in Phase 1. |
+
+**Make reminders reliable.** Without this, Samsung and Xiaomi phones dropped reminders a minute or two after locking (`architecture.md` §6.4). The card explains, in one sentence, that the phone's battery saver can stop reminders, and that the fix is a setting on **Chrome** (not Toe Beans). Then it shows the steps for the user's phone:
+
+| Phone | Steps |
+|---|---|
+| Samsung | Settings → Apps → Chrome → Battery → **Unrestricted** |
+| Xiaomi / Redmi / POCO | Settings → Apps → Manage apps → Chrome → Battery saver → **No restrictions** |
+| Other Android | Settings → Apps → Chrome → Battery → **Unrestricted** / *Don't optimise* (wording varies) |
+
+The manufacturer is preselected where Chrome reports the phone model (`navigator.userAgentData` high-entropy `model`), with a picker to change it. An *Open Chrome's settings* shortcut isn't possible from a web app, so the steps are text plus a screenshot per manufacturer. *Done* hides the card; it stays reachable from Settings → Notifications → *Reminder tips*.
+
+**Test reminders** sends a push **3 minutes** later and asks the user to lock the phone and put it down. When it arrives, its tap opens a "Reminders are working" screen. A test that arrives instantly says nothing, because phones only start dropping pushes after a minute or two locked. If nothing arrives within 5 minutes the screen, next time it's opened, says "Didn't get it? Check the battery setting above" (the service worker reports the test's arrival to the server, as in the S-1.2 spike).
 
 The screen also lists **other devices** of the current user, so they can be removed. A note always says: "Reminders can be delayed by your phone's battery or network settings. Today always shows what's due."
 
@@ -287,6 +301,7 @@ All deletes, archives, invite revocations and "turn off reminders" go through a 
 ### 6.2 Push notifications
 
 - Ask for permission only after an explicit tap (J7), never on load.
+- A tap always opens the item in the **installed app**, never a Chrome tab (`architecture.md` §6.2 step 3).
 - Content: title "Training time: Recall basics", body "Ripley · 17:30", badge icon, `tag` per item so updates replace older ones. Care: "Coming up: Vaccination for Miso tomorrow".
 - No notes or sensitive text in payloads.
 
