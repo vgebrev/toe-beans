@@ -1,0 +1,40 @@
+{"at":"2026-10-30T07:15:38.955Z","event":"scheduled","device":"Samsung","pushId":"4f36f0d1","detail":"delay 0 s, due 2026-10-30T07:15:38.955Z, urgency high"}
+{"at":"2026-10-30T07:15:40.194Z","event":"sent","device":"Samsung","pushId":"4f36f0d1","detail":"HTTP 201"}
+{"at":"2026-10-30T07:15:40.519Z","event":"received","device":"Samsung","pushId":"4f36f0d1","detail":"1.6 s after send"}
+{"at":"2026-10-30T07:15:45.391Z","event":"clicked","device":"Samsung","pushId":"4f36f0d1","detail":"6.4 s after send"}
+{"at":"2026-10-30T07:16:04.978Z","event":"scheduled","device":"Samsung","pushId":"60b49603","detail":"delay 120 s, due 2026-10-30T07:18:04.978Z, urgency high"}
+{"at":"2026-10-30T07:18:06.155Z","event":"sent","device":"Samsung","pushId":"60b49603","detail":"HTTP 201"}
+{"at":"2026-10-30T07:41:34.680Z","event":"scheduled","device":"Samsung","pushId":"957d09a9","detail":"delay 120 s, due 2026-10-30T07:43:34.680Z, urgency high"}
+{"at":"2026-10-30T07:43:35.856Z","event":"sent","device":"Samsung","pushId":"957d09a9","detail":"HTTP 201"}
+{"at":"2026-10-30T07:43:36.895Z","event":"received","device":"Samsung","pushId":"957d09a9","detail":"2.2 s after send"}
+{"at":"2026-10-30T07:43:44.029Z","event":"clicked","device":"Samsung","pushId":"957d09a9","detail":"9.3 s after send"}
+{"at":"2026-10-30T07:44:03.498Z","event":"scheduled","device":"Samsung","pushId":"1e142073","detail":"delay 60 s, due 2026-10-30T07:45:03.498Z, urgency high"}
+{"at":"2026-10-30T07:45:04.733Z","event":"sent","device":"Samsung","pushId":"1e142073","detail":"HTTP 201"}
+{"at":"2026-10-30T07:45:05.647Z","event":"received","device":"Samsung","pushId":"1e142073","detail":"2.1 s after send"}
+{"at":"2026-10-30T07:45:15.697Z","event":"clicked","device":"Samsung","pushId":"1e142073","detail":"12.2 s after send"}
+{"at":"2026-10-30T07:45:28.706Z","event":"scheduled","device":"Samsung","pushId":"c085b8bc","detail":"delay 90 s, due 2026-10-30T07:46:58.706Z, urgency high"}
+{"at":"2026-10-30T07:46:59.104Z","event":"sent","device":"Samsung","pushId":"c085b8bc","detail":"HTTP 201"}
+{"at":"2026-10-30T07:46:59.856Z","event":"received","device":"Samsung","pushId":"c085b8bc","detail":"1.1 s after send"}
+{"at":"2026-10-30T07:50:28.376Z","event":"clicked","device":"Samsung","pushId":"c085b8bc","detail":"209.7 s after send"}
+{"at":"2026-10-30T07:50:38.831Z","event":"scheduled","device":"Samsung","pushId":"f2f60bf0","detail":"delay 105 s, due 2026-10-30T07:52:23.831Z, urgency high"}
+{"at":"2026-10-30T07:52:25.118Z","event":"sent","device":"Samsung","pushId":"f2f60bf0","detail":"HTTP 201"}
+{"at":"2026-10-30T08:01:20.266Z","event":"scheduled","device":"Samsung","pushId":"f0887b71","detail":"delay 105 s, due 2026-10-30T08:03:05.266Z, urgency high"}
+{"at":"2026-10-30T08:03:06.523Z","event":"sent","device":"Samsung","pushId":"f0887b71","detail":"HTTP 201"}
+{"at":"2026-10-30T08:03:07.964Z","event":"received","device":"Samsung","pushId":"f0887b71","detail":"2.7 s after send"}
+{"at":"2026-10-30T08:03:16.747Z","event":"clicked","device":"Samsung","pushId":"f0887b71","detail":"11.5 s after send"}
+{"at":"2026-10-30T08:03:25.481Z","event":"scheduled","device":"Samsung","pushId":"5a190500","detail":"delay 120 s, due 2026-10-30T08:05:25.481Z, urgency high"}
+{"at":"2026-10-30T08:05:26.654Z","event":"sent","device":"Samsung","pushId":"5a190500","detail":"HTTP 201"}
+{"at":"2026-10-30T08:07:16.799Z","event":"scheduled","device":"Samsung","pushId":"d06facd5","detail":"delay 120 s, due 2026-10-30T08:09:16.799Z, urgency high"}
+{"at":"2026-10-30T08:09:18.046Z","event":"sent","device":"Samsung","pushId":"d06facd5","detail":"HTTP 201"}
+{"at":"2026-10-30T08:11:07.757Z","event":"scheduled","device":"Samsung","pushId":"ee3f01ff","detail":"delay 120 s, due 2026-10-30T08:13:07.757Z, urgency high"}
+{"at":"2026-10-30T08:13:08.999Z","event":"sent","device":"Samsung","pushId":"ee3f01ff","detail":"HTTP 201"}
+{"at":"2026-10-30T08:13:11.300Z","event":"received","device":"Samsung","pushId":"ee3f01ff","detail":"3.5 s after send"}
+{"at":"2026-10-30T08:13:24.979Z","event":"clicked","device":"Samsung","pushId":"ee3f01ff","detail":"17.2 s after send"}
+{"at":"2026-10-30T08:13:33.642Z","event":"scheduled","device":"Samsung","pushId":"902f4681","detail":"delay 180 s, due 2026-10-30T08:16:33.642Z, urgency high"}
+{"at":"2026-10-30T08:16:34.037Z","event":"sent","device":"Samsung","pushId":"902f4681","detail":"HTTP 201"}
+{"at":"2026-10-30T08:16:35.261Z","event":"received","device":"Samsung","pushId":"902f4681","detail":"1.6 s after send"}
+{"at":"2026-10-30T08:17:55.246Z","event":"clicked","device":"Samsung","pushId":"902f4681","detail":"81.6 s after send"}
+{"at":"2026-10-30T08:18:38.196Z","event":"scheduled","device":"Samsung","pushId":"2a915ad2","detail":"delay 180 s, due 2026-10-30T08:21:38.196Z, urgency high"}
+{"at":"2026-10-30T08:21:39.447Z","event":"sent","device":"Samsung","pushId":"2a915ad2","detail":"HTTP 201"}
+{"at":"2026-10-30T08:21:40.927Z","event":"received","device":"Samsung","pushId":"2a915ad2","detail":"2.7 s after send"}
+{"at":"2026-10-30T08:24:30.932Z","event":"clicked","device":"Samsung","pushId":"2a915ad2","detail":"172.7 s after send"}
