@@ -1,0 +1,11 @@
+# Docker build context (mirrors .gcloudignore)
+.gcloudignore
+.git
+node_modules
+.svelte-kit
+build
+data
+results
+.env
+.env.*
+!.env.example

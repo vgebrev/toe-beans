@@ -1,7 +1,7 @@
-# Spikes S-1.1 and S-1.2: installable PWA with Web Push
+# Spikes S-1.1 to S-1.3: installable PWA with Web Push, on Cloud Run
 
-Throwaway spike (backlog S-1.1, S-1.2). A minimal SvelteKit 3 app on `adapter-node` that Chrome on Android
-can install. S-1.2 (Web Push) and S-1.3 (Cloud Run) will build on it. It is **not** the start of
+Throwaway spike (backlog S-1.1 to S-1.3). A minimal SvelteKit 3 app on `adapter-node` that Chrome on Android
+can install. S-1.2 added Web Push and S-1.3 deploys it to Cloud Run. It is **not** the start of
 `apps/web`; S0 sets that up properly.
 
 What it has:
@@ -18,8 +18,13 @@ What it has:
   minutes, up to 2 h), with `high` or `normal` urgency. The service worker
   shows the notification, reports `received` and `clicked` back to the server, and a tap opens
   `/sessions/{pushId}` (the deep link). Subscriptions and the delivery log live in `./data`
-  (gitignored). Delayed sends use `setTimeout`, so **keep the server running until they fire**;
-  restarting it drops pending sends but keeps subscriptions.
+  (gitignored). Delayed sends wait in an in-memory queue, so **keep the server running until they
+  fire**; restarting it drops pending sends but keeps subscriptions. Locally a 5 s loop drains the
+  queue; on Cloud Run the scheduler's tick does, so sends go out up to a minute after they're due.
+- **Cloud Run (S-1.3):** `POST /internal/tick` accepts only an OIDC token that Cloud Scheduler signs
+  as the `toe-beans-tick` service account, and logs each tick's lag. Every response carries
+  `x-instance: <id>; age=<s>` and each instance logs `instance started` and `first request`, so
+  cold starts show up. A 502/503/504 on a page load shows the cached *Can't reach Toe Beans* page.
 - Icons: `scripts/paw.svg` is a placeholder paw print (the real logo is S0.9). Regenerate the PNGs
   with `pnpm icons`.
 
@@ -33,6 +38,34 @@ PORT=3000 pnpm start
 ```
 
 `pnpm start` is `node --env-file=.env build`; plain `node build` won't see the VAPID keys.
+
+## Deploy to Cloud Run (S-1.3)
+
+Once per project (after `gcloud auth login`):
+
+```sh
+gcloud config set project toe-beans-co-za
+gcloud config set run/region africa-south1
+gcloud services enable run.googleapis.com cloudbuild.googleapis.com \
+  artifactregistry.googleapis.com cloudscheduler.googleapis.com
+scripts/gcp-setup.sh     # service accounts, VAPID private key into Secret Manager
+```
+
+Then `scripts/gcp-deploy.sh` builds in Cloud Build (no local Docker needed), deploys
+`toe-beans-spike` to `africa-south1` and creates or updates the `toe-beans-tick` job (every minute,
+in `me-central1`: Cloud Scheduler isn't offered in Johannesburg). The VAPID keys come from `.env`,
+so devices subscribed against the deployed URL keep working across redeploys. State in `./data` is
+per instance and lost when Cloud Run recycles it (fine for a spike; S-1.4 brings Atlas).
+
+Measuring:
+
+- **Cold start (≤ 5 s):** pause the tick (`gcloud scheduler jobs pause toe-beans-tick --location
+  me-central1`), wait 20+ min, then `pnpm coldstart <url>`. The first line is cold if its instance
+  is new with a small `age`. Resume the job afterwards. Also time opening the app on each phone.
+- **Tick reliability (48 h):** `pnpm ticks` reads the tick log from Cloud Logging and reports
+  missing minutes, lag percentiles and scheduler errors.
+- **Cost ($0):** Billing → Reports, filtered to the project, grouped by SKU. Check the cost
+  *before* credits is $0, so the free tier (not the trial credit) is what covers it.
 
 ## Test on a phone
 

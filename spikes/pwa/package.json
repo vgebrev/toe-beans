@@ -2,6 +2,7 @@
 	"name": "toe-beans-spike-pwa",
 	"private": true,
 	"version": "0.0.1",
+	"packageManager": "pnpm@10.30.0",
 	"type": "module",
 	"scripts": {
 		"dev": "vite dev",
@@ -12,7 +13,9 @@
 		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
 		"icons": "node scripts/icons.mjs",
 		"vapid": "node scripts/vapid.mjs",
-		"start": "node --env-file=.env build"
+		"start": "node --env-file=.env build",
+		"coldstart": "node scripts/coldstart.mjs",
+		"ticks": "node scripts/ticks.mjs"
 	},
 	"devDependencies": {
 		"@sveltejs/adapter-node": "6.0.0",
@@ -26,6 +29,7 @@
 		"vite": "^8.3.0"
 	},
 	"dependencies": {
+		"jose": "6.2.14",
 		"web-push": "3.6.7"
 	},
 	"imports": {

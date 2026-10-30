@@ -1,17 +1,23 @@
-// Spike S-1.2 push plumbing. Deliberately crude: JSON files under ./data and setTimeout for
-// delayed sends. The real design (NotificationJob collection, worker.tick) is architecture §6.
+// Spike S-1.2/S-1.3 push plumbing. Deliberately crude: JSON files under ./data and an in-memory
+// queue of delayed sends, drained by dispatchDue(). On Cloud Run the scheduler's /internal/tick
+// drives it; locally a 5 s loop does. The real design (NotificationJob collection, worker.tick)
+// is architecture §6.
 import webpush, { type PushSubscription, WebPushError } from 'web-push';
 import { mkdir, readFile, writeFile, appendFile } from 'node:fs/promises';
 import { VAPID_PRIVATE_KEY, VAPID_SUBJECT } from '$app/env/private';
 import { VAPID_PUBLIC_KEY } from '$app/env/public';
-
-webpush.setVapidDetails(VAPID_SUBJECT, VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY);
 
 const DATA = 'data';
 const SUBS = `${DATA}/subscriptions.json`;
 const LOG = `${DATA}/log.jsonl`;
 
 export type Device = { id: string; label: string; subscription: PushSubscription; createdAt: string };
+type Pending = { device: Device; pushId: string; urgency: Urgency; dueAt: number };
+const pending: Pending[] = [];
+
+// Cloud Run sets K_SERVICE. Elsewhere there's no scheduler, so tick in-process (architecture §6.3).
+if (!process.env.K_SERVICE) setInterval(() => void dispatchDue(new Date()), 5000).unref();
+
 export type Urgency = 'very-low' | 'low' | 'normal' | 'high';
 export type LogEntry = {
 	at: string;
@@ -72,8 +78,18 @@ export async function schedule(deviceId: string, delaySeconds: number, urgency: 
 	const pushId = crypto.randomUUID().slice(0, 8);
 	const dueAt = new Date(Date.now() + delaySeconds * 1000).toISOString();
 	await log({ event: 'scheduled', device: device.label, pushId, detail: `delay ${delaySeconds} s, due ${dueAt}, urgency ${urgency}` });
-	setTimeout(() => void send(device, pushId, urgency), delaySeconds * 1000);
+	if (delaySeconds === 0) await send(device, pushId, urgency);
+	else pending.push({ device, pushId, urgency, dueAt: Date.parse(dueAt) });
 	return { pushId, dueAt };
+}
+
+/** Sends every queued push that's due. Returns how many it sent. */
+export async function dispatchDue(now: Date): Promise<number> {
+	const due = pending.filter((p) => p.dueAt <= now.getTime());
+	if (!due.length) return 0;
+	for (const p of due) pending.splice(pending.indexOf(p), 1);
+	await Promise.all(due.map((p) => send(p.device, p.pushId, p.urgency)));
+	return due.length;
 }
 
 async function send(device: Device, pushId: string, urgency: Urgency) {
@@ -87,7 +103,11 @@ async function send(device: Device, pushId: string, urgency: Urgency) {
 		url: `/sessions/${pushId}`
 	});
 	try {
-		const res = await webpush.sendNotification(device.subscription, payload, { TTL: 3600, urgency });
+		const res = await webpush.sendNotification(device.subscription, payload, {
+			TTL: 3600,
+			urgency,
+			vapidDetails: { subject: VAPID_SUBJECT, publicKey: VAPID_PUBLIC_KEY, privateKey: VAPID_PRIVATE_KEY }
+		});
 		await log({ event: 'sent', device: device.label, pushId, detail: `HTTP ${res.statusCode}` });
 	} catch (e) {
 		const status = e instanceof WebPushError ? e.statusCode : undefined;

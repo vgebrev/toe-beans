@@ -1,6 +1,7 @@
-// Spike S-1.1/S-1.2 service worker. Precaches build output, static files and the offline page.
-// Navigations go network-first and fall back to /offline. Anything else (future /api/*, photos)
-// is never cached (architecture §7: no stale personal data, no false "saved").
+// Spike S-1.1–S-1.3 service worker. Precaches build output, static files and the fallback pages.
+// Navigations go network-first and fall back to /offline, or to /unreachable when the platform
+// answers with a gateway error. Anything else (future /api/*, photos) is never cached
+// (architecture §7: no stale personal data, no false "saved").
 import { self } from '$app/service-worker';
 import { immutable, assets, prerendered } from '$app/manifest';
 import { version } from '$app/env';
@@ -9,6 +10,9 @@ const CACHE = `toe-beans-${version}`;
 // Manifest paths are relative to the base path, which is where this worker is served from.
 const toPath = (path: string) => new URL(path, self.location.href).pathname;
 const OFFLINE = toPath('offline');
+const UNREACHABLE = toPath('unreachable');
+// Errors from a proxy or the platform (Cloudflare, Cloud Run), not from the app: show our own page.
+const GATEWAY_ERRORS = new Set([502, 503, 504]);
 const PRECACHE = [...immutable, ...assets, ...prerendered].map((f) => toPath(f.path));
 const PRECACHED = new Set(PRECACHE);
 
@@ -38,7 +42,10 @@ self.addEventListener('fetch', (event) => {
 
 	if (request.mode === 'navigate') {
 		event.respondWith(
-			fetch(request).catch(async () => (await caches.match(OFFLINE)) ?? Response.error())
+			fetch(request).then(
+				async (res) => (GATEWAY_ERRORS.has(res.status) && (await caches.match(UNREACHABLE))) || res,
+				async () => (await caches.match(OFFLINE)) ?? Response.error()
+			)
 		);
 		return;
 	}
