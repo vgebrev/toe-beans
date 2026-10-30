@@ -1,8 +1,0 @@
-{"at":"2026-10-30T08:28:55.351Z","event":"scheduled","device":"Samsung","pushId":"86bb0b6a","detail":"delay 2700 s, due 2026-10-30T09:13:55.351Z, urgency high"}
-{"at":"2026-10-30T08:30:04.583Z","event":"scheduled","device":"Samsung","pushId":"1750b1e6","detail":"delay 3600 s, due 2026-10-30T09:30:04.583Z, urgency high"}
-{"at":"2026-10-30T08:30:07.541Z","event":"scheduled","device":"Samsung","pushId":"519b980b","detail":"delay 5400 s, due 2026-10-30T10:00:07.541Z, urgency high"}
-{"at":"2026-10-30T08:30:09.136Z","event":"scheduled","device":"Samsung","pushId":"1d14ee99","detail":"delay 7200 s, due 2026-10-30T10:30:09.136Z, urgency high"}
-{"at":"2026-10-30T09:14:39.038Z","event":"received","device":"Samsung","pushId":"86bb0b6a","detail":"43.7 s after send"}
-{"at":"2026-10-30T09:30:06.864Z","event":"received","device":"Samsung","pushId":"1750b1e6","detail":"2.3 s after send"}
-{"at":"2026-10-30T10:01:21.089Z","event":"received","device":"Samsung","pushId":"519b980b","detail":"73.5 s after send"}
-{"at":"2026-10-30T10:30:43.840Z","event":"received","device":"Samsung","pushId":"1d14ee99","detail":"34.7 s after send"}
