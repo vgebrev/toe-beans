@@ -1,11 +1,19 @@
 // Spike S-1.3: tick reliability from Cloud Logging. Counts the minutes with no tick, the lag behind
-// the scheduled time, and scheduler-side errors. Usage: pnpm ticks [freshness, default 49h].
+// the scheduled time, and scheduler-side errors.
+// Usage: pnpm ticks [since], where since is a start time (e.g. 2026-10-30T23:12+02:00) or a
+// freshness like 6h (default 49h). A start time keeps pauses before it out of the count.
 import { execFileSync } from 'node:child_process';
 
-const freshness = process.argv[2] ?? '49h';
+const arg = process.argv[2] ?? '49h';
+const since = /^\d+[smhd]$/.test(arg) ? null : new Date(arg);
+if (since && isNaN(since.getTime())) {
+	console.error(`not a time or freshness: ${arg}`);
+	process.exit(1);
+}
+const window = since ? [`--freshness=${Math.ceil((Date.now() - since.getTime()) / 3600000) + 1}h`] : [`--freshness=${arg}`];
 const read = (filter) =>
 	JSON.parse(
-		execFileSync('gcloud', ['logging', 'read', filter, `--freshness=${freshness}`, '--format=json', '--limit=10000'], {
+		execFileSync('gcloud', ['logging', 'read', filter, ...window, '--format=json', '--limit=10000'], {
 			encoding: 'utf8',
 			maxBuffer: 256 * 1024 * 1024
 		})
@@ -13,8 +21,10 @@ const read = (filter) =>
 
 const ticks = read('resource.type="cloud_run_revision" AND jsonPayload.message="tick"')
 	.map((e) => e.jsonPayload)
-	.filter((t) => t.scheduledAt);
-const errors = read('resource.type="cloud_scheduler_job" AND severity>=ERROR');
+	.filter((t) => t.scheduledAt && (!since || Date.parse(t.scheduledAt) >= since.getTime()));
+const errors = read('resource.type="cloud_scheduler_job" AND severity>=ERROR').filter(
+	(e) => !since || Date.parse(e.timestamp) >= since.getTime()
+);
 if (!ticks.length) {
 	console.log('No ticks logged yet.');
 	process.exit(0);
