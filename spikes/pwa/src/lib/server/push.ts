@@ -71,7 +71,7 @@ export async function schedule(deviceId: string, delaySeconds: number, urgency: 
 	if (!device) return null;
 	const pushId = crypto.randomUUID().slice(0, 8);
 	const dueAt = new Date(Date.now() + delaySeconds * 1000).toISOString();
-	await log({ event: 'scheduled', device: device.label, pushId, detail: `due ${dueAt}, urgency ${urgency}` });
+	await log({ event: 'scheduled', device: device.label, pushId, detail: `delay ${delaySeconds} s, due ${dueAt}, urgency ${urgency}` });
 	setTimeout(() => void send(device, pushId, urgency), delaySeconds * 1000);
 	return { pushId, dueAt };
 }

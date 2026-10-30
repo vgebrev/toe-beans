@@ -42,6 +42,8 @@
 		permission = 'Notification' in window ? Notification.permission : 'unsupported';
 		label = localStorage.getItem('spike.label') ?? guessLabel(userAgent);
 		if (permission === 'granted') deviceId = localStorage.getItem('spike.deviceId');
+		const savedIndex = Number(localStorage.getItem('spike.delayIndex') ?? NaN);
+		if (Number.isInteger(savedIndex) && savedIndex >= 0 && savedIndex < DELAYS.length) delayIndex = savedIndex;
 		refreshLog();
 
 		if (!('serviceWorker' in navigator)) {
@@ -58,13 +60,16 @@
 
 	// --- S-1.2 push ---
 	type LogEntry = { at: string; event: string; device?: string; pushId?: string; detail?: string };
+	// Slider stops: fine-grained around the first few minutes (where screen-off battery saving kicks
+	// in), coarser after that.
 	const DELAYS = [
-		{ label: 'Now', seconds: 0 },
-		{ label: '30 s', seconds: 30 },
-		{ label: '5 min', seconds: 300 },
-		{ label: '30 min', seconds: 1800 },
-		{ label: '2 h', seconds: 7200 }
+		0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 105, 120, 150, 180, 210, 240, 300, 360, 420, 480, 600,
+		720, 900, 1200, 1500, 1800, 2700, 3600, 5400, 7200
 	];
+	const formatDelay = (s: number) =>
+		s === 0 ? 'now' : s < 60 ? `${s} s` : s < 3600 ? `${Math.floor(s / 60)} min${s % 60 ? ` ${s % 60} s` : ''}` : `${s / 3600} h`;
+	let delayIndex = $state(3);
+	const delaySeconds = $derived(DELAYS[delayIndex]);
 
 	let permission = $state<NotificationPermission | 'unsupported'>('default');
 	let deviceId = $state<string | null>(null);
@@ -192,10 +197,21 @@
 				<label><input type="radio" bind:group={urgency} value="high" /> high</label>
 				<label><input type="radio" bind:group={urgency} value="normal" /> normal</label>
 			</fieldset>
+			<label>
+				Delay: {formatDelay(delaySeconds)}
+				<input
+					type="range"
+					min="0"
+					max={DELAYS.length - 1}
+					step="1"
+					bind:value={delayIndex}
+					onchange={() => localStorage.setItem('spike.delayIndex', String(delayIndex))}
+					aria-valuetext={formatDelay(delaySeconds)}
+				/>
+			</label>
 			<div class="delays">
-				{#each DELAYS as d (d.seconds)}
-					<button onclick={() => sendTest(d.seconds)}>{d.label}</button>
-				{/each}
+				<button onclick={() => sendTest(delaySeconds)}>Send in {formatDelay(delaySeconds)}</button>
+				<button class="secondary" onclick={() => sendTest(0)}>Send now</button>
 			</div>
 			<button class="link" onclick={() => (deviceId = null)}>Re-subscribe</button>
 		{/if}
@@ -276,7 +292,17 @@
 		margin-bottom: 12px;
 		font-weight: 700;
 	}
-	input:not([type='radio']) {
+	input[type='range'] {
+		width: 100%;
+		min-height: 44px;
+		accent-color: var(--primary);
+	}
+	button.secondary {
+		background: transparent;
+		color: var(--primary);
+		border: 1px solid var(--primary);
+	}
+	input:not([type='radio'], [type='range']) {
 		min-height: 44px;
 		padding: 0 12px;
 		border: 1px solid var(--border);

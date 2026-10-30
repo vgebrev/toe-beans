@@ -14,7 +14,8 @@ What it has:
   user agent, with an **Install app** button when Chrome fires `beforeinstallprompt`.
 - `/healthz`: plain `ok` for health checks.
 - **Push (S-1.2):** a *Push test* panel on `/` subscribes the device (VAPID) and asks the server to
-  send a test reminder now or after a delay, with `high` or `normal` urgency. The service worker
+  send a test reminder now or after a delay picked on a slider (10 s steps for the first
+  minutes, up to 2 h), with `high` or `normal` urgency. The service worker
   shows the notification, reports `received` and `clicked` back to the server, and a tap opens
   `/sessions/{pushId}` (the deep link). Subscriptions and the delivery log live in `./data`
   (gitignored). Delayed sends use `setTimeout`, so **keep the server running until they fire**;
@@ -62,10 +63,10 @@ is pre-filled), then work through these. The delivery log on the page (tap *Refr
 
 | # | Scenario | How |
 |---|---|---|
-| 1 | App open | *Now* |
-| 2 | App closed (swiped away from recents) | *30 s*, then close the app |
-| 3 | Screen off | *5 min*, lock the phone and leave it |
-| 4 | Idle / Doze | *30 min* or *2 h*, phone locked and still (not charging) |
+| 1 | App open | *Send now* |
+| 2 | App closed (swiped away from recents) | 30 s, then close the app |
+| 3 | Screen off | sweep 40 s → 5 min, lock the phone and leave it (find where delivery starts failing) |
+| 4 | Idle / Doze | 30 min or 2 h, phone locked and still (not charging) |
 | 5 | Normal vs high urgency | repeat 4 with *normal* |
 | 6 | After reboot | *5 min*, reboot the phone straight away, don't open the app |
 | 7 | Deep link | tap a notification with the app closed: it should open `/sessions/…` in the installed app, not a Chrome tab |
