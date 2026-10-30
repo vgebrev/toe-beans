@@ -2,6 +2,8 @@
 # Spike S-1.3: build and deploy to Cloud Run in Johannesburg, then point the every-minute
 # Cloud Scheduler tick at it. Re-run to redeploy.
 set -euo pipefail
+cd "$(dirname "$0")/.."   # the spike root: .env and the build context live here
+[ -f .env ] || { echo "No .env in $PWD: run pnpm vapid first" >&2; exit 1; }
 PROJECT=$(gcloud config get-value project)
 REGION=africa-south1
 # Cloud Scheduler has no africa-south1; Doha is the nearest region it offers.

@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
-# Spike S-1.3, one-off: service accounts, the VAPID secret and an image cleanup policy.
+# Spike S-1.3, one-off: service accounts and the VAPID secret.
 # Needs `gcloud config set project …` done and the APIs from the README enabled. Safe to re-run.
 set -euo pipefail
+cd "$(dirname "$0")/.."   # the spike root: .env and the build context live here
+[ -f .env ] || { echo "No .env in $PWD: run pnpm vapid first" >&2; exit 1; }
 PROJECT=$(gcloud config get-value project)
 REGION=africa-south1
 sa() { echo "$1@$PROJECT.iam.gserviceaccount.com"; }
@@ -18,10 +20,11 @@ gcloud projects add-iam-policy-binding "$PROJECT" --condition=None --quiet \
 	--member="serviceAccount:$(sa toe-beans-build)" --role=roles/run.builder >/dev/null
 
 # The VAPID private key lives in Secret Manager, readable only by the runtime account.
-if ! gcloud secrets describe vapid-private-key >/dev/null 2>&1; then
+gcloud secrets describe vapid-private-key >/dev/null 2>&1 ||
+	gcloud secrets create vapid-private-key --replication-policy=user-managed --locations="$REGION"
+if [ -z "$(gcloud secrets versions list vapid-private-key --filter=state=enabled --format='value(name)')" ]; then
 	grep '^VAPID_PRIVATE_KEY=' .env | cut -d= -f2- | tr -d '\n' |
-		gcloud secrets create vapid-private-key --data-file=- \
-			--replication-policy=user-managed --locations="$REGION"
+		gcloud secrets versions add vapid-private-key --data-file=-
 fi
 gcloud secrets add-iam-policy-binding vapid-private-key --condition=None --quiet \
 	--member="serviceAccount:$(sa toe-beans-run)" --role=roles/secretmanager.secretAccessor >/dev/null
