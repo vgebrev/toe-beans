@@ -8,9 +8,12 @@ PROJECT=$(gcloud config get-value project)
 REGION=africa-south1
 # Cloud Scheduler has no africa-south1; Doha is the nearest region it offers.
 SCHEDULER_REGION=me-central1
-SERVICE=toe-beans-spike
+# SERVICE=toe-beans-domain-probe deploys a second copy for S-1.4a without touching the tick job.
+SERVICE=${SERVICE:-toe-beans-spike}
 sa() { echo "$1@$PROJECT.iam.gserviceaccount.com"; }
 AUDIENCE=toe-beans-tick
+# Behind the S-1.4a Worker the server must take its origin from x-forwarded-host (CSRF check).
+EXTRA_ENV=$([ "$SERVICE" = toe-beans-spike ] || echo ",HOST_HEADER=x-forwarded-host")
 
 # Public service (no invoker IAM check: new orgs block allUsers grants); /internal/tick checks its
 # own OIDC token. One instance at most, so the spike's in-memory state isn't split.
@@ -19,10 +22,11 @@ gcloud run deploy "$SERVICE" --source . --region "$REGION" --quiet \
 	--service-account="$(sa toe-beans-run)" \
 	--no-invoker-iam-check --max-instances=1 --memory=512Mi --cpu-boost \
 	--set-env-vars="VAPID_PUBLIC_KEY=$(grep '^VAPID_PUBLIC_KEY=' .env | cut -d= -f2-)" \
-	--set-env-vars="VAPID_SUBJECT=https://toebeans.gebrev.com,TICK_AUDIENCE=$AUDIENCE,TICK_INVOKER=$(sa toe-beans-tick)" \
+	--set-env-vars="VAPID_SUBJECT=https://toebeans.gebrev.com,TICK_AUDIENCE=$AUDIENCE,TICK_INVOKER=$(sa toe-beans-tick)$EXTRA_ENV" \
 	--set-secrets=VAPID_PRIVATE_KEY=vapid-private-key:latest
 
 URL=$(gcloud run services describe "$SERVICE" --region "$REGION" --format='value(status.url)')
+[ "$SERVICE" = toe-beans-spike ] || { echo "Deployed: $URL (no tick job)"; exit 0; }
 
 # No retries: the next tick a minute later is the retry (architecture §6.3).
 verb=create

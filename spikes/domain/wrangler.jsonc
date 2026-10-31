@@ -1,0 +1,8 @@
+{
+	"name": "toe-beans-domain-probe",
+	"main": "worker.js",
+	"compatibility_date": "2026-10-01",
+	"workers_dev": false,
+	// A Workers custom domain creates the DNS record and certificate itself.
+	"routes": [{ "pattern": "cf.toebeans.co.za", "custom_domain": true }]
+}
