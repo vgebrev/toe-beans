@@ -7,11 +7,15 @@ it through `createBackend()` and the `http` handlers, and a Fastify app could la
 |---|---|---|
 | `domain/` | other domain files, `node:crypto` | entities, value objects, domain services |
 | `application/` | `domain` | use cases, ports (`Clock`, repositories, `PushSender`, …) |
-| `infrastructure/` | `application`, `domain`, any driver | Mongo, R2, web-push, OIDC, email adapters |
+| `infrastructure/` | `application`, `domain`, any driver | Mongo (`persistence/`: client, `UnitOfWork`, `HouseholdCollection`, migrations), R2, web-push, OIDC, email adapters |
 | `http/` | `application`, `domain`, `@toe-beans/contracts` | framework-neutral handlers: (ctx, input) → Result |
 | `worker/` | `application`, `domain` | the notification tick |
-| `testing/` | `application`, `domain` | test doubles for the ports (`manualClock`) |
+| `testing/` | `application`, `domain` | test doubles for the ports (`manualClock`) and `householdIsolationSuite` |
 | `config.ts` | Zod | `loadConfig(env)`: validated env vars, fails fast |
-| `composition.ts` | everything | `createBackend(config, overrides?)` |
+| `composition.ts` | everything | `createBackend(config, overrides?)`: connects to Mongo and migrates |
 
 ESLint enforces the table (`eslint.config.js` at the repo root). See architecture §4.2.
+
+`test/` holds the integration-test harness: a Testcontainers MongoDB replica set started once per
+run (`mongo-setup.ts`) and `useTestDatabase()`, which gives each test file its own database. Every
+household-owned repository runs `householdIsolationSuite` in its integration test (architecture §4.4).

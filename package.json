@@ -12,7 +12,8 @@
 		"lint": "eslint . && prettier --check .",
 		"format": "prettier --write .",
 		"check": "pnpm --recursive check",
-		"test": "vitest run"
+		"test": "vitest run",
+		"test:integration": "vitest run --config vitest.integration.config.ts"
 	},
 	"devDependencies": {
 		"@eslint/js": "^10.0.1",

@@ -11,10 +11,11 @@ Toe Beans is a mobile-first, installable PWA for puppy training and care, shared
 Run from the repo root (Node ≥ 24, pnpm 10):
 
 - `pnpm install`
-- `pnpm dev`: the web app (Vite dev server)
+- `pnpm dev`: the web app (Vite dev server). It needs MongoDB as a replica set on `localhost:27017` (or set `MONGODB_URI`); until S0.5's compose file: `docker run -d --name toe-beans-mongo -p 27017:27017 mongo:9.0.4 --replSet rs0` then `docker exec toe-beans-mongo mongosh --quiet --eval 'rs.initiate({_id:"rs0",members:[{_id:0,host:"localhost:27017"}]})'`
 - `pnpm lint`: ESLint (including the layer rules) and Prettier check; `pnpm format` fixes formatting
 - `pnpm check`: type-check every package (`tsc`, and `svelte-check` for `apps/web`)
 - `pnpm test`: all Vitest unit tests. One file: `pnpm test packages/backend/src/domain/result.test.ts`; by name: `pnpm test -t 'narrows on ok'`
+- `pnpm test:integration`: `*.integration.test.ts` against MongoDB in Docker (Testcontainers; needs Docker running)
 - `pnpm build`: production build of `apps/web` (adapter-node, output in `apps/web/build`)
 
 ## Layout and layer rules

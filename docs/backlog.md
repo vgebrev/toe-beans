@@ -4,7 +4,7 @@
 **Date:** 31 October 2026
 **Inputs:** `docs/requirements.md` v1.0, `docs/architecture.md` v0.5, `docs/ui.md` v0.5
 
-**Changes in 0.3:** spike results S-1.0 to S-1.4 and S0.1–S0.2 recorded as they landed (see Current progress). S-1.4b dropped as not needed, S-1.5 parked, S-1.4a retargeted to `toebeans.co.za`.
+**Changes in 0.3:** spike results S-1.0 to S-1.4 and S0.1–S0.3 recorded as they landed (see Current progress). S-1.4b dropped as not needed, S-1.5 parked, S-1.4a retargeted to `toebeans.co.za`.
 
 Work is organised as **vertical slices**: each delivers a usable end-to-end increment through UI → API → application → domain → persistence, with tests. Slices are ordered by **dependency and risk**. The riskiest unknowns (push with the app closed, free hosting) are spiked first, before building on them.
 
@@ -33,8 +33,9 @@ Work is organised as **vertical slices**: each delivers a usable end-to-end incr
 | 2026-10-31 | S0.1 done: pnpm workspace with `apps/web` (SvelteKit 3, adapter-node), `packages/backend` (layer folders, `Result`, composition stub) and `packages/contracts` (problem+json schema). TypeScript 6 strict (7 isn't supported by typescript-eslint or svelte-check yet), ESLint 10 + Prettier, Vitest 5. Layer rules use ESLint `no-restricted-imports` (architecture §4.2), checked against deliberate violations in every layer. S-1.3's 48 h tick run continues. |
 | 2026-10-31 | S-1.4 done: probe service (`spikes/db-probe`) on Cloud Run `africa-south1` against Atlas free on AWS `af-south-1`, seeded with a year of two households' data. Server-side: ping p50 21–32 ms; **Today read p50 62 ms, p95 71 ms** (budget ≤ 250 ms); transaction p50 130 ms. Startup connect 0.3 s once the server connects before listening (listening first let the startup probe pass, and the CPU-throttled idle instance then took 5.7–31 s to connect). From devices (total / server, p50): laptop 76 / 62 ms, Samsung Wi-Fi 100 / 63 ms, Samsung mobile data 148 / 75 ms, Redmi Wi-Fi 98 / 75 ms, Redmi mobile data 117 / 75 ms (p95 totals ≤ 226 ms everywhere). Idle gaps of 1–12 min between requests cost nothing: the first read after each gap was 62–78 ms, the same as the warm reads after it. **Passes; topology 1 confirmed, 1b not needed** (architecture §8.4). |
 | 2026-10-31 | Domain: `toebeans.co.za` bought (GoDaddy, 2 years) and used from the first release instead of `toebeans.gebrev.com`, so devices never re-subscribe to push after a move. Cloud Run domain mapping isn't offered in `africa-south1`; S-1.4a compares Cloudflare and Firebase Hosting. S-1.5 (self-host check) parked. |
+| 2026-10-31 | S0.3 done: the backend connects to Mongo and runs pending migrations in the SvelteKit `init` hook, which adapter-node awaits before listening; with Mongo down the server exits after 15 s without listening, and SIGTERM closes the client. `UnitOfWork` commits on an ok `Result`, rolls back on an error or throw, and carries the session in `AsyncLocalStorage`. Forward-only migration runner with a lease lock. `HouseholdCollection` base (household filter on every call, versioned writes, common fields) and `householdIsolationSuite`, which fails all four checks if the household filter is removed. Integration tests run on Testcontainers (`pnpm test:integration`, 23 tests). MongoDB 8.0 won't start on Linux 6.19+ (SERVER-121912), so newer kernels test against 9.0. |
 
-**Next up:** S-1.3 write-up after its 48 h tick run ends (1 Nov 23:12 SAST), and the GCP billing check (Q9), then S-1.4a (domain) and S-1.6 (D9 accepted). S0 foundations in parallel (S0.1–S0.2 done).
+**Next up:** S-1.3 write-up after its 48 h tick run ends (1 Nov 23:12 SAST), and the GCP billing check (Q9), then S-1.4a (domain) and S-1.6 (D9 accepted). S0 foundations in parallel (S0.1–S0.3 done; S0.4 next).
 
 ---
 
@@ -73,7 +74,7 @@ Work is organised as **vertical slices**: each delivers a usable end-to-end incr
 |---|---|---|
 | S0.1 | pnpm workspace: `apps/web`, `packages/backend`, `packages/contracts`. TypeScript strict. ESLint + Prettier. Layer-boundary lint rules. | ✅ |
 | S0.2 | Backend skeleton: config (validated env), composition root, `Clock`, ID generation, `Result`/error types, problem+json mapping | ✅ |
-| S0.3 | Mongo infrastructure: client lifecycle (connect before the server listens, S-1.4), `UnitOfWork`, migration runner, household-scoped base repository plus the reusable isolation test suite | ⬜ |
+| S0.3 | Mongo infrastructure: client lifecycle (connect before the server listens, S-1.4), `UnitOfWork`, migration runner, household-scoped base repository plus the reusable isolation test suite | ✅ |
 | S0.4 | pino logging with request IDs and redaction. `/healthz`, `/readyz` (ready only once Mongo is connected). Sentry wiring (server + browser). | ⬜ |
 | S0.5 | Dockerfile (multi-stage, non-root). `docker compose` for local dev (Mongo replica set + MinIO). | ⬜ |
 | S0.6 | GitHub Actions: lint → typecheck → unit → integration (Testcontainers) → image build | ⬜ |

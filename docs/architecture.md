@@ -11,7 +11,7 @@
 
 **Changes in 0.4:** S-1.1 and S-1.2 results. The PWA installs on both acceptance phones. Web Push reaches both phones with the app closed, but **only reliably once Chrome's battery restriction is lifted** (§6.4). Added a send policy (urgency `high`, TTL per reminder type), the notification-tap rule, Android delivery findings (§6.4) and risk R5. Q4 resolved.
 
-**Changes in 0.5:** S-1.4 result: Cloud Run Johannesburg → Atlas Cape Town is well inside budget on both phones, so topology 1 is confirmed, the AWS fallback is not needed and R4 is retired (§8.4). The domain is `toebeans.co.za` from the first release, replacing `toebeans.gebrev.com`. Cloud Run domain mapping isn't offered in `africa-south1`, so S-1.4a compares Cloudflare and Firebase Hosting (§8.4, Q5, Q8). S0.1 and S0.2 built: layer rules enforced with ESLint `no-restricted-imports` (§4.2), and backend config validation, the error-to-problem mapping and monotonic IDs (§7). D1–D4, D6, D13 and D14 accepted; Node 24.
+**Changes in 0.5:** S-1.4 result: Cloud Run Johannesburg → Atlas Cape Town is well inside budget on both phones, so topology 1 is confirmed, the AWS fallback is not needed and R4 is retired (§8.4). The domain is `toebeans.co.za` from the first release, replacing `toebeans.gebrev.com`. Cloud Run domain mapping isn't offered in `africa-south1`, so S-1.4a compares Cloudflare and Firebase Hosting (§8.4, Q5, Q8). S0.1 and S0.2 built: layer rules enforced with ESLint `no-restricted-imports` (§4.2), and backend config validation, the error-to-problem mapping and monotonic IDs (§7). S0.3 built: the Mongo client connects and migrates before the server listens, `UnitOfWork` carries its session in `AsyncLocalStorage`, a lease-locked migration runner, and the household-scoped base collection with its isolation suite (§3.5, §4.4, §7, §10). D1–D4, D6, D13 and D14 accepted; Node 24.
 
 This document records the technical decisions, domain model and system structure for the Toe Beans MVP. Every decision weighs alternatives against the requirement IDs (FR-xx / NFR-xx). Free-tier figures were checked against public sources in October 2026. They change often, so re-verify them before committing (see §11).
 
@@ -124,8 +124,8 @@ Auth0 is recommended with Google and email/password connections enabled. The des
 **Usage rules:**
 - Official `mongodb` driver. **No Mongoose**: domain entities are plain TypeScript classes, and repository mappers convert to and from persistence documents. This keeps the domain free of persistence concerns.
 - Every document has `_id` (UUIDv7 string: sortable, generated in the domain), `householdId` (except `users`), `version`, `createdAt`, `updatedAt` and `schemaVersion`.
-- Optimistic concurrency: `updateOne({_id, householdId, version}, {$set..., $inc:{version:1}})`. Zero matches means conflict.
-- Migrations: a small runner (`backend/infrastructure/persistence/migrations`) records applied migrations in a `_migrations` collection and runs on startup behind a lock. It's forward-only. Documents also carry `schemaVersion` so mappers can read old shapes lazily.
+- Optimistic concurrency: `findOneAndUpdate({_id, householdId, version}, {$set..., $inc:{version:1}})`. Zero matches means a conflict: a follow-up count tells `stale-version` (the document exists) from `not-found`. Repositories build on `HouseholdCollection` (`backend/infrastructure/persistence`), which does this and fills in the common fields. Setting a field to `undefined` in an update unsets it; the client sets `ignoreUndefined`, so absent optional fields are never stored as `null`. A partial update leaves `schemaVersion` as it was.
+- Migrations: a small runner (`backend/infrastructure/persistence/migrations`) records applied migrations in a `_migrations` collection and runs on startup, before the server listens. It's forward-only. Concurrent starts are serialised by a lease in `_locks` (5 min, so a crashed instance's lock expires); the others wait for it, then find nothing left to do. Startup only takes the lock when something is pending. Migrations don't run in a transaction and are recorded after they finish, so each must be safe to repeat. Documents also carry `schemaVersion` so mappers can read old shapes lazily.
 - Size check: 2 dogs × ~10 sessions/day × 5 years ≈ 36k small documents, which fits easily in 512 MB. Photos are **not** stored in Mongo.
 
 ### 3.6 Photo storage
@@ -222,7 +222,7 @@ toe-beans/
 - Repositories for household-owned data take `householdId` as a **required argument on every method** and always include it in the filter. No method looks up by `_id` alone.
 - `householdId` comes only from `AuthContext`, which is resolved from the session's membership, never from the request body or URL.
 - Cross-household access returns **404, not 403**, so IDs don't leak (scenario 9).
-- A shared repository test suite runs against every repository: "data written for household A is invisible via household B".
+- A shared repository test suite runs against every repository: "data written for household A is invisible via household B". It's `householdIsolationSuite` (`backend/testing`): each repository passes a small adapter (create, read, and list/update/remove where it has them), and the suite checks that B can't read, list, update or remove A's item even with its ID and current version. Removing the household filter from `HouseholdCollection` fails all four checks.
 
 ---
 
@@ -366,7 +366,7 @@ Consequences for the design: the reminders setup includes a "make reminders reli
 - **Errors:** use cases return `Result<T, AppError>`; anything thrown is a bug and becomes `toe-beans/internal` 500 with no detail. Mapping (`backend/http/problem.ts`): `validation` 400 (with field `errors`), `unauthenticated` 401, `forbidden` 403, `not-found` 404 (also for another household's data, §4.4), `conflict` 409, `stale-version` 412, `precondition-required` 428. A 409 and a 412 share the `toe-beans/conflict` type, since the client handles both by reloading before it retries (`ui.md` §5.2).
 - **Time:** all instants are stored in UTC. Recurrence and "today" are computed in `Household.timeZone` using `Temporal` (polyfill until native) or `date-fns-tz`. A `Clock` port makes tests deterministic.
 - **IDs:** UUIDv7 generated in the domain, so no round trip is needed and they sort by time. A 12-bit counter keeps them strictly increasing within a process, even within one millisecond or if the clock steps back (RFC 9562 §6.2 method 1). The generator reads time through `Clock`, so tests are deterministic.
-- **Transactions:** a `UnitOfWork` port wraps a Mongo session. It's used for log + session status, subject + reminder replan, and invitation accept + membership.
+- **Transactions:** a `UnitOfWork` port wraps a Mongo session. It's used for log + session status, subject + reminder replan, and invitation accept + membership. `run(work)` commits when `work` returns an ok `Result` and rolls back on an error result or a throw. The session travels in `AsyncLocalStorage`, so repository ports don't take a transaction parameter, and a nested `run` joins the outer transaction. The driver retries `work` on transient errors, so it must not send pushes or emails; those happen after `run` returns.
 - **Configuration:** env vars only, validated at startup with Zod. The process fails fast on missing config, naming each bad variable but never its value. The schema lives in the backend (`loadConfig`), not in SvelteKit's `src/env.ts`, so a Fastify host or a separate worker process reuses it (NFR-15). Secrets come from the platform secret store (Cloud Run secrets / Docker secrets) and never sit in the image or the repo.
 - **Rate limiting:** a small in-memory limiter on auth callback, invite accept and uploads. It's per instance, which is acceptable at this scale and documented as such.
 - **Security headers:** a CSP with `script-src 'self'` (SvelteKit CSP config with nonces), HSTS, `Referrer-Policy: same-origin`, `Permissions-Policy` limited to notifications and camera.
@@ -519,7 +519,7 @@ On the self-host path, `toebeans.co.za` points at the IIS host, with a win-acme 
 
 - **Tests:**
   - Vitest for domain and application, using in-memory adapters.
-  - Integration tests for repositories against real MongoDB (Testcontainers, or `mongodb-memory-server` in replica-set mode).
+  - Integration tests for repositories against real MongoDB: Testcontainers, a single-node replica set shared by the run, a fresh database per test file (`pnpm test:integration`, `*.integration.test.ts`). The image is `mongo:8.0`, the Atlas major version. MongoDB 8.0 refuses to start on Linux 6.19+ (SERVER-121912), so on newer kernels the setup uses `mongo:9.0` instead; `MONGO_TEST_IMAGE` overrides it.
   - Playwright end-to-end with Pixel/Galaxy device emulation for the critical flows.
   - Mandatory suites: household isolation for every repository and endpoint (§4.4), reminder replan/dedupe, outcome counting rules.
 - **CI (GitHub Actions):** install → lint (ESLint + boundaries) → `svelte-check`/`tsc` → unit → integration → build image → (main) deploy.

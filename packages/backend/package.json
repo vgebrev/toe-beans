@@ -11,9 +11,12 @@
 	},
 	"dependencies": {
 		"@toe-beans/contracts": "workspace:*",
+		"mongodb": "^7.8.0",
 		"zod": "^4.6.7"
 	},
 	"devDependencies": {
-		"@types/node": "^24.19.2"
+		"@testcontainers/mongodb": "^12.2.1",
+		"@types/node": "^24.19.2",
+		"testcontainers": "^12.2.1"
 	}
 }
