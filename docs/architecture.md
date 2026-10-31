@@ -9,7 +9,7 @@
 
 **Changes in 0.3:** S-1.0 result: Atlas offers a free South African cluster only on **AWS Cape Town (`af-south-1`)**, not on GCP Johannesburg. The topology is now Cloud Run Johannesburg + Atlas AWS Cape Town (cross-provider). Added a database round-trip budget, the database network-access approach (§8.4) and an AWS-only fallback topology. Q7 resolved.
 
-**Changes in 0.4:** S-1.1 and S-1.2 results. The PWA installs on both acceptance phones. Web Push reaches both phones with the app closed, but **only reliably once Chrome's battery restriction is lifted** (§6.4). Added a send policy (urgency `high`, TTL per reminder type), the notification-tap rule, Android delivery findings (§6.4) and risk R5. Q4 resolved. S0.1 (31 Oct): layer rules enforced with ESLint `no-restricted-imports` (§4.2).
+**Changes in 0.4:** S-1.1 and S-1.2 results. The PWA installs on both acceptance phones. Web Push reaches both phones with the app closed, but **only reliably once Chrome's battery restriction is lifted** (§6.4). Added a send policy (urgency `high`, TTL per reminder type), the notification-tap rule, Android delivery findings (§6.4) and risk R5. Q4 resolved. S0.1 (31 Oct): layer rules enforced with ESLint `no-restricted-imports` (§4.2). S0.2 (31 Oct): the backend owns config validation, the error-to-problem mapping is fixed, and IDs are monotonic within a process (§7).
 
 This document records the technical decisions, domain model and system structure for the Toe Beans MVP. Every decision weighs alternatives against the requirement IDs (FR-xx / NFR-xx). Free-tier figures were checked against public sources in October 2026. They change often, so re-verify them before committing (see §11).
 
@@ -361,10 +361,11 @@ Consequences for the design: the reminders setup includes a "make reminders reli
 ## 7. Cross-cutting concerns
 
 - **Validation:** Zod at the HTTP boundary (shape). The domain enforces invariants itself (meaning). Both return typed errors that map to problem+json.
+- **Errors:** use cases return `Result<T, AppError>`; anything thrown is a bug and becomes `toe-beans/internal` 500 with no detail. Mapping (`backend/http/problem.ts`): `validation` 400 (with field `errors`), `unauthenticated` 401, `forbidden` 403, `not-found` 404 (also for another household's data, §4.4), `conflict` 409, `stale-version` 412, `precondition-required` 428. A 409 and a 412 share the `toe-beans/conflict` type, since the client handles both by reloading before it retries (`ui.md` §5.2).
 - **Time:** all instants are stored in UTC. Recurrence and "today" are computed in `Household.timeZone` using `Temporal` (polyfill until native) or `date-fns-tz`. A `Clock` port makes tests deterministic.
-- **IDs:** UUIDv7 generated in the domain, so no round trip is needed and they sort by time.
+- **IDs:** UUIDv7 generated in the domain, so no round trip is needed and they sort by time. A 12-bit counter keeps them strictly increasing within a process, even within one millisecond or if the clock steps back (RFC 9562 §6.2 method 1). The generator reads time through `Clock`, so tests are deterministic.
 - **Transactions:** a `UnitOfWork` port wraps a Mongo session. It's used for log + session status, subject + reminder replan, and invitation accept + membership.
-- **Configuration:** env vars only, validated at startup with Zod. The process fails fast on missing config. Secrets come from the platform secret store (Cloud Run secrets / Docker secrets) and never sit in the image or the repo.
+- **Configuration:** env vars only, validated at startup with Zod. The process fails fast on missing config, naming each bad variable but never its value. The schema lives in the backend (`loadConfig`), not in SvelteKit's `src/env.ts`, so a Fastify host or a separate worker process reuses it (NFR-15). Secrets come from the platform secret store (Cloud Run secrets / Docker secrets) and never sit in the image or the repo.
 - **Rate limiting:** a small in-memory limiter on auth callback, invite accept and uploads. It's per instance, which is acceptable at this scale and documented as such.
 - **Security headers:** a CSP with `script-src 'self'` (SvelteKit CSP config with nonces), HSTS, `Referrer-Policy: same-origin`, `Permissions-Policy` limited to notifications and camera.
 - **PWA caching:** the service worker precaches only build assets and an offline fallback page. **API responses and photos are never cached by the service worker** (NFR-04: no stale personal data, no false "saved").

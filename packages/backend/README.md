@@ -10,6 +10,8 @@ it through `createBackend()` and the `http` handlers, and a Fastify app could la
 | `infrastructure/` | `application`, `domain`, any driver | Mongo, R2, web-push, OIDC, email adapters |
 | `http/` | `application`, `domain`, `@toe-beans/contracts` | framework-neutral handlers: (ctx, input) → Result |
 | `worker/` | `application`, `domain` | the notification tick |
-| `composition.ts` | everything | `createBackend(config)` |
+| `testing/` | `application`, `domain` | test doubles for the ports (`manualClock`) |
+| `config.ts` | Zod | `loadConfig(env)`: validated env vars, fails fast |
+| `composition.ts` | everything | `createBackend(config, overrides?)` |
 
 ESLint enforces the table (`eslint.config.js` at the repo root). See architecture §4.2.

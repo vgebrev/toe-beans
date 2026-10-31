@@ -96,7 +96,7 @@ export default defineConfig(
 		),
 		forbid(drivers, 'Only infrastructure imports drivers and SDKs.')
 	),
-	layer(['packages/backend/src/*.ts']),
+	layer(['packages/backend/src/*.ts', 'packages/backend/src/testing/**']),
 
 	// packages/contracts: plain Zod schemas, safe to ship to the browser.
 	layer(

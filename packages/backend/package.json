@@ -10,7 +10,8 @@
 		"check": "tsc"
 	},
 	"dependencies": {
-		"@toe-beans/contracts": "workspace:*"
+		"@toe-beans/contracts": "workspace:*",
+		"zod": "^4.6.7"
 	},
 	"devDependencies": {
 		"@types/node": "^24.19.2"

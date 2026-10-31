@@ -69,7 +69,7 @@ Work is organised as **vertical slices**: each delivers a usable end-to-end incr
 | # | Task | Status |
 |---|---|---|
 | S0.1 | pnpm workspace: `apps/web`, `packages/backend`, `packages/contracts`. TypeScript strict. ESLint + Prettier. Layer-boundary lint rules. | ✅ |
-| S0.2 | Backend skeleton: config (validated env), composition root, `Clock`, ID generation, `Result`/error types, problem+json mapping | ⬜ |
+| S0.2 | Backend skeleton: config (validated env), composition root, `Clock`, ID generation, `Result`/error types, problem+json mapping | ✅ |
 | S0.3 | Mongo infrastructure: client lifecycle, `UnitOfWork`, migration runner, household-scoped base repository plus the reusable isolation test suite | ⬜ |
 | S0.4 | pino logging with request IDs and redaction. `/healthz`, `/readyz`. Sentry wiring (server + browser). | ⬜ |
 | S0.5 | Dockerfile (multi-stage, non-root). `docker compose` for local dev (Mongo replica set + MinIO). | ⬜ |
