@@ -9,7 +9,7 @@
 
 **Changes in 0.3:** S-1.0 result: Atlas offers a free South African cluster only on **AWS Cape Town (`af-south-1`)**, not on GCP Johannesburg. The topology is now Cloud Run Johannesburg + Atlas AWS Cape Town (cross-provider). Added a database round-trip budget, the database network-access approach (§8.4) and an AWS-only fallback topology. Q7 resolved.
 
-**Changes in 0.4:** S-1.1 and S-1.2 results. The PWA installs on both acceptance phones. Web Push reaches both phones with the app closed, but **only reliably once Chrome's battery restriction is lifted** (§6.4). Added a send policy (urgency `high`, TTL per reminder type), the notification-tap rule, Android delivery findings (§6.4) and risk R5. Q4 resolved. S0.1 (31 Oct): layer rules enforced with ESLint `no-restricted-imports` (§4.2). S0.2 (31 Oct): the backend owns config validation, the error-to-problem mapping is fixed, and IDs are monotonic within a process (§7).
+**Changes in 0.4:** S-1.1 and S-1.2 results. The PWA installs on both acceptance phones. Web Push reaches both phones with the app closed, but **only reliably once Chrome's battery restriction is lifted** (§6.4). Added a send policy (urgency `high`, TTL per reminder type), the notification-tap rule, Android delivery findings (§6.4) and risk R5. Q4 resolved. S0.1 (31 Oct): layer rules enforced with ESLint `no-restricted-imports` (§4.2). S0.2 (31 Oct): the backend owns config validation, the error-to-problem mapping is fixed, and IDs are monotonic within a process (§7). S-1.4 (31 Oct): Cloud Run Johannesburg → Atlas Cape Town measured well inside budget; option 1 confirmed, R4 retired (§8.4).
 
 This document records the technical decisions, domain model and system structure for the Toe Beans MVP. Every decision weighs alternatives against the requirement IDs (FR-xx / NFR-xx). Free-tier figures were checked against public sources in October 2026. They change often, so re-verify them before committing (see §11).
 
@@ -422,7 +422,7 @@ The spike in backlog slice S-1 decides between A and E based on measured cold st
 
 | Priority | Topology | Expected user RTT |
 |---|---|---|
-| 1 ✅ **chosen for spike** | Cloud Run `africa-south1` (Johannesburg) + Atlas free on AWS `af-south-1` (Cape Town). Cross-provider, over the public internet with TLS. | User → app ~10–30 ms. App → DB **~20–30 ms per round trip** (estimate, measured in S-1.4). |
+| 1 ✅ **chosen, confirmed by S-1.4** | Cloud Run `africa-south1` (Johannesburg) + Atlas free on AWS `af-south-1` (Cape Town). Cross-provider, over the public internet with TLS. | User → app ~10–30 ms. App → DB **21–32 ms per round trip** (measured, S-1.4). |
 | 1b fallback | Everything on AWS in Cape Town: Lambda running the **same container image** via AWS Lambda Web Adapter, EventBridge Scheduler for the tick, a Lambda function URL behind CloudFront for the custom domain | App → DB ~1–2 ms. But it reworks D9 (different platform, IAM, deploy pipeline). Only considered if option 1 misses its budget. |
 | 2 | Both Cloud Run and Atlas in the nearest region with free Atlas on GCP (likely Europe) | ~150–200 ms per user request. Last resort. |
 | 3 | Self-host in South Africa behind IIS (option E) | Local |
@@ -437,6 +437,30 @@ Never put the app and the database on different continents.
 - Run independent queries in parallel (`Promise.all`).
 - Reuse a single pooled `MongoClient` per instance. TLS setup to Cape Town only happens on cold start.
 - Spike pass mark: **warm** Today API server time ≤ 250 ms p95. If it's missed after optimisation, evaluate option 1b.
+
+**S-1.4 result (31 Oct 2026): passed.** Probe service on Cloud Run `africa-south1` against an Atlas M0 on AWS `af-south-1`, seeded with a year of two households' data (~19.5k documents). The Today read was one parallel batch plus one `$in` lookup (two sequential round trips).
+
+| Measure | p50 | p95 |
+|---|---|---|
+| Ping (one round trip) | 21–32 ms | — |
+| Today read, server-side | 62 ms | 71 ms (budget 250 ms) |
+| Transaction (log + planned-session version bump) | 130 ms | — |
+| Startup connect (SRV + TLS + auth) | 0.3 s | — |
+
+| Device (30 Today calls) | Total p50 / p95 | Server p50 / p95 |
+|---|---|---|
+| Laptop | 76 / 83 ms | 62 / 68 ms |
+| Galaxy S23 FE, Wi-Fi | 100 / 206 ms | 63 / 68 ms |
+| Galaxy S23 FE, mobile data | 148 / 226 ms | 75 / 79 ms |
+| Redmi Note 12 Pro, Wi-Fi | 98 / 106 ms | 75 / 76 ms |
+| Redmi Note 12 Pro, mobile data | 117 / 197 ms | 75 / 87 ms |
+
+Findings:
+- A user waits ~100–150 ms for the Today API at p50 and ≤ ~230 ms at p95 on either phone, either network. Option 1b is not needed.
+- Idle gaps of 1–12 min between requests cost nothing: the first read after a gap matched warm reads (62–78 ms). Cloud Run's request-based CPU throttling doesn't drop pooled connections.
+- **Connect to Mongo before the server listens.** Listening first let Cloud Run's startup probe pass early; the instance then had almost no CPU outside requests and the TLS connect to Cape Town took 5.7–31 s instead of 0.3 s. So the app connects during startup (with CPU boost), and `/readyz` reports ready only once connected (S0.3, S0.4).
+- Multi-document transactions work on M0 at ~130 ms for a typical `UnitOfWork`.
+- The app database is **`toe-beans`**, used by the `toe-beans-app` user (`readWrite` on that database only).
 
 **Database network access.** The Atlas IP access list can't be pinned to Cloud Run. Cloud Run has no stable outbound IP unless it gets a Serverless VPC connector plus Cloud NAT, which isn't free. Lambda (option 1b) has the same problem. So the access list is `0.0.0.0/0`, compensated by:
 - TLS, which Atlas enforces.
@@ -519,5 +543,5 @@ On the self-host path, `toebeans.gebrev.com` points at the IIS host, with a win-
 | R1 | Free-tier terms change without notice (e.g. Oracle, Koyeb in 2026) | Everything sits behind ports, the self-host compose is maintained and tested, and costs are reviewed quarterly. |
 | R2 | Multi-vendor sprawl (GCP, Atlas, R2, Auth0, Resend, Sentry) | Accepted for a free setup. Secrets are listed in `docs/runbooks/accounts.md` (names only, no values). |
 | R3 | Atlas access list open to all IPs (`0.0.0.0/0`), because serverless hosts have no fixed outbound IP (§8.4) | TLS, strong rotated credentials, least-privilege users, Atlas alerts. Revisit if a free static-egress option appears, or on self-host (where the database isn't exposed at all). |
-| R4 | Cross-provider latency between Johannesburg and Cape Town is higher than estimated | Measured in S-1.4 against the 250 ms budget. Fallback is topology 1b. |
+| R4 | ~~Cross-provider latency between Johannesburg and Cape Town is higher than estimated~~ | **Retired by S-1.4:** 21–32 ms per round trip, Today p95 71 ms server-side against a 250 ms budget (§8.4). |
 | R5 | Push reliability depends on each user lifting Chrome's battery restriction, which they may skip or which an OS update may reset. A PWA can't request the exemption itself or schedule notifications on the device. | Setup step with per-manufacturer instructions and a delayed test (`ui.md` J7). Today always shows what's due. If real use is still unreliable, the escalation is a thin Android wrapper (Capacitor or a Trusted Web Activity) that schedules reminders on the device with exact alarms. That is a **scope change** (the requirements assume no native wrapper) and needs a recorded decision. |
