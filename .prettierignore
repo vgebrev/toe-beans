@@ -1,0 +1,7 @@
+# Docs are hand-formatted (tables); spikes are throwaway.
+*.md
+spikes/
+pnpm-lock.yaml
+**/.svelte-kit/
+**/build/
+coverage/

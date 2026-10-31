@@ -4,7 +4,26 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project status
 
-Toe Beans is a mobile-first, installable PWA for puppy training and care, shared by caregivers in one household. The repo is **pre-implementation**: the only source of truth so far is `docs/requirements.md` (baselined v1.0, 25 Oct 2026). There is no product code yet; `spikes/` holds throwaway de-risking spikes (see each spike's README). There is no build tooling or test runner for the product yet. When these are added, update this file with the actual build/lint/test commands, including how to run a single test.
+Toe Beans is a mobile-first, installable PWA for puppy training and care, shared by caregivers in one household. The requirements are `docs/requirements.md` (baselined v1.0, 25 Oct 2026). The product is at the foundations stage (backlog S0): a pnpm workspace with no features yet. `spikes/` holds throwaway de-risking spikes, each installed separately (see each spike's README).
+
+## Commands
+
+Run from the repo root (Node ≥ 24, pnpm 10):
+
+- `pnpm install`
+- `pnpm dev`: the web app (Vite dev server)
+- `pnpm lint`: ESLint (including the layer rules) and Prettier check; `pnpm format` fixes formatting
+- `pnpm check`: type-check every package (`tsc`, and `svelte-check` for `apps/web`)
+- `pnpm test`: all Vitest unit tests. One file: `pnpm test packages/backend/src/domain/result.test.ts`; by name: `pnpm test -t 'narrows on ok'`
+- `pnpm build`: production build of `apps/web` (adapter-node, output in `apps/web/build`)
+
+## Layout and layer rules
+
+- `apps/web`: SvelteKit 3 app. Kit 3 specifics: config lives in `vite.config.ts`, internal imports use `#lib/...` with a `.js` extension (no `$lib`), env vars are declared in `src/env.ts`.
+- `packages/backend`: the framework-independent core, in `domain/`, `application/`, `infrastructure/`, `http/`, `worker/` and `composition.ts`. Its README has the import table.
+- `packages/contracts`: Zod DTOs and problem types shared with the browser.
+- Packages export TypeScript source (no build step); relative imports use `.js` extensions (NodeNext).
+- The layer rules (architecture §4.2) are `no-restricted-imports` blocks in `eslint.config.js`. If a lint error says a layer can't import something, fix the design (add a port, move the code) rather than loosening the rule.
 
 Design docs (drafts under review; each records its own changes in a "Changes in" line under the header): `docs/architecture.md` (decision log, domain model, layering, hosting), `docs/ui.md` (journeys, layouts, interaction conventions), `docs/backlog.md` (vertical slices and current progress). Record technical trade-offs in the architecture decision log against requirement IDs (FR-xx / NFR-xx), not silently in code. Update slice status in the backlog as work lands.
 

@@ -1,0 +1,7 @@
+# spikes/ are throwaway and install separately (each has its own lockfile).
+packages:
+  - apps/*
+  - packages/*
+
+onlyBuiltDependencies:
+  - esbuild

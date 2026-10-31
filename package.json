@@ -1,0 +1,30 @@
+{
+	"name": "toe-beans",
+	"private": true,
+	"type": "module",
+	"packageManager": "pnpm@10.30.0",
+	"engines": {
+		"node": ">=24"
+	},
+	"scripts": {
+		"dev": "pnpm --filter @toe-beans/web dev",
+		"build": "pnpm --filter @toe-beans/web build",
+		"lint": "eslint . && prettier --check .",
+		"format": "prettier --write .",
+		"check": "pnpm --recursive check",
+		"test": "vitest run"
+	},
+	"devDependencies": {
+		"@eslint/js": "^10.0.1",
+		"@types/node": "^24.19.2",
+		"eslint": "^10.14.0",
+		"eslint-config-prettier": "^10.1.8",
+		"eslint-plugin-svelte": "^3.23.1",
+		"globals": "^17.13.0",
+		"prettier": "^3.9.10",
+		"prettier-plugin-svelte": "^4.1.1",
+		"typescript": "~6.0.3",
+		"typescript-eslint": "^8.72.1",
+		"vitest": "^5.0.5"
+	}
+}

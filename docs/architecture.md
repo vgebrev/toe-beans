@@ -9,7 +9,7 @@
 
 **Changes in 0.3:** S-1.0 result: Atlas offers a free South African cluster only on **AWS Cape Town (`af-south-1`)**, not on GCP Johannesburg. The topology is now Cloud Run Johannesburg + Atlas AWS Cape Town (cross-provider). Added a database round-trip budget, the database network-access approach (§8.4) and an AWS-only fallback topology. Q7 resolved.
 
-**Changes in 0.4:** S-1.1 and S-1.2 results. The PWA installs on both acceptance phones. Web Push reaches both phones with the app closed, but **only reliably once Chrome's battery restriction is lifted** (§6.4). Added a send policy (urgency `high`, TTL per reminder type), the notification-tap rule, Android delivery findings (§6.4) and risk R5. Q4 resolved.
+**Changes in 0.4:** S-1.1 and S-1.2 results. The PWA installs on both acceptance phones. Web Push reaches both phones with the app closed, but **only reliably once Chrome's battery restriction is lifted** (§6.4). Added a send policy (urgency `high`, TTL per reminder type), the notification-tap rule, Android delivery findings (§6.4) and risk R5. Q4 resolved. S0.1 (31 Oct): layer rules enforced with ESLint `no-restricted-imports` (§4.2).
 
 This document records the technical decisions, domain model and system structure for the Toe Beans MVP. Every decision weighs alternatives against the requirement IDs (FR-xx / NFR-xx). Free-tier figures were checked against public sources in October 2026. They change often, so re-verify them before committing (see §11).
 
@@ -206,7 +206,7 @@ toe-beans/
 - **infrastructure** implements the ports. It's the only layer that imports `mongodb`, `@aws-sdk/client-s3`, `web-push` or `openid-client`.
 - **http** maps validated DTOs ↔ use-case inputs and Results ↔ status codes. It can be mounted by SvelteKit now and Fastify later.
 - **apps/web** may import only `@toe-beans/backend` (the `composition` and `http` exports) and `@toe-beans/contracts`. Client-side code may import only `contracts`.
-- Enforced with `eslint-plugin-boundaries` (or dependency-cruiser) in CI.
+- Enforced in CI by ESLint's built-in `no-restricted-imports`, one rule set per layer (`eslint.config.js`). Chosen over `eslint-plugin-boundaries` in S0.1: each layer's rule is a couple of regexes over the import string, which covers relative paths, workspace packages and libraries alike (e.g. drivers only in infrastructure, no SvelteKit anywhere in the backend), with no plugin element model to configure.
 
 ### 4.3 Extraction path (later, if needed)
 

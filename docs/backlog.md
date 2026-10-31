@@ -28,6 +28,7 @@ Work is organised as **vertical slices**: each delivers a usable end-to-end incr
 | 2026-10-30 | S-1.2 done. Redmi with Chrome *Battery saver: No restrictions*: 3 of 3, including 45 min locked, still and unplugged (5 s late). Xiaomi doesn't offer *Autostart* for Chrome. Architecture v0.4 (§6.4 findings, send policy, R5) and UI v0.5 (J7 reliability step, delayed test). |
 | 2026-10-30 | S-1.3 started: spike deployed to Cloud Run `africa-south1`, tick from Cloud Scheduler in `me-central1` (Scheduler isn't offered in Johannesburg). First hour: 59 of 59 ticks, lag p50 0.33 s, p95 1.05 s, max 1.47 s, one instance, no scheduler errors. Next: cold starts, then the 48 h run and the billing check. |
 | 2026-10-30 | S-1.3 cold start, tick paused 22:44–23:11 SAST: the Samsung opening the app at 23:06 started a new instance (the old one had scaled to zero). Node up 0.29 s after process start; first response 0.62 s server-side; under 2 s as seen on the phone. Well inside the 5 s budget. The app resumed from memory (first request was `/api/push/log`), so a fully closed-app cold load is still to do. 48 h tick run: 30 Oct 23:12 → 1 Nov 23:12 SAST (`pnpm ticks 2026-10-30T23:12+02:00`). |
+| 2026-10-31 | S0.1 done: pnpm workspace with `apps/web` (SvelteKit 3, adapter-node), `packages/backend` (layer folders, `Result`, composition stub) and `packages/contracts` (problem+json schema). TypeScript 6 strict (7 isn't supported by typescript-eslint or svelte-check yet), ESLint 10 + Prettier, Vitest 5. Layer rules use ESLint `no-restricted-imports` (architecture §4.2), checked against deliberate violations in every layer. S-1.3's 48 h tick run continues. |
 
 **Next up:** S-1.3 (Cloud Run Johannesburg + Cloud Scheduler tick) and S-1.4 (Atlas Cape Town latency), then S-1.4a (domain). S0 foundations can start in parallel.
 
@@ -66,13 +67,13 @@ Work is organised as **vertical slices**: each delivers a usable end-to-end incr
 
 | # | Task | Status |
 |---|---|---|
-| S0.1 | pnpm workspace: `apps/web`, `packages/backend`, `packages/contracts`. TypeScript strict. ESLint + Prettier. Layer-boundary lint rules. | ⬜ |
+| S0.1 | pnpm workspace: `apps/web`, `packages/backend`, `packages/contracts`. TypeScript strict. ESLint + Prettier. Layer-boundary lint rules. | ✅ |
 | S0.2 | Backend skeleton: config (validated env), composition root, `Clock`, ID generation, `Result`/error types, problem+json mapping | ⬜ |
 | S0.3 | Mongo infrastructure: client lifecycle, `UnitOfWork`, migration runner, household-scoped base repository plus the reusable isolation test suite | ⬜ |
 | S0.4 | pino logging with request IDs and redaction. `/healthz`, `/readyz`. Sentry wiring (server + browser). | ⬜ |
 | S0.5 | Dockerfile (multi-stage, non-root). `docker compose` for local dev (Mongo replica set + MinIO). | ⬜ |
 | S0.6 | GitHub Actions: lint → typecheck → unit → integration (Testcontainers) → image build | ⬜ |
-| S0.7 | Vitest + Playwright setup with an Android device profile | ⬜ |
+| S0.7 | Vitest + Playwright setup with an Android device profile (Vitest done in S0.1) | ⬜ |
 | S0.8 | App shell: layout, bottom navigation, theme tokens, shadcn-svelte install, typed API client | ⬜ |
 | S0.9 | Brand: AI-assisted paw-print logo cleaned into SVG, plus its variants (maskable icon, monochrome badge, favicon). Beagle and German Shepherd tokens with an automated contrast test. Per-device theme switch (system default, `localStorage`, no flash). Self-hosted Fredoka + Nunito (confirmed). Icon library: Hugeicons free (MIT) behind an `<Icon>` wrapper; map the pet/care icons we need (`ui.md` §6.4). | ⬜ |
 
