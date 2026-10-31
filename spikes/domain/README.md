@@ -1,5 +1,7 @@
 # Spike S-1.4a: `toebeans.co.za` in front of Cloud Run
 
+**Torn down 31 Oct 2026** after S-1.4a: the Worker, `toe-beans-domain-probe` and its images are deleted. Re-running is the two deploy steps below.
+
 Throwaway spike (backlog S-1.4a). Cloud Run domain mapping isn't offered in `africa-south1`, and
 Firebase Hosting's Cloud Run rewrites don't support it either (the deploy is refused), so this is a
 Cloudflare Worker in front of `toe-beans-domain-probe`. That service is the `spikes/pwa` image

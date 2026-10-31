@@ -1,0 +1,11 @@
+{
+	"name": "toe-beans-holding",
+	"main": "worker.js",
+	"compatibility_date": "2026-10-01",
+	"workers_dev": false,
+	// Workers custom domains create the DNS records and certificates themselves.
+	"routes": [
+		{ "pattern": "toebeans.co.za", "custom_domain": true },
+		{ "pattern": "www.toebeans.co.za", "custom_domain": true }
+	]
+}
