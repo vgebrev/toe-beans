@@ -2,7 +2,7 @@
 // owns the schema, not the SvelteKit app, so another host (Fastify, the worker process) reuses it.
 import { z } from 'zod';
 
-/** The single-node replica set S0.5's docker compose runs; transactions need a replica set. */
+/** Atlas Local on its default port, a single-node replica set; transactions need one. */
 const LOCAL_MONGODB_URI = 'mongodb://localhost:27017/?directConnection=true';
 
 const Env = z

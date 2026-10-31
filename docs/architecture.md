@@ -519,7 +519,7 @@ On the self-host path, `toebeans.co.za` points at the IIS host, with a win-acme 
 
 - **Tests:**
   - Vitest for domain and application, using in-memory adapters.
-  - Integration tests for repositories against real MongoDB: Testcontainers, a single-node replica set shared by the run, a fresh database per test file (`pnpm test:integration`, `*.integration.test.ts`). The image is `mongo:8.0`, the Atlas major version. MongoDB 8.0 refuses to start on Linux 6.19+ (SERVER-121912), so on newer kernels the setup uses `mongo:9.0` instead; `MONGO_TEST_IMAGE` overrides it.
+  - Integration tests for repositories against real MongoDB: Testcontainers running `mongodb/mongodb-atlas-local:8.0` (the Atlas major version, already a single-node replica set), shared by the run, with a fresh database per test file (`pnpm test:integration`, `*.integration.test.ts`). `MONGO_TEST_IMAGE` overrides the image. Newer MongoDB 8.0 releases refuse to start on Linux 6.19+ (SERVER-121912); the cached Atlas Local 8.0 image (mongod 8.0.20) predates that check, so a refreshed pull on a new kernel may need a pinned tag.
   - Playwright end-to-end with Pixel/Galaxy device emulation for the critical flows.
   - Mandatory suites: household isolation for every repository and endpoint (§4.4), reminder replan/dedupe, outcome counting rules.
 - **CI (GitHub Actions):** install → lint (ESLint + boundaries) → `svelte-check`/`tsc` → unit → integration → build image → (main) deploy.

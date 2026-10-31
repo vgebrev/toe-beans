@@ -16,6 +16,6 @@ it through `createBackend()` and the `http` handlers, and a Fastify app could la
 
 ESLint enforces the table (`eslint.config.js` at the repo root). See architecture §4.2.
 
-`test/` holds the integration-test harness: a Testcontainers MongoDB replica set started once per
+`test/` holds the integration-test harness: an Atlas Local container (Testcontainers) started once per
 run (`mongo-setup.ts`) and `useTestDatabase()`, which gives each test file its own database. Every
 household-owned repository runs `householdIsolationSuite` in its integration test (architecture §4.4).

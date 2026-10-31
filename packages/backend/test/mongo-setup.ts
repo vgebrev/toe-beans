@@ -1,7 +1,6 @@
-// Vitest global setup for integration tests: one MongoDB replica set in Docker for the whole run
-// (transactions need a replica set). Each test file then works in its own database.
-import { release } from 'node:os';
-import { MongoDBContainer } from '@testcontainers/mongodb';
+// Vitest global setup for integration tests: one MongoDB in Docker for the whole run. Each test
+// file then works in its own database.
+import { GenericContainer, Wait } from 'testcontainers';
 import type { TestProject } from 'vitest/node';
 
 declare module 'vitest' {
@@ -10,19 +9,23 @@ declare module 'vitest' {
 	}
 }
 
-// The major version Atlas runs (architecture §3.5). MongoDB 8.0 refuses to start on Linux 6.19+
-// (SERVER-121912, a TCMalloc/rseq crash), so newer kernels get 9.0 instead. `MONGO_TEST_IMAGE`
-// overrides both. Tags need all three parts: the container picks mongosh over the legacy shell by
-// parsing the tag as semver.
-function image(): string {
-	if (process.env.MONGO_TEST_IMAGE) return process.env.MONGO_TEST_IMAGE;
-	const [major = 0, minor = 0] = release().split('.').map(Number);
-	const newKernel = process.platform === 'linux' && (major > 6 || (major === 6 && minor >= 19));
-	return newKernel ? 'mongo:9.0.4' : 'mongo:8.0.34';
-}
+// Atlas Local: the major version Atlas runs (architecture §3.5), already a single-node replica set
+// so transactions work. `MONGO_TEST_IMAGE` overrides it.
+const IMAGE = process.env.MONGO_TEST_IMAGE ?? 'mongodb/mongodb-atlas-local:8.0';
 
 export default async function setup(project: TestProject) {
-	const container = await new MongoDBContainer(image()).start();
-	project.provide('mongoUri', `${container.getConnectionString()}/?directConnection=true`);
+	const container = await new GenericContainer(IMAGE)
+		.withExposedPorts(27017)
+		// The image's own health check polls every 30 s; poll faster so the run starts sooner.
+		.withHealthCheck({
+			test: ['CMD', '/usr/local/bin/runner', 'healthcheck'],
+			interval: 1000,
+			timeout: 10_000,
+			retries: 60
+		})
+		.withWaitStrategy(Wait.forHealthCheck())
+		.start();
+	const host = `${container.getHost()}:${container.getMappedPort(27017)}`;
+	project.provide('mongoUri', `mongodb://${host}/?directConnection=true`);
 	return () => container.stop();
 }
