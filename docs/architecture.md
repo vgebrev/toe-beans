@@ -9,7 +9,7 @@
 
 **Changes in 0.3:** S-1.0 result: Atlas offers a free South African cluster only on **AWS Cape Town (`af-south-1`)**, not on GCP Johannesburg. The topology is now Cloud Run Johannesburg + Atlas AWS Cape Town (cross-provider). Added a database round-trip budget, the database network-access approach (§8.4) and an AWS-only fallback topology. Q7 resolved.
 
-**Changes in 0.4:** S-1.1 and S-1.2 results. The PWA installs on both acceptance phones. Web Push reaches both phones with the app closed, but **only reliably once Chrome's battery restriction is lifted** (§6.4). Added a send policy (urgency `high`, TTL per reminder type), the notification-tap rule, Android delivery findings (§6.4) and risk R5. Q4 resolved. S0.1 (31 Oct): layer rules enforced with ESLint `no-restricted-imports` (§4.2). S0.2 (31 Oct): the backend owns config validation, the error-to-problem mapping is fixed, and IDs are monotonic within a process (§7). S-1.4 (31 Oct): Cloud Run Johannesburg → Atlas Cape Town measured well inside budget; option 1 confirmed, R4 retired (§8.4).
+**Changes in 0.4:** S-1.1 and S-1.2 results. The PWA installs on both acceptance phones. Web Push reaches both phones with the app closed, but **only reliably once Chrome's battery restriction is lifted** (§6.4). Added a send policy (urgency `high`, TTL per reminder type), the notification-tap rule, Android delivery findings (§6.4) and risk R5. Q4 resolved. S0.1 (31 Oct): layer rules enforced with ESLint `no-restricted-imports` (§4.2). S0.2 (31 Oct): the backend owns config validation, the error-to-problem mapping is fixed, and IDs are monotonic within a process (§7). S-1.4 (31 Oct): Cloud Run Johannesburg → Atlas Cape Town measured well inside budget; option 1 confirmed, R4 retired (§8.4). Domain (31 Oct): `toebeans.co.za` from the start, replacing `toebeans.gebrev.com`; Cloud Run domain mapping isn't offered in `africa-south1`, so S-1.4a compares Cloudflare and Firebase Hosting (§8.4, D13, Q5, Q8).
 
 This document records the technical decisions, domain model and system structure for the Toe Beans MVP. Every decision weighs alternatives against the requirement IDs (FR-xx / NFR-xx). Free-tier figures were checked against public sources in October 2026. They change often, so re-verify them before committing (see §11).
 
@@ -49,7 +49,7 @@ Status: **P** = proposed, **A** = accepted, **R** = rejected/superseded. Each de
 | D10 | Observability | pino JSON logs to the platform log sink, Sentry for errors, an external uptime monitor. OpenTelemetry deferred. | P | 9 |
 | D11 | Email for invitations | Resend (free tier) behind an `EmailSender` port | P | 3.7 |
 | D12 | UI toolkit | Tailwind CSS + shadcn-svelte (Bits UI primitives), themed with Toe Beans brand tokens | P | `ui.md` §6.4 |
-| D13 | Region and domain | South Africa: Cloud Run in `africa-south1` (Johannesburg) + Atlas free on AWS `af-south-1` (Cape Town), the only free South African Atlas option. App and database stay in the same country; cross-continent is never acceptable. Served at `toebeans.gebrev.com`. | P | 8.4 |
+| D13 | Region and domain | South Africa: Cloud Run in `africa-south1` (Johannesburg) + Atlas free on AWS `af-south-1` (Cape Town), the only free South African Atlas option. App and database stay in the same country; cross-continent is never acceptable. Served at `toebeans.co.za`. | P | 8.4 |
 | D14 | Exercise content pipeline | Curated from online sources, AI-assisted editing, mandatory human review, sources recorded per exercise | P | 3.8 |
 
 ---
@@ -395,7 +395,7 @@ Free always-on compute has largely disappeared. This matters because of NFR-16.
 **Recommended topology (option A):**
 
 ```
-Android Chrome PWA ──HTTPS (toebeans.gebrev.com)──► Cloud Run (africa-south1, Johannesburg, min-instances 0)
+Android Chrome PWA ──HTTPS (toebeans.co.za)──► Cloud Run (africa-south1, Johannesburg, min-instances 0)
                                  │  ├─► MongoDB Atlas free (AWS af-south-1, Cape Town; TLS, see §8.4)
                                  │  ├─► Cloudflare R2 (photos)
                                  │  ├─► Auth0 (OIDC)
@@ -406,7 +406,7 @@ GitHub Actions ──nightly──► mongodump → encrypted → R2 backups buc
 
 ```
 
-**Self-host topology (option E):** IIS with URL Rewrite + ARR reverse-proxies `https://toebeans.gebrev.com` to `localhost:3000`. TLS comes from win-acme (Let's Encrypt). `docker compose` runs `app` (with `WORKER_MODE=inline`), `mongo` (a single-node replica set so transactions work) with a named volume, and `minio` or a bind-mounted photo directory. A scheduled `mongodump` writes to an external drive or R2. ARR must pass `X-Forwarded-Proto/Host`; set SvelteKit `ORIGIN`, `PROTOCOL_HEADER` and `HOST_HEADER` accordingly. Web Push needs only outbound HTTPS.
+**Self-host topology (option E):** IIS with URL Rewrite + ARR reverse-proxies `https://toebeans.co.za` to `localhost:3000`. TLS comes from win-acme (Let's Encrypt). `docker compose` runs `app` (with `WORKER_MODE=inline`), `mongo` (a single-node replica set so transactions work) with a named volume, and `minio` or a bind-mounted photo directory. A scheduled `mongodump` writes to an external drive or R2. ARR must pass `X-Forwarded-Proto/Host`; set SvelteKit `ORIGIN`, `PROTOCOL_HEADER` and `HOST_HEADER` accordingly. Web Push needs only outbound HTTPS.
 
 The spike in backlog slice S-1 decides between A and E based on measured cold start, scheduler reliability and the experience on both test phones.
 
@@ -480,22 +480,24 @@ This is recorded as risk R3.
 - The every-minute tick also keeps an instance warm for much of the day, though Cloud Run doesn't guarantee that.
 - If the budget is missed, `min-instances=1` fixes it but isn't free. That would reopen D9.
 
-**Domain.** The MVP is served at `https://toebeans.gebrev.com`. The `gebrev.com` DNS is owned by the user. A later move to `toebeans.co.za` must be configuration only:
+**Domain.** The app is served at `https://toebeans.co.za` from the first release (registered 31 Oct 2026 at GoDaddy for two years, alongside the user's other domains). It replaces the earlier plan of `toebeans.gebrev.com` first and a move later, because a move isn't free: push subscriptions are tied to the origin and every device would re-subscribe. `www.toebeans.co.za` redirects to the apex. The origin still stays pure configuration, so any later move is config only:
 - `ORIGIN` / `PUBLIC_BASE_URL` env vars
 - OIDC callback and logout URLs registered in Auth0
 - the cookie domain (host-only `__Host-` cookies need no domain)
 - the VAPID `subject`
 
-Push subscriptions are tied to the origin, so a domain move means devices re-subscribe. The Notifications screen handles that as the "not yet asked" state.
+Push subscriptions are tied to the origin, so a domain move would mean devices re-subscribe. The Notifications screen handles that as the "not yet asked" state.
 
 **Custom domain on Cloud Run (Q8)** — options, to be tried in this order during S-1:
-1. **Cloud Run domain mapping**, if it's supported in the chosen region. It's free, with a Google-managed certificate.
+1. ~~**Cloud Run domain mapping**~~. Free, with a Google-managed certificate, but **not offered in `africa-south1`** (Cloud Run locations page, checked 31 Oct 2026). Out.
 2. **Firebase Hosting rewrite to Cloud Run.** Free tier, custom domain, managed certificate. Firebase Hosting **forwards only a cookie named `__session`**, so the session cookie would have to be renamed and lose the `__Host-` prefix (keep `Secure; HttpOnly; SameSite=Lax; Path=/`, no domain). It also adds a CDN hop.
-3. **Cloudflare proxy** (DNS proxied, plus a free Worker to rewrite the Host header to the `run.app` URL). This adds another dependency in the request path.
+3. **Cloudflare proxy** (DNS proxied, plus a free Worker to rewrite the Host header to the `run.app` URL). This adds another dependency in the request path, but Cloudflare has a Johannesburg point of presence and doesn't restrict cookies. It needs the domain's nameservers moved to Cloudflare (free plan); the registration stays at GoDaddy.
+
+S-1.4a measures options 2 and 3 against the S-1.4 device numbers (Today API total via the `run.app` URL) and picks one. The current lean is Cloudflare, for the cookie freedom.
 
 The global external load balancer works everywhere but costs money, so it's rejected.
 
-On the self-host path, `toebeans.gebrev.com` points at the IIS host, with a win-acme certificate.
+On the self-host path, `toebeans.co.za` points at the IIS host, with a win-acme certificate.
 
 ---
 
@@ -535,10 +537,10 @@ On the self-host path, `toebeans.gebrev.com` points at the IIS host, with a win-
 | Q2 | Atlas free cluster idle pausing; acceptable cold-start time | **Resolved:** cold starts of a few seconds are acceptable. The spike target is **≤ 5 s** for the first response from cold (§8.4). The every-minute tick keeps Atlas active; monitor this in the spike. |
 | Q3 | ~~Which region?~~ | **Resolved:** South Africa where possible. See §8.4 and Q7. |
 | Q4 | ~~Android battery optimisation delaying push~~ | **Resolved (S-1.2):** both phones drop pushes at default settings once locked for a minute or two; lifting Chrome's battery restriction fixed it on both (§6.4). Guidance goes into the reminders setup (`ui.md` J7). Residual risk is R5. |
-| Q5 | ~~Custom domain?~~ | **Resolved:** `toebeans.gebrev.com` for the MVP. Possibly `toebeans.co.za` later, so the origin must be pure config (§8.4). See Q8. |
+| Q5 | ~~Custom domain?~~ | **Resolved:** `toebeans.co.za` from the first release (bought 31 Oct 2026), replacing `toebeans.gebrev.com`. The origin stays pure config (§8.4). See Q8. |
 | Q6 | ~~Exercise content authorship~~ | **Resolved:** the user aggregates the catalogue from online articles and videos, edited with AI, and reviews it. Pipeline in §3.8. |
 | Q7 | ~~Free Atlas cluster in South Africa?~~ | **Resolved (S-1.0):** only on AWS `af-south-1` (Cape Town). Topology 1 in §8.4. |
-| Q8 | Cloud Run custom domain mapping may not be available in `africa-south1`, and the paid load balancer isn't free | Spike the options in §8.4, in order. |
+| Q8 | Cloud Run custom domain mapping may not be available in `africa-south1`, and the paid load balancer isn't free Domain mapping confirmed unavailable in `africa-south1`. S-1.4a compares Firebase Hosting and a Cloudflare Worker (§8.4). |
 | Q9 | `africa-south1` is a Tier 2 Cloud Run pricing region. Confirm the free allowance applies and the expected monthly cost is $0. | Check billing reports during the 48 h spike run (S-1.3). |
 | R1 | Free-tier terms change without notice (e.g. Oracle, Koyeb in 2026) | Everything sits behind ports, the self-host compose is maintained and tested, and costs are reviewed quarterly. |
 | R2 | Multi-vendor sprawl (GCP, Atlas, R2, Auth0, Resend, Sentry) | Accepted for a free setup. Secrets are listed in `docs/runbooks/accounts.md` (names only, no values). |

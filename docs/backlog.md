@@ -6,7 +6,7 @@
 
 Work is organised as **vertical slices**: each delivers a usable end-to-end increment through UI → API → application → domain → persistence, with tests. Slices are ordered by **dependency and risk**. The riskiest unknowns (push with the app closed, free hosting) are spiked first, before building on them.
 
-**Status key:** ⬜ not started · 🟨 in progress · ✅ done · ⏸ blocked · ❌ dropped
+**Status key:** ⬜ not started · 🟨 in progress · ✅ done · ⏸ blocked or parked · ❌ dropped
 
 ---
 
@@ -30,8 +30,9 @@ Work is organised as **vertical slices**: each delivers a usable end-to-end incr
 | 2026-10-30 | S-1.3 cold start, tick paused 22:44–23:11 SAST: the Samsung opening the app at 23:06 started a new instance (the old one had scaled to zero). Node up 0.29 s after process start; first response 0.62 s server-side; under 2 s as seen on the phone. Well inside the 5 s budget. The app resumed from memory (first request was `/api/push/log`), so a fully closed-app cold load is still to do. 48 h tick run: 30 Oct 23:12 → 1 Nov 23:12 SAST (`pnpm ticks 2026-10-30T23:12+02:00`). |
 | 2026-10-31 | S0.1 done: pnpm workspace with `apps/web` (SvelteKit 3, adapter-node), `packages/backend` (layer folders, `Result`, composition stub) and `packages/contracts` (problem+json schema). TypeScript 6 strict (7 isn't supported by typescript-eslint or svelte-check yet), ESLint 10 + Prettier, Vitest 5. Layer rules use ESLint `no-restricted-imports` (architecture §4.2), checked against deliberate violations in every layer. S-1.3's 48 h tick run continues. |
 | 2026-10-31 | S-1.4 done: probe service (`spikes/db-probe`) on Cloud Run `africa-south1` against Atlas free on AWS `af-south-1`, seeded with a year of two households' data. Server-side: ping p50 21–32 ms; **Today read p50 62 ms, p95 71 ms** (budget ≤ 250 ms); transaction p50 130 ms. Startup connect 0.3 s once the server connects before listening (listening first let the startup probe pass, and the CPU-throttled idle instance then took 5.7–31 s to connect). From devices (total / server, p50): laptop 76 / 62 ms, Samsung Wi-Fi 100 / 63 ms, Samsung mobile data 148 / 75 ms, Redmi Wi-Fi 98 / 75 ms, Redmi mobile data 117 / 75 ms (p95 totals ≤ 226 ms everywhere). Idle gaps of 1–12 min between requests cost nothing: the first read after each gap was 62–78 ms, the same as the warm reads after it. **Passes; topology 1 confirmed, 1b not needed** (architecture §8.4). |
+| 2026-10-31 | Domain: `toebeans.co.za` bought (GoDaddy, 2 years) and used from the first release instead of `toebeans.gebrev.com`, so devices never re-subscribe to push after a move. Cloud Run domain mapping isn't offered in `africa-south1`; S-1.4a compares Cloudflare and Firebase Hosting. S-1.5 (self-host check) parked. |
 
-**Next up:** S-1.3 write-up after its 48 h tick run ends (1 Nov 23:12 SAST), then S-1.4a (domain). S0 foundations in parallel (S0.1–S0.2 done).
+**Next up:** S-1.3 write-up after its 48 h tick run ends (1 Nov 23:12 SAST), and the GCP billing check (Q9), then S-1.4a (domain) and S-1.6 (D9 accepted). S0 foundations in parallel (S0.1–S0.2 done).
 
 ---
 
@@ -59,8 +60,8 @@ Work is organised as **vertical slices**: each delivers a usable end-to-end incr
 | S-1.3 | Deploy to Cloud Run (`africa-south1`, Johannesburg), with Cloud Scheduler calling `/internal/tick` every minute. Measure cold start against the **≤ 5 s** budget, tick reliability over 48 h, and confirm **$0** in billing reports for a Tier 2 region (Q9). Budget alert on. Also: the service worker shows a "Can't reach Toe Beans" page when a page load gets a 502/503/504 from the platform (found in S-1.1: gateway error pages bypass the offline fallback). | ⬜ |
 | S-1.4 | Atlas free cluster on AWS `af-south-1` (Cape Town). Measure the Cloud Run → Atlas round trip and the warm Today API time (≤ 250 ms p95 budget), plus end-to-end latency from both phones. Confirm transactions work. Set up the access list and least-privilege users as in architecture §8.4. | ✅ |
 | S-1.4b | *Only if S-1.4 misses its budget:* try topology 1b (the same image on AWS Lambda in Cape Town via Lambda Web Adapter, plus an EventBridge tick) and compare | ❌ not needed |
-| S-1.4a | Custom domain `toebeans.gebrev.com` on Cloud Run: try domain mapping, then a Firebase Hosting rewrite (`__session` cookie constraint), then a Cloudflare Worker (Q8). | ⬜ |
-| S-1.5 | Fallback check: the same image under docker compose behind IIS (ARR + win-acme), push working end-to-end | ⬜ |
+| S-1.4a | Custom domain `toebeans.co.za` on Cloud Run. Domain mapping isn't offered in `africa-south1`, so compare a Cloudflare Worker (nameservers to Cloudflare) and a Firebase Hosting rewrite (`__session` cookie constraint): latency from both phones against S-1.4, cookies, push from the custom origin (Q8). | ⬜ |
+| S-1.5 | Fallback check: the same image under docker compose behind IIS (ARR + win-acme), push working end-to-end. **Parked** while Cloud Run stays free; S0.5 keeps the compose setup working (R1). | ⏸ |
 | S-1.6 | Write the outcome into architecture D9 and mark it Accepted | ⬜ |
 
 ### S0 Foundations ⬜
@@ -231,7 +232,6 @@ Work is organised as **vertical slices**: each delivers a usable end-to-end incr
 | Item | Notes |
 |---|---|
 | Delivery diagnostics screen | Owner view of recent notification jobs and device failures. Deferred in review round 1; the data already exists in `NotificationJob`. |
-| Move to `toebeans.co.za` | Config-only domain switch (architecture §8.4). Devices re-subscribe to push. |
 
 ## P2 — Deferred (not planned)
 
