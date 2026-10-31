@@ -1,15 +1,15 @@
 # Toe Beans — UI and Interaction Design
 
 **Version:** 0.5 (draft for iteration)
+**Date:** 31 October 2026
+**Status:** Proposed. Review-round decisions in §8 are accepted.
+**Inputs:** `docs/requirements.md` v1.0, `docs/architecture.md` v0.5
 
 **Changes in 0.5:** S-1.2 push spike results (`architecture.md` §6.4). J7 gains a **Make reminders reliable** step with per-manufacturer battery instructions, and the test notification becomes a **delayed** test, because instant ones always arrive. Notification taps always open the installed app.
 
 **Changes in 0.4:** review round 3. Nunito confirmed. The dark primary is softened to `#C98A4B`, the same tan as the light-theme accent. Hugeicons free (MIT) adopted. Mock-up layouts accepted for the MVP.
 
 **Changes in 0.3:** review round 2. Nunito is the body font, the logo will be AI-assisted, and the theme is chosen per device (defaulting to the system setting). Added an icon library evaluation (Hugeicons preferred, Phosphor as the alternative) and a link to the mock-ups canvas.
-**Date:** 30 October 2026
-**Status:** Proposed
-**Inputs:** `docs/requirements.md` v1.0, `docs/architecture.md` v0.4
 
 **Changes in 0.2:** first review round.
 - Care keeps its own tab, and Done sessions show who logged them.

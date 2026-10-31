@@ -1,8 +1,10 @@
 # Toe Beans — Backlog
 
-**Version:** 0.2 (draft for iteration)
-**Date:** 28 October 2026
-**Inputs:** `docs/requirements.md` v1.0, `docs/architecture.md` v0.4, `docs/ui.md` v0.5
+**Version:** 0.3 (draft for iteration)
+**Date:** 31 October 2026
+**Inputs:** `docs/requirements.md` v1.0, `docs/architecture.md` v0.5, `docs/ui.md` v0.5
+
+**Changes in 0.3:** spike results S-1.0 to S-1.4 and S0.1–S0.2 recorded as they landed (see Current progress). S-1.4b dropped as not needed, S-1.5 parked, S-1.4a retargeted to `toebeans.co.za`.
 
 Work is organised as **vertical slices**: each delivers a usable end-to-end increment through UI → API → application → domain → persistence, with tests. Slices are ordered by **dependency and risk**. The riskiest unknowns (push with the app closed, free hosting) are spiked first, before building on them.
 
@@ -64,7 +66,7 @@ Work is organised as **vertical slices**: each delivers a usable end-to-end incr
 | S-1.5 | Fallback check: the same image under docker compose behind IIS (ARR + win-acme), push working end-to-end. **Parked** while Cloud Run stays free; S0.5 keeps the compose setup working (R1). | ⏸ |
 | S-1.6 | Write the outcome into architecture D9 and mark it Accepted | ⬜ |
 
-### S0 Foundations ⬜
+### S0 Foundations 🟨
 *FR: none. NFR-06, 08, 11, 12, 15.*
 
 | # | Task | Status |

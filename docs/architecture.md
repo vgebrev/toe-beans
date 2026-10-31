@@ -1,15 +1,17 @@
 # Toe Beans — Architecture
 
-**Version:** 0.4 (draft for iteration)
-**Date:** 30 October 2026
-**Status:** Proposed. Nothing here is accepted until it's marked **Accepted** in the decision log (§2).
+**Version:** 0.5 (draft for iteration)
+**Date:** 31 October 2026
+**Status:** Partly accepted. Decisions marked **A** in the decision log (§2) are accepted; everything else is still proposed.
 **Inputs:** `docs/requirements.md` v1.0 (baselined)
 
 **Changes in 0.2:** first review round. A billing-enabled GCP account is acceptable. The region is South Africa where possible, and cold starts of a few seconds are acceptable. The domain is `toebeans.gebrev.com`. The exercise content pipeline is defined, and the delivery diagnostics UI is deferred. Added D13–D14 (§8.4, §3.8) and new open questions Q7–Q9.
 
 **Changes in 0.3:** S-1.0 result: Atlas offers a free South African cluster only on **AWS Cape Town (`af-south-1`)**, not on GCP Johannesburg. The topology is now Cloud Run Johannesburg + Atlas AWS Cape Town (cross-provider). Added a database round-trip budget, the database network-access approach (§8.4) and an AWS-only fallback topology. Q7 resolved.
 
-**Changes in 0.4:** S-1.1 and S-1.2 results. The PWA installs on both acceptance phones. Web Push reaches both phones with the app closed, but **only reliably once Chrome's battery restriction is lifted** (§6.4). Added a send policy (urgency `high`, TTL per reminder type), the notification-tap rule, Android delivery findings (§6.4) and risk R5. Q4 resolved. S0.1 (31 Oct): layer rules enforced with ESLint `no-restricted-imports` (§4.2). S0.2 (31 Oct): the backend owns config validation, the error-to-problem mapping is fixed, and IDs are monotonic within a process (§7). S-1.4 (31 Oct): Cloud Run Johannesburg → Atlas Cape Town measured well inside budget; option 1 confirmed, R4 retired (§8.4). Domain (31 Oct): `toebeans.co.za` from the start, replacing `toebeans.gebrev.com`; Cloud Run domain mapping isn't offered in `africa-south1`, so S-1.4a compares Cloudflare and Firebase Hosting (§8.4, D13, Q5, Q8).
+**Changes in 0.4:** S-1.1 and S-1.2 results. The PWA installs on both acceptance phones. Web Push reaches both phones with the app closed, but **only reliably once Chrome's battery restriction is lifted** (§6.4). Added a send policy (urgency `high`, TTL per reminder type), the notification-tap rule, Android delivery findings (§6.4) and risk R5. Q4 resolved.
+
+**Changes in 0.5:** S-1.4 result: Cloud Run Johannesburg → Atlas Cape Town is well inside budget on both phones, so topology 1 is confirmed, the AWS fallback is not needed and R4 is retired (§8.4). The domain is `toebeans.co.za` from the first release, replacing `toebeans.gebrev.com`. Cloud Run domain mapping isn't offered in `africa-south1`, so S-1.4a compares Cloudflare and Firebase Hosting (§8.4, Q5, Q8). S0.1 and S0.2 built: layer rules enforced with ESLint `no-restricted-imports` (§4.2), and backend config validation, the error-to-problem mapping and monotonic IDs (§7). D1–D4, D6, D13 and D14 accepted; Node 24.
 
 This document records the technical decisions, domain model and system structure for the Toe Beans MVP. Every decision weighs alternatives against the requirement IDs (FR-xx / NFR-xx). Free-tier figures were checked against public sources in October 2026. They change often, so re-verify them before committing (see §11).
 
@@ -33,24 +35,24 @@ These requirements shape the architecture most. Everything else is fairly conven
 
 ## 2. Decision log
 
-Status: **P** = proposed, **A** = accepted, **R** = rejected/superseded. Each decision is detailed in the section noted.
+Status: **P** = proposed, **A** = accepted (with what settled it), **R** = rejected/superseded. Each decision is detailed in the section noted.
 
 | # | Decision | Recommendation | Status | § |
 |---|---|---|---|---|
-| D1 | Language | TypeScript end-to-end (Node 22 LTS or later) | P | 3.1 |
-| D2 | Frontend framework | SvelteKit (Svelte 5) with `adapter-node` | P | 3.2 |
-| D3 | Frontend ↔ backend contract | Versioned JSON HTTP API (`/api/v1`) in `+server.ts` routes. No form actions or remote functions for domain operations. | P | 3.3 |
-| D4 | Backend structure | DDD-layered package in a pnpm workspace, with boundaries enforced by lint | P | 4 |
+| D1 | Language | TypeScript end-to-end on Node 24 LTS | A (S0.1) | 3.1 |
+| D2 | Frontend framework | SvelteKit 3 (Svelte 5) with `adapter-node` | A (S-1.1, S0.1) | 3.2 |
+| D3 | Frontend ↔ backend contract | Versioned JSON HTTP API (`/api/v1`) in `+server.ts` routes. No form actions or remote functions for domain operations. | A (review rounds, S0.2) | 3.3 |
+| D4 | Backend structure | DDD-layered package in a pnpm workspace, with boundaries enforced by lint | A (S0.1) | 4 |
 | D5 | Identity provider | Auth0 (free plan), via the OIDC Authorization Code + PKCE flow handled by the server (BFF) | P | 3.4 |
-| D6 | Database | MongoDB (Atlas free cluster), official driver, no ODM | P | 3.5 |
+| D6 | Database | MongoDB (Atlas free cluster), official driver, no ODM | A (S-1.0, S-1.4) | 3.5 |
 | D7 | Photo storage | Cloudflare R2 (S3 API) | P | 3.6 |
-| D8 | Push scheduling | Mongo-backed job collection plus an idempotent `tick` that both external cron and an in-process loop can trigger | P | 6 |
-| D9 | Hosting | Google Cloud Run + Cloud Scheduler as the primary candidate, validated by spike. Self-host behind IIS as the fallback. A billing-enabled account is acceptable (review round 1). | P | 8 |
+| D8 | Push scheduling | Mongo-backed job collection plus an idempotent `tick` that both external cron and an in-process loop can trigger | P (accept with S-1.3) | 6 |
+| D9 | Hosting | Google Cloud Run + Cloud Scheduler as the primary candidate, validated by spike. Self-host behind IIS as the fallback. A billing-enabled account is acceptable (review round 1). | P (accept in S-1.6) | 8 |
 | D10 | Observability | pino JSON logs to the platform log sink, Sentry for errors, an external uptime monitor. OpenTelemetry deferred. | P | 9 |
 | D11 | Email for invitations | Resend (free tier) behind an `EmailSender` port | P | 3.7 |
 | D12 | UI toolkit | Tailwind CSS + shadcn-svelte (Bits UI primitives), themed with Toe Beans brand tokens | P | `ui.md` §6.4 |
-| D13 | Region and domain | South Africa: Cloud Run in `africa-south1` (Johannesburg) + Atlas free on AWS `af-south-1` (Cape Town), the only free South African Atlas option. App and database stay in the same country; cross-continent is never acceptable. Served at `toebeans.co.za`. | P | 8.4 |
-| D14 | Exercise content pipeline | Curated from online sources, AI-assisted editing, mandatory human review, sources recorded per exercise | P | 3.8 |
+| D13 | Region and domain | South Africa: Cloud Run in `africa-south1` (Johannesburg) + Atlas free on AWS `af-south-1` (Cape Town), the only free South African Atlas option. App and database stay in the same country; cross-continent is never acceptable. Served at `toebeans.co.za`. | A (S-1.4, domain bought) | 8.4 |
+| D14 | Exercise content pipeline | Curated from online sources, AI-assisted editing, mandatory human review, sources recorded per exercise | A (review round 1, Q6) | 3.8 |
 
 ---
 
@@ -376,7 +378,7 @@ Consequences for the design: the reminders setup includes a "make reminders reli
 
 ### 8.1 Container
 
-- One multi-stage Dockerfile (Node 22 slim or distroless). Output: the `adapter-node` server, which also serves `/internal/tick` and optionally runs the inline worker.
+- One multi-stage Dockerfile (Node 24 slim or distroless). Output: the `adapter-node` server, which also serves `/internal/tick` and optionally runs the inline worker.
 - Runs as a non-root user and listens on `PORT`. `GET /healthz` is the liveness check (process up). `GET /readyz` is the readiness check (Mongo ping, config loaded).
 - The image is built in CI and pushed to GHCR (free for public images; private images use Artifact Registry's free 0.5 GB on the Cloud Run path).
 
@@ -540,8 +542,8 @@ On the self-host path, `toebeans.co.za` points at the IIS host, with a win-acme 
 | Q5 | ~~Custom domain?~~ | **Resolved:** `toebeans.co.za` from the first release (bought 31 Oct 2026), replacing `toebeans.gebrev.com`. The origin stays pure config (§8.4). See Q8. |
 | Q6 | ~~Exercise content authorship~~ | **Resolved:** the user aggregates the catalogue from online articles and videos, edited with AI, and reviews it. Pipeline in §3.8. |
 | Q7 | ~~Free Atlas cluster in South Africa?~~ | **Resolved (S-1.0):** only on AWS `af-south-1` (Cape Town). Topology 1 in §8.4. |
-| Q8 | Cloud Run custom domain mapping may not be available in `africa-south1`, and the paid load balancer isn't free Domain mapping confirmed unavailable in `africa-south1`. S-1.4a compares Firebase Hosting and a Cloudflare Worker (§8.4). |
-| Q9 | `africa-south1` is a Tier 2 Cloud Run pricing region. Confirm the free allowance applies and the expected monthly cost is $0. | Check billing reports during the 48 h spike run (S-1.3). |
+| Q8 | Cloud Run custom domain mapping may not be available in `africa-south1`, and the paid load balancer isn't free | Domain mapping confirmed unavailable in `africa-south1`. S-1.4a compares Firebase Hosting and a Cloudflare Worker (§8.4). |
+| Q9 | `africa-south1` is a Tier 2 Cloud Run pricing region. Confirm the free allowance applies and the expected monthly cost is $0. | Check billing reports after the 48 h spike run (S-1.3), on 2 Nov 2026. |
 | R1 | Free-tier terms change without notice (e.g. Oracle, Koyeb in 2026) | Everything sits behind ports, the self-host compose is maintained and tested, and costs are reviewed quarterly. |
 | R2 | Multi-vendor sprawl (GCP, Atlas, R2, Auth0, Resend, Sentry) | Accepted for a free setup. Secrets are listed in `docs/runbooks/accounts.md` (names only, no values). |
 | R3 | Atlas access list open to all IPs (`0.0.0.0/0`), because serverless hosts have no fixed outbound IP (§8.4) | TLS, strong rotated credentials, least-privilege users, Atlas alerts. Revisit if a free static-egress option appears, or on self-host (where the database isn't exposed at all). |
