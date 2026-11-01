@@ -1,10 +1,12 @@
 # Toe Beans — Backlog
 
-**Version:** 0.3 (draft for iteration)
-**Date:** 31 October 2026
-**Inputs:** `docs/requirements.md` v1.0, `docs/architecture.md` v0.5, `docs/ui.md` v0.5
+**Version:** 0.4 (draft for iteration)
+**Date:** 1 November 2026
+**Inputs:** `docs/requirements.md` v1.0, `docs/architecture.md` v0.6, `docs/ui.md` v0.5
 
-**Changes in 0.3:** spike results S-1.0 to S-1.4 and S0.1–S0.3 recorded as they landed (see Current progress). S-1.4b dropped as not needed, S-1.5 parked, S-1.4a retargeted to `toebeans.co.za`.
+**Changes in 0.3:** spike results S-1.0 to S-1.4 and S0.1–S0.2 recorded as they landed (see Current progress). S-1.4b dropped as not needed, S-1.5 parked, S-1.4a retargeted to `toebeans.co.za`.
+
+**Changes in 0.4:** S-1.4a done (Cloudflare Worker chosen; the probe is torn down and `toebeans.co.za` serves a holding page). S0.3 and S0.4 done (see Current progress).
 
 Work is organised as **vertical slices**: each delivers a usable end-to-end increment through UI → API → application → domain → persistence, with tests. Slices are ordered by **dependency and risk**. The riskiest unknowns (push with the app closed, free hosting) are spiked first, before building on them.
 

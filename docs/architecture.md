@@ -1,7 +1,7 @@
 # Toe Beans — Architecture
 
-**Version:** 0.5 (draft for iteration)
-**Date:** 31 October 2026
+**Version:** 0.6 (draft for iteration)
+**Date:** 1 November 2026
 **Status:** Partly accepted. Decisions marked **A** in the decision log (§2) are accepted; everything else is still proposed.
 **Inputs:** `docs/requirements.md` v1.0 (baselined)
 
@@ -11,7 +11,9 @@
 
 **Changes in 0.4:** S-1.1 and S-1.2 results. The PWA installs on both acceptance phones. Web Push reaches both phones with the app closed, but **only reliably once Chrome's battery restriction is lifted** (§6.4). Added a send policy (urgency `high`, TTL per reminder type), the notification-tap rule, Android delivery findings (§6.4) and risk R5. Q4 resolved.
 
-**Changes in 0.5:** S-1.4 result: Cloud Run Johannesburg → Atlas Cape Town is well inside budget on both phones, so topology 1 is confirmed, the AWS fallback is not needed and R4 is retired (§8.4). The domain is `toebeans.co.za` from the first release, replacing `toebeans.gebrev.com`. Cloud Run domain mapping isn't offered in `africa-south1`, so S-1.4a compares Cloudflare and Firebase Hosting (§8.4, Q5, Q8); Firebase's Cloud Run rewrites don't support `africa-south1` either, which leaves Cloudflare. S0.1 and S0.2 built: layer rules enforced with ESLint `no-restricted-imports` (§4.2), and backend config validation, the error-to-problem mapping and monotonic IDs (§7). S0.3 built: the Mongo client connects and migrates before the server listens, `UnitOfWork` carries its session in `AsyncLocalStorage`, a lease-locked migration runner, and the household-scoped base collection with its isolation suite (§3.5, §4.4, §7, §10). D1–D4, D6, D13 and D14 accepted; Node 24.
+**Changes in 0.5:** S-1.4 result: Cloud Run Johannesburg → Atlas Cape Town is well inside budget on both phones, so topology 1 is confirmed, the AWS fallback is not needed and R4 is retired (§8.4). The domain is `toebeans.co.za` from the first release, replacing `toebeans.gebrev.com`. Cloud Run domain mapping isn't offered in `africa-south1`, so S-1.4a compares Cloudflare and Firebase Hosting (§8.4, Q5, Q8). S0.1 and S0.2 built: layer rules enforced with ESLint `no-restricted-imports` (§4.2), and backend config validation, the error-to-problem mapping and monotonic IDs (§7). D1–D4, D6, D13 and D14 accepted; Node 24.
+
+**Changes in 0.6:** S-1.4a result: Firebase Hosting's Cloud Run rewrites don't support `africa-south1`, so a **Cloudflare Worker** fronts Cloud Run on `toebeans.co.za`, adding ~12–28 ms at p50 on the phones (§8.4, D13; Q8 resolved). The app sets its public origin at build time (Kit `paths.origin`), because behind the Worker SvelteKit's CSRF check took `run.app` as the origin (§8.4). S0.3 built: the Mongo client connects and migrates before the server listens, `UnitOfWork` carries its session in `AsyncLocalStorage`, a lease-locked migration runner, and the household-scoped base collection with its isolation suite (§3.5, §4.4, §7). Integration tests run on Atlas Local 8.0 (§10). S0.4 built: pino logs in Cloud Logging's format with a request ID on every line, redaction and error-text masking, `/readyz`, and Sentry on the server (behind an `ErrorReporter` port) and in the browser (loaded only when a DSN is set) (§8.1, §9).
 
 This document records the technical decisions, domain model and system structure for the Toe Beans MVP. Every decision weighs alternatives against the requirement IDs (FR-xx / NFR-xx). Free-tier figures were checked against public sources in October 2026. They change often, so re-verify them before committing (see §11).
 

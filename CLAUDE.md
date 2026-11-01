@@ -28,6 +28,8 @@ Run from the repo root (Node ≥ 24, pnpm 10):
 
 Design docs (drafts under review; each records its own changes in a "Changes in" line under the header): `docs/architecture.md` (decision log, domain model, layering, hosting), `docs/ui.md` (journeys, layouts, interaction conventions), `docs/backlog.md` (vertical slices and current progress). Record technical trade-offs in the architecture decision log against requirement IDs (FR-xx / NFR-xx), not silently in code. Update slice status in the backlog as work lands.
 
+Doc versioning: a committed "Changes in x.y" line is closed. When a batch of work changes a doc, and its current version's line is already committed (check with `git diff HEAD -- docs/`), bump the minor version, set the date and add a new "Changes in" line. Don't append to an older line. Uncommitted changes in the same batch go into the open new version. Summarise what changed and why, with section and decision references, not a diary. When a doc's version changes, update the "Inputs" versions in the docs that drive work from it (the backlog cites architecture and ui). `requirements.md` is baselined, so it changes only through a recorded scope change.
+
 ## Agreed architectural constraints
 
 These are fixed at the product level. Don't deviate without a recorded scope change:
