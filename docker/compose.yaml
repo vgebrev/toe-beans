@@ -1,7 +1,8 @@
 # Local services (architecture §8.1, backlog S0.5). Run through `pnpm compose …` from the repo root:
 #   pnpm compose up -d --wait mongo     MongoDB for `pnpm dev`
 #   pnpm compose --profile app up --build -d --wait    the app image too, on http://localhost:3000
-# Port clashes: set MONGO_PORT / APP_PORT, and MONGODB_URI for `pnpm dev` to match.
+# Settings (MONGO_PORT, APP_PORT, LOG_LEVEL) come from the repo root's .env when there is one
+# (see .env.example); `pnpm compose` passes it. Keep MONGODB_URI's port in step with MONGO_PORT.
 name: toe-beans
 
 services:

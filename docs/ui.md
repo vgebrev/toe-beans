@@ -1,9 +1,11 @@
 # Toe Beans — UI and Interaction Design
 
-**Version:** 0.5 (draft for iteration)
-**Date:** 31 October 2026
+**Version:** 0.6 (draft for iteration)
+**Date:** 1 November 2026
 **Status:** Proposed. Review-round decisions in §8 are accepted.
-**Inputs:** `docs/requirements.md` v1.0, `docs/architecture.md` v0.5
+**Inputs:** `docs/requirements.md` v1.0, `docs/architecture.md` v0.11
+
+**Changes in 0.6:** S0.8 and S0.9 built the shell and brand. The colour table gains the tokens the build needed: `soft`, `input`, `warn`, `on-danger` and the outcome badge colours from the mock-ups, all contrast-tested (§6.4). Icons are drawn by our own `<Icon>` from the free Hugeicons data, because the `@hugeicons/svelte` component only draws after hydration; the free set has no dog, so a custom one stands in (§6.4). Bottom-bar labels are 14 px, not the mock-ups' 12 px, to meet the type minimum (§6.4). The theme mechanism is recorded (§6.4).
 
 **Changes in 0.5:** S-1.2 push spike results (`architecture.md` §6.4). J7 gains a **Make reminders reliable** step with per-manufacturer battery instructions, and the test notification becomes a **delayed** test, because instant ones always arrive. Notification taps always open the installed app.
 
@@ -323,13 +325,15 @@ All icons go through one wrapper component (`<Icon name="…">`). That keeps the
 
 | Library | Licence | Styles | Pet coverage | Fit |
 |---|---|---|---|---|
-| **Hugeicons** (free set) — ✅ **chosen** | MIT (free set, per the user in review round 3). Only the free packages are used: `@hugeicons/svelte` + `@hugeicons/core-free-icons`, never `@hugeicons-pro/*`. | Free set: Stroke Rounded only (~4.6k–5.4k icons). Pro: 10 styles. | To check (dog, cat, paw, bone, leash, syringe, vet) | Rounded stroke suits Fredoka/Nunito. Free has no filled style for active states, so the active tab uses a tinted pill, as in the mock-ups. |
+| **Hugeicons** (free set) — ✅ **chosen** | MIT (free set, per the user in review round 3). Only the free data package is used, `@hugeicons/core-free-icons`, never `@hugeicons-pro/*`. `<Icon>` renders it itself (see below). | Free set: Stroke Rounded only (~4.6k–5.4k icons). Pro: 10 styles. | To check (dog, cat, paw, bone, leash, syringe, vet) | Rounded stroke suits Fredoka/Nunito. Free has no filled style for active states, so the active tab uses a tinted pill, as in the mock-ups. |
 | Phosphor | MIT | 6 weights, including **Fill** and Duotone | Dog, Cat, PawPrint, Bone and more | Closest alternative. Fill weight gives clear active and selected states. |
 | Lucide | ISC | Single stroke style | dog, cat, paw-print, bone | Solid, but plainer and more geometric than the brand. |
 | Tabler | MIT | Outline, plus a partial filled set | Good | Large set, but sharper corners. |
 | Material Symbols Rounded | Apache 2.0 | Variable (fill, weight, grade) | Pets, cruelty-free | Most Android-native, least distinctive. |
 
-**Decision (review round 3):** **Hugeicons free (Stroke Rounded)**. Map the icons we need (dog, cat, paw, bone, leash, syringe, vet, nav tabs) during S0.9. Phosphor stays the fallback if the free set has gaps that custom icons can't cover. Don't mix libraries; any gap gets a custom icon drawn to the same 24 px grid and 1.5 px rounded stroke.
+**Decision (review round 3):** **Hugeicons free (Stroke Rounded)**. Phosphor stays the fallback if the free set has gaps that custom icons can't cover. Don't mix libraries; any gap gets a custom icon drawn to the same 24 px grid and 1.5 px rounded stroke.
+
+**As built (S0.9):** the icons are mapped by meaning in `apps/web/src/lib/components/icon/icons.ts` (nav tabs, actions, More entries, theme choices, and paw, bone, treat, walk, vaccination, medication, vet). `@hugeicons/svelte` was dropped: its component draws the icon only after hydration, so server-rendered pages showed empty icons; `<Icon>` renders the same data on the server. Gaps in the free set: **dog** (a custom floppy-eared head, a placeholder to redo with the logo) and **leash** (*walk*, a walking figure, stands in). There's no cat in the MVP, so it isn't mapped.
 
 #### Logo
 
@@ -358,7 +362,10 @@ Light mode is **Beagle**: white coat with tan and brown patches. Dark mode is **
 | `on-primary` (button text) | `#FFFFFF` | 6.8 on primary | `#1A110A` | 6.4 on primary |
 | `accent` (decorative only: illustrations, highlights) | `#C98A4B` tan | 2.8, **not for text or essential UI** | `#C98A4B` (same as primary) | — |
 | `border` | `#E6D8C6` | decorative | `#3A312A` | decorative |
-| `danger` (destructive only) | `#B3261E` (white text 6.5) | — | `#F2867D` | 7.6 on bg |
+| `soft` (tinted fills: active tab pill, secondary buttons) | `#F6EBDD` | text 13.9, primary 5.7 | `#2C2520` | text 12.7, primary 5.2 |
+| `input` (form control outlines) | `#94806F` | 3.7 on bg (non-text, ≥ 3) | `#857465` | 4.2 on bg, 3.8 on surface |
+| `warn` (attention text, e.g. Overdue) | `#8A5A00` | 5.8 on bg | `#F2C46B` | 11.5 on bg |
+| `danger` (destructive only) | `#B3261E` (white text 6.5) | 6.3 on bg | `#F2867D` (`on-danger` `#1A110A`, 7.5) | 7.6 on bg |
 
 **Outcome badges** follow the kind-tone principle. Only destructive actions use red.
 
@@ -369,7 +376,9 @@ Light mode is **Beagle**: white coat with tan and brown patches. Dark mode is **
 | Not yet successful | Soft blue tint, never red |
 | Not assessed | Neutral grey, outlined |
 
-Each badge shows an icon plus a text label. Hex values for these are to be defined alongside the dog accent palette (§5.5): about 6 colours, each with a light and a dark variant, distinguishable from each other and from `primary`.
+Each badge shows an icon plus a text label. Badge colours (from the mock-ups, label on tint): Successful `#1E5B2E` on `#E3F2E6` (7.0) / `#8FD3A0` on `#1D3324` (7.7); Partially `#6E4A00` on `#FCEFD6` (7.0) / `#F2C46B` on `#3A2E14` (8.2); Not yet `#1F4E79` on `#E4EEF8` (7.4) / `#9CC4EC` on `#1B2A3A` (8.0); Not assessed: `text-muted` label, outline `#CDBFAE` / `#5A4D42`. The dog accent palette (§5.5) is still to define: about 6 colours, each with a light and a dark variant, distinguishable from each other and from `primary` (S3).
+
+**As built (S0.9):** the tokens live in `apps/web/src/lib/theme/tokens.ts`, and `app.css` declares each once as `light-dark(<Beagle>, <German Shepherd>)`. With no override, `color-scheme: light dark` follows the system setting live. An override sets `data-theme` on `<html>`, which pins `color-scheme`; the inline script in `app.html` applies a stored override before first paint and also sets the `theme-color` metas, so Android's status bar matches. A unit test fails if `app.css` drifts from `tokens.ts` or any used pairing drops below AA, and an e2e test checks the override with the app's scripts blocked. The switch is on More → Appearance.
 
 #### Typography
 
@@ -380,7 +389,8 @@ The type pairs a playful display face with a highly legible body face. Both are 
 | Display: wordmark, page titles, empty states (≥ 20 px) | **Fredoka** | Rounded and bouncy, matches the paw-print mark; legible at heading sizes | Baloo 2, Grandstander |
 | Body and UI (all text < 20 px) | **Nunito** — *confirmed (review round 3)* | Friendly rounded terminals with open, clear letterforms; works at 14–16 px | Atkinson Hyperlegible Next (maximum legibility, less playful), Lexend |
 
-- Base size 16 px, line-height 1.5, minimum 14 px for secondary text. The display font is never used for body text or form controls.
+- Base size 16 px, line-height 1.5, minimum 14 px for secondary text. The display font is never used for body text or form controls. The bottom-bar labels follow the 14 px minimum (the mock-ups used 12 px).
+- As built: `@fontsource-variable/fredoka` and `@fontsource-variable/nunito`, imported whole. Each subset has a `unicode-range`, so phones download only the subsets the text needs (Latin in practice); S13's precache should take only the Latin files.
 - **Nunito is confirmed** after a side-by-side comparison with Atkinson Hyperlegible Next in the mock-ups. The S13.4 accessibility pass still checks it at 200% font scaling on a real phone. Swapping fonts would be a single token change.
 
 ---

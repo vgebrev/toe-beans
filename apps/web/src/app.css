@@ -1,0 +1,139 @@
+@import 'tailwindcss';
+@import 'tw-animate-css';
+/* Self-hosted variable fonts (ui.md §6.4). Each subset has a unicode-range, so a phone only
+   downloads the subsets the page's text uses (Latin, in practice). */
+@import '@fontsource-variable/fredoka/wght.css';
+@import '@fontsource-variable/nunito/wght.css';
+
+/* Brand tokens: Beagle (light) and German Shepherd (dark), ui.md §6.4. The source of truth is
+   src/lib/theme/tokens.ts; tokens.test.ts checks these values against it and their contrast.
+
+   The theme is chosen per device. With no override, `color-scheme: light dark` lets the system
+   setting pick each light-dark() value, and follows it live. An override sets
+   `data-theme="light" | "dark"` on <html> (applied before first paint by the script in
+   app.html), which pins color-scheme and so every token. */
+:root {
+	color-scheme: light dark;
+
+	--tb-bg: light-dark(#fffbf5, #141110);
+	--tb-surface: light-dark(#ffffff, #211c18);
+	--tb-soft: light-dark(#f6ebdd, #2c2520);
+	--tb-text: light-dark(#2b1d14, #f3eadf);
+	--tb-text-muted: light-dark(#6b5444, #b5a493);
+	--tb-primary: light-dark(#8a4b1f, #c98a4b);
+	--tb-on-primary: light-dark(#ffffff, #1a110a);
+	--tb-accent: light-dark(#c98a4b, #c98a4b);
+	--tb-border: light-dark(#e6d8c6, #3a312a);
+	--tb-input: light-dark(#94806f, #857465);
+	--tb-danger: light-dark(#b3261e, #f2867d);
+	--tb-on-danger: light-dark(#ffffff, #1a110a);
+	--tb-warn: light-dark(#8a5a00, #f2c46b);
+	--tb-success-bg: light-dark(#e3f2e6, #1d3324);
+	--tb-success-fg: light-dark(#1e5b2e, #8fd3a0);
+	--tb-partial-bg: light-dark(#fcefd6, #3a2e14);
+	--tb-partial-fg: light-dark(#6e4a00, #f2c46b);
+	--tb-not-yet-bg: light-dark(#e4eef8, #1b2a3a);
+	--tb-not-yet-fg: light-dark(#1f4e79, #9cc4ec);
+	--tb-not-assessed-border: light-dark(#cdbfae, #5a4d42);
+
+	--radius: 1rem;
+}
+
+:root[data-theme='light'] {
+	color-scheme: light;
+}
+
+:root[data-theme='dark'] {
+	color-scheme: dark;
+}
+
+/* Tailwind's `dark:` variant (used by some shadcn-svelte components) follows the same rule as
+   the tokens: an explicit override, or the system setting when there is none. */
+@custom-variant dark {
+	&:where([data-theme='dark'], [data-theme='dark'] *) {
+		@slot;
+	}
+	@media (prefers-color-scheme: dark) {
+		&:where(:root:not([data-theme='light']), :root:not([data-theme='light']) *) {
+			@slot;
+		}
+	}
+}
+
+/* Tokens → Tailwind colours. shadcn-svelte components use the names on the left, so they pick
+   up the brand without edits. Note shadcn's `accent` is a hover fill (our `soft`); the brand's
+   decorative tan is `brand-accent`. */
+@theme inline {
+	--color-background: var(--tb-bg);
+	--color-foreground: var(--tb-text);
+	--color-surface: var(--tb-surface);
+	--color-soft: var(--tb-soft);
+	--color-card: var(--tb-surface);
+	--color-card-foreground: var(--tb-text);
+	--color-popover: var(--tb-surface);
+	--color-popover-foreground: var(--tb-text);
+	--color-primary: var(--tb-primary);
+	--color-primary-foreground: var(--tb-on-primary);
+	--color-secondary: var(--tb-soft);
+	--color-secondary-foreground: var(--tb-text);
+	--color-muted: var(--tb-soft);
+	--color-muted-foreground: var(--tb-text-muted);
+	--color-accent: var(--tb-soft);
+	--color-accent-foreground: var(--tb-text);
+	--color-brand-accent: var(--tb-accent);
+	--color-destructive: var(--tb-danger);
+	--color-destructive-foreground: var(--tb-on-danger);
+	--color-warn: var(--tb-warn);
+	--color-border: var(--tb-border);
+	--color-input: var(--tb-input);
+	--color-ring: var(--tb-primary);
+	--color-success: var(--tb-success-bg);
+	--color-success-foreground: var(--tb-success-fg);
+	--color-partial: var(--tb-partial-bg);
+	--color-partial-foreground: var(--tb-partial-fg);
+	--color-not-yet: var(--tb-not-yet-bg);
+	--color-not-yet-foreground: var(--tb-not-yet-fg);
+	--color-not-assessed-border: var(--tb-not-assessed-border);
+
+	/* Nunito for body and UI; Fredoka only for display text of 20 px and up (ui.md §6.4). */
+	--font-sans: 'Nunito Variable', system-ui, sans-serif;
+	--font-display: 'Fredoka Variable', 'Nunito Variable', system-ui, sans-serif;
+
+	--radius-sm: calc(var(--radius) - 0.5rem);
+	--radius-md: calc(var(--radius) - 0.25rem);
+	--radius-lg: var(--radius);
+	--radius-xl: calc(var(--radius) + 0.25rem);
+}
+
+@layer base {
+	* {
+		@apply border-border;
+	}
+
+	html {
+		-webkit-tap-highlight-color: transparent;
+		/* Android's font size setting scales rem-based text (ui.md §7: 200% without sideways
+		   scrolling). */
+		text-size-adjust: 100%;
+	}
+
+	body {
+		@apply bg-background font-sans text-foreground;
+		line-height: 1.5;
+	}
+
+	:focus-visible {
+		outline: 2px solid var(--tb-primary);
+		outline-offset: 2px;
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		*,
+		::before,
+		::after {
+			animation-duration: 0.01ms !important;
+			animation-iteration-count: 1 !important;
+			transition-duration: 0.01ms !important;
+		}
+	}
+}

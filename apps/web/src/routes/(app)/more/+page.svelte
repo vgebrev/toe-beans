@@ -1,0 +1,28 @@
+<script lang="ts">
+	import { version } from '$app/env';
+	import Logo from '#lib/components/Logo.svelte';
+	import PageHeader from '#lib/components/shell/PageHeader.svelte';
+	import ThemeSwitch from '#lib/components/shell/ThemeSwitch.svelte';
+</script>
+
+<svelte:head><title>More · Toe Beans</title></svelte:head>
+
+<PageHeader title="More" />
+<div class="flex flex-col gap-8 px-4 pt-2">
+	<!-- Dogs, the exercise library, cues, household and notifications join this page as their
+	     slices land (ui.md §2.1). -->
+	<section aria-labelledby="appearance" class="flex flex-col gap-3">
+		<h2
+			id="appearance"
+			class="text-sm font-extrabold tracking-wide text-muted-foreground uppercase"
+		>
+			Appearance
+		</h2>
+		<ThemeSwitch />
+	</section>
+
+	<footer class="flex flex-col items-center gap-1 pt-4 text-sm text-muted-foreground">
+		<Logo wordmark size={28} />
+		<p>Version {version}</p>
+	</footer>
+</div>

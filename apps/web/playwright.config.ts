@@ -1,7 +1,14 @@
 // End-to-end tests (architecture §10) on the two acceptance phones (requirements, CLAUDE.md),
 // emulated in Chromium: the target is Chrome on Android. The tests run against the production
 // build, so they exercise what ships, and need MongoDB like `pnpm dev` does.
+import { existsSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { defineConfig, devices } from '@playwright/test';
+
+// MONGODB_URI and friends from the repo root's .env, as for `pnpm dev`. The shell's own
+// variables win.
+const rootEnv = fileURLToPath(new URL('../../.env', import.meta.url));
+if (existsSync(rootEnv)) process.loadEnvFile(rootEnv);
 
 const port = 4173;
 

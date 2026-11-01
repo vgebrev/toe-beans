@@ -2,8 +2,35 @@
 <html lang="en">
 	<head>
 		<meta charset="utf-8" />
-		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 		<meta name="text-scale" content="scale" />
+		<meta
+			name="theme-color"
+			data-scheme="light"
+			media="(prefers-color-scheme: light)"
+			content="#FFFBF5"
+		/>
+		<meta
+			name="theme-color"
+			data-scheme="dark"
+			media="(prefers-color-scheme: dark)"
+			content="#141110"
+		/>
+		<script nonce="%sveltekit.nonce%">
+			// Applies this device's theme override before first paint, so the page never flashes
+			// the wrong theme (ui.md §6.4). Keep in step with src/lib/client/theme.ts.
+			try {
+				var theme = localStorage.getItem('toe-beans:theme');
+				if (theme === 'light' || theme === 'dark') {
+					document.documentElement.dataset.theme = theme;
+					document.querySelectorAll('meta[name="theme-color"]').forEach(function (meta) {
+						meta.content = theme === 'dark' ? '#141110' : '#FFFBF5';
+					});
+				}
+			} catch (e) {
+				// Storage blocked: follow the system setting.
+			}
+		</script>
 		%sveltekit.head%
 	</head>
 	<body data-sveltekit-preload-data="hover">

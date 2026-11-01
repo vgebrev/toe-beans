@@ -10,20 +10,21 @@ Toe Beans is a mobile-first, installable PWA for puppy training and care, shared
 
 Run from the repo root (Node ≥ 24, pnpm 10):
 
-- `pnpm install`
-- `pnpm dev`: the web app (Vite dev server). It needs MongoDB as a replica set on `localhost:27017` (or set `MONGODB_URI`); start one with `pnpm compose up -d --wait mongo`
+- `pnpm install`, then `cp .env.example .env` for local settings (ports, `MONGODB_URI`, log level). `.env` is gitignored; `.env.example` is public, so it holds sample values only, never secrets. Shell variables win over `.env`. `pnpm dev`, `build`, `test:e2e`, `compose` and the app's `start` read it.
+- `pnpm dev`: the web app (Vite dev server) on http://localhost:7877 (`DEV_PORT`; PUPP on a phone keypad; `pnpm dev --host` to reach it from a phone on the same Wi-Fi). It needs MongoDB as a replica set at `MONGODB_URI` (default `localhost:27017`); start one with `pnpm compose up -d --wait mongo`
 - `pnpm lint`: ESLint (including the layer rules) and Prettier check; `pnpm format` fixes formatting
 - `pnpm check`: type-check every package (`tsc`, and `svelte-check` for `apps/web`)
 - `pnpm test`: all Vitest unit tests. One file: `pnpm test packages/backend/src/domain/result.test.ts`; by name: `pnpm test -t 'narrows on ok'`
 - `pnpm test:integration`: `*.integration.test.ts` against MongoDB in Docker (Testcontainers; needs Docker running)
-- `pnpm test:e2e`: Playwright (`apps/web/e2e`) against the production build on emulated Galaxy S23 FE and Redmi Note 12 Pro. Needs MongoDB like `pnpm dev` (database `toe-beans-e2e`) and Chromium (`pnpm --filter @toe-beans/web exec playwright install chromium`). One project: `pnpm test:e2e --project galaxy-s23-fe`
+- `pnpm test:e2e`: Playwright (`apps/web/e2e`) against the production build on emulated Galaxy S23 FE and Redmi Note 12 Pro. Needs MongoDB like `pnpm dev` (database `toe-beans-e2e`) and Chromium (`pnpm --filter @toe-beans/web exec playwright install chromium`). One project: `pnpm test:e2e --project=galaxy-s23-fe` (keep the `=` when a file or `-g` follows)
 - `pnpm build`: production build of `apps/web` (adapter-node, output in `apps/web/build`)
-- `pnpm compose …`: `docker compose` on `docker/compose.yaml`. `--profile app up --build -d --wait` also runs the app image on `localhost:3000`. On port clashes set `MONGO_PORT` / `APP_PORT` (and `MONGODB_URI` for `pnpm dev`). The image alone: `docker build -f docker/Dockerfile .`
+- `pnpm compose …`: `docker compose` on `docker/compose.yaml`. `--profile app up --build -d --wait` also runs the app image on `localhost:3000`. On port clashes set `MONGO_PORT` / `APP_PORT` in `.env` (and the port in `MONGODB_URI` to match). The image alone: `docker build -f docker/Dockerfile .`
 - `apps/web` `dependencies` hold only what the server bundle imports at runtime (now just `@opentelemetry/api`); everything bundled is a devDependency, so the image stays small.
 
 ## Layout and layer rules
 
-- `apps/web`: SvelteKit 3 app. Kit 3 specifics: config lives in `vite.config.ts`, internal imports use `#lib/...` with a `.js` extension (no `$lib`), env vars are declared in `src/env.ts`.
+- `apps/web`: SvelteKit 3 app. Kit 3 specifics: config lives in `vite.config.ts`, internal imports use `#lib/...` with a `.js` extension (no `$lib`), env vars are declared in `src/env.ts`, and links go through `resolve()` from `$app/paths` with a route ID (Kit 3 paths have no leading slash; ESLint enforces `resolve`).
+- UI (`ui.md` §6.4): Tailwind 4 and shadcn-svelte, styled only through the brand tokens. Colours live in `src/lib/theme/tokens.ts` and are mirrored in `src/app.css`; change both (a test checks drift and contrast). Add components with `pnpm dlx shadcn-svelte@1.7.1 add <name>` from `apps/web`, then keep touch targets at 48 px (see `ui/button`). Icons only through `<Icon name>` (`src/lib/components/icon/icons.ts`). Pages call the API through `#lib/api-client`, never backend code.
 - `packages/backend`: the framework-independent core, in `domain/`, `application/`, `infrastructure/`, `http/`, `worker/` and `composition.ts`. Its README has the import table.
 - `packages/contracts`: Zod DTOs and problem types shared with the browser.
 - Packages export TypeScript source (no build step); relative imports use `.js` extensions (NodeNext).
