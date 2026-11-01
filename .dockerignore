@@ -1,0 +1,15 @@
+# Build context is the repo root (docker/Dockerfile). Keep it to what the build needs.
+**/node_modules
+**/.svelte-kit
+**/build
+**/coverage
+.git
+.idea
+.vscode
+.env
+.env.*
+docs
+spikes
+infra
+docker
+**/*.test.ts

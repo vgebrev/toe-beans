@@ -1,12 +1,14 @@
 # Toe Beans — Backlog
 
-**Version:** 0.4 (draft for iteration)
+**Version:** 0.5 (draft for iteration)
 **Date:** 1 November 2026
-**Inputs:** `docs/requirements.md` v1.0, `docs/architecture.md` v0.6, `docs/ui.md` v0.5
+**Inputs:** `docs/requirements.md` v1.0, `docs/architecture.md` v0.7, `docs/ui.md` v0.5
 
 **Changes in 0.3:** spike results S-1.0 to S-1.4 and S0.1–S0.2 recorded as they landed (see Current progress). S-1.4b dropped as not needed, S-1.5 parked, S-1.4a retargeted to `toebeans.co.za`.
 
 **Changes in 0.4:** S-1.4a done (Cloudflare Worker chosen; the probe is torn down and `toebeans.co.za` serves a holding page). S0.3 and S0.4 done (see Current progress).
+
+**Changes in 0.5:** S0.5 done without MinIO, whose community edition is no longer published; S3.2 picks the local S3-compatible store.
 
 Work is organised as **vertical slices**: each delivers a usable end-to-end increment through UI → API → application → domain → persistence, with tests. Slices are ordered by **dependency and risk**. The riskiest unknowns (push with the app closed, free hosting) are spiked first, before building on them.
 
@@ -41,8 +43,9 @@ Work is organised as **vertical slices**: each delivers a usable end-to-end incr
 | 2026-10-31 | S-1.4a done. Redmi Note 12 Pro, `cf.` vs `run.app` (p50 / p95): Wi-Fi 44–45 / 139–227 vs 23–24 / 67–212 ms, mobile data 69–73 / 105–127 vs 50–53 / 73–81 ms (~18–21 ms added at p50). Cookies pass through the Worker on both phones after the `HOST_HEADER` fix. **Cloudflare Worker chosen** (architecture §8.4, D13, Q8). Push from the custom origin was tested on the Samsung only; push delivery doesn't pass through Cloudflare. |
 | 2026-10-31 | S-1.4a probe torn down (Cloud Run service, images, `cf.` Worker). `toebeans.co.za` now serves a holding page from a Cloudflare Worker (`infra/holding-page`: no service worker, no cookies, `noindex`) and `www` redirects to the apex; the GoDaddy-era A/CNAME records that returned 525 are gone. S14.1 replaces it with the app's Worker. |
 | 2026-11-01 | S0.4 done: `Logger` and `ErrorReporter` ports with pino and Sentry adapters. Log lines use Cloud Logging's `severity`/`message`/`time`. Every line in a request carries its `requestId` (kept from a well-formed upstream `x-request-id` or generated, returned in the response header and in a 500's body). The access log records the route ID, never the path. Redaction of sensitive keys plus masking of emails, connection strings, bearer tokens and duplicate-key values in error text. `/readyz` pings Mongo (503 with the reason logged only). Sentry: server errors only with all SDK 11 data collection off; browser SDK loaded only when `SENTRY_DSN` is set (~140 KB gz otherwise never fetched). Smoke-tested on the built server: request IDs, route-only access log, masked 500. Sentry itself is untested until a DSN exists. `apps/web` now depends on `@opentelemetry/api`, which Kit keeps outside the bundle. 52 unit and 25 integration tests. |
+| 2026-11-01 | S0.5 done: `docker/Dockerfile` (two stages on `node:24.21.0-slim`, runtime is `build/` plus `@opentelemetry/api`, ~13 MB over the base, user `node`, files root-owned) and `docker/compose.yaml` (Atlas Local 8.0 with named volumes; the app behind the `app` profile, healthchecked on `/readyz`), run with `pnpm compose …`. Verified: image builds, the stack comes up healthy in ~7 s, `/readyz` 200, SIGTERM shuts down in 0.4 s, and `pnpm dev` works against the compose Mongo. `apps/web` keeps only runtime imports in `dependencies`. MinIO dropped: its community edition stopped publishing images in October 2025; S3.2 picks a replacement. |
 
-**Next up:** S-1.3 write-up after its 48 h tick run ends (1 Nov 23:12 SAST), and the GCP billing check (Q9), then S-1.6 (D9 accepted). S0 foundations in parallel (S0.1–S0.4 done; S0.5 next).
+**Next up:** S-1.3 write-up after its 48 h tick run ends (1 Nov 23:12 SAST), and the GCP billing check (Q9), then S-1.6 (D9 accepted). S0 foundations in parallel (S0.1–S0.5 done; S0.6 next).
 
 ---
 
@@ -83,7 +86,7 @@ Work is organised as **vertical slices**: each delivers a usable end-to-end incr
 | S0.2 | Backend skeleton: config (validated env), composition root, `Clock`, ID generation, `Result`/error types, problem+json mapping | ✅ |
 | S0.3 | Mongo infrastructure: client lifecycle (connect before the server listens, S-1.4), `UnitOfWork`, migration runner, household-scoped base repository plus the reusable isolation test suite | ✅ |
 | S0.4 | pino logging with request IDs and redaction. `/healthz`, `/readyz` (ready only once Mongo is connected). Sentry wiring (server + browser). | ✅ |
-| S0.5 | Dockerfile (multi-stage, non-root). `docker compose` for local dev (Mongo replica set + MinIO). | ⬜ |
+| S0.5 | Dockerfile (multi-stage, non-root). `docker compose` for local dev (Mongo replica set; MinIO dropped, see S3.2). | ✅ |
 | S0.6 | GitHub Actions: lint → typecheck → unit → integration (Testcontainers) → image build | ⬜ |
 | S0.7 | Vitest + Playwright setup with an Android device profile (Vitest done in S0.1) | ⬜ |
 | S0.8 | App shell: layout, bottom navigation, theme tokens, shadcn-svelte install, typed API client | ⬜ |
@@ -116,7 +119,7 @@ Work is organised as **vertical slices**: each delivers a usable end-to-end incr
 | # | Task | Status |
 |---|---|---|
 | S3.1 | Dog aggregate, CRUD, archive. Exact or estimated birth date. | ⬜ |
-| S3.2 | `PhotoStore` port with S3 (R2/MinIO) and filesystem adapters. Upload pipeline (client downscale, `sharp` re-encode, EXIF strip, 2 sizes). | ⬜ |
+| S3.2 | `PhotoStore` port with S3 (R2, plus a local S3-compatible store in compose: SeaweedFS, Garage or RustFS, since MinIO CE is no longer published) and filesystem adapters. Upload pipeline (client downscale, `sharp` re-encode, EXIF strip, 2 sizes). | ⬜ |
 | S3.3 | Authorised photo serving endpoint with private caching | ⬜ |
 | S3.4 | Dog switcher and active-dog context. Dog profile screen. Onboarding step 3. | ⬜ |
 

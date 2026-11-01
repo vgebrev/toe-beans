@@ -1,0 +1,52 @@
+# Local services (architecture §8.1, backlog S0.5). Run through `pnpm compose …` from the repo root:
+#   pnpm compose up -d --wait mongo     MongoDB for `pnpm dev`
+#   pnpm compose --profile app up --build -d --wait    the app image too, on http://localhost:3000
+# Port clashes: set MONGO_PORT / APP_PORT, and MONGODB_URI for `pnpm dev` to match.
+name: toe-beans
+
+services:
+  mongo:
+    # Atlas Local: the major version Atlas runs, already a single-node replica set, so
+    # transactions work. The integration tests use the same image.
+    image: mongodb/mongodb-atlas-local:8.0
+    ports:
+      - '127.0.0.1:${MONGO_PORT:-27017}:27017'
+    volumes:
+      - mongo-data:/data/db
+      - mongo-config:/data/configdb
+    healthcheck:
+      test: ['CMD', '/usr/local/bin/runner', 'healthcheck']
+      interval: 5s
+      timeout: 10s
+      retries: 30
+      start_period: 10s
+
+  app:
+    profiles: [app]
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    environment:
+      MONGODB_URI: mongodb://mongo:27017/?directConnection=true
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      SENTRY_DSN: ${SENTRY_DSN:-}
+    ports:
+      - '127.0.0.1:${APP_PORT:-3000}:8080'
+    depends_on:
+      mongo:
+        condition: service_healthy
+    healthcheck:
+      # No curl in the slim image; Node's fetch does the job.
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://127.0.0.1:8080/readyz').then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))"
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 20s
+
+volumes:
+  mongo-data:
+  mongo-config:

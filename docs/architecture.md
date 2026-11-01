@@ -1,6 +1,6 @@
 # Toe Beans — Architecture
 
-**Version:** 0.6 (draft for iteration)
+**Version:** 0.7 (draft for iteration)
 **Date:** 1 November 2026
 **Status:** Partly accepted. Decisions marked **A** in the decision log (§2) are accepted; everything else is still proposed.
 **Inputs:** `docs/requirements.md` v1.0 (baselined)
@@ -14,6 +14,8 @@
 **Changes in 0.5:** S-1.4 result: Cloud Run Johannesburg → Atlas Cape Town is well inside budget on both phones, so topology 1 is confirmed, the AWS fallback is not needed and R4 is retired (§8.4). The domain is `toebeans.co.za` from the first release, replacing `toebeans.gebrev.com`. Cloud Run domain mapping isn't offered in `africa-south1`, so S-1.4a compares Cloudflare and Firebase Hosting (§8.4, Q5, Q8). S0.1 and S0.2 built: layer rules enforced with ESLint `no-restricted-imports` (§4.2), and backend config validation, the error-to-problem mapping and monotonic IDs (§7). D1–D4, D6, D13 and D14 accepted; Node 24.
 
 **Changes in 0.6:** S-1.4a result: Firebase Hosting's Cloud Run rewrites don't support `africa-south1`, so a **Cloudflare Worker** fronts Cloud Run on `toebeans.co.za`, adding ~12–28 ms at p50 on the phones (§8.4, D13; Q8 resolved). The app sets its public origin at build time (Kit `paths.origin`), because behind the Worker SvelteKit's CSRF check took `run.app` as the origin (§8.4). S0.3 built: the Mongo client connects and migrates before the server listens, `UnitOfWork` carries its session in `AsyncLocalStorage`, a lease-locked migration runner, and the household-scoped base collection with its isolation suite (§3.5, §4.4, §7). Integration tests run on Atlas Local 8.0 (§10). S0.4 built: pino logs in Cloud Logging's format with a request ID on every line, redaction and error-text masking, `/readyz`, and Sentry on the server (behind an `ErrorReporter` port) and in the browser (loaded only when a DSN is set) (§8.1, §9).
+
+**Changes in 0.7:** S0.5 built: the app image (`docker/Dockerfile`) and a local compose file (`docker/compose.yaml`) with Atlas Local and, behind a profile, the app (§8.1). `apps/web`'s `dependencies` are now exactly what the server bundle imports at runtime. MinIO is dropped: its community edition is no longer published, so local object storage waits for S3.2 (§3.6, §8.2, §8.3).
 
 This document records the technical decisions, domain model and system structure for the Toe Beans MVP. Every decision weighs alternatives against the requirement IDs (FR-xx / NFR-xx). Free-tier figures were checked against public sources in October 2026. They change often, so re-verify them before committing (see §11).
 
@@ -138,9 +140,9 @@ Auth0 is recommended with Google and email/password connections enabled. The des
 | Backblaze B2 | ~10 GB free, S3-compatible. | Egress rules more complex. |
 | Google Cloud Storage | Same project as Cloud Run. | Free tier only in US regions. Egress billed. |
 | GridFS in Atlas | No extra vendor. | Eats into the 512 MB. |
-| Local volume / MinIO | Self-host path. | No durability on serverless hosts. |
+| Local volume, or a self-hosted S3-compatible store | Self-host path. MinIO's community edition stopped publishing Docker images in October 2025 and its repo is archived, so it is no longer a candidate. The local S3-compatible service (SeaweedFS, Garage or RustFS) is chosen in S3.2. | No durability on serverless hosts. |
 
-Code depends on a `PhotoStore` port (`put`, `getStream`, `delete`). The adapters are S3-compatible (R2, MinIO, B2) and local-filesystem (self-host/dev).
+Code depends on a `PhotoStore` port (`put`, `getStream`, `delete`). The adapters are S3-compatible (R2, B2, a local S3-compatible store) and local-filesystem (self-host/dev).
 
 **Upload pipeline:**
 1. The client downscales the image before upload, so Android camera photos stay small on mobile data.
@@ -381,7 +383,9 @@ Consequences for the design: the reminders setup includes a "make reminders reli
 ### 8.1 Container
 
 - One multi-stage Dockerfile (Node 24 slim or distroless). Output: the `adapter-node` server, which also serves `/internal/tick` and optionally runs the inline worker.
-- Runs as a non-root user and listens on `PORT`. `GET /healthz` is the liveness check (process up). `GET /readyz` is the readiness check (Mongo ping, config loaded).
+- Runs as a non-root user and listens on `PORT`. The public origin (Kit `paths.origin`, §8.4) is not baked in yet: it comes with the first deploy (S-1.6/S14), and a local image must still accept `localhost`. `GET /healthz` is the liveness check (process up). `GET /readyz` is the readiness check (Mongo ping, config loaded).
+- Built from the repo root: `docker build -f docker/Dockerfile .`. Two stages on `node:24.21.0-slim`: the build stage installs the workspace (pnpm via corepack, store cached by BuildKit) and runs `pnpm build`, then `pnpm deploy --prod` collects `apps/web`'s runtime dependencies. The runtime stage holds only `package.json`, that `node_modules` and `build/` (~13 MB over the base image), runs as the image's `node` user with root-owned files, and listens on `PORT` (default 8080, as Cloud Run sets). adapter-node handles SIGTERM, and the backend then closes Mongo and flushes Sentry (0.4 s in compose).
+- `apps/web`'s `dependencies` are exactly what the server bundle imports at runtime; everything bundled, the workspace packages included, is a devDependency, so the deploy step stays small. Check with a grep of `build/` for bare imports when adding one.
 - The image ships `apps/web`'s production dependencies next to the build, not just the bundle: SvelteKit deliberately leaves `@opentelemetry/api` (pulled in by `@sentry/node`) outside the bundle so instrumentation and the runtime share one copy, so `apps/web` depends on it directly (S0.4).
 - The image is built in CI and pushed to GHCR (free for public images; private images use Artifact Registry's free 0.5 GB on the Cloud Run path).
 
@@ -392,10 +396,10 @@ Free always-on compute has largely disappeared. This matters because of NFR-16.
 | Option | Cost reality (Oct 2026, verify) | Push scheduling | Verdict |
 |---|---|---|---|
 | **A. Google Cloud Run + Cloud Scheduler** | Free tier: ~2M requests, 180k vCPU-s, 360k GiB-s per month. Cloud Scheduler: 3 free jobs. **Needs a billing account (card)**, so set a low budget alert (e.g. $1). | Scheduler hits `/internal/tick` every minute: ~43k requests/month, well within the free tier. | ✅ **Primary candidate.** Cold start of a few seconds on first open (NFR-09 loading feedback). Atlas can sit in the same GCP region. |
-| B. Oracle Cloud Always Free VM | Ampere A1 allowance reportedly cut to 2 OCPU / 12 GB in June 2026. Idle instances can be reclaimed. Capacity is often unavailable. | Inline worker, always on. Could also run Mongo and MinIO locally. | Strong runner-up for an "always-on and free" setup, but it carries account and reclamation risk and is a VM we have to patch. |
+| B. Oracle Cloud Always Free VM | Ampere A1 allowance reportedly cut to 2 OCPU / 12 GB in June 2026. Idle instances can be reclaimed. Capacity is often unavailable. | Inline worker, always on. Could also run Mongo and photo storage locally. | Strong runner-up for an "always-on and free" setup, but it carries account and reclamation risk and is a VM we have to patch. |
 | C. Render free web service | 750 h/month, sleeps after 15 min idle, ~30–60 s cold start. | External cron (cron-job.org / GitHub Actions) pinging tick every minute. Effectively keeps it awake, which is against the spirit of the tier. | Fallback. Cold starts hurt UX if it does sleep. |
 | D. Koyeb / Fly.io / Railway | Free compute removed or now needs a card plus a trial (reports conflict). | — | Not recommended. |
-| E. **Self-host: Docker behind IIS** | Hardware and electricity already paid for. | Inline worker. Mongo + MinIO (or local volume) in compose. | ✅ **Agreed fallback** (NFR-07). |
+| E. **Self-host: Docker behind IIS** | Hardware and electricity already paid for. | Inline worker. Mongo + a photo volume (or a local S3-compatible store) in compose. | ✅ **Agreed fallback** (NFR-07). |
 
 **Recommended topology (option A):**
 
@@ -411,13 +415,13 @@ GitHub Actions ──nightly──► mongodump → encrypted → R2 backups buc
 
 ```
 
-**Self-host topology (option E):** IIS with URL Rewrite + ARR reverse-proxies `https://toebeans.co.za` to `localhost:3000`. TLS comes from win-acme (Let's Encrypt). `docker compose` runs `app` (with `WORKER_MODE=inline`), `mongo` (a single-node replica set so transactions work) with a named volume, and `minio` or a bind-mounted photo directory. A scheduled `mongodump` writes to an external drive or R2. ARR must pass `X-Forwarded-Proto/Host`; set SvelteKit `ORIGIN`, `PROTOCOL_HEADER` and `HOST_HEADER` accordingly. Web Push needs only outbound HTTPS.
+**Self-host topology (option E):** IIS with URL Rewrite + ARR reverse-proxies `https://toebeans.co.za` to `localhost:3000`. TLS comes from win-acme (Let's Encrypt). `docker compose` runs `app` (with `WORKER_MODE=inline`), `mongo` (a single-node replica set so transactions work) with a named volume, and a bind-mounted photo directory (or a local S3-compatible store). A scheduled `mongodump` writes to an external drive or R2. ARR must pass `X-Forwarded-Proto/Host`; set SvelteKit `ORIGIN`, `PROTOCOL_HEADER` and `HOST_HEADER` accordingly. Web Push needs only outbound HTTPS.
 
 The spike in backlog slice S-1 decides between A and E based on measured cold start, scheduler reliability and the experience on both test phones.
 
 ### 8.3 Environments
 
-`local` (docker compose: Mongo + MinIO + app, Auth0 dev tenant), `prod`. A separate staging environment isn't justified at this scale. Preview deploys are optional later.
+`local` (docker compose: Mongo, optionally the app image; Auth0 dev tenant), `prod`. A separate staging environment isn't justified at this scale. Preview deploys are optional later.
 
 ### 8.4 Region, latency and domain
 

@@ -13,9 +13,12 @@
 		"start": "node build"
 	},
 	"devDependencies": {
+		"@sentry/browser": "^11.10.0",
 		"@sveltejs/adapter-node": "6.0.0",
 		"@sveltejs/kit": "^3.0.0",
 		"@sveltejs/vite-plugin-svelte": "^7.2.0",
+		"@toe-beans/backend": "workspace:*",
+		"@toe-beans/contracts": "workspace:*",
 		"svelte": "^5.57.1",
 		"svelte-check": "^4.6.0",
 		"typescript": "^6.0.3",
@@ -26,9 +29,6 @@
 		"#lib/*": "./src/lib/*"
 	},
 	"dependencies": {
-		"@opentelemetry/api": "^1.10.0",
-		"@sentry/browser": "^11.10.0",
-		"@toe-beans/backend": "workspace:*",
-		"@toe-beans/contracts": "workspace:*"
+		"@opentelemetry/api": "^1.10.0"
 	}
 }
