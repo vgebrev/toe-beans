@@ -1,6 +1,8 @@
+import type { RequestEvent } from '@sveltejs/kit';
 import type { Handle, HandleServerError, ServerInit } from '@sveltejs/kit/hooks';
-import { REQUEST_ID_HEADER, requestIdFrom } from '@toe-beans/backend';
+import { errorResponse, REQUEST_ID_HEADER, requestIdFrom } from '@toe-beans/backend';
 import { backend, startBackend } from '#lib/server/backend.js';
+import { toResponse } from '#lib/server/respond.js';
 
 export const init: ServerInit = async () => {
 	await startBackend();
@@ -21,7 +23,7 @@ export const handle: Handle = ({ event, resolve }) => {
 
 	return withRequestContext({ requestId }, async () => {
 		const started = performance.now();
-		const response = await resolve(event);
+		const response = await authenticated(event, resolve);
 		try {
 			response.headers.set(REQUEST_ID_HEADER, requestId);
 		} catch {
@@ -38,6 +40,39 @@ export const handle: Handle = ({ event, resolve }) => {
 		return response;
 	});
 };
+
+/**
+ * Refuses cross-origin writes, then resolves the session cookie to `locals.viewer` (architecture
+ * §3.4). Signed-out API calls get a 401 here; signed-out pages are sent to sign-in by the
+ * `(app)` layout, so client-side navigation gets a proper redirect too.
+ */
+async function authenticated(
+	event: RequestEvent,
+	resolve: Parameters<Handle>[0]['resolve']
+): Promise<Response> {
+	const { auth } = backend().http;
+	const headers = event.request.headers;
+	const refused = auth.checkOrigin({
+		method: event.request.method,
+		origin: headers.get('origin'),
+		fetchSite: headers.get('sec-fetch-site')
+	});
+	if (refused) return toResponse(refused);
+
+	event.locals.viewer = null;
+	// Probes don't need a viewer, so they never touch the sessions.
+	if (quietRoutes.has(event.route.id ?? '')) return resolve(event);
+
+	const { viewer, cookies } = await auth.authenticate((name) => event.cookies.get(name));
+	event.locals.viewer = viewer;
+	for (const { name, value, maxAge, secure, sameSite } of cookies) {
+		event.cookies.set(name, value, { path: '/', maxAge, httpOnly: true, secure, sameSite });
+	}
+	if (!viewer && event.url.pathname.startsWith('/api/')) {
+		return toResponse(errorResponse({ kind: 'unauthenticated' }));
+	}
+	return resolve(event);
+}
 
 /** Unexpected errors: logged, reported, and answered with the request ID only. */
 export const handleError: HandleServerError = ({ kind, error, event }) => {

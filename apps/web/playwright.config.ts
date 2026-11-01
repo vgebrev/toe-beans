@@ -4,6 +4,7 @@
 import { existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { defineConfig, devices } from '@playwright/test';
+import { SIGNED_IN } from './e2e/mock-sign-in.js';
 
 // MONGODB_URI and friends from the repo root's .env, as for `pnpm dev`. The shell's own
 // variables win.
@@ -42,10 +43,21 @@ export default defineConfig({
 		trace: 'retain-on-failure'
 	},
 	projects: [
+		// Signs in once through the mock provider; the phones reuse the session. The auth suite
+		// starts signed out instead.
+		{ name: 'sign-in', testMatch: /auth\.setup\.ts/ },
 		// Measured: 384 × 700 CSS px. 1080 px wide at One UI's default display size is 2.8125×.
-		{ name: 'galaxy-s23-fe', use: android('SM-S711B', 15, 384, 700, 2.8125) },
+		{
+			name: 'galaxy-s23-fe',
+			use: { ...android('SM-S711B', 15, 384, 700, 2.8125), storageState: SIGNED_IN },
+			dependencies: ['sign-in']
+		},
 		// Estimated: 1080 × 2400 at 2.75× is ~393 × 873 CSS px, minus status and navigation bars.
-		{ name: 'redmi-note-12-pro', use: android('22101316G', 15, 393, 830, 2.75) }
+		{
+			name: 'redmi-note-12-pro',
+			use: { ...android('22101316G', 15, 393, 830, 2.75), storageState: SIGNED_IN },
+			dependencies: ['sign-in']
+		}
 	],
 	webServer: {
 		command: 'pnpm build && node build',
@@ -57,7 +69,13 @@ export default defineConfig({
 			PORT: String(port),
 			// Its own database, so tests never touch dev data.
 			MONGODB_DB: 'toe-beans-e2e',
-			LOG_LEVEL: 'warn'
+			LOG_LEVEL: 'warn',
+			// Always the mock provider (docker compose / the CI service), whatever .env says, so
+			// tests sign in by filling its form (architecture §3.4).
+			PUBLIC_BASE_URL: `http://localhost:${port}`,
+			OIDC_ISSUER: 'http://localhost:8090/default',
+			OIDC_CLIENT_ID: 'toe-beans-e2e',
+			OIDC_CLIENT_SECRET: 'e2e-secret'
 		}
 	}
 });

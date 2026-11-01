@@ -6,6 +6,8 @@ dist/
 coverage/
 
 # Environment and secrets
+# Playwright's saved test session (mock provider, test data only)
+apps/web/e2e/.auth/
 .env
 .env.*
 !.env.example

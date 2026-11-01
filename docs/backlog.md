@@ -1,8 +1,8 @@
 # Toe Beans — Backlog
 
-**Version:** 0.11 (draft for iteration)
+**Version:** 0.12 (draft for iteration)
 **Date:** 1 November 2026
-**Inputs:** `docs/requirements.md` v1.0, `docs/architecture.md` v0.12, `docs/ui.md` v0.7
+**Inputs:** `docs/requirements.md` v1.0, `docs/architecture.md` v0.13, `docs/ui.md` v0.7
 
 **Changes in 0.3:** spike results S-1.0 to S-1.4 and S0.1–S0.2 recorded as they landed (see Current progress). S-1.4b dropped as not needed, S-1.5 parked, S-1.4a retargeted to `toebeans.co.za`.
 
@@ -21,6 +21,8 @@
 **Changes in 0.10:** S0.9 done: the TB monogram logo from the AI-assisted design board replaces the placeholder paw (`ui.md` 0.7 §6.4 Logo). The custom dog icon stays as drawn; the new mark has no dog to redraw it from.
 
 **Changes in 0.11:** S0.6 done (first CI run green). S0.10 done: MIT licence, a repository README, a clean gitleaks scan of the full history, the repo published at `github.com/vgebrev/toe-beans`, and a ruleset on `main` requiring CI. Dependabot skips TypeScript 7 and `@types/node` majors (architecture 0.12).
+
+**Changes in 0.12:** the S0 Foundations heading is marked done (all ten tasks were). S1 started: its tasks follow the sign-in design in architecture 0.13 §3.4 (two EU Auth0 tenants with a prod custom domain, Mongo-backed sessions, a mock OIDC provider for e2e), with a new S1.5 for the sign-in page and its e2e tests. Setup steps are in `docs/runbooks/auth0.md`. S1.2–S1.5 done, with account linking by verified email (Q10).
 
 Work is organised as **vertical slices**: each delivers a usable end-to-end increment through UI → API → application → domain → persistence, with tests. Slices are ordered by **dependency and risk**. The riskiest unknowns (push with the app closed, free hosting) are spiked first, before building on them.
 
@@ -62,8 +64,10 @@ Work is organised as **vertical slices**: each delivers a usable end-to-end incr
 | 2026-11-01 | S0.8 and S0.9 built together. Shell: Tailwind 4 and shadcn-svelte (Button, resized to 48 px targets), the five destinations under `(app)` with a fixed bottom bar (tinted pill plus bolder label for the active tab, safe-area padding), page headers, empty states and a Not found page. Brand: tokens in `tokens.ts` mirrored in `app.css` as `light-dark()` values, a unit test for drift and AA contrast (21 pairings in each theme), per-device theme switch on More with a pre-paint script (no flash, checked in e2e with the app's scripts blocked), self-hosted Fredoka and Nunito, and `<Icon>` over the free Hugeicons data (rendered on the server; `@hugeicons/svelte` dropped because it draws only after hydration; custom dog icon). Typed API client returning results, not throws. Placeholder paw as logo, favicon and the maskable and badge sources. 34 e2e runs (17 tests × 2 phones), 120 unit tests. Image +2 MB. Releases from <7 days ago skipped (the D15 cooldown): `tailwind-variants` 3.3 not 4.0, `@hugeicons/core-free-icons` 4.3.5. |
 | 2026-11-01 | S0.9 done: the logo is the TB monogram from the AI-assisted design board (Monogram Iteration B). Traced from the board's primary light logo, then cleaned up (fitted ellipses for the toes, smoothed letters and heart); the geometry is in `brand/mark.ts`, which `Logo.svelte` draws and the mark, favicon (the app-icon tile), maskable and badge SVGs embed, with a drift test. Wordmark in Fredoka Bold. Still to do for the brand: a trademark-resemblance check, and the PNG exports in S13.1. |
 | 2026-11-01 | S0.10: MIT licence and a repository README. gitleaks v8.30.1 (Docker image pinned by digest) scanned the full history, 46 commits: no leaks. Published to `github.com/vgebrev/toe-beans` over SSH; the first CI run passed all four jobs (lint/type-check/unit, integration, image, e2e), so S0.6 is done. Ruleset on `main` added (no deletion or force-push, CI must pass). Dependabot's npm job failed on TypeScript 7.0.2, which typescript-eslint, svelte-check and Kit 3 don't accept yet; it now skips `typescript` and `@types/node` majors. |
+| 2026-11-01 | S1 started. Design recorded in architecture 0.13 §3.4: Auth0 dev and prod tenants in the EU region (no African region; only sign-in talks to Auth0), prod on `auth.toebeans.co.za` from the first user because users are keyed by issuer, Mongo-backed sessions, and a mock OIDC provider for e2e instead of a test sign-in route. The tenant setup runbook is `docs/runbooks/auth0.md`. |
+| 2026-11-01 | S1.2–S1.5 built. The Auth0 dev tenant `toe-beans-dev` (EU) is set up; the app redirects to it and Auth0 accepts the callback URL. Backend: an `IdentityProvider` port with an `openid-client` 6.8 adapter (lazy discovery, PKCE, state and nonce), login transactions and sessions in Mongo (hashed tokens, TTL indexes, migration `0001-auth`), and `User` with linked identities: Google and email/password with the same verified email are one user, and unverified emails are refused (architecture §3.4, Q10). Web: `/auth/sign-in`, `/auth/callback`, `POST /auth/sign-out`, the viewer in `hooks.server.ts`, the `(app)` layout sending signed-out visits to `/sign-in?returnTo=…`, the Welcome page and Account on More. Kit's CSRF check refused same-origin forms because adapter-node 6 assumes `https`; the hooks Origin check now covers every non-GET request against the runtime `PUBLIC_BASE_URL` instead. The mock provider (`mock-oauth2-server` 6.1.3, pinned by digest) runs in compose, the CI e2e job and an adapter integration test. 186 unit, 42 integration and 51 e2e tests. Still to do (S1.6): the callback rate limit, and real sign-ins on the phones. |
 
-**Next up:** S-1.3 write-up after its 48 h tick run ends (1 Nov 23:12 SAST), and the GCP billing check (Q9), then S-1.6 (D9 accepted). S0 foundations in parallel (S0.1–S0.10 done). Then S1 sign-in.
+**Next up:** S-1.3 write-up after its 48 h tick run ends (1 Nov 23:12 SAST), and the GCP billing check (Q9), then S-1.6 (D9 accepted). S1.6, then S2 households and invitations.
 
 ---
 
@@ -95,7 +99,7 @@ Work is organised as **vertical slices**: each delivers a usable end-to-end incr
 | S-1.5 | Fallback check: the same image under docker compose behind IIS (ARR + win-acme), push working end-to-end. **Parked** while Cloud Run stays free; S0.5 keeps the compose setup working (R1). | ⏸ |
 | S-1.6 | Write the outcome into architecture D9 and mark it Accepted | ⬜ |
 
-### S0 Foundations 🟨
+### S0 Foundations ✅
 *FR: none. NFR-06, 08, 11, 12, 15.*
 
 | # | Task | Status |
@@ -111,15 +115,17 @@ Work is organised as **vertical slices**: each delivers a usable end-to-end incr
 | S0.9 | Brand: AI-assisted paw-print logo cleaned into SVG, plus its variants (maskable icon, monochrome badge, favicon). Beagle and German Shepherd tokens with an automated contrast test. Per-device theme switch (system default, `localStorage`, no flash). Self-hosted Fredoka + Nunito (confirmed). Icon library: Hugeicons free (MIT) behind an `<Icon>` wrapper; map the pet/care icons we need (`ui.md` §6.4). Built on the placeholder paw from the mock-ups; Logo: the TB monogram from the AI-assisted design board, traced and cleaned up (`src/lib/assets/brand/`). | ✅ |
 | S0.10 | Publish the GitHub repo (public). Before the first push: scan the full history with gitleaks; choose a licence. On creation: secret scanning and push protection, Dependabot alerts and security updates, approval required for first-time contributors' workflows, a ruleset on `main` (no force-push or deletion, CI must pass). Then confirm S0.6's first run is green. Done: MIT licence, README, gitleaks v8.30.1 clean, published, first run green. Ruleset on `main` in place. | ✅ |
 
-### S1 Sign-in and sessions ⬜
-*FR-01 (partial), NFR-01, 02.*
+### S1 Sign-in and sessions 🟨
+*FR-01 (partial), NFR-01, 02. Design: architecture §3.4.*
 
 | # | Task | Status |
 |---|---|---|
-| S1.1 | Auth0 tenant (dev + prod), Google and email connections | ⬜ |
-| S1.2 | OIDC login/callback/logout via `openid-client`. Server-side sessions with a TTL. `__Host-` cookie. | ⬜ |
-| S1.3 | `AuthContext` resolution in `hooks.server.ts`. Origin check for mutations. | ⬜ |
-| S1.4 | User upsert keyed by `(issuer, subject)` | ⬜ |
+| S1.1 | Auth0 tenants `toe-beans-dev` and `toe-beans`, EU region, Google and email connections, following `docs/runbooks/auth0.md` (owner). Prod also needs its own Google OAuth client, the custom domain `auth.toebeans.co.za` and an email provider; those can wait for S14.1, but the custom domain must exist before the first real user. Dev tenant done. | 🟨 |
+| S1.2 | `IdentityProvider` port with an `openid-client` adapter (lazy discovery). Login transactions in Mongo (10-minute TTL, single use). `/auth/sign-in`, `/auth/callback`, `POST /auth/sign-out` (RP-initiated logout), with a safe `returnTo`. OIDC config validated in `loadConfig`. Mock OIDC provider (`mock-oauth2-server`) in compose and as a CI service. | ✅ |
+| S1.3 | Server-side sessions: hashed token as `_id`, 90-day sliding and 400-day absolute expiry, TTL index. `__Host-tb_session` cookie (unprefixed on `http` origins). `AuthContext` resolved in `hooks.server.ts`; signed-out pages redirect to sign-in, `/api` returns 401. Origin check for every non-GET request (replacing Kit's). | ✅ |
+| S1.4 | User upsert keyed by `(issuer, subject)`, refreshing email, `email_verified`, name and picture at each sign-in | ✅ |
+| S1.5 | Sign-in page (`ui.md` J1 Welcome step) with the retry message, and sign-out on More. E2e through the mock provider: sign in, deep link survives sign-in, sign out, an unknown session goes back to sign-in (expiry is covered by unit tests), a cross-origin POST is refused. | ✅ |
+| S1.6 | Rate limit the callback (architecture §7), and a real sign-in on both phones against the dev tenant (Google and email) | ⬜ |
 
 ### S2 Household and invitations ⬜
 *FR-01, scenarios 1 and 9.*

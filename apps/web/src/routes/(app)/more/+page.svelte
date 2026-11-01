@@ -1,8 +1,13 @@
 <script lang="ts">
 	import { version } from '$app/env';
+	import { resolve } from '$app/paths';
 	import Logo from '#lib/components/Logo.svelte';
 	import PageHeader from '#lib/components/shell/PageHeader.svelte';
 	import ThemeSwitch from '#lib/components/shell/ThemeSwitch.svelte';
+	import { Button } from '#lib/components/ui/button/index.js';
+	import type { PageProps } from './$types';
+
+	let { data }: PageProps = $props();
 </script>
 
 <svelte:head><title>More · Toe Beans</title></svelte:head>
@@ -19,6 +24,20 @@
 			Appearance
 		</h2>
 		<ThemeSwitch />
+	</section>
+
+	<section aria-labelledby="account" class="flex flex-col gap-3">
+		<h2 id="account" class="text-sm font-extrabold tracking-wide text-muted-foreground uppercase">
+			Account
+		</h2>
+		<p class="flex flex-col">
+			<span class="font-bold">{data.viewer.displayName}</span>
+			<span class="text-muted-foreground">{data.viewer.email}</span>
+		</p>
+		<!-- A plain form POST: the server ends the session and sends the browser to the provider. -->
+		<form method="POST" action={resolve('/auth/sign-out')}>
+			<Button type="submit" variant="outline" class="w-full">Sign out</Button>
+		</form>
 	</section>
 
 	<footer class="flex flex-col items-center gap-1 pt-4 text-sm text-muted-foreground">

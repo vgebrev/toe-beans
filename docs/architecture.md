@@ -1,6 +1,6 @@
 # Toe Beans — Architecture
 
-**Version:** 0.12 (draft for iteration)
+**Version:** 0.13 (draft for iteration)
 **Date:** 1 November 2026
 **Status:** Partly accepted. Decisions marked **A** in the decision log (§2) are accepted; everything else is still proposed.
 **Inputs:** `docs/requirements.md` v1.0 (baselined)
@@ -26,6 +26,8 @@
 **Changes in 0.11:** S0.8 built the typed API client: every outcome is a value (problem details, another HTTP error, or no response), and only a response that breaks its contract throws (§3.3). The build is named after `APP_RELEASE` or the git commit, so browser error reports and the More page show the same release (§9). Local settings come from a gitignored `.env` at the repo root, with a public `.env.example` of sample values (§7). New e2e suites for the shell and the theme (§10). The UI toolkit itself (Tailwind 4, shadcn-svelte, tokens, fonts, icons) is recorded in `ui.md` §6.4.
 
 **Changes in 0.12:** Dependabot skips major updates of `typescript` (7 is outside the peer ranges of typescript-eslint, svelte-check and SvelteKit, so the update failed the whole npm run) and `@types/node` (which follows the Node major we run) (§10, D15). Work lands on `develop`, and `main` moves by pull request from it, so the ruleset's required CI checks gate every change to `main`; CI also runs on pushes to `develop` (§10).
+
+**Changes in 0.13:** S1 design. Auth0 runs as two tenants, dev and prod, both in the **EU** region: Auth0 has no African region, Europe is the nearest, and only sign-in talks to it, so its distance never touches normal requests. Prod signs in on `auth.toebeans.co.za` from the first user, because users are keyed by issuer (D5, §3.4, §8.4). The identity provider is the one exception to D13's same-country rule: account email and name sit in the EU, which POPIA §72 allows (GDPR-adequate protection). §3.4 now specifies the sign-in flow, the login transaction, server-side sessions (90-day sliding, 400-day absolute), cookies on http origins, logout, and a mock OIDC provider for e2e and offline dev, so no test-only sign-in backdoor exists. S1.2–S1.5 built: one person's Google and email/password sign-ins become one user, linked in the app by verified email, and sign-in with an unverified email is refused (§3.4, §5.2; Q10 raised and resolved). Kit's CSRF check is off and the hooks Origin check covers every non-GET request against the runtime `PUBLIC_BASE_URL`, because adapter-node assumes `https` and behind the Worker sees `run.app`; this replaces the planned build-time `paths.origin`, so the origin stays runtime config (§3.4, §8.4). The e2e suite gains `auth`, and the other suites start signed in (§10).
 
 This document records the technical decisions, domain model and system structure for the Toe Beans MVP. Every decision weighs alternatives against the requirement IDs (FR-xx / NFR-xx). Free-tier figures were checked against public sources in October 2026. They change often, so re-verify them before committing (see §11).
 
@@ -57,7 +59,7 @@ Status: **P** = proposed, **A** = accepted (with what settled it), **R** = rejec
 | D2 | Frontend framework | SvelteKit 3 (Svelte 5) with `adapter-node` | A (S-1.1, S0.1) | 3.2 |
 | D3 | Frontend ↔ backend contract | Versioned JSON HTTP API (`/api/v1`) in `+server.ts` routes. No form actions or remote functions for domain operations. | A (review rounds, S0.2) | 3.3 |
 | D4 | Backend structure | DDD-layered package in a pnpm workspace, with boundaries enforced by lint | A (S0.1) | 4 |
-| D5 | Identity provider | Auth0 (free plan), via the OIDC Authorization Code + PKCE flow handled by the server (BFF) | P | 3.4 |
+| D5 | Identity provider | Auth0 (free plan), via the OIDC Authorization Code + PKCE flow handled by the server (BFF). Two tenants (dev, prod) in the EU region; prod on the custom domain `auth.toebeans.co.za`. Mongo-backed server sessions. | P (accept with S1) | 3.4 |
 | D6 | Database | MongoDB (Atlas free cluster), official driver, no ODM | A (S-1.0, S-1.4) | 3.5 |
 | D7 | Photo storage | Cloudflare R2 (S3 API) | P | 3.6 |
 | D8 | Push scheduling | Mongo-backed job collection plus an idempotent `tick` that both external cron and an in-process loop can trigger | P (accept with S-1.3) | 6 |
@@ -65,7 +67,7 @@ Status: **P** = proposed, **A** = accepted (with what settled it), **R** = rejec
 | D10 | Observability | pino JSON logs to the platform log sink, Sentry for errors, an external uptime monitor. OpenTelemetry deferred. | P (logs and Sentry built in S0.4; uptime monitor in S14.4) | 9 |
 | D11 | Email for invitations | Resend (free tier) behind an `EmailSender` port | P | 3.7 |
 | D12 | UI toolkit | Tailwind CSS + shadcn-svelte (Bits UI primitives), themed with Toe Beans brand tokens | P | `ui.md` §6.4 |
-| D13 | Region and domain | South Africa: Cloud Run in `africa-south1` (Johannesburg) + Atlas free on AWS `af-south-1` (Cape Town), the only free South African Atlas option. App and database stay in the same country; cross-continent is never acceptable. Served at `toebeans.co.za` through a Cloudflare Worker in front of Cloud Run (S-1.4a). | A (S-1.4, S-1.4a) | 8.4 |
+| D13 | Region and domain | South Africa: Cloud Run in `africa-south1` (Johannesburg) + Atlas free on AWS `af-south-1` (Cape Town), the only free South African Atlas option. App and database stay in the same country; cross-continent is never acceptable (the identity provider, Auth0 EU, is the one exception: sign-in only, §3.4). Served at `toebeans.co.za` through a Cloudflare Worker in front of Cloud Run (S-1.4a). | A (S-1.4, S-1.4a) | 8.4 |
 | D15 | CI/CD on a public repo | Untrusted PR code runs only with no secrets and a read-only token. Deploys use keyless Workload Identity Federation pinned to this repo and the `production` environment (main only, owner approval). Runtime secrets live only in GCP Secret Manager. Actions pinned to SHAs. | P (CI in S0.6, deploy in S-1.6/S14.1) | 10 |
 | D14 | Exercise content pipeline | Curated from online sources, AI-assisted editing, mandatory human review, sources recorded per exercise | A (review round 1, Q6) | 3.8 |
 
@@ -123,6 +125,36 @@ The library is **`openid-client`** (framework-agnostic, certified), used inside 
 | Google sign-in directly | Free | Simplest of all, but every caregiver needs a Google account (likely, on Android) and it locks out other login methods. Keep it as a connection *inside* Auth0 instead. |
 
 Auth0 is recommended with Google and email/password connections enabled. The design only depends on generic OIDC discovery, so changing provider is a config change plus a user-identity migration (users are keyed by `(issuer, subject)`).
+
+**Tenants and region (S1).** Two Auth0 tenants: `toe-beans-dev` (tagged Development) for local work and `toe-beans` (tagged Production) for prod. Keeping them apart keeps localhost callback URLs and test users out of prod, and lets connection or branding changes be tried safely; a second free tenant costs nothing. A tenant's name and region can't be changed later. Setup steps are in `docs/runbooks/auth0.md`.
+
+- **Region: EU.** Auth0 offers Australia, Canada, Europe, Japan, the UK and the USA; none is in Africa. Europe is the nearest to Johannesburg (~150–170 ms, against ~250 ms or more for the USA). Because the server is the OIDC client, Auth0 is contacted only during sign-in (the redirect, the code exchange and a cached discovery document and JWKS); every other request uses our own session, so the distance never affects normal use.
+- **Data location.** This is the one exception to D13's "app and database in the same country": Auth0 holds each caregiver's email, name, avatar URL and (for email sign-in) password hash in the EU. POPIA §72 allows transfers to a country with comparable protection, which the EU's GDPR is. Toe Beans data (dogs, sessions, events) never goes to Auth0.
+- **Prod custom domain from the first user.** Users are keyed by `(issuer, subject)`, and the issuer is the domain sign-in runs on, so moving from `toe-beans.eu.auth0.com` to a custom domain later would orphan every account unless migrated. The free plan includes one custom domain (a card must be on file for verification, with no charge). Prod therefore uses `auth.toebeans.co.za` (a DNS-only CNAME in Cloudflare; Auth0 manages the certificate) from the start. Users also see our domain on the sign-in page. The dev tenant keeps its default domain.
+
+**Sign-in flow.** All routes are thin SvelteKit adapters over framework-neutral handlers in `backend/http`; `openid-client` sits behind an `IdentityProvider` port in `infrastructure/auth` (`beginSignIn`, `completeSignIn`, `signOutUrl`). Discovery is fetched on the first sign-in, not at startup (no cold-start cost, and boot doesn't depend on Auth0), then cached in memory.
+
+1. `GET /auth/sign-in?returnTo=…` creates a **login transaction** (`state`, `nonce`, PKCE verifier, `returnTo`) in a Mongo `loginTransactions` collection with a 10-minute TTL, puts its random handle in a short-lived `HttpOnly` cookie, and redirects to the IdP. `returnTo` must be a same-origin path (`/` followed by a non-`/`, non-`\` character), otherwise `/`, so notification and invite deep links survive sign-in without an open redirect.
+2. `GET /auth/callback` takes the transaction by its handle (single use: `findOneAndDelete`), lets `openid-client` exchange the code and validate the ID token (signature via JWKS, `iss`, `aud`, `exp`, `nonce`, PKCE), upserts the `User` by `(issuer, subject)` with the latest `email`, `email_verified`, `name` and `picture`, creates a session and redirects to `returnTo`. Any failure (unknown or expired handle, `error=access_denied`, a validation failure) lands on the sign-in page with a generic retry message; the reason is logged without token or code values. The callback is rate-limited (§7).
+3. `POST /auth/sign-out` deletes the session, clears the cookie and redirects to the IdP's end-session endpoint (`client_id` and `post_logout_redirect_uri`, no ID token kept), so the next sign-in can pick another account. It is a POST so another site can't sign a user out.
+
+No access or refresh tokens are kept: the ID token is used once at the callback, and the app calls no IdP APIs.
+
+**Sessions.** The cookie holds a random 256-bit token; Mongo stores only its SHA-256 as the session `_id` (as with invitation tokens), with `userId`, `createdAt`, `expiresAt` and `absoluteExpiresAt`, and a TTL index on `expiresAt`. Lifetimes suit a family PWA where signing in again is friction and notification taps must land signed in: **90 days sliding, 400 days absolute** (Chrome's cap on cookie lifetime). The sliding expiry is pushed forward at most once a day, so reads don't write on every request. A new session is created at every sign-in (no fixation), and a session whose user is soft-deleted is refused. Nothing about the device (IP, full user agent) is stored.
+
+**Cookies.** The session cookie is `__Host-tb_session` (`HttpOnly; Secure; SameSite=Lax; Path=/`), and the transaction cookie `__Host-tb_signin` with `Max-Age` 600. `Secure` cookies aren't stored over plain `http`, except on `localhost`, so when the public origin is `http` (`pnpm dev --host` from a phone on the LAN) the names drop the `__Host-` prefix and `Secure`. Prod refuses an `http` origin.
+
+**Request handling.** `hooks.server.ts` resolves the cookie to an `AuthContext` (`userId`, plus `householdId` and `role` once S2 adds memberships) through the backend, never by reading Mongo itself. Unauthenticated page requests redirect to `/sign-in?returnTo=…`; unauthenticated `/api` requests get a `toe-beans/unauthenticated` 401. Every non-GET request must carry an `Origin` equal to the public origin, or, with no `Origin`, `Sec-Fetch-Site: same-origin`; anything else gets a 403 before any route runs. This is the app's only CSRF check: Kit's own is turned off (`csrf.trustedOrigins: ['*']`), because it compares with the request URL's origin, which adapter-node 6 assumes is `https` and which behind the Cloudflare Worker is `run.app` (§8.4), and it only covers form content types. Page loads check the viewer in the `(app)` layout's server load, so client-side navigation is redirected properly too.
+
+**Configuration.** `OIDC_ISSUER`, `OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET` (Secret Manager in prod) and `PUBLIC_BASE_URL`, from which the callback and post-logout URLs derive. The client authenticates with a client secret (Auth0's private-key JWT needs a paid plan).
+
+**Testing without Auth0.** End-to-end tests and offline development use a **mock OIDC provider** in Docker (`ghcr.io/navikt/mock-oauth2-server`, pinned by digest) as a compose service and a CI service container. With interactive login on, it shows a form where a test types the subject and claims, so Playwright runs the real flow through `openid-client` against a real issuer. This avoids a test-only "sign me in" route, which would be a backdoor if it were ever enabled in prod. The dev tenant is for checking the real Auth0 setup by hand (Google, email, branding).
+
+**One user per person (Q10).** Auth0 treats Google and email/password sign-ins with the same email as two users with different subjects. The app links them itself rather than in an Auth0 Action, which would need a Management API client and its secret and would tie linking to Auth0: a `User` holds a list of identities (`issuer`, `subject`) and a unique, normalised, verified email. At the callback the user is found by identity; failing that, a user with the same email gets the new identity added; failing that, a user is created.
+
+- **Only verified emails link.** Otherwise someone could register email/password with another person's address and reach their account before that address was ever verified. So a sign-in whose ID token lacks `email_verified=true` is refused with no user or session made, and the sign-in page asks the person to verify and try again (with "Use a different account", which sends `prompt=login`). Google emails arrive verified; Auth0 sends email/password users a verification link.
+- If the provider's email for a known identity changes to one another user already has, the old email is kept and a warning logged, rather than merging two users silently.
+- Linking runs in a `UnitOfWork`. Unique indexes on `identities.key` (`issuer` + space + `subject`, one string so the multikey unique index works across users) and on `email` back it up against a race between two first sign-ins.
 
 **Rules:**
 - Email invitations require the IdP's `email_verified=true` and a matching email (FR-01).
@@ -263,7 +295,8 @@ The contexts are modules in one package, not services. Contexts reference each o
 
 Common fields (`_id`, `householdId`, `version`, timestamps, `schemaVersion`) are omitted below.
 
-**User** — `issuer`, `subject` (unique pair), `email`, `emailVerified`, `displayName`, `avatarUrl?`, `defaultHouseholdId?`, `deletedAt?`
+**User** — `identities[]: {issuer, subject, linkedAt}` (each pair unique across users), `email` (verified by the provider, normalised, unique), `displayName`, `avatarUrl?`, `defaultHouseholdId?`, `deletedAt?`
+- Several sign-in methods with the same verified email are one user (§3.4, Q10).
 
 **Household** — `name`, `timeZone` (IANA, used for all scheduling), `memberships[]: {userId, role: owner|caregiver, joinedAt}`
 - Invariant: at least one owner.
@@ -434,7 +467,7 @@ The spike in backlog slice S-1 decides between A and E based on measured cold st
 
 ### 8.3 Environments
 
-`local` (docker compose: Mongo, optionally the app image; Auth0 dev tenant), `prod`. A separate staging environment isn't justified at this scale. Preview deploys are optional later.
+`local` (docker compose: Mongo, optionally the app image; sign-in through the Auth0 dev tenant, or the mock OIDC provider offline and in e2e, §3.4), `prod` (Auth0 prod tenant). A separate staging environment isn't justified at this scale. Preview deploys are optional later.
 
 ### 8.4 Region, latency and domain
 
@@ -504,7 +537,7 @@ This is recorded as risk R3.
 
 **Domain.** The app is served at `https://toebeans.co.za` from the first release (registered 31 Oct 2026 at GoDaddy for two years, alongside the user's other domains). It replaces the earlier plan of `toebeans.gebrev.com` first and a move later, because a move isn't free: push subscriptions are tied to the origin and every device would re-subscribe. `www.toebeans.co.za` redirects to the apex. The origin still stays pure configuration, so any later move is config only:
 - the build-time origin (Kit `paths.origin`) and `PUBLIC_BASE_URL`
-- OIDC callback and logout URLs registered in Auth0
+- OIDC callback and logout URLs registered in Auth0 (the Auth0 custom domain `auth.toebeans.co.za` is *not* pure config: it is the issuer users are keyed by, §3.4)
 - the cookie domain (host-only `__Host-` cookies need no domain)
 - the VAPID `subject`
 
@@ -527,7 +560,7 @@ That leaves **Cloudflare**: a Worker on `toebeans.co.za` forwards to the `run.ap
 
 (Second and third runs of each set; the first includes connection setup. Phone p95s are noisy on both origins.) Cloudflare answers from its Johannesburg edge and adds roughly 12–28 ms at p50. On mobile data that puts a Today load at roughly 180 ms p50 on the Samsung and 135 ms on the Redmi (148 and 117 ms in S-1.4). **Decision: Cloudflare Worker** (Q8 resolved). Cookies pass both ways unchanged, including `__Host-` cookies. Push subscribed from the custom origin is delivered, and a tap opens the installed app.
 
-**Public origin behind the Worker.** Cloud Run sees the `run.app` host, so SvelteKit takes `run.app` as its origin and its CSRF check rejects same-origin POSTs from `toebeans.co.za` with 403 (found in S-1.4a). adapter-node 6 has no runtime `ORIGIN` variable any more. The app sets the origin at build time with Kit's `paths.origin` (`https://toebeans.co.za`), which doesn't trust a request header; `HOST_HEADER=x-forwarded-host` with the Worker setting that header also works, and is what the spike uses because it answers on two origins.
+**Public origin behind the Worker.** Cloud Run sees the `run.app` host, so SvelteKit takes `run.app` as its origin and its CSRF check rejects same-origin POSTs from `toebeans.co.za` with 403 (found in S-1.4a). adapter-node 6 has no runtime `ORIGIN` variable any more, and it assumes `https` unless `PROTOCOL_HEADER` says otherwise. The plan was to set Kit's `paths.origin` at build time. S1 does better: Kit's check is off and the app's own Origin check compares with the runtime `PUBLIC_BASE_URL` (§3.4), so the image doesn't depend on the origin. Callback and sign-out URLs are built from `PUBLIC_BASE_URL` too, never from the request URL.
 
 The global external load balancer works everywhere but costs money, so it's rejected.
 
@@ -565,7 +598,7 @@ On the self-host path, `toebeans.co.za` points at the IIS host, with a win-acme 
   - Vitest for domain and application, using in-memory adapters.
   - Integration tests for repositories against real MongoDB: Testcontainers running `mongodb/mongodb-atlas-local:8.0` (the Atlas major version, already a single-node replica set), shared by the run, with a fresh database per test file (`pnpm test:integration`, `*.integration.test.ts`). `MONGO_TEST_IMAGE` overrides the image. Newer MongoDB 8.0 releases refuse to start on Linux 6.19+ (SERVER-121912); the cached Atlas Local 8.0 image (mongod 8.0.20) predates that check, so a refreshed pull on a new kernel may need a pinned tag.
   - Playwright end-to-end for the critical flows (`apps/web/e2e`, `pnpm test:e2e`), in Chromium, against the production build (`pnpm build && node build`) on its own database (`toe-beans-e2e`), so tests exercise what ships. Two projects emulate the acceptance phones, built from Playwright's Pixel 7 (Chrome for Android) profile: Galaxy S23 FE at 384 × 700 CSS px, 2.8125× DPR (measured: the owner's DevTools profile matched to the phone, the area above its navigation buttons), and Redmi Note 12 Pro at 393 × 830, 2.75× (estimated; measure the same way in S13). The 384 px Samsung is the binding width. `ui.md` still designs for 360–412 dp, so layouts shouldn't rely on the extra 24 px. The smoke test fails on any sideways overflow there.
-  - End-to-end suites so far: `smoke` (every destination renders with no console errors, no sideways overflow and no third-party requests), `shell` (bottom-bar navigation and `aria-current`, 48 px targets, content clear of the bar, self-hosted fonts, server-rendered icons with JavaScript off, the Not found page) and `theme` (follows the system setting, the per-device override, and no flash of the wrong theme with the app's scripts blocked). Run one phone with `pnpm test:e2e --project=galaxy-s23-fe` (with `=` when other arguments follow).
+  - End-to-end suites so far: `smoke` (every destination renders with no console errors, no sideways overflow and no third-party requests), `shell` (bottom-bar navigation and `aria-current`, 48 px targets, content clear of the bar, self-hosted fonts, server-rendered icons with JavaScript off, the Not found page) `theme` (follows the system setting, the per-device override, and no flash of the wrong theme with the app's scripts blocked) and `auth` (sign-in through the mock provider with the deep link kept, the sign-in page's layout, an unverified email refused, a callback with no sign-in in progress, sign-out ending the session even for a kept copy of the cookie, a made-up cookie, 401 from the API, cross-site writes refused). A `sign-in` setup project signs in once through the mock provider and saves the session, so the other suites start signed in. The tests always use the mock provider (compose, or a CI service container), whatever `.env` says. Run one phone with `pnpm test:e2e --project=galaxy-s23-fe` (with `=` when other arguments follow).
   - Mandatory suites: household isolation for every repository and endpoint (§4.4), reminder replan/dedupe, outcome counting rules.
 - **CI (GitHub Actions, `.github/workflows/ci.yml`):** on pull requests (forks included) and pushes to `main` and `develop`, four parallel jobs: lint → type-check → unit, integration (Testcontainers), end-to-end (Playwright, with Atlas Local as a service container; the HTML report is uploaded on failure, so it must only ever hold test data), and the image build (not pushed). Deploying is a separate workflow, added with S-1.6/S14.1.
 - **CI/CD security on a public repo (D15, NFR-01, NFR-02, NFR-12).** The repo will be open source, so anyone can open a PR and read the workflows and CI logs.
@@ -596,6 +629,7 @@ On the self-host path, `toebeans.co.za` points at the IIS host, with a win-acme 
 | Q7 | ~~Free Atlas cluster in South Africa?~~ | **Resolved (S-1.0):** only on AWS `af-south-1` (Cape Town). Topology 1 in §8.4. |
 | Q8 | Cloud Run custom domain mapping may not be available in `africa-south1`, and the paid load balancer isn't free | **Resolved by S-1.4a:** domain mapping and Firebase Hosting rewrites are both unavailable for `africa-south1`, so a Cloudflare Worker fronts Cloud Run. It adds ~12–28 ms at p50 on the phones; cookies and push work from the custom origin (§8.4). |
 | Q9 | `africa-south1` is a Tier 2 Cloud Run pricing region. Confirm the free allowance applies and the expected monthly cost is $0. | Check billing reports after the 48 h spike run (S-1.3), on 2 Nov 2026. |
+| Q10 | ~~Should one person's Google and email/password sign-ins be the same user?~~ Auth0 makes them separate users with different subjects. | **Resolved (S1):** yes. The app links identities that share a verified email to one user, and refuses sign-ins whose email isn't verified (§3.4). |
 | R1 | Free-tier terms change without notice (e.g. Oracle, Koyeb in 2026) | Everything sits behind ports, the self-host compose is maintained and tested, and costs are reviewed quarterly. |
 | R2 | Multi-vendor sprawl (GCP, Atlas, R2, Auth0, Resend, Sentry) | Accepted for a free setup. Secrets are listed in `docs/runbooks/accounts.md` (names only, no values). |
 | R3 | Atlas access list open to all IPs (`0.0.0.0/0`), because serverless hosts have no fixed outbound IP (§8.4) | TLS, strong rotated credentials, least-privilege users, Atlas alerts. Revisit if a free static-egress option appears, or on self-host (where the database isn't exposed at all). |

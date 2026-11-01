@@ -4,11 +4,17 @@ import type { ErrorReporter, Logger, Ports } from './application/ports/index.js'
 import type { Config } from './config.js';
 import { createIdGenerator } from './domain/id.js';
 import { createHttp, type Http } from './http/index.js';
+import { oidcIdentityProvider } from './infrastructure/auth/oidc-provider.js';
 import {
 	createSentryReporter,
 	noopErrorReporter
 } from './infrastructure/error-reporting/sentry.js';
 import { createPinoLogger } from './infrastructure/logging/pino-logger.js';
+import {
+	mongoPendingSignIns,
+	mongoSessions,
+	mongoUsers
+} from './infrastructure/persistence/auth-collections.js';
 import { migrate, migrations } from './infrastructure/persistence/migrations/index.js';
 import { connectMongo, mongoReadiness } from './infrastructure/persistence/mongo.js';
 import { mongoUnitOfWork } from './infrastructure/persistence/unit-of-work.js';
@@ -71,18 +77,24 @@ export async function createBackend(
 		uow: overrides.uow ?? mongoUnitOfWork(mongo.client),
 		logger,
 		errors,
-		readiness: overrides.readiness ?? mongoReadiness(mongo.db)
+		readiness: overrides.readiness ?? mongoReadiness(mongo.db),
+		identity: overrides.identity ?? oidcIdentityProvider(config.oidc),
+		users: overrides.users ?? mongoUsers(mongo.db),
+		sessions: overrides.sessions ?? mongoSessions(mongo.db),
+		pendingSignIns: overrides.pendingSignIns ?? mongoPendingSignIns(mongo.db)
 	};
 	logger.info('backend started', {
 		appEnv: config.appEnv,
 		release: config.release,
 		errorReporting: Boolean(config.sentry),
+		publicOrigin: config.publicOrigin,
+		oidcIssuer: config.oidc.issuer,
 		durationMs: Math.round(performance.now() - started)
 	});
 	const db = mongo;
 	return {
 		config,
-		http: createHttp(ports),
+		http: createHttp(ports, { publicOrigin: config.publicOrigin }),
 		logger,
 		errors,
 		withRequestContext,

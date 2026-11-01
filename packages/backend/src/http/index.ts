@@ -1,16 +1,33 @@
 // Framework-neutral handlers: (ctx, input) → HttpResponse. Slices add one group per resource,
 // built from the use cases over `ports`.
+import { createAuth } from '../application/auth/auth.js';
 import type { Ports } from '../application/ports/index.js';
+import { CALLBACK_PATH, createAuthHttp, type AuthHttp } from './auth.js';
 import { createHealthHttp, type HealthHttp } from './health.js';
 
 export interface Http {
 	health: HealthHttp;
+	auth: AuthHttp;
 }
 
-export function createHttp(ports: Ports): Http {
-	return { health: createHealthHttp(ports) };
+export interface HttpOptions {
+	/** The origin users reach the app on, e.g. `https://toebeans.co.za`. */
+	publicOrigin: string;
 }
 
+export function createHttp(ports: Ports, { publicOrigin }: HttpOptions): Http {
+	const auth = createAuth(ports, {
+		callbackUri: publicOrigin + CALLBACK_PATH,
+		postSignOutUri: publicOrigin + '/'
+	});
+	return {
+		health: createHealthHttp(ports),
+		auth: createAuthHttp(auth, { publicOrigin })
+	};
+}
+
+export type { AuthContext, Viewer } from '../application/auth/auth.js';
+export { safeReturnTo, signInPath, type CookieReader } from './auth.js';
 export * from './response.js';
 export { toProblem } from './problem.js';
 export { REQUEST_ID_HEADER, requestIdFrom } from './request-id.js';

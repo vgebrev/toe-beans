@@ -1,5 +1,5 @@
 # Local services (architecture §8.1, backlog S0.5). Run through `pnpm compose …` from the repo root:
-#   pnpm compose up -d --wait mongo     MongoDB for `pnpm dev`
+#   pnpm compose up -d --wait           MongoDB and the mock OIDC provider for `pnpm dev`
 #   pnpm compose --profile app up --build -d --wait    the app image too, on http://localhost:3000
 # Settings (MONGO_PORT, APP_PORT, LOG_LEVEL) come from the repo root's .env when there is one
 # (see .env.example); `pnpm compose` passes it. Keep MONGODB_URI's port in step with MONGO_PORT.
@@ -22,6 +22,18 @@ services:
       retries: 30
       start_period: 10s
 
+  mock-oidc:
+    # A stand-in OIDC provider for offline dev and the e2e tests (architecture §3.4): its sign-in
+    # form takes any subject and claims JSON, e.g. {"email": "sam@example.com",
+    # "email_verified": true, "name": "Sam"}. The app uses it unless OIDC_ISSUER is set. Its issuer
+    # follows the Host header, so it must stay on localhost:8090. Pinned by digest (D15); keep in
+    # step with packages/backend/test/mock-oidc.ts and .github/workflows/ci.yml.
+    image: ghcr.io/navikt/mock-oauth2-server:6.1.3@sha256:2a813381bf282da46ff36ff386059e7903e25865056af8149f4fb3f1441916b8
+    environment:
+      JSON_CONFIG: '{"interactiveLogin": true}'
+    ports:
+      - '127.0.0.1:8090:8080'
+
   app:
     profiles: [app]
     build:
@@ -31,6 +43,12 @@ services:
       MONGODB_URI: mongodb://mongo:27017/?directConnection=true
       LOG_LEVEL: ${LOG_LEVEL:-info}
       SENTRY_DSN: ${SENTRY_DSN:-}
+      # Sign-in needs a provider the container can reach under the same issuer the browser sees,
+      # so the app image uses the Auth0 dev tenant (OIDC_* from .env), not the mock.
+      PUBLIC_BASE_URL: http://localhost:${APP_PORT:-3000}
+      OIDC_ISSUER: ${OIDC_ISSUER:-}
+      OIDC_CLIENT_ID: ${OIDC_CLIENT_ID:-}
+      OIDC_CLIENT_SECRET: ${OIDC_CLIENT_SECRET:-}
     ports:
       - '127.0.0.1:${APP_PORT:-3000}:8080'
     depends_on:

@@ -44,11 +44,13 @@ You need Node 24 or later, pnpm 10 and Docker.
 ```sh
 pnpm install
 cp .env.example .env                 # local settings; sample values only
-pnpm compose up -d --wait mongo      # MongoDB (replica set) in Docker
+pnpm compose up -d --wait            # MongoDB (replica set) and a mock sign-in provider in Docker
 pnpm dev                             # http://localhost:7877
 ```
 
-Use `pnpm dev --host` to open the app from a phone on the same Wi-Fi.
+Signing in locally goes through the mock provider: type any user name, and claims such as `{"email": "sam@example.com", "email_verified": true, "name": "Sam"}`. To sign in with the Auth0 dev tenant instead, set `OIDC_*` in `.env` (see `.env.example` and `docs/runbooks/auth0.md`).
+
+Use `pnpm dev --host` to open the app from a phone on the same Wi-Fi (set `PUBLIC_BASE_URL` to the address you open).
 
 | Command | What it does |
 |---|---|

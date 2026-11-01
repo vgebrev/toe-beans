@@ -40,6 +40,11 @@ export default defineConfig({
 			},
 			// One Node container (architecture §8.1).
 			adapter: adapter(),
+			// CSRF is checked in hooks.server.ts instead (architecture §3.4): against the runtime
+			// PUBLIC_BASE_URL, for every non-GET request whatever its content type. Kit's own check
+			// compares with the request URL's origin, which adapter-node assumes is https and which
+			// behind the Cloudflare Worker is run.app, so it refused same-origin forms.
+			csrf: { trustedOrigins: ['*'] },
 			version: { name: release() }
 		})
 	]
