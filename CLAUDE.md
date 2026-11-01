@@ -21,6 +21,8 @@ Run from the repo root (Node ≥ 24, pnpm 10):
 - `pnpm compose …`: `docker compose` on `docker/compose.yaml`. `--profile app up --build -d --wait` also runs the app image on `localhost:3000`. On port clashes set `MONGO_PORT` / `APP_PORT` in `.env` (and the port in `MONGODB_URI` to match). The image alone: `docker build -f docker/Dockerfile .`
 - `apps/web` `dependencies` hold only what the server bundle imports at runtime (now just `@opentelemetry/api`); everything bundled is a devDependency, so the image stays small.
 
+Branches: work lands on `develop` (commit there or on a feature branch off it); `main` moves only by pull request from `develop`, and its ruleset requires the CI checks. Never push to `main` directly.
+
 ## Layout and layer rules
 
 - `apps/web`: SvelteKit 3 app. Kit 3 specifics: config lives in `vite.config.ts`, internal imports use `#lib/...` with a `.js` extension (no `$lib`), env vars are declared in `src/env.ts`, and links go through `resolve()` from `$app/paths` with a route ID (Kit 3 paths have no leading slash; ESLint enforces `resolve`).

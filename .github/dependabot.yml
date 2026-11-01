@@ -1,10 +1,12 @@
 # Dependency updates (D15). The cooldown leaves a release out for a week before it's proposed,
 # so a compromised release has time to be caught and pulled first. Security updates aren't
-# delayed.
+# delayed. Version updates target develop, where work lands (main moves only by PR from it);
+# GitHub always opens security updates against the default branch.
 version: 2
 updates:
   - package-ecosystem: github-actions
     directory: /
+    target-branch: develop
     schedule:
       interval: weekly
     cooldown:
@@ -15,6 +17,7 @@ updates:
 
   - package-ecosystem: docker
     directory: /docker
+    target-branch: develop
     schedule:
       interval: weekly
     cooldown:
@@ -22,10 +25,21 @@ updates:
 
   - package-ecosystem: npm
     directory: /
+    target-branch: develop
     schedule:
       interval: monthly
     cooldown:
       default-days: 7
+    ignore:
+      # TypeScript 7 (the native port) isn't supported yet by typescript-eslint, svelte-check
+      # or SvelteKit, whose peer ranges stop at 6; the update can't resolve and fails the whole
+      # run. Drop this once they accept 7.
+      - dependency-name: typescript
+        update-types: [version-update:semver-major]
+      # The Node types follow the Node major we run (engines, the Dockerfile base image), not
+      # the latest types.
+      - dependency-name: '@types/node'
+        update-types: [version-update:semver-major]
     groups:
       minor-and-patch:
         update-types: [minor, patch]
