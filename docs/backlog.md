@@ -1,8 +1,8 @@
 # Toe Beans — Backlog
 
-**Version:** 0.10 (draft for iteration)
+**Version:** 0.11 (draft for iteration)
 **Date:** 1 November 2026
-**Inputs:** `docs/requirements.md` v1.0, `docs/architecture.md` v0.11, `docs/ui.md` v0.7
+**Inputs:** `docs/requirements.md` v1.0, `docs/architecture.md` v0.12, `docs/ui.md` v0.7
 
 **Changes in 0.3:** spike results S-1.0 to S-1.4 and S0.1–S0.2 recorded as they landed (see Current progress). S-1.4b dropped as not needed, S-1.5 parked, S-1.4a retargeted to `toebeans.co.za`.
 
@@ -16,9 +16,11 @@
 
 **Changes in 0.8:** the Samsung e2e profile uses the measured viewport (see Current progress).
 
+**Changes in 0.9:** S0.8 done. S0.9 built on the placeholder paw; the AI-assisted logo is all that's left of it. S13.1 now also exports the icon PNGs and precaches only the Latin font files.
+
 **Changes in 0.10:** S0.9 done: the TB monogram logo from the AI-assisted design board replaces the placeholder paw (`ui.md` 0.7 §6.4 Logo). The custom dog icon stays as drawn; the new mark has no dog to redraw it from.
 
-**Changes in 0.9:** S0.8 done. S0.9 built on the placeholder paw; the AI-assisted logo is all that's left of it. S13.1 now also exports the icon PNGs and precaches only the Latin font files.
+**Changes in 0.11:** S0.6 done (first CI run green). S0.10 done: MIT licence, a repository README, a clean gitleaks scan of the full history, the repo published at `github.com/vgebrev/toe-beans`, and a ruleset on `main` requiring CI. Dependabot skips TypeScript 7 and `@types/node` majors (architecture 0.12).
 
 Work is organised as **vertical slices**: each delivers a usable end-to-end increment through UI → API → application → domain → persistence, with tests. Slices are ordered by **dependency and risk**. The riskiest unknowns (push with the app closed, free hosting) are spiked first, before building on them.
 
@@ -59,8 +61,9 @@ Work is organised as **vertical slices**: each delivers a usable end-to-end incr
 | 2026-11-01 | Galaxy S23 FE e2e profile corrected to the owner's measured DevTools profile: 384 × 700 CSS px (2.8125×), the area above the phone's navigation buttons, replacing the 360 × 740 @3× estimate. The Redmi's 393 × 830 is still an estimate (S13). |
 | 2026-11-01 | S0.8 and S0.9 built together. Shell: Tailwind 4 and shadcn-svelte (Button, resized to 48 px targets), the five destinations under `(app)` with a fixed bottom bar (tinted pill plus bolder label for the active tab, safe-area padding), page headers, empty states and a Not found page. Brand: tokens in `tokens.ts` mirrored in `app.css` as `light-dark()` values, a unit test for drift and AA contrast (21 pairings in each theme), per-device theme switch on More with a pre-paint script (no flash, checked in e2e with the app's scripts blocked), self-hosted Fredoka and Nunito, and `<Icon>` over the free Hugeicons data (rendered on the server; `@hugeicons/svelte` dropped because it draws only after hydration; custom dog icon). Typed API client returning results, not throws. Placeholder paw as logo, favicon and the maskable and badge sources. 34 e2e runs (17 tests × 2 phones), 120 unit tests. Image +2 MB. Releases from <7 days ago skipped (the D15 cooldown): `tailwind-variants` 3.3 not 4.0, `@hugeicons/core-free-icons` 4.3.5. |
 | 2026-11-01 | S0.9 done: the logo is the TB monogram from the AI-assisted design board (Monogram Iteration B). Traced from the board's primary light logo, then cleaned up (fitted ellipses for the toes, smoothed letters and heart); the geometry is in `brand/mark.ts`, which `Logo.svelte` draws and the mark, favicon (the app-icon tile), maskable and badge SVGs embed, with a drift test. Wordmark in Fredoka Bold. Still to do for the brand: a trademark-resemblance check, and the PNG exports in S13.1. |
+| 2026-11-01 | S0.10: MIT licence and a repository README. gitleaks v8.30.1 (Docker image pinned by digest) scanned the full history, 46 commits: no leaks. Published to `github.com/vgebrev/toe-beans` over SSH; the first CI run passed all four jobs (lint/type-check/unit, integration, image, e2e), so S0.6 is done. Ruleset on `main` added (no deletion or force-push, CI must pass). Dependabot's npm job failed on TypeScript 7.0.2, which typescript-eslint, svelte-check and Kit 3 don't accept yet; it now skips `typescript` and `@types/node` majors. |
 
-**Next up:** S-1.3 write-up after its 48 h tick run ends (1 Nov 23:12 SAST), and the GCP billing check (Q9), then S-1.6 (D9 accepted). S0 foundations in parallel (S0.1–S0.5 and S0.7–S0.9 done; S0.6 written, waiting on S0.10 to publish the repo). Then S1 sign-in.
+**Next up:** S-1.3 write-up after its 48 h tick run ends (1 Nov 23:12 SAST), and the GCP billing check (Q9), then S-1.6 (D9 accepted). S0 foundations in parallel (S0.1–S0.10 done). Then S1 sign-in.
 
 ---
 
@@ -102,11 +105,11 @@ Work is organised as **vertical slices**: each delivers a usable end-to-end incr
 | S0.3 | Mongo infrastructure: client lifecycle (connect before the server listens, S-1.4), `UnitOfWork`, migration runner, household-scoped base repository plus the reusable isolation test suite | ✅ |
 | S0.4 | pino logging with request IDs and redaction. `/healthz`, `/readyz` (ready only once Mongo is connected). Sentry wiring (server + browser). | ✅ |
 | S0.5 | Dockerfile (multi-stage, non-root). `docker compose` for local dev (Mongo replica set; MinIO dropped, see S3.2). | ✅ |
-| S0.6 | GitHub Actions: lint → typecheck → unit → integration (Testcontainers) → image build. Fork-safe, no secrets, actions pinned to SHAs, Dependabot with a cooldown (architecture D15). Written; first run after S0.10. | 🟨 |
+| S0.6 | GitHub Actions: lint → typecheck → unit → integration (Testcontainers) → image build. Fork-safe, no secrets, actions pinned to SHAs, Dependabot with a cooldown (architecture D15). Plus e2e on the acceptance-phone profiles (S0.7). First run green on 1 Nov. | ✅ |
 | S0.7 | Vitest + Playwright setup with an Android device profile (Vitest done in S0.1) | ✅ |
 | S0.8 | App shell: layout, bottom navigation, theme tokens, shadcn-svelte install, typed API client | ✅ |
 | S0.9 | Brand: AI-assisted paw-print logo cleaned into SVG, plus its variants (maskable icon, monochrome badge, favicon). Beagle and German Shepherd tokens with an automated contrast test. Per-device theme switch (system default, `localStorage`, no flash). Self-hosted Fredoka + Nunito (confirmed). Icon library: Hugeicons free (MIT) behind an `<Icon>` wrapper; map the pet/care icons we need (`ui.md` §6.4). Built on the placeholder paw from the mock-ups; Logo: the TB monogram from the AI-assisted design board, traced and cleaned up (`src/lib/assets/brand/`). | ✅ |
-| S0.10 | Publish the GitHub repo (public). Before the first push: scan the full history with gitleaks; choose a licence. On creation: secret scanning and push protection, Dependabot alerts and security updates, approval required for first-time contributors' workflows, a ruleset on `main` (no force-push or deletion, CI must pass). Then confirm S0.6's first run is green. | ⬜ |
+| S0.10 | Publish the GitHub repo (public). Before the first push: scan the full history with gitleaks; choose a licence. On creation: secret scanning and push protection, Dependabot alerts and security updates, approval required for first-time contributors' workflows, a ruleset on `main` (no force-push or deletion, CI must pass). Then confirm S0.6's first run is green. Done: MIT licence, README, gitleaks v8.30.1 clean, published, first run green. Ruleset on `main` in place. | ✅ |
 
 ### S1 Sign-in and sessions ⬜
 *FR-01 (partial), NFR-01, 02.*

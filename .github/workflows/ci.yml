@@ -1,4 +1,4 @@
-# CI (architecture §10, D15). Runs on pull requests, forks included, and on main. It holds no
+# CI (architecture §10, D15). Runs on pull requests, forks included, and on main and develop. It holds no
 # secrets and only a read-only token, so untrusted PR code can't reach anything: keep it that
 # way. Never switch to `pull_request_target` or `workflow_run` to build PR code. Deploying is a
 # separate, environment-gated workflow (S-1.6/S14).
@@ -10,7 +10,7 @@ name: CI
 on:
   pull_request:
   push:
-    branches: [main]
+    branches: [main, develop]
 
 permissions:
   contents: read
