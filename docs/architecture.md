@@ -48,7 +48,7 @@ Status: **P** = proposed, **A** = accepted (with what settled it), **R** = rejec
 | D7 | Photo storage | Cloudflare R2 (S3 API) | P | 3.6 |
 | D8 | Push scheduling | Mongo-backed job collection plus an idempotent `tick` that both external cron and an in-process loop can trigger | P (accept with S-1.3) | 6 |
 | D9 | Hosting | Google Cloud Run + Cloud Scheduler as the primary candidate, validated by spike. Self-host behind IIS as the fallback. A billing-enabled account is acceptable (review round 1). | P (accept in S-1.6) | 8 |
-| D10 | Observability | pino JSON logs to the platform log sink, Sentry for errors, an external uptime monitor. OpenTelemetry deferred. | P | 9 |
+| D10 | Observability | pino JSON logs to the platform log sink, Sentry for errors, an external uptime monitor. OpenTelemetry deferred. | P (logs and Sentry built in S0.4; uptime monitor in S14.4) | 9 |
 | D11 | Email for invitations | Resend (free tier) behind an `EmailSender` port | P | 3.7 |
 | D12 | UI toolkit | Tailwind CSS + shadcn-svelte (Bits UI primitives), themed with Toe Beans brand tokens | P | `ui.md` §6.4 |
 | D13 | Region and domain | South Africa: Cloud Run in `africa-south1` (Johannesburg) + Atlas free on AWS `af-south-1` (Cape Town), the only free South African Atlas option. App and database stay in the same country; cross-continent is never acceptable. Served at `toebeans.co.za` through a Cloudflare Worker in front of Cloud Run (S-1.4a). | A (S-1.4, S-1.4a) | 8.4 |
@@ -380,6 +380,7 @@ Consequences for the design: the reminders setup includes a "make reminders reli
 
 - One multi-stage Dockerfile (Node 24 slim or distroless). Output: the `adapter-node` server, which also serves `/internal/tick` and optionally runs the inline worker.
 - Runs as a non-root user and listens on `PORT`. `GET /healthz` is the liveness check (process up). `GET /readyz` is the readiness check (Mongo ping, config loaded).
+- The image ships `apps/web`'s production dependencies next to the build, not just the bundle: SvelteKit deliberately leaves `@opentelemetry/api` (pulled in by `@sentry/node`) outside the bundle so instrumentation and the runtime share one copy, so `apps/web` depends on it directly (S0.4).
 - The image is built in CI and pushed to GHCR (free for public images; private images use Artifact Registry's free 0.5 GB on the Cloud Run path).
 
 ### 8.2 Hosting options
@@ -519,11 +520,22 @@ On the self-host path, `toebeans.co.za` points at the IIS host, with a win-acme 
 
 | Need | Choice | Alternatives considered |
 |---|---|---|
-| Structured logs (NFR-12) | **pino** JSON to stdout, collected by Cloud Logging (free allotment) or `docker logs` with rotation. Per-request `requestId`. Redacts tokens, cookies, push endpoints and emails. | Grafana Cloud Loki (free ~50 GB, 14-day retention) if self-hosting needs a hosted UI. |
-| Errors | **Sentry** free Developer plan (~5k errors/month, 1 user), server + browser SDK, PII scrubbing on | GlitchTip (self-host, Sentry-compatible), Grafana Cloud. |
+| Structured logs (NFR-12) | **pino** JSON to stdout, collected by Cloud Logging (free allotment) or `docker logs` with rotation. Lines carry Cloud Logging's `severity`, `message` and `time`. Per-request `requestId`. Redacts tokens, cookies, push endpoints and emails. | Grafana Cloud Loki (free ~50 GB, 14-day retention) if self-hosting needs a hosted UI. |
+| Errors | **Sentry** free Developer plan (~5k errors/month, 1 user), server + browser SDK, PII scrubbing on. Off when `SENTRY_DSN` is unset. | GlitchTip (self-host, Sentry-compatible), Grafana Cloud. |
 | Uptime and health | UptimeRobot or Better Stack free, hitting `/healthz` | Cloud Monitoring uptime checks. |
 | Metrics and traces | **Deferred.** Code is instrumented through a thin `Telemetry` port so OpenTelemetry → Grafana Cloud can be added without touching use cases. | — |
 | Notification diagnostics | `NotificationJob` records double as an audit trail, with structured logs for each send and failure (no endpoints or payload text). **No diagnostics UI in Phase 1** (review round 1). Investigation is done through logs and the database. | An owner-facing "Delivery log" screen in a later phase. |
+
+**How it's built (S0.4):**
+
+- **Ports.** The backend logs through a `Logger` port and reports bugs through an `ErrorReporter` port, both in `application/ports`. The adapters are `infrastructure/logging/pino-logger.ts` and `infrastructure/error-reporting/sentry.ts`. A Fastify host or the worker gets both from `createBackend` with no SvelteKit involved (NFR-15). `@sentry/sveltekit` was considered and not used: its server side would tie error reporting to the framework, and the tick worker runs outside requests.
+- **Request IDs.** The `handle` hook keeps a well-formed upstream `x-request-id` (8–128 characters from `[A-Za-z0-9._:-]`), so a proxy's logs can line up. Otherwise it generates a UUID. It runs the request inside `backend.withRequestContext`, an `AsyncLocalStorage`, so every log line and Sentry event from that request carries the ID without passing it around. The ID goes back in the `x-request-id` response header and in the body of a 500 (`App.Error.requestId`).
+- **Access log.** One `request` line per request with method, **route ID** (`/join/[token]`, never the path or query, which can carry invite tokens), status and duration. `/healthz` and `/readyz` log at `debug`.
+- **Redaction**, a safety net rather than a licence to log anything. pino censors a fixed list of keys (credentials, cookies, `email`, push `endpoint`/`keys`, `uri`, `notes`) at the top level and up to two objects down. Error messages and stacks go through `scrubText`, which masks emails, MongoDB connection strings, bearer tokens and the value MongoDB quotes in duplicate-key errors.
+- **Sentry, server.** Errors only: no tracing, no breadcrumbs. SDK 11's `dataCollection` collects user info, cookies, headers, bodies and query strings by default, so each is switched off. `beforeSend` also drops `request` and `user`. Events are tagged with the request ID and route. `handleError` reports only `unknown` errors; 404s and `error()` throws are expected outcomes.
+- **Sentry, browser.** `@sentry/browser`, imported dynamically in `hooks.client.ts` `init` only when `SENTRY_DSN` is set (one DSN for both sides, declared public in `src/env.ts`). Without a DSN the ~140 KB gzipped SDK is never fetched. Events keep the user agent (phone and Chrome version) and drop the URL, user and breadcrumbs. This is the one place the app imports an SDK, so the lint rules allow `@sentry/browser` in `lib/client/error-reporting.ts` only.
+- **Readiness.** `/readyz` pings Mongo with a 2 s timeout: 200 `{"status":"ready"}`, or 503 `{"status":"unavailable"}` with the reason logged and not returned.
+- **Not done yet:** correlating with Cloud Run's request logs through `logging.googleapis.com/trace` (needs the project ID; revisit at S-1.6), and source-map upload to Sentry (with S0.6 CI).
 
 ---
 

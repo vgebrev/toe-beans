@@ -23,6 +23,17 @@ describe('loadConfig', () => {
 		).toEqual({ appEnv: 'prod', logLevel: 'debug', mongodb: { uri: atlas, db: 'tb' } });
 	});
 
+	it('reads the Sentry DSN and release, preferring APP_RELEASE to K_REVISION', () => {
+		const dsn = 'https://abc123@o1.ingest.sentry.io/42';
+		expect(loadConfig({ SENTRY_DSN: dsn, K_REVISION: 'web-00012-xyz' })).toMatchObject({
+			sentry: { dsn },
+			release: 'web-00012-xyz'
+		});
+		expect(loadConfig({ APP_RELEASE: '1.2.0', K_REVISION: 'web-00012-xyz' }).release).toBe('1.2.0');
+		expect(loadConfig({})).not.toHaveProperty('sentry');
+		expect(() => loadConfig({ SENTRY_DSN: 'http://abc@sentry.example/1' })).toThrow(/SENTRY_DSN/);
+	});
+
 	it('requires MONGODB_URI in prod', () => {
 		expect(() => loadConfig({ APP_ENV: 'prod' })).toThrow(/MONGODB_URI: required in prod/);
 	});

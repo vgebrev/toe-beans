@@ -6,13 +6,13 @@ it through `createBackend()` and the `http` handlers, and a Fastify app could la
 | Layer | May import | Holds |
 |---|---|---|
 | `domain/` | other domain files, `node:crypto` | entities, value objects, domain services |
-| `application/` | `domain` | use cases, ports (`Clock`, repositories, `PushSender`, …) |
-| `infrastructure/` | `application`, `domain`, any driver | Mongo (`persistence/`: client, `UnitOfWork`, `HouseholdCollection`, migrations), R2, web-push, OIDC, email adapters |
+| `application/` | `domain` | use cases, ports (`Clock`, `Logger`, `ErrorReporter`, `Readiness`, repositories, `PushSender`, …) |
+| `infrastructure/` | `application`, `domain`, any driver | Mongo (`persistence/`: client, `UnitOfWork`, `HouseholdCollection`, migrations, readiness), `logging/` (pino, `scrubText`), `error-reporting/` (Sentry), the request context, R2, web-push, OIDC, email adapters |
 | `http/` | `application`, `domain`, `@toe-beans/contracts` | framework-neutral handlers: (ctx, input) → Result |
 | `worker/` | `application`, `domain` | the notification tick |
 | `testing/` | `application`, `domain` | test doubles for the ports (`manualClock`) and `householdIsolationSuite` |
 | `config.ts` | Zod | `loadConfig(env)`: validated env vars, fails fast |
-| `composition.ts` | everything | `createBackend(config, overrides?)`: connects to Mongo and migrates |
+| `composition.ts` | everything | `createBackend(config, overrides?)`: builds the logger and error reporter, connects to Mongo and migrates |
 
 ESLint enforces the table (`eslint.config.js` at the repo root). See architecture §4.2.
 

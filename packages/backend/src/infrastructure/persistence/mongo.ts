@@ -2,6 +2,7 @@
 // on Cloud Run, connecting during startup gets the CPU boost, while connecting after the startup
 // probe passed took 5.7–31 s instead of 0.3 s (S-1.4).
 import { MongoClient, type Db } from 'mongodb';
+import type { Readiness } from '../../application/ports/index.js';
 
 export interface MongoConnection {
 	client: MongoClient;
@@ -22,3 +23,10 @@ export async function connectMongo(uri: string, dbName: string): Promise<MongoCo
 	await client.connect();
 	return { client, db: client.db(dbName), close: () => client.close() };
 }
+
+/** `/readyz`: a ping, given 2 s. The driver reconnects on its own once Atlas is back. */
+export const mongoReadiness = (db: Db, timeoutMS = 2000): Readiness => ({
+	async check() {
+		await db.command({ ping: 1 }, { timeoutMS });
+	}
+});

@@ -1,41 +1,95 @@
 // Composition root: wires infrastructure adapters into use cases (architecture §4.1). Later slices
 // add repositories, the push sender and the worker to `ports`.
-import type { Ports } from './application/ports/index.js';
+import type { ErrorReporter, Logger, Ports } from './application/ports/index.js';
 import type { Config } from './config.js';
 import { createIdGenerator } from './domain/id.js';
 import { createHttp, type Http } from './http/index.js';
+import {
+	createSentryReporter,
+	noopErrorReporter
+} from './infrastructure/error-reporting/sentry.js';
+import { createPinoLogger } from './infrastructure/logging/pino-logger.js';
 import { migrate, migrations } from './infrastructure/persistence/migrations/index.js';
-import { connectMongo } from './infrastructure/persistence/mongo.js';
+import { connectMongo, mongoReadiness } from './infrastructure/persistence/mongo.js';
 import { mongoUnitOfWork } from './infrastructure/persistence/unit-of-work.js';
+import { withRequestContext, type RequestContext } from './infrastructure/request-context.js';
 import { systemClock } from './infrastructure/system-clock.js';
+
+export type { RequestContext } from './infrastructure/request-context.js';
 
 export interface Backend {
 	config: Config;
 	http: Http;
-	/** Closes the database connection; call once the server has stopped taking requests. */
+	logger: Logger;
+	errors: ErrorReporter;
+	/** Runs `work` with the request's ID on every log line and error report it causes. */
+	withRequestContext<T>(context: RequestContext, work: () => T): T;
+	/** Closes the database connection and flushes error reports; call once the server has stopped taking requests. */
 	close(): Promise<void>;
 }
 
 /**
  * Connects to Mongo and applies pending migrations, so the host should await it before listening
- * (S-1.4). Rejects if either fails. `overrides` replaces adapters in tests, e.g. a manual clock.
+ * (S-1.4). Rejects if either fails, after logging why. `overrides` replaces adapters in tests,
+ * e.g. a manual clock.
  */
 export async function createBackend(
 	config: Config,
 	overrides: Partial<Ports> = {}
 ): Promise<Backend> {
+	const started = performance.now();
 	const clock = overrides.clock ?? systemClock;
-	const mongo = await connectMongo(config.mongodb.uri, config.mongodb.db);
+	const logger = overrides.logger ?? createPinoLogger({ level: config.logLevel });
+	const errors =
+		overrides.errors ??
+		(config.sentry
+			? createSentryReporter({
+					dsn: config.sentry.dsn,
+					environment: config.appEnv,
+					release: config.release
+				})
+			: noopErrorReporter);
+
+	let mongo;
+	try {
+		mongo = await connectMongo(config.mongodb.uri, config.mongodb.db);
+	} catch (err) {
+		logger.error('could not connect to MongoDB', { err });
+		throw err;
+	}
 	try {
 		await migrate(mongo.db, migrations, { clock });
-	} catch (e) {
+	} catch (err) {
+		logger.error('migrations failed', { err });
 		await mongo.close();
-		throw e;
+		throw err;
 	}
+
 	const ports: Ports = {
 		clock,
 		ids: overrides.ids ?? createIdGenerator(() => clock.now().getTime()),
-		uow: overrides.uow ?? mongoUnitOfWork(mongo.client)
+		uow: overrides.uow ?? mongoUnitOfWork(mongo.client),
+		logger,
+		errors,
+		readiness: overrides.readiness ?? mongoReadiness(mongo.db)
 	};
-	return { config, http: createHttp(ports), close: () => mongo.close() };
+	logger.info('backend started', {
+		appEnv: config.appEnv,
+		release: config.release,
+		errorReporting: Boolean(config.sentry),
+		durationMs: Math.round(performance.now() - started)
+	});
+	const db = mongo;
+	return {
+		config,
+		http: createHttp(ports),
+		logger,
+		errors,
+		withRequestContext,
+		async close() {
+			await db.close();
+			await errors.flush();
+			logger.info('backend stopped');
+		}
+	};
 }

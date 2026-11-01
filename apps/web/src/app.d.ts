@@ -2,8 +2,14 @@
 // for information about these interfaces
 declare global {
 	namespace App {
-		// interface Error {}
-		// interface Locals {}
+		interface Error {
+			message: string;
+			/** Shown with unexpected errors, so a report can be matched to the logs (NFR-12). */
+			requestId?: string;
+		}
+		interface Locals {
+			requestId: string;
+		}
 		// interface PageData {}
 		// interface PageState {}
 		// interface Platform {}

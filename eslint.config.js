@@ -138,5 +138,28 @@ export default defineConfig(
 				}
 			]
 		}
+	},
+	// The one SDK the browser needs: error reporting has to run where the errors happen
+	// (architecture §9). Only this file loads it.
+	{
+		files: [
+			'apps/web/src/lib/client/error-reporting.ts',
+			'apps/web/src/lib/client/sentry-scrub*.ts'
+		],
+		rules: {
+			'no-restricted-imports': [
+				'error',
+				{
+					patterns: [
+						forbid('^@toe-beans/backend', 'Client-side code may import @toe-beans/contracts only.'),
+						forbid('^@sentry/(?!browser$)', 'The browser uses @sentry/browser only.'),
+						forbid(
+							'^(mongodb|web-push|openid-client|@aws-sdk/|pino)',
+							'Drivers and SDKs belong in packages/backend/src/infrastructure.'
+						)
+					]
+				}
+			]
+		}
 	}
 );

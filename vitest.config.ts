@@ -1,8 +1,8 @@
 import { defineConfig } from 'vitest/config';
 
-// Each package is a Vitest project with its own defaults; apps/web joins once it has unit tests.
+// Each package, and the web app, is a Vitest project with its own defaults.
 export default defineConfig({
 	test: {
-		projects: ['packages/*']
+		projects: ['packages/*', 'apps/web']
 	}
 });

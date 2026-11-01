@@ -16,7 +16,12 @@ const Env = z
 		MONGODB_DB: z
 			.string()
 			.regex(/^[A-Za-z0-9_-]{1,63}$/, 'must be a database name')
-			.default('toe-beans')
+			.default('toe-beans'),
+		// Optional: without it errors are only logged. The browser reads the same variable.
+		SENTRY_DSN: z.url({ protocol: /^https$/ }).optional(),
+		// Tags error reports with the deployed version. Cloud Run sets K_REVISION itself.
+		APP_RELEASE: z.string().max(100).optional(),
+		K_REVISION: z.string().max(100).optional()
 	})
 	.superRefine((e, ctx) => {
 		// Prod must never fall back to a local database.
@@ -30,6 +35,9 @@ export interface Config {
 	appEnv: 'local' | 'prod';
 	logLevel: z.infer<typeof Env>['LOG_LEVEL'];
 	mongodb: { uri: string; db: string };
+	sentry?: { dsn: string };
+	/** The deployed version, if known. */
+	release?: string;
 }
 
 export class ConfigError extends Error {
@@ -52,6 +60,8 @@ export function loadConfig(env: Record<string, string | undefined>): Config {
 	return {
 		appEnv: e.APP_ENV,
 		logLevel: e.LOG_LEVEL,
-		mongodb: { uri: e.MONGODB_URI ?? LOCAL_MONGODB_URI, db: e.MONGODB_DB }
+		mongodb: { uri: e.MONGODB_URI ?? LOCAL_MONGODB_URI, db: e.MONGODB_DB },
+		...(e.SENTRY_DSN && { sentry: { dsn: e.SENTRY_DSN } }),
+		...((e.APP_RELEASE ?? e.K_REVISION) && { release: e.APP_RELEASE ?? e.K_REVISION })
 	};
 }
