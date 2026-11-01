@@ -27,6 +27,7 @@ Run from the repo root (Node ≥ 24, pnpm 10):
 - UI (`ui.md` §6.4): Tailwind 4 and shadcn-svelte, styled only through the brand tokens. Colours live in `src/lib/theme/tokens.ts` and are mirrored in `src/app.css`; change both (a test checks drift and contrast). Add components with `pnpm dlx shadcn-svelte@1.7.1 add <name>` from `apps/web`, then keep touch targets at 48 px (see `ui/button`). Icons only through `<Icon name>` (`src/lib/components/icon/icons.ts`). Pages call the API through `#lib/api-client`, never backend code.
 - `packages/backend`: the framework-independent core, in `domain/`, `application/`, `infrastructure/`, `http/`, `worker/` and `composition.ts`. Its README has the import table.
 - `packages/contracts`: Zod DTOs and problem types shared with the browser.
+- `workspace/`: the owner's local scratchpad (design files, notes), ignored by git, Docker, ESLint and Prettier. Read from it when asked; never make the build or tests depend on it.
 - Packages export TypeScript source (no build step); relative imports use `.js` extensions (NodeNext).
 - The layer rules (architecture §4.2) are `no-restricted-imports` blocks in `eslint.config.js`. If a lint error says a layer can't import something, fix the design (add a port, move the code) rather than loosening the rule.
 

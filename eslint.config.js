@@ -27,6 +27,7 @@ export default defineConfig(
 	{
 		ignores: [
 			'spikes/',
+			'workspace/',
 			'**/node_modules/',
 			'**/.svelte-kit/',
 			'**/build/',

@@ -1,6 +1,7 @@
-# Docs are hand-formatted (tables); spikes are throwaway.
+# Docs are hand-formatted (tables); spikes and workspace/ are throwaway.
 *.md
 spikes/
+workspace/
 pnpm-lock.yaml
 **/.svelte-kit/
 **/build/
