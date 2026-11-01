@@ -1,8 +1,8 @@
 # Toe Beans — Backlog
 
-**Version:** 0.12 (draft for iteration)
+**Version:** 0.13 (draft for iteration)
 **Date:** 1 November 2026
-**Inputs:** `docs/requirements.md` v1.0, `docs/architecture.md` v0.13, `docs/ui.md` v0.7
+**Inputs:** `docs/requirements.md` v1.0, `docs/architecture.md` v1.0, `docs/ui.md` v0.7
 
 **Changes in 0.3:** spike results S-1.0 to S-1.4 and S0.1–S0.2 recorded as they landed (see Current progress). S-1.4b dropped as not needed, S-1.5 parked, S-1.4a retargeted to `toebeans.co.za`.
 
@@ -23,6 +23,8 @@
 **Changes in 0.11:** S0.6 done (first CI run green). S0.10 done: MIT licence, a repository README, a clean gitleaks scan of the full history, the repo published at `github.com/vgebrev/toe-beans`, and a ruleset on `main` requiring CI. Dependabot skips TypeScript 7 and `@types/node` majors (architecture 0.12).
 
 **Changes in 0.12:** the S0 Foundations heading is marked done (all ten tasks were). S1 started: its tasks follow the sign-in design in architecture 0.13 §3.4 (two EU Auth0 tenants with a prod custom domain, Mongo-backed sessions, a mock OIDC provider for e2e), with a new S1.5 for the sign-in page and its e2e tests. Setup steps are in `docs/runbooks/auth0.md`. S1.2–S1.5 done, with account linking by verified email (Q10).
+
+**Changes in 0.13:** S-1.3 done and S-1.6 done (D8 and D9 accepted), so the S-1 spikes story is closed, with S-1.5 still parked as the self-host check. Architecture is accepted as baseline v1.0. Leftovers that named S-1.6 (deploy workflow, registry, trace correlation) belong to S14.1.
 
 Work is organised as **vertical slices**: each delivers a usable end-to-end increment through UI → API → application → domain → persistence, with tests. Slices are ordered by **dependency and risk**. The riskiest unknowns (push with the app closed, free hosting) are spiked first, before building on them.
 
@@ -66,8 +68,10 @@ Work is organised as **vertical slices**: each delivers a usable end-to-end incr
 | 2026-11-01 | S0.10: MIT licence and a repository README. gitleaks v8.30.1 (Docker image pinned by digest) scanned the full history, 46 commits: no leaks. Published to `github.com/vgebrev/toe-beans` over SSH; the first CI run passed all four jobs (lint/type-check/unit, integration, image, e2e), so S0.6 is done. Ruleset on `main` added (no deletion or force-push, CI must pass). Dependabot's npm job failed on TypeScript 7.0.2, which typescript-eslint, svelte-check and Kit 3 don't accept yet; it now skips `typescript` and `@types/node` majors. |
 | 2026-11-01 | S1 started. Design recorded in architecture 0.13 §3.4: Auth0 dev and prod tenants in the EU region (no African region; only sign-in talks to Auth0), prod on `auth.toebeans.co.za` from the first user because users are keyed by issuer, Mongo-backed sessions, and a mock OIDC provider for e2e instead of a test sign-in route. The tenant setup runbook is `docs/runbooks/auth0.md`. |
 | 2026-11-01 | S1.2–S1.5 built. The Auth0 dev tenant `toe-beans-dev` (EU) is set up; the app redirects to it and Auth0 accepts the callback URL. Backend: an `IdentityProvider` port with an `openid-client` 6.8 adapter (lazy discovery, PKCE, state and nonce), login transactions and sessions in Mongo (hashed tokens, TTL indexes, migration `0001-auth`), and `User` with linked identities: Google and email/password with the same verified email are one user, and unverified emails are refused (architecture §3.4, Q10). Web: `/auth/sign-in`, `/auth/callback`, `POST /auth/sign-out`, the viewer in `hooks.server.ts`, the `(app)` layout sending signed-out visits to `/sign-in?returnTo=…`, the Welcome page and Account on More. Kit's CSRF check refused same-origin forms because adapter-node 6 assumes `https`; the hooks Origin check now covers every non-GET request against the runtime `PUBLIC_BASE_URL` instead. The mock provider (`mock-oauth2-server` 6.1.3, pinned by digest) runs in compose, the CI e2e job and an adapter integration test. 186 unit, 42 integration and 51 e2e tests. Still to do (S1.6): the callback rate limit, and real sign-ins on the phones. |
+| 2026-11-01 | S-1.3 done. 48 h tick run (30 Oct 23:12 → 1 Nov 23:12 SAST): **2,891 of 2,891 ticks**, 0 duplicates, 0 scheduler errors; lag p50 0.33 s, p95 1.00 s, max 9.15 s. The eight ticks over 4 s all hit warm instances (up 29 min to 25 h), so the delay is Scheduler's, not cold starts. Cloud Run replaced the instance twice during the run without a missed tick (new instances booted in 0.16–0.43 s). Cold start stays at the 30 Oct result (0.62 s server-side, < 2 s on the Samsung); a full cold load of the installed app is measured in S13.3. Gateway fallback: behind a proxy returning each status, a page load that gets 502, 503 or 504 shows the cached *Can't reach Toe Beans* page, a 500 passes through, and the next good load recovers. Billing: $0.00 for the project over the run (Q9). |
+| 2026-11-01 | S-1.6 done: D8 and D9 accepted (architecture 1.0 §2, §6.3, §8.2, §8.4). S-1 spikes story closed. Architecture accepted as baseline v1.0: the remaining proposed decisions are accepted, and later changes go through the decision log. |
 
-**Next up:** S-1.3 write-up after its 48 h tick run ends (1 Nov 23:12 SAST), and the GCP billing check (Q9), then S-1.6 (D9 accepted). S1.6, then S2 households and invitations.
+**Next up:** S1.6 (callback rate limit, real sign-ins on both phones), then S2 households and invitations. The S-1 spike services on Cloud Run can be torn down.
 
 ---
 
@@ -84,7 +88,7 @@ Work is organised as **vertical slices**: each delivers a usable end-to-end incr
 
 ## P0 — First usable MVP
 
-### S-1 Spikes: de-risk hosting and push 🟨
+### S-1 Spikes: de-risk hosting and push ✅
 *Goal: decide D9 (hosting) with evidence. Throwaway code is allowed.*
 
 | # | Task | Status |
@@ -92,12 +96,12 @@ Work is organised as **vertical slices**: each delivers a usable end-to-end incr
 | S-1.1 | Minimal SvelteKit + service worker PWA, installable on both phones. **Result: installs on the Galaxy S23 FE and Redmi Note 12 Pro, shows the offline page in flight mode, and recovers once the connection returns.** Spike in `spikes/pwa`. | ✅ |
 | S-1.2 | Web Push via VAPID: subscribe, send from the server, receive **with the PWA closed** on the Galaxy S23 FE and Redmi Note 12 Pro. Record battery and optimisation settings needed (especially MIUI/HyperOS). **Result: works on both, but only reliably after lifting Chrome's battery restriction (Samsung *Unrestricted*, Xiaomi *No restrictions*). Without it, pushes are lost once the phone has been locked for 1–2 min. Deep sleep adds up to ~75 s. Findings in architecture §6.4, risk R5.** | ✅ |
 | S-1.0 | Check which South African regions Atlas offers for free clusters (Q7). **Result: AWS `af-south-1` (Cape Town) only.** Topology: Cloud Run Johannesburg + Atlas Cape Town (architecture §8.4). | ✅ |
-| S-1.3 | Deploy to Cloud Run (`africa-south1`, Johannesburg), with Cloud Scheduler calling `/internal/tick` every minute. Measure cold start against the **≤ 5 s** budget, tick reliability over 48 h, and confirm **$0** in billing reports for a Tier 2 region (Q9). Budget alert on. Also: the service worker shows a "Can't reach Toe Beans" page when a page load gets a 502/503/504 from the platform (found in S-1.1: gateway error pages bypass the offline fallback). | ⬜ |
+| S-1.3 | Deploy to Cloud Run (`africa-south1`, Johannesburg), with Cloud Scheduler calling `/internal/tick` every minute. Measure cold start against the **≤ 5 s** budget, tick reliability over 48 h, and confirm **$0** in billing reports for a Tier 2 region (Q9). Budget alert on. Also: the service worker shows a "Can't reach Toe Beans" page when a page load gets a 502/503/504 from the platform (found in S-1.1: gateway error pages bypass the offline fallback). **Result: 2,891 of 2,891 ticks over 48 h (lag p95 1.00 s), cold start 0.62 s server-side, $0 billed, and the gateway fallback works for 502/503/504. Architecture §6.3, §8.4, Q9.** | ✅ |
 | S-1.4 | Atlas free cluster on AWS `af-south-1` (Cape Town). Measure the Cloud Run → Atlas round trip and the warm Today API time (≤ 250 ms p95 budget), plus end-to-end latency from both phones. Confirm transactions work. Set up the access list and least-privilege users as in architecture §8.4. | ✅ |
 | S-1.4b | *Only if S-1.4 misses its budget:* try topology 1b (the same image on AWS Lambda in Cape Town via Lambda Web Adapter, plus an EventBridge tick) and compare | ❌ not needed |
 | S-1.4a | Custom domain `toebeans.co.za` on Cloud Run. Domain mapping isn't offered in `africa-south1`, so compare a Cloudflare Worker (nameservers to Cloudflare) and a Firebase Hosting rewrite (`__session` cookie constraint; ruled out: no `africa-south1` support): latency from both phones against S-1.4, cookies, push from the custom origin (Q8). **Result: Cloudflare Worker, ~12–28 ms added at p50, cookies and push work. The app sets Kit `paths.origin`, or SvelteKit's CSRF check rejects POSTs. Spike in `spikes/domain`.** | ✅ |
 | S-1.5 | Fallback check: the same image under docker compose behind IIS (ARR + win-acme), push working end-to-end. **Parked** while Cloud Run stays free; S0.5 keeps the compose setup working (R1). | ⏸ |
-| S-1.6 | Write the outcome into architecture D9 and mark it Accepted | ⬜ |
+| S-1.6 | Write the outcome into architecture D9 and mark it Accepted. **Result: D8 and D9 accepted; architecture accepted as baseline v1.0.** | ✅ |
 
 ### S0 Foundations ✅
 *FR: none. NFR-06, 08, 11, 12, 15.*

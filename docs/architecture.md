@@ -1,8 +1,8 @@
 # Toe Beans — Architecture
 
-**Version:** 0.13 (draft for iteration)
+**Version:** 1.0 (accepted baseline)
 **Date:** 1 November 2026
-**Status:** Partly accepted. Decisions marked **A** in the decision log (§2) are accepted; everything else is still proposed.
+**Status:** Accepted as the baseline on 1 November 2026, once the S-1 spikes closed. From here on a change of decision is recorded in the decision log (§2) with what prompted it, and a change that moves scope goes through `requirements.md` as a recorded scope change.
 **Inputs:** `docs/requirements.md` v1.0 (baselined)
 
 **Changes in 0.2:** first review round. A billing-enabled GCP account is acceptable. The region is South Africa where possible, and cold starts of a few seconds are acceptable. The domain is `toebeans.gebrev.com`. The exercise content pipeline is defined, and the delivery diagnostics UI is deferred. Added D13–D14 (§8.4, §3.8) and new open questions Q7–Q9.
@@ -29,6 +29,8 @@
 
 **Changes in 0.13:** S1 design. Auth0 runs as two tenants, dev and prod, both in the **EU** region: Auth0 has no African region, Europe is the nearest, and only sign-in talks to it, so its distance never touches normal requests. Prod signs in on `auth.toebeans.co.za` from the first user, because users are keyed by issuer (D5, §3.4, §8.4). The identity provider is the one exception to D13's same-country rule: account email and name sit in the EU, which POPIA §72 allows (GDPR-adequate protection). §3.4 now specifies the sign-in flow, the login transaction, server-side sessions (90-day sliding, 400-day absolute), cookies on http origins, logout, and a mock OIDC provider for e2e and offline dev, so no test-only sign-in backdoor exists. S1.2–S1.5 built: one person's Google and email/password sign-ins become one user, linked in the app by verified email, and sign-in with an unverified email is refused (§3.4, §5.2; Q10 raised and resolved). Kit's CSRF check is off and the hooks Origin check covers every non-GET request against the runtime `PUBLIC_BASE_URL`, because adapter-node assumes `https` and behind the Worker sees `run.app`; this replaces the planned build-time `paths.origin`, so the origin stays runtime config (§3.4, §8.4). The e2e suite gains `auth`, and the other suites start signed in (§10).
 
+**Changes in 1.0:** S-1.3 result and baseline. Cloud Run in `africa-south1` with Cloud Scheduler meets every spike target: 2,891 of 2,891 ticks over 48 h with no errors (lag p50 0.33 s, p95 1.00 s, max 9.15 s, the slow ones on warm instances, so the delay is Scheduler's), two instance replacements without a missed tick, a cold container serving its first response in 0.62 s against the 5 s budget, and $0 billed for the Tier 2 region (§6.3, §8.2, §8.4; Q9 resolved). The service worker's *Can't reach Toe Beans* page for platform 502/503/504 works (§7). D8 and D9 accepted on these results (S-1.6). The remaining proposed decisions (D5, D7, D10–D12, D15) are accepted as the baseline; D5, D10, D12 and the CI half of D15 are already built. Leftovers that named S-1.6 move to S14.1 (deploy workflow, registry, trace correlation), and §8.1 and §8.4 no longer mention a build-time origin, which 0.13 replaced with the runtime `PUBLIC_BASE_URL`.
+
 This document records the technical decisions, domain model and system structure for the Toe Beans MVP. Every decision weighs alternatives against the requirement IDs (FR-xx / NFR-xx). Free-tier figures were checked against public sources in October 2026. They change often, so re-verify them before committing (see §11).
 
 ---
@@ -51,7 +53,7 @@ These requirements shape the architecture most. Everything else is fairly conven
 
 ## 2. Decision log
 
-Status: **P** = proposed, **A** = accepted (with what settled it), **R** = rejected/superseded. Each decision is detailed in the section noted.
+Status: **P** = proposed, **A** = accepted (with what settled it; *baseline* = accepted with v1.0 and confirmed as it's built), **R** = rejected/superseded. Each decision is detailed in the section noted.
 
 | # | Decision | Recommendation | Status | § |
 |---|---|---|---|---|
@@ -59,16 +61,16 @@ Status: **P** = proposed, **A** = accepted (with what settled it), **R** = rejec
 | D2 | Frontend framework | SvelteKit 3 (Svelte 5) with `adapter-node` | A (S-1.1, S0.1) | 3.2 |
 | D3 | Frontend ↔ backend contract | Versioned JSON HTTP API (`/api/v1`) in `+server.ts` routes. No form actions or remote functions for domain operations. | A (review rounds, S0.2) | 3.3 |
 | D4 | Backend structure | DDD-layered package in a pnpm workspace, with boundaries enforced by lint | A (S0.1) | 4 |
-| D5 | Identity provider | Auth0 (free plan), via the OIDC Authorization Code + PKCE flow handled by the server (BFF). Two tenants (dev, prod) in the EU region; prod on the custom domain `auth.toebeans.co.za`. Mongo-backed server sessions. | P (accept with S1) | 3.4 |
+| D5 | Identity provider | Auth0 (free plan), via the OIDC Authorization Code + PKCE flow handled by the server (BFF). Two tenants (dev, prod) in the EU region; prod on the custom domain `auth.toebeans.co.za`. Mongo-backed server sessions. | A (baseline; built in S1.2–S1.5) | 3.4 |
 | D6 | Database | MongoDB (Atlas free cluster), official driver, no ODM | A (S-1.0, S-1.4) | 3.5 |
-| D7 | Photo storage | Cloudflare R2 (S3 API) | P | 3.6 |
-| D8 | Push scheduling | Mongo-backed job collection plus an idempotent `tick` that both external cron and an in-process loop can trigger | P (accept with S-1.3) | 6 |
-| D9 | Hosting | Google Cloud Run + Cloud Scheduler as the primary candidate, validated by spike. Self-host behind IIS as the fallback. A billing-enabled account is acceptable (review round 1). | P (accept in S-1.6) | 8 |
-| D10 | Observability | pino JSON logs to the platform log sink, Sentry for errors, an external uptime monitor. OpenTelemetry deferred. | P (logs and Sentry built in S0.4; uptime monitor in S14.4) | 9 |
-| D11 | Email for invitations | Resend (free tier) behind an `EmailSender` port | P | 3.7 |
-| D12 | UI toolkit | Tailwind CSS + shadcn-svelte (Bits UI primitives), themed with Toe Beans brand tokens | P | `ui.md` §6.4 |
+| D7 | Photo storage | Cloudflare R2 (S3 API) | A (baseline) | 3.6 |
+| D8 | Push scheduling | Mongo-backed job collection plus an idempotent `tick` that both external cron and an in-process loop can trigger | A (S-1.3) | 6 |
+| D9 | Hosting | Google Cloud Run (`africa-south1`, min-instances 0) + Cloud Scheduler calling the tick every minute. Self-host behind IIS stays the fallback (R1). A billing-enabled account is acceptable (review round 1). | A (S-1.3, S-1.6) | 8 |
+| D10 | Observability | pino JSON logs to the platform log sink, Sentry for errors, an external uptime monitor. OpenTelemetry deferred. | A (baseline; logs and Sentry built in S0.4, uptime monitor in S14.4) | 9 |
+| D11 | Email for invitations | Resend (free tier) behind an `EmailSender` port | A (baseline) | 3.7 |
+| D12 | UI toolkit | Tailwind CSS + shadcn-svelte (Bits UI primitives), themed with Toe Beans brand tokens | A (baseline; built in S0.8) | `ui.md` §6.4 |
 | D13 | Region and domain | South Africa: Cloud Run in `africa-south1` (Johannesburg) + Atlas free on AWS `af-south-1` (Cape Town), the only free South African Atlas option. App and database stay in the same country; cross-continent is never acceptable (the identity provider, Auth0 EU, is the one exception: sign-in only, §3.4). Served at `toebeans.co.za` through a Cloudflare Worker in front of Cloud Run (S-1.4a). | A (S-1.4, S-1.4a) | 8.4 |
-| D15 | CI/CD on a public repo | Untrusted PR code runs only with no secrets and a read-only token. Deploys use keyless Workload Identity Federation pinned to this repo and the `production` environment (main only, owner approval). Runtime secrets live only in GCP Secret Manager. Actions pinned to SHAs. | P (CI in S0.6, deploy in S-1.6/S14.1) | 10 |
+| D15 | CI/CD on a public repo | Untrusted PR code runs only with no secrets and a read-only token. Deploys use keyless Workload Identity Federation pinned to this repo and the `production` environment (main only, owner approval). Runtime secrets live only in GCP Secret Manager. Actions pinned to SHAs. | A (baseline; CI built in S0.6, deploy in S14.1) | 10 |
 | D14 | Exercise content pipeline | Curated from online sources, AI-assisted editing, mandatory human review, sources recorded per exercise | A (review round 1, Q6) | 3.8 |
 
 ---
@@ -383,7 +385,7 @@ The tick is idempotent and safe to call concurrently, so it can run from any tri
 | In-process `setInterval` loop (`WORKER_MODE=inline`) | Always-on hosts (self-host, Oracle VM, dev) |
 | Separate worker process (`node worker.js`) | After extraction or at scale |
 
-Reminder precision is therefore about ±1 minute from the tick, plus up to ~1–2 minutes when the phone is in deep sleep (§6.4). The UI never promises exact times (NFR-16).
+Measured in S-1.3 (Scheduler in `me-central1`, the nearest region offering it, calling Cloud Run in Johannesburg): 2,891 of 2,891 ticks over 48 h, no scheduler errors, lag from the scheduled minute p50 0.33 s, p95 1.00 s, max 9.15 s. Cloud Run replaced the instance twice during the run without a missed tick. Reminder precision is therefore about ±1 minute from the tick, plus up to ~1–2 minutes when the phone is in deep sleep (§6.4). The UI never promises exact times (NFR-16).
 
 Agenda, Bree and BullMQ were considered. Agenda adds little over ~150 lines of our own code against the same collection. BullMQ needs Redis, one more free-tier dependency.
 
@@ -420,7 +422,7 @@ Consequences for the design: the reminders setup includes a "make reminders reli
 - **Configuration:** env vars only, validated at startup with Zod. The process fails fast on missing config, naming each bad variable but never its value. The schema lives in the backend (`loadConfig`), not in SvelteKit's `src/env.ts`, so a Fastify host or a separate worker process reuses it (NFR-15). Secrets come from the platform secret store (Cloud Run secrets / Docker secrets) and never sit in the image or the repo. Locally, the dev server, the e2e run, `pnpm start` and compose read an optional, gitignored `.env` at the repo root; shell variables win over it. Its template, `.env.example`, is committed and public (D15), so it holds sample values only, never secrets. The image never contains a `.env` (`.dockerignore`).
 - **Rate limiting:** a small in-memory limiter on auth callback, invite accept and uploads. It's per instance, which is acceptable at this scale and documented as such.
 - **Security headers:** a CSP with `script-src 'self'` (SvelteKit CSP config with nonces), HSTS, `Referrer-Policy: same-origin`, `Permissions-Policy` limited to notifications and camera.
-- **PWA caching:** the service worker precaches only build assets and an offline fallback page. **API responses and photos are never cached by the service worker** (NFR-04: no stale personal data, no false "saved").
+- **PWA caching:** the service worker precaches only build assets and two fallback pages: *You're offline* when a page load gets no response, and *Can't reach Toe Beans* when the platform answers 502, 503 or 504 (a gateway error page would otherwise bypass the offline fallback; checked in S-1.3 behind a proxy returning each status, while a 500 from the app passes through). **API responses and photos are never cached by the service worker** (NFR-04: no stale personal data, no false "saved").
 
 ---
 
@@ -429,7 +431,7 @@ Consequences for the design: the reminders setup includes a "make reminders reli
 ### 8.1 Container
 
 - One multi-stage Dockerfile (Node 24 slim or distroless). Output: the `adapter-node` server, which also serves `/internal/tick` and optionally runs the inline worker.
-- Runs as a non-root user and listens on `PORT`. The public origin (Kit `paths.origin`, §8.4) is not baked in yet: it comes with the first deploy (S-1.6/S14), and a local image must still accept `localhost`. `GET /healthz` is the liveness check (process up). `GET /readyz` is the readiness check (Mongo ping, config loaded).
+- Runs as a non-root user and listens on `PORT`. The public origin is runtime config (`PUBLIC_BASE_URL`, §3.4, §8.4), so the same image runs locally and in prod. `GET /healthz` is the liveness check (process up). `GET /readyz` is the readiness check (Mongo ping, config loaded).
 - Built from the repo root: `docker build -f docker/Dockerfile .`. Two stages on `node:24.21.0-slim`: the build stage installs the workspace (pnpm via corepack, store cached by BuildKit) and runs `pnpm build`, then `pnpm deploy --prod` collects `apps/web`'s runtime dependencies. The runtime stage holds only `package.json`, that `node_modules` and `build/` (~13 MB over the base image), runs as the image's `node` user with root-owned files, and listens on `PORT` (default 8080, as Cloud Run sets). adapter-node handles SIGTERM, and the backend then closes Mongo and flushes Sentry (0.4 s in compose).
 - `apps/web`'s `dependencies` are exactly what the server bundle imports at runtime; everything bundled, the workspace packages included, is a devDependency, so the deploy step stays small. Check with a grep of `build/` for bare imports when adding one.
 - The image ships `apps/web`'s production dependencies next to the build, not just the bundle: SvelteKit deliberately leaves `@opentelemetry/api` (pulled in by `@sentry/node`) outside the bundle so instrumentation and the runtime share one copy, so `apps/web` depends on it directly (S0.4).
@@ -441,7 +443,7 @@ Free always-on compute has largely disappeared. This matters because of NFR-16.
 
 | Option | Cost reality (Oct 2026, verify) | Push scheduling | Verdict |
 |---|---|---|---|
-| **A. Google Cloud Run + Cloud Scheduler** | Free tier: ~2M requests, 180k vCPU-s, 360k GiB-s per month. Cloud Scheduler: 3 free jobs. **Needs a billing account (card)**, so set a low budget alert (e.g. $1). | Scheduler hits `/internal/tick` every minute: ~43k requests/month, well within the free tier. | ✅ **Primary candidate.** Cold start of a few seconds on first open (NFR-09 loading feedback). Atlas can sit in the same GCP region. |
+| **A. Google Cloud Run + Cloud Scheduler** | Free tier: ~2M requests, 180k vCPU-s, 360k GiB-s per month. Cloud Scheduler: 3 free jobs. **Needs a billing account (card)**, so set a low budget alert (e.g. $1). | Scheduler hits `/internal/tick` every minute: ~43k requests/month, well within the free tier. | ✅ **Chosen (D9, S-1.3).** Cold start 0.62 s server-side, ticks reliable over 48 h, $0 billed. Keep NFR-09 loading feedback for slower cold loads on the phone. |
 | B. Oracle Cloud Always Free VM | Ampere A1 allowance reportedly cut to 2 OCPU / 12 GB in June 2026. Idle instances can be reclaimed. Capacity is often unavailable. | Inline worker, always on. Could also run Mongo and photo storage locally. | Strong runner-up for an "always-on and free" setup, but it carries account and reclamation risk and is a VM we have to patch. |
 | C. Render free web service | 750 h/month, sleeps after 15 min idle, ~30–60 s cold start. | External cron (cron-job.org / GitHub Actions) pinging tick every minute. Effectively keeps it awake, which is against the spirit of the tier. | Fallback. Cold starts hurt UX if it does sleep. |
 | D. Koyeb / Fly.io / Railway | Free compute removed or now needs a card plus a trial (reports conflict). | — | Not recommended. |
@@ -463,7 +465,7 @@ GitHub Actions ──nightly──► mongodump → encrypted → R2 backups buc
 
 **Self-host topology (option E):** IIS with URL Rewrite + ARR reverse-proxies `https://toebeans.co.za` to `localhost:3000`. TLS comes from win-acme (Let's Encrypt). `docker compose` runs `app` (with `WORKER_MODE=inline`), `mongo` (a single-node replica set so transactions work) with a named volume, and a bind-mounted photo directory (or a local S3-compatible store). A scheduled `mongodump` writes to an external drive or R2. ARR must pass `X-Forwarded-Proto/Host`; set SvelteKit `ORIGIN`, `PROTOCOL_HEADER` and `HOST_HEADER` accordingly. Web Push needs only outbound HTTPS.
 
-The spike in backlog slice S-1 decides between A and E based on measured cold start, scheduler reliability and the experience on both test phones.
+The S-1 spikes chose A: it met the cold-start, tick-reliability and cost targets (S-1.3) and the latency budget from both phones (S-1.4, S-1.4a). E stays maintained as the fallback (R1); its end-to-end check (S-1.5) is parked while A stays free.
 
 ### 8.3 Environments
 
@@ -534,9 +536,10 @@ This is recorded as risk R3.
 - Mitigations: a small image, Cloud Run startup CPU boost, lazy initialisation of non-critical clients, and a pooled Mongo connection reused across requests.
 - The every-minute tick also keeps an instance warm for much of the day, though Cloud Run doesn't guarantee that.
 - If the budget is missed, `min-instances=1` fixes it but isn't free. That would reopen D9.
+- **Measured (S-1.3):** with the tick paused until the instance had scaled to zero, opening the app on the Galaxy S23 FE started a new instance; Node was up 0.29 s after process start and served the first response 0.62 s later, under 2 s as seen on the phone. Later instance starts took 0.16–0.43 s to boot. Cold starts aren't a concern; S13.3 still measures full cold loads of the installed app on both phones.
 
 **Domain.** The app is served at `https://toebeans.co.za` from the first release (registered 31 Oct 2026 at GoDaddy for two years, alongside the user's other domains). It replaces the earlier plan of `toebeans.gebrev.com` first and a move later, because a move isn't free: push subscriptions are tied to the origin and every device would re-subscribe. `www.toebeans.co.za` redirects to the apex. The origin still stays pure configuration, so any later move is config only:
-- the build-time origin (Kit `paths.origin`) and `PUBLIC_BASE_URL`
+- `PUBLIC_BASE_URL` (runtime)
 - OIDC callback and logout URLs registered in Auth0 (the Auth0 custom domain `auth.toebeans.co.za` is *not* pure config: it is the issuer users are keyed by, §3.4)
 - the cookie domain (host-only `__Host-` cookies need no domain)
 - the VAPID `subject`
@@ -588,7 +591,7 @@ On the self-host path, `toebeans.co.za` points at the IIS host, with a win-acme 
 - **Sentry, browser.** `@sentry/browser`, imported dynamically in `hooks.client.ts` `init` only when `SENTRY_DSN` is set (one DSN for both sides, declared public in `src/env.ts`). Without a DSN the ~140 KB gzipped SDK is never fetched. Events keep the user agent (phone and Chrome version) and drop the URL, user and breadcrumbs. This is the one place the app imports an SDK, so the lint rules allow `@sentry/browser` in `lib/client/error-reporting.ts` only.
 - **Release name (S0.8).** The build's Kit `version.name` is `APP_RELEASE` when the pipeline sets it, else the short git commit, else Kit's timestamp (`vite.config.ts`). The browser reports errors under it and the More page shows it, so a bug report can name the build. The deploy should set `APP_RELEASE` for both the build and the server, so server and browser events share a release.
 - **Readiness.** `/readyz` pings Mongo with a 2 s timeout: 200 `{"status":"ready"}`, or 503 `{"status":"unavailable"}` with the reason logged and not returned.
-- **Not done yet:** correlating with Cloud Run's request logs through `logging.googleapis.com/trace` (needs the project ID; revisit at S-1.6), and source-map upload to Sentry (with S0.6 CI).
+- **Not done yet:** correlating with Cloud Run's request logs through `logging.googleapis.com/trace` (needs the project ID; revisit in S14.1), and source-map upload to Sentry (with S0.6 CI).
 
 ---
 
@@ -600,13 +603,13 @@ On the self-host path, `toebeans.co.za` points at the IIS host, with a win-acme 
   - Playwright end-to-end for the critical flows (`apps/web/e2e`, `pnpm test:e2e`), in Chromium, against the production build (`pnpm build && node build`) on its own database (`toe-beans-e2e`), so tests exercise what ships. Two projects emulate the acceptance phones, built from Playwright's Pixel 7 (Chrome for Android) profile: Galaxy S23 FE at 384 × 700 CSS px, 2.8125× DPR (measured: the owner's DevTools profile matched to the phone, the area above its navigation buttons), and Redmi Note 12 Pro at 393 × 830, 2.75× (estimated; measure the same way in S13). The 384 px Samsung is the binding width. `ui.md` still designs for 360–412 dp, so layouts shouldn't rely on the extra 24 px. The smoke test fails on any sideways overflow there.
   - End-to-end suites so far: `smoke` (every destination renders with no console errors, no sideways overflow and no third-party requests), `shell` (bottom-bar navigation and `aria-current`, 48 px targets, content clear of the bar, self-hosted fonts, server-rendered icons with JavaScript off, the Not found page) `theme` (follows the system setting, the per-device override, and no flash of the wrong theme with the app's scripts blocked) and `auth` (sign-in through the mock provider with the deep link kept, the sign-in page's layout, an unverified email refused, a callback with no sign-in in progress, sign-out ending the session even for a kept copy of the cookie, a made-up cookie, 401 from the API, cross-site writes refused). A `sign-in` setup project signs in once through the mock provider and saves the session, so the other suites start signed in. The tests always use the mock provider (compose, or a CI service container), whatever `.env` says. Run one phone with `pnpm test:e2e --project=galaxy-s23-fe` (with `=` when other arguments follow).
   - Mandatory suites: household isolation for every repository and endpoint (§4.4), reminder replan/dedupe, outcome counting rules.
-- **CI (GitHub Actions, `.github/workflows/ci.yml`):** on pull requests (forks included) and pushes to `main` and `develop`, four parallel jobs: lint → type-check → unit, integration (Testcontainers), end-to-end (Playwright, with Atlas Local as a service container; the HTML report is uploaded on failure, so it must only ever hold test data), and the image build (not pushed). Deploying is a separate workflow, added with S-1.6/S14.1.
+- **CI (GitHub Actions, `.github/workflows/ci.yml`):** on pull requests (forks included) and pushes to `main` and `develop`, four parallel jobs: lint → type-check → unit, integration (Testcontainers), end-to-end (Playwright, with Atlas Local as a service container; the HTML report is uploaded on failure, so it must only ever hold test data), and the image build (not pushed). Deploying is a separate workflow, added with S14.1.
 - **CI/CD security on a public repo (D15, NFR-01, NFR-02, NFR-12).** The repo will be open source, so anyone can open a PR and read the workflows and CI logs.
   - *Untrusted code never meets secrets.* CI runs on `pull_request`, which gives fork PRs a read-only token and no secrets. It holds no secrets at all, and the workflow sets `permissions: contents: read`. `pull_request_target` and `workflow_run` are never used to build or test PR code. Event fields such as PR titles and branch names are passed to `run:` steps through `env:`, never interpolated. Checkout doesn't persist credentials. No self-hosted runners. First-time contributors' workflows need approval.
   - *Keyless deploys.* The deploy job authenticates to GCP with Workload Identity Federation (GitHub's OIDC token), never a service-account key. The provider's attribute condition pins `repository` to this repo and the `production` environment; without it, any GitHub repo could get credentials. The deploy service account gets only `run.developer` on the one service, `iam.serviceAccountUser` on the runtime account and write access to one Artifact Registry repo. The `production` environment allows `main` only and needs the owner's approval. It is the only job with `id-token: write`.
   - *Runtime secrets stay in GCP.* `MONGODB_URI`, the VAPID private key, the OIDC client secret and the Sentry DSN live in Secret Manager and are mounted by Cloud Run. GitHub holds no secrets. Deploy rights still amount to running code as the runtime account, which can read them, so `main` gets a ruleset (no force-push or deletion, CI must pass) and deploys stay gated.
   - *Supply chain.* Actions are pinned to commit SHAs. Dependabot proposes updates to actions, the base image and npm packages after a 7-day cooldown; security updates aren't delayed. It skips major updates of `typescript` until the toolchain's peer ranges accept them, and of `@types/node`, which moves with the Node runtime major. `--frozen-lockfile` is used, and install scripts are blocked except esbuild's (`onlyBuiltDependencies`). Images are deployed by digest. Build-provenance attestation can be added later. Buildx's GitHub cache is scoped by branch, so a PR can't poison `main`'s.
-  - *Registry.* Images go to Artifact Registry, which Cloud Run pulls from directly (0.5 GB free). Public GHCR images would work for the self-host path, but Cloud Run would need an Artifact Registry remote repository in front of them; verify in S-1.6.
+  - *Registry.* Images go to Artifact Registry, which Cloud Run pulls from directly (0.5 GB free). Public GHCR images would work for the self-host path, but Cloud Run would need an Artifact Registry remote repository in front of them; verify in S14.1.
   - *Exposure from being public.* The architecture is public (the Atlas `0.0.0.0/0` list, R3; the `run.app` origin; `/internal/tick`), so nothing relies on secrecy: OIDC login, household checks on every operation, strong database credentials over TLS, and an OIDC-authenticated tick. Anyone can reach `run.app` directly and skip the Cloudflare Worker. That's acceptable while the Worker adds no security; if it ever does (WAF, rate limits), the app must reject requests without a header secret only the Worker sends. CI logs are public too, which is one more reason logs carry no sensitive data (§9).
 - **Manual acceptance:** scenario checklist on both physical phones per release (backlog slice S-14), recording Android/Chrome versions.
 - **Backups and restore (NFR-10):**
@@ -628,7 +631,7 @@ On the self-host path, `toebeans.co.za` points at the IIS host, with a win-acme 
 | Q6 | ~~Exercise content authorship~~ | **Resolved:** the user aggregates the catalogue from online articles and videos, edited with AI, and reviews it. Pipeline in §3.8. |
 | Q7 | ~~Free Atlas cluster in South Africa?~~ | **Resolved (S-1.0):** only on AWS `af-south-1` (Cape Town). Topology 1 in §8.4. |
 | Q8 | Cloud Run custom domain mapping may not be available in `africa-south1`, and the paid load balancer isn't free | **Resolved by S-1.4a:** domain mapping and Firebase Hosting rewrites are both unavailable for `africa-south1`, so a Cloudflare Worker fronts Cloud Run. It adds ~12–28 ms at p50 on the phones; cookies and push work from the custom origin (§8.4). |
-| Q9 | `africa-south1` is a Tier 2 Cloud Run pricing region. Confirm the free allowance applies and the expected monthly cost is $0. | Check billing reports after the 48 h spike run (S-1.3), on 2 Nov 2026. |
+| Q9 | ~~`africa-south1` is a Tier 2 Cloud Run pricing region. Confirm the free allowance applies and the expected monthly cost is $0.~~ | **Resolved (S-1.3):** billing reports show $0.00 for the project over the 48 h run, so the free allowance covers Tier 2. Costs are reviewed quarterly (R1), and a budget alert is part of the prod setup (S14.1). |
 | Q10 | ~~Should one person's Google and email/password sign-ins be the same user?~~ Auth0 makes them separate users with different subjects. | **Resolved (S1):** yes. The app links identities that share a verified email to one user, and refuses sign-ins whose email isn't verified (§3.4). |
 | R1 | Free-tier terms change without notice (e.g. Oracle, Koyeb in 2026) | Everything sits behind ports, the self-host compose is maintained and tested, and costs are reviewed quarterly. |
 | R2 | Multi-vendor sprawl (GCP, Atlas, R2, Auth0, Resend, Sentry) | Accepted for a free setup. Secrets are listed in `docs/runbooks/accounts.md` (names only, no values). |

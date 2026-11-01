@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project status
 
-Toe Beans is a mobile-first, installable PWA for puppy training and care, shared by caregivers in one household. The requirements are `docs/requirements.md` (baselined v1.0, 25 Oct 2026). The product is at the foundations stage (backlog S0): a pnpm workspace with no features yet. `spikes/` holds throwaway de-risking spikes, each installed separately (see each spike's README).
+Toe Beans is a mobile-first, installable PWA for puppy training and care, shared by caregivers in one household. The requirements are `docs/requirements.md` (baselined v1.0, 25 Oct 2026). The S-1 spikes and S0 foundations are done; feature slices start with S1 (sign-in, built) in `docs/backlog.md`. `spikes/` holds throwaway de-risking spikes, each installed separately (see each spike's README).
 
 ## Commands
 
@@ -33,7 +33,7 @@ Branches: work lands on `develop` (commit there or on a feature branch off it); 
 - Packages export TypeScript source (no build step); relative imports use `.js` extensions (NodeNext).
 - The layer rules (architecture §4.2) are `no-restricted-imports` blocks in `eslint.config.js`. If a lint error says a layer can't import something, fix the design (add a port, move the code) rather than loosening the rule.
 
-Design docs (drafts under review; each records its own changes in a "Changes in" line under the header): `docs/architecture.md` (decision log, domain model, layering, hosting), `docs/ui.md` (journeys, layouts, interaction conventions), `docs/backlog.md` (vertical slices and current progress). Record technical trade-offs in the architecture decision log against requirement IDs (FR-xx / NFR-xx), not silently in code. Update slice status in the backlog as work lands.
+Design docs (each records its own changes in a "Changes in" line under the header): `docs/architecture.md` (accepted baseline v1.0: decision log, domain model, layering, hosting; a changed decision is recorded in its decision log), `docs/ui.md` (journeys, layouts, interaction conventions), `docs/backlog.md` (vertical slices and current progress). Record technical trade-offs in the architecture decision log against requirement IDs (FR-xx / NFR-xx), not silently in code. Update slice status in the backlog as work lands.
 
 Doc versioning: a committed "Changes in x.y" line is closed. When a batch of work changes a doc, and its current version's line is already committed (check with `git diff HEAD -- docs/`), bump the minor version, set the date and add a new "Changes in" line. Don't append to an older line. Uncommitted changes in the same batch go into the open new version. Summarise what changed and why, with section and decision references, not a diary. When a doc's version changes, update the "Inputs" versions in the docs that drive work from it (the backlog cites architecture and ui). `requirements.md` is baselined, so it changes only through a recorded scope change.
 
