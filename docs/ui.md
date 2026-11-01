@@ -1,9 +1,11 @@
 # Toe Beans — UI and Interaction Design
 
-**Version:** 0.6 (draft for iteration)
+**Version:** 0.7 (draft for iteration)
 **Date:** 1 November 2026
 **Status:** Proposed. Review-round decisions in §8 are accepted.
 **Inputs:** `docs/requirements.md` v1.0, `docs/architecture.md` v0.11
+
+**Changes in 0.7:** the logo landed (S0.9). The mark is now a **TB monogram** with four toe beans above it and a heart-shaped bean in the B, from the AI-assisted design board (Monogram Iteration B), replacing the placeholder paw. It was traced from the board and cleaned up rather than redrawn by hand; the variants are the brown-on-cream mark, a cream-on-brown app-icon tile (favicon and maskable) and a white badge. The wordmark uses Fredoka Bold to match the board (§6.4 Logo).
 
 **Changes in 0.6:** S0.8 and S0.9 built the shell and brand. The colour table gains the tokens the build needed: `soft`, `input`, `warn`, `on-danger` and the outcome badge colours from the mock-ups, all contrast-tested (§6.4). Icons are drawn by our own `<Icon>` from the free Hugeicons data, because the `@hugeicons/svelte` component only draws after hydration; the free set has no dog, so a custom one stands in (§6.4). Bottom-bar labels are 14 px, not the mock-ups' 12 px, to meet the type minimum (§6.4). The theme mechanism is recorded (§6.4).
 
@@ -333,18 +335,19 @@ All icons go through one wrapper component (`<Icon name="…">`). That keeps the
 
 **Decision (review round 3):** **Hugeicons free (Stroke Rounded)**. Phosphor stays the fallback if the free set has gaps that custom icons can't cover. Don't mix libraries; any gap gets a custom icon drawn to the same 24 px grid and 1.5 px rounded stroke.
 
-**As built (S0.9):** the icons are mapped by meaning in `apps/web/src/lib/components/icon/icons.ts` (nav tabs, actions, More entries, theme choices, and paw, bone, treat, walk, vaccination, medication, vet). `@hugeicons/svelte` was dropped: its component draws the icon only after hydration, so server-rendered pages showed empty icons; `<Icon>` renders the same data on the server. Gaps in the free set: **dog** (a custom floppy-eared head, a placeholder to redo with the logo) and **leash** (*walk*, a walking figure, stands in). There's no cat in the MVP, so it isn't mapped.
+**As built (S0.9):** the icons are mapped by meaning in `apps/web/src/lib/components/icon/icons.ts` (nav tabs, actions, More entries, theme choices, and paw, bone, treat, walk, vaccination, medication, vet). `@hugeicons/svelte` was dropped: its component draws the icon only after hydration, so server-rendered pages showed empty icons; `<Icon>` renders the same data on the server. Gaps in the free set: **dog** (a custom floppy-eared head; the logo has no dog to draw it from) and **leash** (*walk*, a walking figure, stands in). There's no cat in the MVP, so it isn't mapped.
 
 #### Logo
 
-- **Mark:** a paw print, one main pad plus four toe beans, with rounded, chunky shapes and no outlines thinner than 2 px at 48 px.
-- **Wordmark:** "Toe Beans" in the display font beside the mark.
+- **Mark:** a rounded **TB monogram**, with four toe beans above it (the letters stand in for the main pad) and a heart-shaped bean inside the B, set off by a cream gap. Chunky shapes, no outlines thinner than 2 px at 48 px.
+- **Wordmark:** "Toe Beans" in the display font (Fredoka Bold) beside the mark.
 - **Variants needed:**
-  - Full colour: brown paw on white (light) and tan paw on near-black (dark).
+  - Full colour: brown letters with tan beans (light), cream letters with tan beans (dark).
   - **Maskable app icon:** paw centred within the 80% safe zone on a solid background.
   - **Monochrome badge:** white silhouette on transparent, which Android requires for the notification badge.
   - Favicon.
-- **Production:** **AI-assisted** design, cleaned up into a hand-tuned SVG (simple paths, no raster traces), with the PNG sizes exported from it. Check that the final mark doesn't resemble an existing trademark. Logo work is a backlog item (S0.9).
+- **Production:** **AI-assisted** design, cleaned up into SVG, with the PNG sizes exported from it. Check that the final mark doesn't resemble an existing trademark. Logo work is a backlog item (S0.9).
+- **As built (S0.9):** traced from the board's primary light logo, then cleaned up: the toes are fitted ellipses, and the letters and heart are smoothed curves (about 2 KB of path data). That departs from the earlier "no raster traces" aim; a hand redraw stays open if the traced curves ever show at large sizes. The geometry lives in `apps/web/src/lib/assets/brand/mark.ts`, which `Logo.svelte` draws and the brand SVGs embed (a test checks they match). In the UI the letters use `primary` (light) or `text` (dark) and the beans `accent`. The favicon is the app-icon tile, so it reads on light and dark browser tabs alike. The tile's light tan (`#F2B461`) is used only in icons.
 
 #### Colour themes
 

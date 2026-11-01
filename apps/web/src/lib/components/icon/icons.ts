@@ -41,7 +41,7 @@ import {
 const stroke = { stroke: 'currentColor', strokeWidth: '1.5' } as const;
 const round = { strokeLinecap: 'round', strokeLinejoin: 'round' } as const;
 
-/** Custom: the free set has no dog. A floppy-eared head (placeholder until the brand pass). */
+/** Custom: the free set has no dog. A floppy-eared head, drawn to the Hugeicons grid. */
 const DogIcon: IconSvgElement = [
 	[
 		'path',
