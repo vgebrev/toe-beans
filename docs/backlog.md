@@ -1,8 +1,8 @@
 # Toe Beans — Backlog
 
-**Version:** 0.7 (draft for iteration)
+**Version:** 0.8 (draft for iteration)
 **Date:** 1 November 2026
-**Inputs:** `docs/requirements.md` v1.0, `docs/architecture.md` v0.9, `docs/ui.md` v0.5
+**Inputs:** `docs/requirements.md` v1.0, `docs/architecture.md` v0.10, `docs/ui.md` v0.5
 
 **Changes in 0.3:** spike results S-1.0 to S-1.4 and S0.1–S0.2 recorded as they landed (see Current progress). S-1.4b dropped as not needed, S-1.5 parked, S-1.4a retargeted to `toebeans.co.za`.
 
@@ -13,6 +13,8 @@
 **Changes in 0.6:** S0.6's CI workflow is written; its first run waits for the GitHub repo. Added S0.10 (publishing the repo safely), and S14.1 gains the deploy security setup from architecture D15.
 
 **Changes in 0.7:** S0.7 done.
+
+**Changes in 0.8:** the Samsung e2e profile uses the measured viewport (see Current progress).
 
 Work is organised as **vertical slices**: each delivers a usable end-to-end increment through UI → API → application → domain → persistence, with tests. Slices are ordered by **dependency and risk**. The riskiest unknowns (push with the app closed, free hosting) are spiked first, before building on them.
 
@@ -50,6 +52,7 @@ Work is organised as **vertical slices**: each delivers a usable end-to-end incr
 | 2026-11-01 | S0.5 done: `docker/Dockerfile` (two stages on `node:24.21.0-slim`, runtime is `build/` plus `@opentelemetry/api`, ~13 MB over the base, user `node`, files root-owned) and `docker/compose.yaml` (Atlas Local 8.0 with named volumes; the app behind the `app` profile, healthchecked on `/readyz`), run with `pnpm compose …`. Verified: image builds, the stack comes up healthy in ~7 s, `/readyz` 200, SIGTERM shuts down in 0.4 s, and `pnpm dev` works against the compose Mongo. `apps/web` keeps only runtime imports in `dependencies`. MinIO dropped: its community edition stopped publishing images in October 2025; S3.2 picks a replacement. |
 | 2026-11-01 | Repo to be public: security model for CI/CD recorded (architecture D15). S0.6 started: `.github/workflows/ci.yml` (lint, type-check, unit; integration; image build without push; `contents: read`, no secrets, actions pinned to SHAs) and `.github/dependabot.yml` (actions, base image and npm, 7-day cooldown). Not run yet: no GitHub repo exists; S0.10 covers publishing it safely. |
 | 2026-11-01 | S0.7 done: Playwright 1.64 (`pnpm test:e2e`) against the production build on database `toe-beans-e2e`, with two Chromium projects for the acceptance phones (Galaxy S23 FE 360 × 740 @3×, Redmi Note 12 Pro 393 × 830 @2.75×; heights approximate, to be measured in S13). Smoke test: the page renders with no console errors and no sideways overflow, and `/readyz` is ready with a request ID. A 380 px element fails it on the Samsung (28 px over) and passes on the Redmi, as intended. CI gains an e2e job with Atlas Local as a service container. |
+| 2026-11-01 | Galaxy S23 FE e2e profile corrected to the owner's measured DevTools profile: 384 × 700 CSS px (2.8125×), the area above the phone's navigation buttons, replacing the 360 × 740 @3× estimate. The Redmi's 393 × 830 is still an estimate (S13). |
 
 **Next up:** S-1.3 write-up after its 48 h tick run ends (1 Nov 23:12 SAST), and the GCP billing check (Q9), then S-1.6 (D9 accepted). S0 foundations in parallel (S0.1–S0.5 and S0.7 done; S0.6 written, waiting on S0.10 to publish the repo; S0.8 next).
 

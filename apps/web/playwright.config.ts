@@ -6,8 +6,9 @@ import { defineConfig, devices } from '@playwright/test';
 const port = 4173;
 
 // Built from Playwright's Pixel 7 profile (Chrome for Android), resized to each phone. The
-// viewports are the installed PWA's visible area, approximately: the screen minus the status bar
-// and gesture bar. Measure on the phones in S13 and correct them if they differ.
+// viewports are the visible area above the phone's own navigation buttons. The Samsung's is
+// measured (the owner's DevTools profile matched to the real phone); the Redmi's is estimated
+// until measured the same way (S13).
 const android = (
 	model: string,
 	androidVersion: number,
@@ -34,9 +35,9 @@ export default defineConfig({
 		trace: 'retain-on-failure'
 	},
 	projects: [
-		// 1080 × 2340 at 3×: 360 × 780 CSS px.
-		{ name: 'galaxy-s23-fe', use: android('SM-S711B', 15, 360, 740, 3) },
-		// 1080 × 2400 at 2.75×: ~393 × 873 CSS px.
+		// Measured: 384 × 700 CSS px. 1080 px wide at One UI's default display size is 2.8125×.
+		{ name: 'galaxy-s23-fe', use: android('SM-S711B', 15, 384, 700, 2.8125) },
+		// Estimated: 1080 × 2400 at 2.75× is ~393 × 873 CSS px, minus status and navigation bars.
 		{ name: 'redmi-note-12-pro', use: android('22101316G', 15, 393, 830, 2.75) }
 	],
 	webServer: {

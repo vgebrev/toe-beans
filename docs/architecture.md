@@ -1,6 +1,6 @@
 # Toe Beans — Architecture
 
-**Version:** 0.9 (draft for iteration)
+**Version:** 0.10 (draft for iteration)
 **Date:** 1 November 2026
 **Status:** Partly accepted. Decisions marked **A** in the decision log (§2) are accepted; everything else is still proposed.
 **Inputs:** `docs/requirements.md` v1.0 (baselined)
@@ -20,6 +20,8 @@
 **Changes in 0.8:** The repo will be public. Added D15, how CI and deploys stay safe on a public repo: fork-safe CI with no secrets, keyless deploys through Workload Identity Federation pinned to this repo and a gated `production` environment, runtime secrets only in Secret Manager, and supply-chain rules (§10). S0.6's CI workflow is written; its first run waits for the GitHub repo.
 
 **Changes in 0.9:** S0.7 built: Playwright end-to-end tests against the production build, on emulated profiles of the two acceptance phones, with a CI job (§10).
+
+**Changes in 0.10:** The Galaxy S23 FE test profile is now the owner's measured 384 × 700 CSS px at 2.8125×, replacing an estimate (§10).
 
 This document records the technical decisions, domain model and system structure for the Toe Beans MVP. Every decision weighs alternatives against the requirement IDs (FR-xx / NFR-xx). Free-tier figures were checked against public sources in October 2026. They change often, so re-verify them before committing (see §11).
 
@@ -555,7 +557,7 @@ On the self-host path, `toebeans.co.za` points at the IIS host, with a win-acme 
 - **Tests:**
   - Vitest for domain and application, using in-memory adapters.
   - Integration tests for repositories against real MongoDB: Testcontainers running `mongodb/mongodb-atlas-local:8.0` (the Atlas major version, already a single-node replica set), shared by the run, with a fresh database per test file (`pnpm test:integration`, `*.integration.test.ts`). `MONGO_TEST_IMAGE` overrides the image. Newer MongoDB 8.0 releases refuse to start on Linux 6.19+ (SERVER-121912); the cached Atlas Local 8.0 image (mongod 8.0.20) predates that check, so a refreshed pull on a new kernel may need a pinned tag.
-  - Playwright end-to-end for the critical flows (`apps/web/e2e`, `pnpm test:e2e`), in Chromium, against the production build (`pnpm build && node build`) on its own database (`toe-beans-e2e`), so tests exercise what ships. Two projects emulate the acceptance phones, built from Playwright's Pixel 7 (Chrome for Android) profile: Galaxy S23 FE at 360 × 740 CSS px, 3× DPR, and Redmi Note 12 Pro at 393 × 830, 2.75×. The heights approximate the installed PWA's visible area; measure on the phones in S13. The 360 px Samsung is the binding width. The smoke test fails on any sideways overflow there.
+  - Playwright end-to-end for the critical flows (`apps/web/e2e`, `pnpm test:e2e`), in Chromium, against the production build (`pnpm build && node build`) on its own database (`toe-beans-e2e`), so tests exercise what ships. Two projects emulate the acceptance phones, built from Playwright's Pixel 7 (Chrome for Android) profile: Galaxy S23 FE at 384 × 700 CSS px, 2.8125× DPR (measured: the owner's DevTools profile matched to the phone, the area above its navigation buttons), and Redmi Note 12 Pro at 393 × 830, 2.75× (estimated; measure the same way in S13). The 384 px Samsung is the binding width. `ui.md` still designs for 360–412 dp, so layouts shouldn't rely on the extra 24 px. The smoke test fails on any sideways overflow there.
   - Mandatory suites: household isolation for every repository and endpoint (§4.4), reminder replan/dedupe, outcome counting rules.
 - **CI (GitHub Actions, `.github/workflows/ci.yml`):** on pull requests (forks included) and pushes to `main`, four parallel jobs: lint → type-check → unit, integration (Testcontainers), end-to-end (Playwright, with Atlas Local as a service container; the HTML report is uploaded on failure, so it must only ever hold test data), and the image build (not pushed). Deploying is a separate workflow, added with S-1.6/S14.1.
 - **CI/CD security on a public repo (D15, NFR-01, NFR-02, NFR-12).** The repo will be open source, so anyone can open a PR and read the workflows and CI logs.
