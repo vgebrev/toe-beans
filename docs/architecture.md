@@ -1,6 +1,6 @@
 # Toe Beans — Architecture
 
-**Version:** 0.7 (draft for iteration)
+**Version:** 0.8 (draft for iteration)
 **Date:** 1 November 2026
 **Status:** Partly accepted. Decisions marked **A** in the decision log (§2) are accepted; everything else is still proposed.
 **Inputs:** `docs/requirements.md` v1.0 (baselined)
@@ -16,6 +16,8 @@
 **Changes in 0.6:** S-1.4a result: Firebase Hosting's Cloud Run rewrites don't support `africa-south1`, so a **Cloudflare Worker** fronts Cloud Run on `toebeans.co.za`, adding ~12–28 ms at p50 on the phones (§8.4, D13; Q8 resolved). The app sets its public origin at build time (Kit `paths.origin`), because behind the Worker SvelteKit's CSRF check took `run.app` as the origin (§8.4). S0.3 built: the Mongo client connects and migrates before the server listens, `UnitOfWork` carries its session in `AsyncLocalStorage`, a lease-locked migration runner, and the household-scoped base collection with its isolation suite (§3.5, §4.4, §7). Integration tests run on Atlas Local 8.0 (§10). S0.4 built: pino logs in Cloud Logging's format with a request ID on every line, redaction and error-text masking, `/readyz`, and Sentry on the server (behind an `ErrorReporter` port) and in the browser (loaded only when a DSN is set) (§8.1, §9).
 
 **Changes in 0.7:** S0.5 built: the app image (`docker/Dockerfile`) and a local compose file (`docker/compose.yaml`) with Atlas Local and, behind a profile, the app (§8.1). `apps/web`'s `dependencies` are now exactly what the server bundle imports at runtime. MinIO is dropped: its community edition is no longer published, so local object storage waits for S3.2 (§3.6, §8.2, §8.3).
+
+**Changes in 0.8:** The repo will be public. Added D15, how CI and deploys stay safe on a public repo: fork-safe CI with no secrets, keyless deploys through Workload Identity Federation pinned to this repo and a gated `production` environment, runtime secrets only in Secret Manager, and supply-chain rules (§10). S0.6's CI workflow is written; its first run waits for the GitHub repo.
 
 This document records the technical decisions, domain model and system structure for the Toe Beans MVP. Every decision weighs alternatives against the requirement IDs (FR-xx / NFR-xx). Free-tier figures were checked against public sources in October 2026. They change often, so re-verify them before committing (see §11).
 
@@ -56,6 +58,7 @@ Status: **P** = proposed, **A** = accepted (with what settled it), **R** = rejec
 | D11 | Email for invitations | Resend (free tier) behind an `EmailSender` port | P | 3.7 |
 | D12 | UI toolkit | Tailwind CSS + shadcn-svelte (Bits UI primitives), themed with Toe Beans brand tokens | P | `ui.md` §6.4 |
 | D13 | Region and domain | South Africa: Cloud Run in `africa-south1` (Johannesburg) + Atlas free on AWS `af-south-1` (Cape Town), the only free South African Atlas option. App and database stay in the same country; cross-continent is never acceptable. Served at `toebeans.co.za` through a Cloudflare Worker in front of Cloud Run (S-1.4a). | A (S-1.4, S-1.4a) | 8.4 |
+| D15 | CI/CD on a public repo | Untrusted PR code runs only with no secrets and a read-only token. Deploys use keyless Workload Identity Federation pinned to this repo and the `production` environment (main only, owner approval). Runtime secrets live only in GCP Secret Manager. Actions pinned to SHAs. | P (CI in S0.6, deploy in S-1.6/S14.1) | 10 |
 | D14 | Exercise content pipeline | Curated from online sources, AI-assisted editing, mandatory human review, sources recorded per exercise | A (review round 1, Q6) | 3.8 |
 
 ---
@@ -552,7 +555,14 @@ On the self-host path, `toebeans.co.za` points at the IIS host, with a win-acme 
   - Integration tests for repositories against real MongoDB: Testcontainers running `mongodb/mongodb-atlas-local:8.0` (the Atlas major version, already a single-node replica set), shared by the run, with a fresh database per test file (`pnpm test:integration`, `*.integration.test.ts`). `MONGO_TEST_IMAGE` overrides the image. Newer MongoDB 8.0 releases refuse to start on Linux 6.19+ (SERVER-121912); the cached Atlas Local 8.0 image (mongod 8.0.20) predates that check, so a refreshed pull on a new kernel may need a pinned tag.
   - Playwright end-to-end with Pixel/Galaxy device emulation for the critical flows.
   - Mandatory suites: household isolation for every repository and endpoint (§4.4), reminder replan/dedupe, outcome counting rules.
-- **CI (GitHub Actions):** install → lint (ESLint + boundaries) → `svelte-check`/`tsc` → unit → integration → build image → (main) deploy.
+- **CI (GitHub Actions, `.github/workflows/ci.yml`):** on pull requests (forks included) and pushes to `main`, three parallel jobs: lint → type-check → unit, integration (Testcontainers), and the image build (not pushed). Deploying is a separate workflow, added with S-1.6/S14.1.
+- **CI/CD security on a public repo (D15, NFR-01, NFR-02, NFR-12).** The repo will be open source, so anyone can open a PR and read the workflows and CI logs.
+  - *Untrusted code never meets secrets.* CI runs on `pull_request`, which gives fork PRs a read-only token and no secrets. It holds no secrets at all, and the workflow sets `permissions: contents: read`. `pull_request_target` and `workflow_run` are never used to build or test PR code. Event fields such as PR titles and branch names are passed to `run:` steps through `env:`, never interpolated. Checkout doesn't persist credentials. No self-hosted runners. First-time contributors' workflows need approval.
+  - *Keyless deploys.* The deploy job authenticates to GCP with Workload Identity Federation (GitHub's OIDC token), never a service-account key. The provider's attribute condition pins `repository` to this repo and the `production` environment; without it, any GitHub repo could get credentials. The deploy service account gets only `run.developer` on the one service, `iam.serviceAccountUser` on the runtime account and write access to one Artifact Registry repo. The `production` environment allows `main` only and needs the owner's approval. It is the only job with `id-token: write`.
+  - *Runtime secrets stay in GCP.* `MONGODB_URI`, the VAPID private key, the OIDC client secret and the Sentry DSN live in Secret Manager and are mounted by Cloud Run. GitHub holds no secrets. Deploy rights still amount to running code as the runtime account, which can read them, so `main` gets a ruleset (no force-push or deletion, CI must pass) and deploys stay gated.
+  - *Supply chain.* Actions are pinned to commit SHAs. Dependabot proposes updates to actions, the base image and npm packages after a 7-day cooldown; security updates aren't delayed. `--frozen-lockfile` is used, and install scripts are blocked except esbuild's (`onlyBuiltDependencies`). Images are deployed by digest. Build-provenance attestation can be added later. Buildx's GitHub cache is scoped by branch, so a PR can't poison `main`'s.
+  - *Registry.* Images go to Artifact Registry, which Cloud Run pulls from directly (0.5 GB free). Public GHCR images would work for the self-host path, but Cloud Run would need an Artifact Registry remote repository in front of them; verify in S-1.6.
+  - *Exposure from being public.* The architecture is public (the Atlas `0.0.0.0/0` list, R3; the `run.app` origin; `/internal/tick`), so nothing relies on secrecy: OIDC login, household checks on every operation, strong database credentials over TLS, and an OIDC-authenticated tick. Anyone can reach `run.app` directly and skip the Cloudflare Worker. That's acceptable while the Worker adds no security; if it ever does (WAF, rate limits), the app must reject requests without a header secret only the Worker sends. CI logs are public too, which is one more reason logs carry no sensitive data (§9).
 - **Manual acceptance:** scenario checklist on both physical phones per release (backlog slice S-14), recording Android/Chrome versions.
 - **Backups and restore (NFR-10):**
   - Nightly `mongodump --archive --gzip`, encrypted with `age`, stored in a dedicated R2 bucket with a 30-day lifecycle.

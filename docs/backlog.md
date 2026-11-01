@@ -1,14 +1,16 @@
 # Toe Beans — Backlog
 
-**Version:** 0.5 (draft for iteration)
+**Version:** 0.6 (draft for iteration)
 **Date:** 1 November 2026
-**Inputs:** `docs/requirements.md` v1.0, `docs/architecture.md` v0.7, `docs/ui.md` v0.5
+**Inputs:** `docs/requirements.md` v1.0, `docs/architecture.md` v0.8, `docs/ui.md` v0.5
 
 **Changes in 0.3:** spike results S-1.0 to S-1.4 and S0.1–S0.2 recorded as they landed (see Current progress). S-1.4b dropped as not needed, S-1.5 parked, S-1.4a retargeted to `toebeans.co.za`.
 
 **Changes in 0.4:** S-1.4a done (Cloudflare Worker chosen; the probe is torn down and `toebeans.co.za` serves a holding page). S0.3 and S0.4 done (see Current progress).
 
 **Changes in 0.5:** S0.5 done without MinIO, whose community edition is no longer published; S3.2 picks the local S3-compatible store.
+
+**Changes in 0.6:** S0.6's CI workflow is written; its first run waits for the GitHub repo. Added S0.10 (publishing the repo safely), and S14.1 gains the deploy security setup from architecture D15.
 
 Work is organised as **vertical slices**: each delivers a usable end-to-end increment through UI → API → application → domain → persistence, with tests. Slices are ordered by **dependency and risk**. The riskiest unknowns (push with the app closed, free hosting) are spiked first, before building on them.
 
@@ -44,8 +46,9 @@ Work is organised as **vertical slices**: each delivers a usable end-to-end incr
 | 2026-10-31 | S-1.4a probe torn down (Cloud Run service, images, `cf.` Worker). `toebeans.co.za` now serves a holding page from a Cloudflare Worker (`infra/holding-page`: no service worker, no cookies, `noindex`) and `www` redirects to the apex; the GoDaddy-era A/CNAME records that returned 525 are gone. S14.1 replaces it with the app's Worker. |
 | 2026-11-01 | S0.4 done: `Logger` and `ErrorReporter` ports with pino and Sentry adapters. Log lines use Cloud Logging's `severity`/`message`/`time`. Every line in a request carries its `requestId` (kept from a well-formed upstream `x-request-id` or generated, returned in the response header and in a 500's body). The access log records the route ID, never the path. Redaction of sensitive keys plus masking of emails, connection strings, bearer tokens and duplicate-key values in error text. `/readyz` pings Mongo (503 with the reason logged only). Sentry: server errors only with all SDK 11 data collection off; browser SDK loaded only when `SENTRY_DSN` is set (~140 KB gz otherwise never fetched). Smoke-tested on the built server: request IDs, route-only access log, masked 500. Sentry itself is untested until a DSN exists. `apps/web` now depends on `@opentelemetry/api`, which Kit keeps outside the bundle. 52 unit and 25 integration tests. |
 | 2026-11-01 | S0.5 done: `docker/Dockerfile` (two stages on `node:24.21.0-slim`, runtime is `build/` plus `@opentelemetry/api`, ~13 MB over the base, user `node`, files root-owned) and `docker/compose.yaml` (Atlas Local 8.0 with named volumes; the app behind the `app` profile, healthchecked on `/readyz`), run with `pnpm compose …`. Verified: image builds, the stack comes up healthy in ~7 s, `/readyz` 200, SIGTERM shuts down in 0.4 s, and `pnpm dev` works against the compose Mongo. `apps/web` keeps only runtime imports in `dependencies`. MinIO dropped: its community edition stopped publishing images in October 2025; S3.2 picks a replacement. |
+| 2026-11-01 | Repo to be public: security model for CI/CD recorded (architecture D15). S0.6 started: `.github/workflows/ci.yml` (lint, type-check, unit; integration; image build without push; `contents: read`, no secrets, actions pinned to SHAs) and `.github/dependabot.yml` (actions, base image and npm, 7-day cooldown). Not run yet: no GitHub repo exists; S0.10 covers publishing it safely. |
 
-**Next up:** S-1.3 write-up after its 48 h tick run ends (1 Nov 23:12 SAST), and the GCP billing check (Q9), then S-1.6 (D9 accepted). S0 foundations in parallel (S0.1–S0.5 done; S0.6 next).
+**Next up:** S-1.3 write-up after its 48 h tick run ends (1 Nov 23:12 SAST), and the GCP billing check (Q9), then S-1.6 (D9 accepted). S0 foundations in parallel (S0.1–S0.5 done; S0.6 written, waiting on S0.10 to publish the repo).
 
 ---
 
@@ -87,10 +90,11 @@ Work is organised as **vertical slices**: each delivers a usable end-to-end incr
 | S0.3 | Mongo infrastructure: client lifecycle (connect before the server listens, S-1.4), `UnitOfWork`, migration runner, household-scoped base repository plus the reusable isolation test suite | ✅ |
 | S0.4 | pino logging with request IDs and redaction. `/healthz`, `/readyz` (ready only once Mongo is connected). Sentry wiring (server + browser). | ✅ |
 | S0.5 | Dockerfile (multi-stage, non-root). `docker compose` for local dev (Mongo replica set; MinIO dropped, see S3.2). | ✅ |
-| S0.6 | GitHub Actions: lint → typecheck → unit → integration (Testcontainers) → image build | ⬜ |
+| S0.6 | GitHub Actions: lint → typecheck → unit → integration (Testcontainers) → image build. Fork-safe, no secrets, actions pinned to SHAs, Dependabot with a cooldown (architecture D15). Written; first run after S0.10. | 🟨 |
 | S0.7 | Vitest + Playwright setup with an Android device profile (Vitest done in S0.1) | ⬜ |
 | S0.8 | App shell: layout, bottom navigation, theme tokens, shadcn-svelte install, typed API client | ⬜ |
 | S0.9 | Brand: AI-assisted paw-print logo cleaned into SVG, plus its variants (maskable icon, monochrome badge, favicon). Beagle and German Shepherd tokens with an automated contrast test. Per-device theme switch (system default, `localStorage`, no flash). Self-hosted Fredoka + Nunito (confirmed). Icon library: Hugeicons free (MIT) behind an `<Icon>` wrapper; map the pet/care icons we need (`ui.md` §6.4). | ⬜ |
+| S0.10 | Publish the GitHub repo (public). Before the first push: scan the full history with gitleaks; choose a licence. On creation: secret scanning and push protection, Dependabot alerts and security updates, approval required for first-time contributors' workflows, a ruleset on `main` (no force-push or deletion, CI must pass). Then confirm S0.6's first run is green. | ⬜ |
 
 ### S1 Sign-in and sessions ⬜
 *FR-01 (partial), NFR-01, 02.*
@@ -218,7 +222,7 @@ Work is organised as **vertical slices**: each delivers a usable end-to-end incr
 
 | # | Task | Status |
 |---|---|---|
-| S14.1 | Production environment provisioned (the platform chosen in S-1). Secrets in the platform store. Budget alert. | ⬜ |
+| S14.1 | Production environment provisioned (the platform chosen in S-1). Secrets in the platform store. Budget alert. Deploy workflow per architecture D15: Workload Identity Federation with an attribute condition pinning this repo and the `production` environment, a least-privilege deploy service account, a `production` environment (main only, owner approval), images in Artifact Registry deployed by digest. | ⬜ |
 | S14.2 | Nightly encrypted `mongodump` to R2, photo bucket copy, retention | ⬜ |
 | S14.3 | Restore runbook written **and tested** (`docs/runbooks/restore.md`) | ⬜ |
 | S14.4 | Uptime monitor. Sentry alerts. Accounts inventory (`docs/runbooks/accounts.md`). | ⬜ |
