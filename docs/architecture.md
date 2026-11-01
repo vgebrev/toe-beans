@@ -1,6 +1,6 @@
 # Toe Beans — Architecture
 
-**Version:** 0.8 (draft for iteration)
+**Version:** 0.9 (draft for iteration)
 **Date:** 1 November 2026
 **Status:** Partly accepted. Decisions marked **A** in the decision log (§2) are accepted; everything else is still proposed.
 **Inputs:** `docs/requirements.md` v1.0 (baselined)
@@ -18,6 +18,8 @@
 **Changes in 0.7:** S0.5 built: the app image (`docker/Dockerfile`) and a local compose file (`docker/compose.yaml`) with Atlas Local and, behind a profile, the app (§8.1). `apps/web`'s `dependencies` are now exactly what the server bundle imports at runtime. MinIO is dropped: its community edition is no longer published, so local object storage waits for S3.2 (§3.6, §8.2, §8.3).
 
 **Changes in 0.8:** The repo will be public. Added D15, how CI and deploys stay safe on a public repo: fork-safe CI with no secrets, keyless deploys through Workload Identity Federation pinned to this repo and a gated `production` environment, runtime secrets only in Secret Manager, and supply-chain rules (§10). S0.6's CI workflow is written; its first run waits for the GitHub repo.
+
+**Changes in 0.9:** S0.7 built: Playwright end-to-end tests against the production build, on emulated profiles of the two acceptance phones, with a CI job (§10).
 
 This document records the technical decisions, domain model and system structure for the Toe Beans MVP. Every decision weighs alternatives against the requirement IDs (FR-xx / NFR-xx). Free-tier figures were checked against public sources in October 2026. They change often, so re-verify them before committing (see §11).
 
@@ -553,9 +555,9 @@ On the self-host path, `toebeans.co.za` points at the IIS host, with a win-acme 
 - **Tests:**
   - Vitest for domain and application, using in-memory adapters.
   - Integration tests for repositories against real MongoDB: Testcontainers running `mongodb/mongodb-atlas-local:8.0` (the Atlas major version, already a single-node replica set), shared by the run, with a fresh database per test file (`pnpm test:integration`, `*.integration.test.ts`). `MONGO_TEST_IMAGE` overrides the image. Newer MongoDB 8.0 releases refuse to start on Linux 6.19+ (SERVER-121912); the cached Atlas Local 8.0 image (mongod 8.0.20) predates that check, so a refreshed pull on a new kernel may need a pinned tag.
-  - Playwright end-to-end with Pixel/Galaxy device emulation for the critical flows.
+  - Playwright end-to-end for the critical flows (`apps/web/e2e`, `pnpm test:e2e`), in Chromium, against the production build (`pnpm build && node build`) on its own database (`toe-beans-e2e`), so tests exercise what ships. Two projects emulate the acceptance phones, built from Playwright's Pixel 7 (Chrome for Android) profile: Galaxy S23 FE at 360 × 740 CSS px, 3× DPR, and Redmi Note 12 Pro at 393 × 830, 2.75×. The heights approximate the installed PWA's visible area; measure on the phones in S13. The 360 px Samsung is the binding width. The smoke test fails on any sideways overflow there.
   - Mandatory suites: household isolation for every repository and endpoint (§4.4), reminder replan/dedupe, outcome counting rules.
-- **CI (GitHub Actions, `.github/workflows/ci.yml`):** on pull requests (forks included) and pushes to `main`, three parallel jobs: lint → type-check → unit, integration (Testcontainers), and the image build (not pushed). Deploying is a separate workflow, added with S-1.6/S14.1.
+- **CI (GitHub Actions, `.github/workflows/ci.yml`):** on pull requests (forks included) and pushes to `main`, four parallel jobs: lint → type-check → unit, integration (Testcontainers), end-to-end (Playwright, with Atlas Local as a service container; the HTML report is uploaded on failure, so it must only ever hold test data), and the image build (not pushed). Deploying is a separate workflow, added with S-1.6/S14.1.
 - **CI/CD security on a public repo (D15, NFR-01, NFR-02, NFR-12).** The repo will be open source, so anyone can open a PR and read the workflows and CI logs.
   - *Untrusted code never meets secrets.* CI runs on `pull_request`, which gives fork PRs a read-only token and no secrets. It holds no secrets at all, and the workflow sets `permissions: contents: read`. `pull_request_target` and `workflow_run` are never used to build or test PR code. Event fields such as PR titles and branch names are passed to `run:` steps through `env:`, never interpolated. Checkout doesn't persist credentials. No self-hosted runners. First-time contributors' workflows need approval.
   - *Keyless deploys.* The deploy job authenticates to GCP with Workload Identity Federation (GitHub's OIDC token), never a service-account key. The provider's attribute condition pins `repository` to this repo and the `production` environment; without it, any GitHub repo could get credentials. The deploy service account gets only `run.developer` on the one service, `iam.serviceAccountUser` on the runtime account and write access to one Artifact Registry repo. The `production` environment allows `main` only and needs the owner's approval. It is the only job with `id-token: write`.

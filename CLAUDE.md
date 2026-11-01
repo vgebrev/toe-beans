@@ -16,6 +16,7 @@ Run from the repo root (Node ≥ 24, pnpm 10):
 - `pnpm check`: type-check every package (`tsc`, and `svelte-check` for `apps/web`)
 - `pnpm test`: all Vitest unit tests. One file: `pnpm test packages/backend/src/domain/result.test.ts`; by name: `pnpm test -t 'narrows on ok'`
 - `pnpm test:integration`: `*.integration.test.ts` against MongoDB in Docker (Testcontainers; needs Docker running)
+- `pnpm test:e2e`: Playwright (`apps/web/e2e`) against the production build on emulated Galaxy S23 FE and Redmi Note 12 Pro. Needs MongoDB like `pnpm dev` (database `toe-beans-e2e`) and Chromium (`pnpm --filter @toe-beans/web exec playwright install chromium`). One project: `pnpm test:e2e --project galaxy-s23-fe`
 - `pnpm build`: production build of `apps/web` (adapter-node, output in `apps/web/build`)
 - `pnpm compose …`: `docker compose` on `docker/compose.yaml`. `--profile app up --build -d --wait` also runs the app image on `localhost:3000`. On port clashes set `MONGO_PORT` / `APP_PORT` (and `MONGODB_URI` for `pnpm dev`). The image alone: `docker build -f docker/Dockerfile .`
 - `apps/web` `dependencies` hold only what the server bundle imports at runtime (now just `@opentelemetry/api`); everything bundled is a devDependency, so the image stays small.

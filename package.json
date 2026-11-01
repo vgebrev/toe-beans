@@ -14,6 +14,7 @@
 		"check": "pnpm --recursive check",
 		"test": "vitest run",
 		"test:integration": "vitest run --config vitest.integration.config.ts",
+		"test:e2e": "pnpm --filter @toe-beans/web test:e2e",
 		"compose": "docker compose -f docker/compose.yaml"
 	},
 	"devDependencies": {

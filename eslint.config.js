@@ -25,7 +25,15 @@ const forbid = (regex, message) => ({ regex, message });
 
 export default defineConfig(
 	{
-		ignores: ['spikes/', '**/node_modules/', '**/.svelte-kit/', '**/build/', 'coverage/']
+		ignores: [
+			'spikes/',
+			'**/node_modules/',
+			'**/.svelte-kit/',
+			'**/build/',
+			'coverage/',
+			'**/test-results/',
+			'**/playwright-report/'
+		]
 	},
 	js.configs.recommended,
 	ts.configs.recommended,

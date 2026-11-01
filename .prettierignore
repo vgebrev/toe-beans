@@ -5,3 +5,5 @@ pnpm-lock.yaml
 **/.svelte-kit/
 **/build/
 coverage/
+**/test-results/
+**/playwright-report/
