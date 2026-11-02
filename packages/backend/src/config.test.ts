@@ -12,7 +12,8 @@ const local = {
 		issuer: 'http://localhost:8090/default',
 		clientId: 'toe-beans-local',
 		clientSecret: 'local-secret'
-	}
+	},
+	authRateLimit: { limit: 30, windowMs: 600_000 }
 };
 const auth0 = {
 	OIDC_ISSUER: 'https://auth.toebeans.co.za/',
@@ -50,8 +51,15 @@ describe('loadConfig', () => {
 			logLevel: 'debug',
 			mongodb: { uri: atlas, db: 'tb' },
 			publicOrigin: 'https://toebeans.co.za',
-			oidc: { issuer: auth0.OIDC_ISSUER, clientId: 'client', clientSecret: 'secret' }
+			oidc: { issuer: auth0.OIDC_ISSUER, clientId: 'client', clientSecret: 'secret' },
+			authRateLimit: { limit: 30, windowMs: 600_000 }
 		});
+	});
+
+	it('reads the sign-in rate limit, refusing one that would block every sign-in', () => {
+		expect(loadConfig({ AUTH_RATE_LIMIT: '1000' }).authRateLimit.limit).toBe(1000);
+		expect(() => loadConfig({ AUTH_RATE_LIMIT: '1' })).toThrow(/AUTH_RATE_LIMIT/);
+		expect(() => loadConfig({ AUTH_RATE_LIMIT: 'lots' })).toThrow(/AUTH_RATE_LIMIT/);
 	});
 
 	it('reads the Sentry DSN and release, preferring APP_RELEASE to K_REVISION', () => {

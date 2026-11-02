@@ -66,6 +66,14 @@ test('a callback without a sign-in in progress says it failed', async ({ page })
 	await expect(page.getByRole('alert')).toHaveText("Signing in didn't work. Please try again.");
 });
 
+// The limit itself is unit tested; the e2e server raises it, since every test signs in from here.
+test('the sign-in page asks to wait after too many attempts', async ({ page }) => {
+	await page.goto('/sign-in?error=too-many');
+	await expect(page.getByRole('alert')).toHaveText(
+		'Too many sign-in attempts. Please wait a few minutes, then try again.'
+	);
+});
+
 test('signing out ends the session', async ({ page, context }) => {
 	await page.goto('/sign-in');
 	await page.getByRole('link', { name: 'Sign in' }).click();

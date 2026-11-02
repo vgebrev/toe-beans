@@ -33,6 +33,10 @@
 		<p role="alert" class="rounded-2xl border border-border bg-soft px-4 py-3 text-left">
 			Please verify your email first. We've sent you a link: open it, then sign in again.
 		</p>
+	{:else if data.error === 'too-many'}
+		<p role="alert" class="rounded-2xl border border-border bg-soft px-4 py-3 text-left">
+			Too many sign-in attempts. Please wait a few minutes, then try again.
+		</p>
 	{:else if data.error === 'failed'}
 		<p role="alert" class="rounded-2xl border border-border bg-soft px-4 py-3 text-left">
 			Signing in didn't work. Please try again.

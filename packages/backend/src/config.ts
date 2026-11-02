@@ -43,7 +43,11 @@ const Env = z
 			.optional(),
 		OIDC_ISSUER: httpUrl.optional(),
 		OIDC_CLIENT_ID: z.string().max(200).optional(),
-		OIDC_CLIENT_SECRET: z.string().max(500).optional()
+		OIDC_CLIENT_SECRET: z.string().max(500).optional(),
+		// Sign-in steps (start and callback) one client address may make per 10 minutes, per
+		// instance (architecture §7). An attempt is two steps; e2e raises it, since every test
+		// signs in from localhost.
+		AUTH_RATE_LIMIT: z.coerce.number().int().min(2).max(100_000).default(30)
 	})
 	.superRefine((e, ctx) => {
 		// Prod must never fall back to a local database.
@@ -78,6 +82,8 @@ export interface Config {
 	/** e.g. `https://toebeans.co.za`, no trailing slash. */
 	publicOrigin: string;
 	oidc: { issuer: string; clientId: string; clientSecret: string };
+	/** Sign-in steps per client address per `windowMs`. */
+	authRateLimit: { limit: number; windowMs: number };
 }
 
 export class ConfigError extends Error {
@@ -105,6 +111,7 @@ export function loadConfig(env: Record<string, string | undefined>): Config {
 		oidc: e.OIDC_ISSUER
 			? { issuer: e.OIDC_ISSUER, clientId: e.OIDC_CLIENT_ID!, clientSecret: e.OIDC_CLIENT_SECRET! }
 			: LOCAL_OIDC,
+		authRateLimit: { limit: e.AUTH_RATE_LIMIT, windowMs: 10 * 60_000 },
 		...(e.SENTRY_DSN && { sentry: { dsn: e.SENTRY_DSN } }),
 		...((e.APP_RELEASE ?? e.K_REVISION) && { release: e.APP_RELEASE ?? e.K_REVISION })
 	};

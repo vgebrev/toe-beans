@@ -3,11 +3,15 @@
 // redirects and cookies that come back.
 import type { Auth, Viewer } from '../application/auth/auth.js';
 import { SIGN_IN_TTL_MS } from '../application/auth/auth.js';
+import type { Logger, RateLimiter } from '../application/ports/index.js';
 import { problem, redirect, type HttpResponse, type SetCookie } from './response.js';
 
 export interface AuthHttpOptions {
 	/** The public origin, e.g. `https://toebeans.co.za`. */
 	publicOrigin: string;
+	/** Sign-in and callback attempts per client address (architecture §7). */
+	rateLimit: RateLimiter;
+	logger: Logger;
 }
 
 export const CALLBACK_PATH = '/auth/callback';
@@ -47,8 +51,11 @@ export function safeReturnTo(value: string | null | undefined): string {
 	return url.pathname + url.search + url.hash;
 }
 
+/** Why the sign-in page is showing a message instead of just the button. */
+export type SignInError = 'failed' | 'unverified' | 'too-many';
+
 /** The sign-in page, coming back to `returnTo` afterwards. */
-export function signInPath(returnTo: string, error?: 'failed' | 'unverified'): string {
+export function signInPath(returnTo: string, error?: SignInError): string {
 	const params = new URLSearchParams();
 	if (error) params.set('error', error);
 	if (returnTo !== '/') params.set('returnTo', returnTo);
@@ -59,10 +66,21 @@ export function signInPath(returnTo: string, error?: 'failed' | 'unverified'): s
 const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
 
 export interface AuthHttp {
-	/** `GET /auth/sign-in`: off to the provider. */
-	signIn(input: { returnTo: string | null; prompt: string | null }): Promise<HttpResponse>;
+	/**
+	 * `GET /auth/sign-in`: off to the provider. `clientAddress` is the caller's IP address as the
+	 * host determines it, which keys the rate limit and is never logged.
+	 */
+	signIn(input: {
+		returnTo: string | null;
+		prompt: string | null;
+		clientAddress: string;
+	}): Promise<HttpResponse>;
 	/** `GET /auth/callback`: back from the provider. `search` is the request's query string. */
-	callback(input: { search: string; cookie: CookieReader }): Promise<HttpResponse>;
+	callback(input: {
+		search: string;
+		cookie: CookieReader;
+		clientAddress: string;
+	}): Promise<HttpResponse>;
 	/** `POST /auth/sign-out`. */
 	signOut(input: { cookie: CookieReader }): Promise<HttpResponse>;
 	/**
@@ -81,7 +99,10 @@ export interface AuthHttp {
 	}): HttpResponse | null;
 }
 
-export function createAuthHttp(auth: Auth, { publicOrigin }: AuthHttpOptions): AuthHttp {
+export function createAuthHttp(
+	auth: Auth,
+	{ publicOrigin, rateLimit, logger }: AuthHttpOptions
+): AuthHttp {
 	const names = cookieSettings(publicOrigin);
 	const cookie = (name: string, value: string, maxAge: number): SetCookie => ({
 		name,
@@ -94,17 +115,35 @@ export function createAuthHttp(auth: Auth, { publicOrigin }: AuthHttpOptions): A
 	const sessionCookie = (token: string, expiresAt: Date) =>
 		cookie(names.session, token, (expiresAt.getTime() - Date.now()) / 1000);
 
+	/**
+	 * Both steps share one budget per address: each sign-in writes a pending sign-in, and each
+	 * callback with one costs a token request to the provider, whose own limits are per tenant.
+	 * Over the limit the person lands on the sign-in page with a wait-and-retry message.
+	 */
+	const limited = (clientAddress: string, step: 'sign-in' | 'callback', returnTo: string) => {
+		const decision = rateLimit.take(clientAddress);
+		if (decision.allowed) return null;
+		logger.warn('sign-in rate limited', { step, retryAfterSeconds: decision.retryAfterSeconds });
+		return redirect(signInPath(returnTo, 'too-many'), [clear(names.signIn)]);
+	};
+
 	return {
-		async signIn({ returnTo, prompt }) {
+		async signIn({ returnTo, prompt, clientAddress }) {
+			const safe = safeReturnTo(returnTo);
+			const refused = limited(clientAddress, 'sign-in', safe);
+			if (refused) return refused;
 			const { url, handle } = await auth.startSignIn({
-				returnTo: safeReturnTo(returnTo),
+				returnTo: safe,
 				...(prompt === 'login' && { prompt: 'login' as const })
 			});
 			// SameSite=Lax still reaches the callback: it's a top-level GET navigation.
 			return redirect(url, [cookie(names.signIn, handle, SIGN_IN_TTL_MS / 1000)]);
 		},
 
-		async callback({ search, cookie: read }) {
+		async callback({ search, cookie: read, clientAddress }) {
+			// Before the pending sign-in is taken, so a refused callback costs nothing.
+			const refused = limited(clientAddress, 'callback', '/');
+			if (refused) return refused;
 			// Built on the public origin, not the request's: behind the Cloudflare Worker the
 			// server sees the run.app host, and this URL is also the redirect_uri (§8.4).
 			const callbackUrl = new URL(CALLBACK_PATH + search, publicOrigin);

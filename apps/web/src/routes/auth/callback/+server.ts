@@ -3,11 +3,12 @@
 import { backend } from '#lib/server/backend.js';
 import { toResponse } from '#lib/server/respond.js';
 
-export async function GET({ url, cookies }) {
+export async function GET({ url, cookies, getClientAddress }) {
 	return toResponse(
 		await backend().http.auth.callback({
 			search: url.search,
-			cookie: (name) => cookies.get(name)
+			cookie: (name) => cookies.get(name),
+			clientAddress: getClientAddress()
 		})
 	);
 }

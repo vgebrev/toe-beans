@@ -1,8 +1,8 @@
 # Toe Beans — Backlog
 
-**Version:** 0.14 (draft for iteration)
+**Version:** 0.15 (draft for iteration)
 **Date:** 2 November 2026
-**Inputs:** `docs/requirements.md` v1.0, `docs/architecture.md` v1.1, `docs/ui.md` v0.8
+**Inputs:** `docs/requirements.md` v1.0, `docs/architecture.md` v1.2, `docs/ui.md` v0.8
 
 **Changes in 0.3:** spike results S-1.0 to S-1.4 and S0.1–S0.2 recorded as they landed (see Current progress). S-1.4b dropped as not needed, S-1.5 parked, S-1.4a retargeted to `toebeans.co.za`.
 
@@ -25,6 +25,8 @@
 **Changes in 0.12:** the S0 Foundations heading is marked done (all ten tasks were). S1 started: its tasks follow the sign-in design in architecture 0.13 §3.4 (two EU Auth0 tenants with a prod custom domain, Mongo-backed sessions, a mock OIDC provider for e2e), with a new S1.5 for the sign-in page and its e2e tests. Setup steps are in `docs/runbooks/auth0.md`. S1.2–S1.5 done, with account linking by verified email (Q10).
 
 **Changes in 0.13:** S-1.3 done and S-1.6 done (D8 and D9 accepted), so the S-1 spikes story is closed, with S-1.5 still parked as the self-host check. Architecture is accepted as baseline v1.0. Leftovers that named S-1.6 (deploy workflow, registry, trace correlation) belong to S14.1.
+
+**Changes in 0.15:** S1.6's rate limit is built and the ID token signature check is on (architecture 1.2 §3.4, §7); the real sign-ins on the phones remain. S14.1 gains the client-address setup the rate limit needs behind the Worker.
 
 **Changes in 0.14:** inputs moved to architecture 1.1 (5-minute tick) and ui 0.8. The spike stays deployed for the tick-interval check.
 
@@ -72,8 +74,9 @@ Work is organised as **vertical slices**: each delivers a usable end-to-end incr
 | 2026-11-01 | S1.2–S1.5 built. The Auth0 dev tenant `toe-beans-dev` (EU) is set up; the app redirects to it and Auth0 accepts the callback URL. Backend: an `IdentityProvider` port with an `openid-client` 6.8 adapter (lazy discovery, PKCE, state and nonce), login transactions and sessions in Mongo (hashed tokens, TTL indexes, migration `0001-auth`), and `User` with linked identities: Google and email/password with the same verified email are one user, and unverified emails are refused (architecture §3.4, Q10). Web: `/auth/sign-in`, `/auth/callback`, `POST /auth/sign-out`, the viewer in `hooks.server.ts`, the `(app)` layout sending signed-out visits to `/sign-in?returnTo=…`, the Welcome page and Account on More. Kit's CSRF check refused same-origin forms because adapter-node 6 assumes `https`; the hooks Origin check now covers every non-GET request against the runtime `PUBLIC_BASE_URL` instead. The mock provider (`mock-oauth2-server` 6.1.3, pinned by digest) runs in compose, the CI e2e job and an adapter integration test. 186 unit, 42 integration and 51 e2e tests. Still to do (S1.6): the callback rate limit, and real sign-ins on the phones. |
 | 2026-11-01 | S-1.3 done. 48 h tick run (30 Oct 23:12 → 1 Nov 23:12 SAST): **2,891 of 2,891 ticks**, 0 duplicates, 0 scheduler errors; lag p50 0.33 s, p95 1.00 s, max 9.15 s. The eight ticks over 4 s all hit warm instances (up 29 min to 25 h), so the delay is Scheduler's, not cold starts. Cloud Run replaced the instance twice during the run without a missed tick (new instances booted in 0.16–0.43 s). Cold start stays at the 30 Oct result (0.62 s server-side, < 2 s on the Samsung); a full cold load of the installed app is measured in S13.3. Gateway fallback: behind a proxy returning each status, a page load that gets 502, 503 or 504 shows the cached *Can't reach Toe Beans* page, a 500 passes through, and the next good load recovers. Billing: $0.00 for the project over the run (Q9). |
 | 2026-11-01 | S-1.6 done: D8 and D9 accepted (architecture 1.0 §2, §6.3, §8.2, §8.4). S-1 spikes story closed. Architecture accepted as baseline v1.0: the remaining proposed decisions are accepted, and later changes go through the decision log. |
+| 2026-11-02 | S1.6 rate limit built (architecture 1.2 §7): a `RateLimiter` port with an in-memory token bucket per client address, shared by `/auth/sign-in` and `/auth/callback` and checked before any write or provider call; over `AUTH_RATE_LIMIT` (30 steps per 10 minutes) the sign-in page asks the person to wait. The OIDC adapter now verifies the ID token's signature against the JWKS (`enableNonRepudiationChecks`), with an integration test that forges `sub` through a proxy. 195 unit, 43 integration and 53 e2e tests. Still to do: the real sign-ins on both phones. |
 
-**Next up:** S1.6 (callback rate limit, real sign-ins on both phones), then S2 households and invitations. The S-1 spike service and its tick stay up for the tick-interval check: 1 minute until about 9 Nov, then 5 minutes for a week (architecture 1.1 §6.3).
+**Next up:** S1.6's real sign-ins on both phones (owner), then S2 households and invitations. The S-1 spike service and its tick stay up for the tick-interval check: 1 minute until about 9 Nov, then 5 minutes for a week (architecture 1.1 §6.3).
 
 ---
 
@@ -131,7 +134,7 @@ Work is organised as **vertical slices**: each delivers a usable end-to-end incr
 | S1.3 | Server-side sessions: hashed token as `_id`, 90-day sliding and 400-day absolute expiry, TTL index. `__Host-tb_session` cookie (unprefixed on `http` origins). `AuthContext` resolved in `hooks.server.ts`; signed-out pages redirect to sign-in, `/api` returns 401. Origin check for every non-GET request (replacing Kit's). | ✅ |
 | S1.4 | User upsert keyed by `(issuer, subject)`, refreshing email, `email_verified`, name and picture at each sign-in | ✅ |
 | S1.5 | Sign-in page (`ui.md` J1 Welcome step) with the retry message, and sign-out on More. E2e through the mock provider: sign in, deep link survives sign-in, sign out, an unknown session goes back to sign-in (expiry is covered by unit tests), a cross-origin POST is refused. | ✅ |
-| S1.6 | Rate limit the callback (architecture §7), and a real sign-in on both phones against the dev tenant (Google and email) | ⬜ |
+| S1.6 | Rate limit the callback (architecture §7), and a real sign-in on both phones against the dev tenant (Google and email). Rate limit done. | 🟨 |
 
 ### S2 Household and invitations ⬜
 *FR-01, scenarios 1 and 9.*
@@ -249,7 +252,7 @@ Work is organised as **vertical slices**: each delivers a usable end-to-end incr
 
 | # | Task | Status |
 |---|---|---|
-| S14.1 | Production environment provisioned (the platform chosen in S-1). Secrets in the platform store. Budget alert. Deploy workflow per architecture D15: Workload Identity Federation with an attribute condition pinning this repo and the `production` environment, a least-privilege deploy service account, a `production` environment (main only, owner approval), images in Artifact Registry deployed by digest. | ⬜ |
+| S14.1 | Production environment provisioned (the platform chosen in S-1). Secrets in the platform store. Budget alert. Deploy workflow per architecture D15: Workload Identity Federation with an attribute condition pinning this repo and the `production` environment, a least-privilege deploy service account, a `production` environment (main only, owner approval), images in Artifact Registry deployed by digest. The client address for rate limits (architecture §7): the Worker forwards `CF-Connecting-IP`, `ADDRESS_HEADER`/`XFF_DEPTH` are set to match, and a sign-in from a phone confirms the app sees the phone's address. | ⬜ |
 | S14.2 | Nightly encrypted `mongodump` to R2, photo bucket copy, retention | ⬜ |
 | S14.3 | Restore runbook written **and tested** (`docs/runbooks/restore.md`) | ⬜ |
 | S14.4 | Uptime monitor. Sentry alerts. Accounts inventory (`docs/runbooks/accounts.md`). | ⬜ |

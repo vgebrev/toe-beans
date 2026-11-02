@@ -22,12 +22,16 @@ export function createHttp(ports: Ports, { publicOrigin }: HttpOptions): Http {
 	});
 	return {
 		health: createHealthHttp(ports),
-		auth: createAuthHttp(auth, { publicOrigin })
+		auth: createAuthHttp(auth, {
+			publicOrigin,
+			rateLimit: ports.authRateLimit,
+			logger: ports.logger
+		})
 	};
 }
 
 export type { AuthContext, Viewer } from '../application/auth/auth.js';
-export { safeReturnTo, signInPath, type CookieReader } from './auth.js';
+export { safeReturnTo, signInPath, type CookieReader, type SignInError } from './auth.js';
 export * from './response.js';
 export { toProblem } from './problem.js';
 export { REQUEST_ID_HEADER, requestIdFrom } from './request-id.js';

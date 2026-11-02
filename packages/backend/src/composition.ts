@@ -18,6 +18,7 @@ import {
 import { migrate, migrations } from './infrastructure/persistence/migrations/index.js';
 import { connectMongo, mongoReadiness } from './infrastructure/persistence/mongo.js';
 import { mongoUnitOfWork } from './infrastructure/persistence/unit-of-work.js';
+import { memoryRateLimiter } from './infrastructure/rate-limit/memory-rate-limiter.js';
 import { withRequestContext, type RequestContext } from './infrastructure/request-context.js';
 import { systemClock } from './infrastructure/system-clock.js';
 
@@ -81,7 +82,8 @@ export async function createBackend(
 		identity: overrides.identity ?? oidcIdentityProvider(config.oidc),
 		users: overrides.users ?? mongoUsers(mongo.db),
 		sessions: overrides.sessions ?? mongoSessions(mongo.db),
-		pendingSignIns: overrides.pendingSignIns ?? mongoPendingSignIns(mongo.db)
+		pendingSignIns: overrides.pendingSignIns ?? mongoPendingSignIns(mongo.db),
+		authRateLimit: overrides.authRateLimit ?? memoryRateLimiter({ ...config.authRateLimit, clock })
 	};
 	logger.info('backend started', {
 		appEnv: config.appEnv,

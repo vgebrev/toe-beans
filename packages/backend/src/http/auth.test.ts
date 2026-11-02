@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { Auth } from '../application/auth/auth.js';
+import type { RateLimiter } from '../application/ports/index.js';
 import { err, ok } from '../domain/result.js';
 import { cookieSettings, createAuthHttp, safeReturnTo, signInPath } from './auth.js';
 import { serializeCookie } from './response.js';
@@ -19,6 +20,15 @@ function fakeAuth(overrides: Partial<Auth> = {}): Auth {
 		...overrides
 	};
 }
+
+const allowAll: RateLimiter = { take: () => ({ allowed: true }) };
+const silent = { debug() {}, info() {}, warn: vi.fn(), error() {}, child: () => silent };
+const options = (publicOrigin: string, rateLimit = allowAll) => ({
+	publicOrigin,
+	rateLimit,
+	logger: silent
+});
+const client = { clientAddress: '203.0.113.7' };
 
 const reader =
 	(cookies: Record<string, string>) =>
@@ -88,9 +98,10 @@ describe('auth http', () => {
 
 	it('sign-in redirects to the provider with a 10-minute sign-in cookie', async () => {
 		const auth = fakeAuth();
-		const res = await createAuthHttp(auth, { publicOrigin: origin }).signIn({
+		const res = await createAuthHttp(auth, options(origin)).signIn({
 			returnTo: '//evil.example',
-			prompt: 'login'
+			prompt: 'login',
+			...client
 		});
 		expect(auth.startSignIn).toHaveBeenCalledWith({ returnTo: '/', prompt: 'login' });
 		expect(res).toMatchObject({
@@ -102,15 +113,20 @@ describe('auth http', () => {
 
 	it('ignores any prompt but login', async () => {
 		const auth = fakeAuth();
-		await createAuthHttp(auth, { publicOrigin: origin }).signIn({ returnTo: '/', prompt: 'none' });
+		await createAuthHttp(auth, options(origin)).signIn({
+			returnTo: '/',
+			prompt: 'none',
+			...client
+		});
 		expect(auth.startSignIn).toHaveBeenCalledWith({ returnTo: '/' });
 	});
 
 	it('the callback validates against the public origin and sets the session cookie', async () => {
 		const auth = fakeAuth();
-		const res = await createAuthHttp(auth, { publicOrigin: origin }).callback({
+		const res = await createAuthHttp(auth, options(origin)).callback({
 			search: '?code=c&state=s',
-			cookie: reader({ '__Host-tb_signin': HANDLE, '__Host-tb_session': 'old' })
+			cookie: reader({ '__Host-tb_signin': HANDLE, '__Host-tb_session': 'old' }),
+			...client
 		});
 		expect(auth.finishSignIn).toHaveBeenCalledWith({
 			callbackUrl: new URL('https://toebeans.co.za/auth/callback?code=c&state=s'),
@@ -129,17 +145,62 @@ describe('auth http', () => {
 		['email-unverified', '/sign-in?error=unverified&returnTo=%2Fcare']
 	] as const)('a %s callback goes back to sign-in with the reason', async (kind, location) => {
 		const auth = fakeAuth({ finishSignIn: async () => err({ kind, returnTo: '/care' }) });
-		const res = await createAuthHttp(auth, { publicOrigin: origin }).callback({
+		const res = await createAuthHttp(auth, options(origin)).callback({
 			search: '?error=x',
-			cookie: reader({})
+			cookie: reader({}),
+			...client
 		});
 		expect(res.headers.location).toBe(location);
 		expect(res.cookies).toEqual([expect.objectContaining({ name: '__Host-tb_signin', maxAge: 0 })]);
 	});
 
+	describe('rate limit', () => {
+		const refuseAll: RateLimiter = { take: () => ({ allowed: false, retryAfterSeconds: 90 }) };
+
+		it('keys sign-in and callback on the client address', async () => {
+			const take = vi.fn(() => ({ allowed: true as const }));
+			const http = createAuthHttp(fakeAuth(), options(origin, { take }));
+			await http.signIn({ returnTo: '/', prompt: null, ...client });
+			await http.callback({ search: '', cookie: reader({}), ...client });
+			expect(take.mock.calls).toEqual([['203.0.113.7'], ['203.0.113.7']]);
+		});
+
+		it('over the limit, sign-in goes back to the sign-in page without starting', async () => {
+			const auth = fakeAuth();
+			const res = await createAuthHttp(auth, options(origin, refuseAll)).signIn({
+				returnTo: '/care',
+				prompt: null,
+				...client
+			});
+			expect(auth.startSignIn).not.toHaveBeenCalled();
+			expect(res).toMatchObject({
+				status: 303,
+				headers: { location: '/sign-in?error=too-many&returnTo=%2Fcare' }
+			});
+			expect(silent.warn).toHaveBeenCalledWith('sign-in rate limited', {
+				step: 'sign-in',
+				retryAfterSeconds: 90
+			});
+		});
+
+		it('over the limit, the callback leaves the pending sign-in alone', async () => {
+			const auth = fakeAuth();
+			const res = await createAuthHttp(auth, options(origin, refuseAll)).callback({
+				search: '?code=c&state=s',
+				cookie: reader({ '__Host-tb_signin': HANDLE }),
+				...client
+			});
+			expect(auth.finishSignIn).not.toHaveBeenCalled();
+			expect(res.headers.location).toBe('/sign-in?error=too-many');
+			expect(res.cookies).toEqual([
+				expect.objectContaining({ name: '__Host-tb_signin', maxAge: 0 })
+			]);
+		});
+	});
+
 	it('sign-out clears the session cookie and goes to the provider', async () => {
 		const auth = fakeAuth();
-		const res = await createAuthHttp(auth, { publicOrigin: origin }).signOut({
+		const res = await createAuthHttp(auth, options(origin)).signOut({
 			cookie: reader({ '__Host-tb_session': TOKEN })
 		});
 		expect(auth.signOut).toHaveBeenCalledWith(TOKEN);
@@ -153,15 +214,13 @@ describe('auth http', () => {
 	describe('authenticate', () => {
 		it('is signed out without a cookie, without asking the backend', async () => {
 			const auth = fakeAuth();
-			const http = createAuthHttp(auth, { publicOrigin: origin });
+			const http = createAuthHttp(auth, options(origin));
 			expect(await http.authenticate(reader({}))).toEqual({ viewer: null, cookies: [] });
 			expect(auth.authenticate).not.toHaveBeenCalled();
 		});
 
 		it('clears a cookie whose session is gone', async () => {
-			const http = createAuthHttp(fakeAuth({ authenticate: async () => null }), {
-				publicOrigin: origin
-			});
+			const http = createAuthHttp(fakeAuth({ authenticate: async () => null }), options(origin));
 			expect(await http.authenticate(reader({ '__Host-tb_session': TOKEN }))).toEqual({
 				viewer: null,
 				cookies: [expect.objectContaining({ name: '__Host-tb_session', maxAge: 0 })]
@@ -172,7 +231,7 @@ describe('auth http', () => {
 			const renewedUntil = new Date(Date.now() + 90 * 86_400_000);
 			const http = createAuthHttp(
 				fakeAuth({ authenticate: async () => ({ viewer, renewedUntil }) }),
-				{ publicOrigin: origin }
+				options(origin)
 			);
 			const { cookies } = await http.authenticate(reader({ '__Host-tb_session': TOKEN }));
 			expect(cookies).toEqual([
@@ -183,7 +242,7 @@ describe('auth http', () => {
 	});
 
 	describe('checkOrigin', () => {
-		const check = createAuthHttp(fakeAuth(), { publicOrigin: origin }).checkOrigin;
+		const check = createAuthHttp(fakeAuth(), options(origin)).checkOrigin;
 
 		it('lets reads through from anywhere', () => {
 			expect(check({ method: 'GET', origin: 'https://evil.example', fetchSite: null })).toBeNull();

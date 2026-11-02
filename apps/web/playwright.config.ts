@@ -75,7 +75,9 @@ export default defineConfig({
 			PUBLIC_BASE_URL: `http://localhost:${port}`,
 			OIDC_ISSUER: 'http://localhost:8090/default',
 			OIDC_CLIENT_ID: 'toe-beans-e2e',
-			OIDC_CLIENT_SECRET: 'e2e-secret'
+			OIDC_CLIENT_SECRET: 'e2e-secret',
+			// Every test signs in from localhost, which would soon hit the per-address limit.
+			AUTH_RATE_LIMIT: '10000'
 		}
 	}
 });
