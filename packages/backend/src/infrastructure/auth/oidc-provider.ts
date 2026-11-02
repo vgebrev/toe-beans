@@ -1,6 +1,8 @@
 // The IdentityProvider port over openid-client (architecture §3.4, D5): a confidential client using
-// Authorization Code + PKCE. openid-client validates the ID token (signature via JWKS, iss, aud,
-// exp, nonce) and the state.
+// Authorization Code + PKCE. openid-client validates the state and the ID token's iss, aud, azp,
+// exp, iat and nonce. It checks the ID token's signature against the provider's JWKS only when
+// asked (enableNonRepudiationChecks), since OIDC Core §3.1.3.7 lets TLS to the token endpoint
+// stand in for it; we ask, so a token is never trusted on transport alone.
 import * as oidc from 'openid-client';
 import type { IdentityProvider } from '../../application/ports/index.js';
 import { err, ok } from '../../domain/result.js';
@@ -23,8 +25,11 @@ export function oidcIdentityProvider({
 	const config = () => {
 		configuration ??= oidc
 			.discovery(new URL(issuer), clientId, undefined, oidc.ClientSecretBasic(clientSecret), {
-				// Only the local mock provider is served over http; config refuses it in prod.
-				...(issuer.startsWith('http:') && { execute: [oidc.allowInsecureRequests] })
+				execute: [
+					oidc.enableNonRepudiationChecks,
+					// Only the local mock provider is served over http; config refuses it in prod.
+					...(issuer.startsWith('http:') ? [oidc.allowInsecureRequests] : [])
+				]
 			})
 			.catch((e: unknown) => {
 				configuration = undefined;

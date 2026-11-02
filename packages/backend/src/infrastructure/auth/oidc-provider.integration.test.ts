@@ -1,5 +1,7 @@
 // The openid-client adapter against a real OIDC provider: the mock provider used by e2e and
 // offline dev (architecture §3.4), in non-interactive mode with fixed claims.
+import { createServer, request, type Server } from 'node:http';
+import type { AddressInfo } from 'node:net';
 import { GenericContainer, Wait, type StartedTestContainer } from 'testcontainers';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { IdentityProvider } from '../../application/ports/index.js';
@@ -33,6 +35,46 @@ beforeAll(async () => {
 }, 120_000);
 
 afterAll(() => container?.stop());
+
+/**
+ * A man in the middle between us and the provider that rewrites the ID token's claims and keeps
+ * its signature, as a forged token would. It forwards the Host header, so the mock issues tokens
+ * for the proxy's origin and discovery and `iss` still match.
+ */
+async function forgingProxy(forge: (claims: Record<string, unknown>) => void): Promise<Server> {
+	const target = new URL(issuer);
+	const server = createServer((req, res) => {
+		const upstream = request(
+			{
+				host: target.hostname,
+				port: target.port,
+				path: req.url,
+				method: req.method,
+				headers: { ...req.headers, 'accept-encoding': 'identity' }
+			},
+			async (up) => {
+				const chunks: Buffer[] = [];
+				for await (const chunk of up) chunks.push(chunk as Buffer);
+				let body = Buffer.concat(chunks);
+				if (req.url?.endsWith('/token') && up.statusCode === 200) {
+					const json = JSON.parse(body.toString()) as { id_token: string };
+					const [header, payload, signature] = json.id_token.split('.');
+					const claims = JSON.parse(Buffer.from(payload!, 'base64url').toString());
+					forge(claims);
+					const forged = Buffer.from(JSON.stringify(claims)).toString('base64url');
+					json.id_token = `${header}.${forged}.${signature}`;
+					body = Buffer.from(JSON.stringify(json));
+				}
+				const headers = { ...up.headers, 'content-length': String(body.length) };
+				delete headers['transfer-encoding'];
+				res.writeHead(up.statusCode!, headers).end(body);
+			}
+		);
+		req.pipe(upstream);
+	});
+	await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+	return server;
+}
 
 /** Follows the provider's authorize redirect back to our callback, as a browser would. */
 async function authorize(url: string): Promise<URL> {
@@ -86,6 +128,27 @@ describe('oidcIdentityProvider', () => {
 		const callback = await authorize(url);
 		const result = await idp.completeSignIn(callback, { ...checks, nonce: 'other' });
 		expect(result).toMatchObject({ ok: false, error: { kind: 'failed' } });
+	});
+
+	it('fails on an ID token whose signature does not match its claims', async () => {
+		const proxy = await forgingProxy((claims) => {
+			claims.sub = 'someone-else';
+		});
+		try {
+			const { port } = proxy.address() as AddressInfo;
+			const forged = oidcIdentityProvider({
+				issuer: `http://127.0.0.1:${port}/default`,
+				clientId: 'toe-beans-test',
+				clientSecret: 'secret'
+			});
+			const { url, checks } = await forged.beginSignIn({ redirectUri });
+			const callback = await authorize(url);
+			const result = await forged.completeSignIn(callback, checks);
+			expect(result).toMatchObject({ ok: false, error: { kind: 'failed' } });
+		} finally {
+			proxy.closeAllConnections();
+			await new Promise((resolve) => proxy.close(resolve));
+		}
 	});
 
 	it('reports a cancelled sign-in as denied', async () => {
