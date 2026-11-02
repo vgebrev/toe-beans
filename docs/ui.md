@@ -1,11 +1,13 @@
 # Toe Beans — UI and Interaction Design
 
-**Version:** 0.7 (draft for iteration)
-**Date:** 1 November 2026
+**Version:** 0.8 (draft for iteration)
+**Date:** 2 November 2026
 **Status:** Proposed. Review-round decisions in §8 are accepted.
-**Inputs:** `docs/requirements.md` v1.0, `docs/architecture.md` v0.11
+**Inputs:** `docs/requirements.md` v1.0, `docs/architecture.md` v1.1
 
 **Changes in 0.7:** the logo landed (S0.9). The mark is now a **TB monogram** with four toe beans above it and a heart-shaped bean in the B, from the AI-assisted design board (Monogram Iteration B), replacing the placeholder paw. It was traced from the board and cleaned up rather than redrawn by hand; the variants are the brown-on-cream mark, a cream-on-brown app-icon tile (favicon and maskable) and a white badge. The wordmark uses Fredoka Bold to match the board (§6.4 Logo).
+
+**Changes in 0.8:** with the reminder tick every 5 minutes (architecture 1.1 §6.3), the J7 reminder test arrives 3–8 minutes after the tap and the screen waits 10 minutes before suggesting the battery setting. Time pickers for planned sessions and care tasks use 5-minute steps (J3).
 
 **Changes in 0.6:** S0.8 and S0.9 built the shell and brand. The colour table gains the tokens the build needed: `soft`, `input`, `warn`, `on-danger` and the outcome badge colours from the mock-ups, all contrast-tested (§6.4). Icons are drawn by our own `<Icon>` from the free Hugeicons data, because the `@hugeicons/svelte` component only draws after hydration; the free set has no dog, so a custom one stands in (§6.4). Bottom-bar labels are 14 px, not the mock-ups' 12 px, to meet the type minimum (§6.4). The theme mechanism is recorded (§6.4).
 
@@ -109,7 +111,7 @@ Each journey maps to a requirements acceptance scenario (§5 there).
 
 ### J3 — Plan and practise (scenario 3)
 
-1. Plan → **+ Schedule**. Pick the dog (pre-filled), the exercise (library picker with search and skill-area chips), the date and time, and repeat (*Never / Daily / Weekdays / Custom days*, with an end date).
+1. Plan → **+ Schedule**. Pick the dog (pre-filled), the exercise (library picker with search and skill-area chips), the date and time (5-minute steps, matching the reminder tick in `architecture.md` §6.3; care tasks too), and repeat (*Never / Daily / Weekdays / Custom days*, with an end date).
 2. The session appears on Plan and on Today on the day.
 3. Caregiver B opens Today → taps the session card → **exercise instructions** (goal, setup, steps, duration, success criteria, *If your puppy struggles*). A sticky bottom button reads **Log practice**.
 4. **Quick log sheet** (§5.2) → choose *Partially successful* → *Add details* → *Relaxed/confident*, *Garden* → **Save**.
@@ -154,7 +156,7 @@ Settings → Notifications (also offered during onboarding and via a Today banne
 
 The manufacturer is preselected where Chrome reports the phone model (`navigator.userAgentData` high-entropy `model`), with a picker to change it. An *Open Chrome's settings* shortcut isn't possible from a web app, so the steps are text plus a screenshot per manufacturer. *Done* hides the card; it stays reachable from Settings → Notifications → *Reminder tips*.
 
-**Test reminders** sends a push **3 minutes** later and asks the user to lock the phone and put it down. When it arrives, its tap opens a "Reminders are working" screen. A test that arrives instantly says nothing, because phones only start dropping pushes after a minute or two locked. If nothing arrives within 5 minutes the screen, next time it's opened, says "Didn't get it? Check the battery setting above" (the service worker reports the test's arrival to the server, as in the S-1.2 spike).
+**Test reminders** sends a push **3 minutes** later and asks the user to lock the phone and put it down. When it arrives, its tap opens a "Reminders are working" screen. A test that arrives instantly says nothing, because phones only start dropping pushes after a minute or two locked. The server sends it no earlier than 3 minutes later, so with the 5-minute tick (`architecture.md` §6.3) it arrives 3–8 minutes after the tap. If nothing arrives within 10 minutes the screen, next time it's opened, says "Didn't get it? Check the battery setting above" (the service worker reports the test's arrival to the server, as in the S-1.2 spike).
 
 The screen also lists **other devices** of the current user, so they can be removed. A note always says: "Reminders can be delayed by your phone's battery or network settings. Today always shows what's due."
 

@@ -1,7 +1,7 @@
 # Toe Beans — Architecture
 
-**Version:** 1.0 (accepted baseline)
-**Date:** 1 November 2026
+**Version:** 1.1 (accepted baseline)
+**Date:** 2 November 2026
 **Status:** Accepted as the baseline on 1 November 2026, once the S-1 spikes closed. From here on a change of decision is recorded in the decision log (§2) with what prompted it, and a change that moves scope goes through `requirements.md` as a recorded scope change.
 **Inputs:** `docs/requirements.md` v1.0 (baselined)
 
@@ -30,6 +30,8 @@
 **Changes in 0.13:** S1 design. Auth0 runs as two tenants, dev and prod, both in the **EU** region: Auth0 has no African region, Europe is the nearest, and only sign-in talks to it, so its distance never touches normal requests. Prod signs in on `auth.toebeans.co.za` from the first user, because users are keyed by issuer (D5, §3.4, §8.4). The identity provider is the one exception to D13's same-country rule: account email and name sit in the EU, which POPIA §72 allows (GDPR-adequate protection). §3.4 now specifies the sign-in flow, the login transaction, server-side sessions (90-day sliding, 400-day absolute), cookies on http origins, logout, and a mock OIDC provider for e2e and offline dev, so no test-only sign-in backdoor exists. S1.2–S1.5 built: one person's Google and email/password sign-ins become one user, linked in the app by verified email, and sign-in with an unverified email is refused (§3.4, §5.2; Q10 raised and resolved). Kit's CSRF check is off and the hooks Origin check covers every non-GET request against the runtime `PUBLIC_BASE_URL`, because adapter-node assumes `https` and behind the Worker sees `run.app`; this replaces the planned build-time `paths.origin`, so the origin stays runtime config (§3.4, §8.4). The e2e suite gains `auth`, and the other suites start signed in (§10).
 
 **Changes in 1.0:** S-1.3 result and baseline. Cloud Run in `africa-south1` with Cloud Scheduler meets every spike target: 2,891 of 2,891 ticks over 48 h with no errors (lag p50 0.33 s, p95 1.00 s, max 9.15 s, the slow ones on warm instances, so the delay is Scheduler's), two instance replacements without a missed tick, a cold container serving its first response in 0.62 s against the 5 s budget, and $0 billed for the Tier 2 region (§6.3, §8.2, §8.4; Q9 resolved). The service worker's *Can't reach Toe Beans* page for platform 502/503/504 works (§7). D8 and D9 accepted on these results (S-1.6). The remaining proposed decisions (D5, D7, D10–D12, D15) are accepted as the baseline; D5, D10, D12 and the CI half of D15 are already built. Leftovers that named S-1.6 move to S14.1 (deploy workflow, registry, trace correlation), and §8.1 and §8.4 no longer mention a build-time origin, which 0.13 replaced with the runtime `PUBLIC_BASE_URL`.
+
+**Changes in 1.1:** the tick runs every **5 minutes** instead of every minute, sending each reminder due before the next tick, so reminders go out up to 5 minutes early and never late; the *Test reminders* push is the exception and never goes early (D9, §6.2, §6.3, §8.2). The interval is configuration. Q9 gains how the free tier is billed: a spending-based discount at Tier 1 prices, confirmed by Google Cloud Assist against the October bill.
 
 This document records the technical decisions, domain model and system structure for the Toe Beans MVP. Every decision weighs alternatives against the requirement IDs (FR-xx / NFR-xx). Free-tier figures were checked against public sources in October 2026. They change often, so re-verify them before committing (see §11).
 
@@ -65,7 +67,7 @@ Status: **P** = proposed, **A** = accepted (with what settled it; *baseline* = a
 | D6 | Database | MongoDB (Atlas free cluster), official driver, no ODM | A (S-1.0, S-1.4) | 3.5 |
 | D7 | Photo storage | Cloudflare R2 (S3 API) | A (baseline) | 3.6 |
 | D8 | Push scheduling | Mongo-backed job collection plus an idempotent `tick` that both external cron and an in-process loop can trigger | A (S-1.3) | 6 |
-| D9 | Hosting | Google Cloud Run (`africa-south1`, min-instances 0) + Cloud Scheduler calling the tick every minute. Self-host behind IIS stays the fallback (R1). A billing-enabled account is acceptable (review round 1). | A (S-1.3, S-1.6) | 8 |
+| D9 | Hosting | Google Cloud Run (`africa-south1`, min-instances 0) + Cloud Scheduler calling the tick every 5 minutes (§6.3). Self-host behind IIS stays the fallback (R1). A billing-enabled account is acceptable (review round 1). | A (S-1.3, S-1.6) | 8 |
 | D10 | Observability | pino JSON logs to the platform log sink, Sentry for errors, an external uptime monitor. OpenTelemetry deferred. | A (baseline; logs and Sentry built in S0.4, uptime monitor in S14.4) | 9 |
 | D11 | Email for invitations | Resend (free tier) behind an `EmailSender` port | A (baseline) | 3.7 |
 | D12 | UI toolkit | Tailwind CSS + shadcn-svelte (Bits UI primitives), themed with Toe Beans brand tokens | A (baseline; built in S0.8) | `ui.md` §6.4 |
@@ -368,7 +370,7 @@ NotificationJob {
 1. **Plan.** Whenever a subject is created, rescheduled, completed, skipped or cancelled, the use case calls `ReminderPlanner.replan(subject)` **in the same Mongo transaction**. That cancels `pending` jobs for the subject and inserts new ones for each subscribed member device, using their `ReminderPreference`.
 2. **Tick.** `worker.tick(now)`:
    1. Extend the recurring-plan horizon.
-   2. Claim due jobs atomically with `findOneAndUpdate({status:'pending', dueAt ≤ now}, {status:'sending', lockedUntil: now+60s})`, so concurrent ticks never double-claim.
+   2. Claim due jobs atomically with `findOneAndUpdate({status:'pending', dueAt ≤ now + interval (now for exact jobs)}, {status:'sending', lockedUntil: now+60s})`, so concurrent ticks never double-claim (§6.3 send-ahead).
    3. Re-load the subject and **skip if its version or status changed** (a second guard against stale reminders, scenario 5).
    4. Send via `web-push` (VAPID) with **`Urgency: high`** (reminders are time-sensitive and always show a notification, so Android doesn't demote them) and a **TTL** so stale notifications expire in the push service: **1 h** for training reminders, **12 h** for care reminders. A deep-sleeping phone can take over a minute to collect a push (§6.4), so TTLs must never be short. Add a `tag` so the OS replaces duplicates.
    5. Mark `sent`, or on failure `pending` with backoff (max 3 attempts), then `failed`. A `404/410` response from the push service disables the subscription.
@@ -381,11 +383,16 @@ The tick is idempotent and safe to call concurrently, so it can run from any tri
 
 | Trigger | When used |
 |---|---|
-| `POST /internal/tick` authenticated with an OIDC token from Cloud Scheduler (or a shared secret header) | Scale-to-zero hosts (Cloud Run, Render). Runs every minute. |
+| `POST /internal/tick` authenticated with an OIDC token from Cloud Scheduler (or a shared secret header) | Scale-to-zero hosts (Cloud Run, Render). Runs every 5 minutes (`TICK_INTERVAL_MINUTES`). |
 | In-process `setInterval` loop (`WORKER_MODE=inline`) | Always-on hosts (self-host, Oracle VM, dev) |
 | Separate worker process (`node worker.js`) | After extraction or at scale |
 
-Measured in S-1.3 (Scheduler in `me-central1`, the nearest region offering it, calling Cloud Run in Johannesburg): 2,891 of 2,891 ticks over 48 h, no scheduler errors, lag from the scheduled minute p50 0.33 s, p95 1.00 s, max 9.15 s. Cloud Run replaced the instance twice during the run without a missed tick. Reminder precision is therefore about ±1 minute from the tick, plus up to ~1–2 minutes when the phone is in deep sleep (§6.4). The UI never promises exact times (NFR-16).
+Measured in S-1.3 (Scheduler in `me-central1`, the nearest region offering it, calling Cloud Run in Johannesburg): 2,891 of 2,891 ticks over 48 h, no scheduler errors, lag from the scheduled minute p50 0.33 s, p95 1.00 s, max 9.15 s. Cloud Run replaced the instance twice during the run without a missed tick. Scheduler delivery isn't the limit, so the interval is a cost choice.
+
+**Interval: 5 minutes, sending ahead (1.1).** Each tick sends every reminder due before the next tick, so a reminder goes out up to 5 minutes **early, never late**: the 1:00 tick sends a 1:03 reminder. That's 8,600 tick requests a month instead of 43k, about a fifth of the tick's Cloud Run cost, which the free tier covers either way (Q9). Times are picked in 5-minute steps and reminder offsets are multiples of 5, so in practice reminders land on time or a few minutes early. The phone adds up to ~1–2 minutes in deep sleep (§6.4), and the UI never promises exact times (NFR-16).
+- The interval and the send-ahead window are configuration (`TICK_INTERVAL_MINUTES`, default 5), so going back to 1 minute is a deploy, not a code change. The send-ahead window equals the interval.
+- **Exact jobs** are never sent early: the *Test reminders* push (`ui.md` J7) must arrive only after the phone has been locked a while, so it is sent by the first tick at or after its due time.
+- **To confirm:** the spike runs at 1 minute until about 9 Nov 2026, then at 5 minutes for a week, comparing Cloud Run cost and how often a person (rather than a tick) starts a cold instance (`spikes/pwa`, `pnpm ticks --every=5`). If people hit cold starts noticeably more often, revisit the interval.
 
 Agenda, Bree and BullMQ were considered. Agenda adds little over ~150 lines of our own code against the same collection. BullMQ needs Redis, one more free-tier dependency.
 
@@ -443,7 +450,7 @@ Free always-on compute has largely disappeared. This matters because of NFR-16.
 
 | Option | Cost reality (Oct 2026, verify) | Push scheduling | Verdict |
 |---|---|---|---|
-| **A. Google Cloud Run + Cloud Scheduler** | Free tier: ~2M requests, 180k vCPU-s, 360k GiB-s per month. Cloud Scheduler: 3 free jobs. **Needs a billing account (card)**, so set a low budget alert (e.g. $1). | Scheduler hits `/internal/tick` every minute: ~43k requests/month, well within the free tier. | ✅ **Chosen (D9, S-1.3).** Cold start 0.62 s server-side, ticks reliable over 48 h, $0 billed. Keep NFR-09 loading feedback for slower cold loads on the phone. |
+| **A. Google Cloud Run + Cloud Scheduler** | Free tier: ~2M requests, 180k vCPU-s, 360k GiB-s per month. Cloud Scheduler: 3 free jobs. **Needs a billing account (card)**, so set a low budget alert (e.g. $1). | Scheduler hits `/internal/tick` every 5 minutes: ~8.6k requests/month, well within the free tier. | ✅ **Chosen (D9, S-1.3).** Cold start 0.62 s server-side, ticks reliable over 48 h, $0 billed. Keep NFR-09 loading feedback for slower cold loads on the phone. |
 | B. Oracle Cloud Always Free VM | Ampere A1 allowance reportedly cut to 2 OCPU / 12 GB in June 2026. Idle instances can be reclaimed. Capacity is often unavailable. | Inline worker, always on. Could also run Mongo and photo storage locally. | Strong runner-up for an "always-on and free" setup, but it carries account and reclamation risk and is a VM we have to patch. |
 | C. Render free web service | 750 h/month, sleeps after 15 min idle, ~30–60 s cold start. | External cron (cron-job.org / GitHub Actions) pinging tick every minute. Effectively keeps it awake, which is against the spirit of the tier. | Fallback. Cold starts hurt UX if it does sleep. |
 | D. Koyeb / Fly.io / Railway | Free compute removed or now needs a card plus a trial (reports conflict). | — | Not recommended. |
@@ -534,7 +541,7 @@ This is recorded as risk R3.
 
 **Cold start budget.** At most 5 s from a cold container to the first response (review round 1: "a handful of seconds").
 - Mitigations: a small image, Cloud Run startup CPU boost, lazy initialisation of non-critical clients, and a pooled Mongo connection reused across requests.
-- The every-minute tick also keeps an instance warm for much of the day, though Cloud Run doesn't guarantee that.
+- The tick also keeps an instance warm for much of the day, though Cloud Run doesn't guarantee that. At 1 minute it did for the whole S-1.3 run; at 5 minutes, the spike's second week measures it (§6.3).
 - If the budget is missed, `min-instances=1` fixes it but isn't free. That would reopen D9.
 - **Measured (S-1.3):** with the tick paused until the instance had scaled to zero, opening the app on the Galaxy S23 FE started a new instance; Node was up 0.29 s after process start and served the first response 0.62 s later, under 2 s as seen on the phone. Later instance starts took 0.16–0.43 s to boot. Cold starts aren't a concern; S13.3 still measures full cold loads of the installed app on both phones.
 
@@ -624,14 +631,14 @@ On the self-host path, `toebeans.co.za` points at the IIS host, with a win-acme 
 | # | Item | Plan |
 |---|---|---|
 | Q1 | ~~Is a billing-enabled GCP account acceptable?~~ | **Resolved:** yes. A budget alert is mandatory (S14.1). |
-| Q2 | Atlas free cluster idle pausing; acceptable cold-start time | **Resolved:** cold starts of a few seconds are acceptable. The spike target is **≤ 5 s** for the first response from cold (§8.4). The every-minute tick keeps Atlas active; monitor this in the spike. |
+| Q2 | Atlas free cluster idle pausing; acceptable cold-start time | **Resolved:** cold starts of a few seconds are acceptable. The spike target is **≤ 5 s** for the first response from cold (§8.4). The tick keeps Atlas active. |
 | Q3 | ~~Which region?~~ | **Resolved:** South Africa where possible. See §8.4 and Q7. |
 | Q4 | ~~Android battery optimisation delaying push~~ | **Resolved (S-1.2):** both phones drop pushes at default settings once locked for a minute or two; lifting Chrome's battery restriction fixed it on both (§6.4). Guidance goes into the reminders setup (`ui.md` J7). Residual risk is R5. |
 | Q5 | ~~Custom domain?~~ | **Resolved:** `toebeans.co.za` from the first release (bought 31 Oct 2026), replacing `toebeans.gebrev.com`. The origin stays pure config (§8.4). See Q8. |
 | Q6 | ~~Exercise content authorship~~ | **Resolved:** the user aggregates the catalogue from online articles and videos, edited with AI, and reviews it. Pipeline in §3.8. |
 | Q7 | ~~Free Atlas cluster in South Africa?~~ | **Resolved (S-1.0):** only on AWS `af-south-1` (Cape Town). Topology 1 in §8.4. |
 | Q8 | Cloud Run custom domain mapping may not be available in `africa-south1`, and the paid load balancer isn't free | **Resolved by S-1.4a:** domain mapping and Firebase Hosting rewrites are both unavailable for `africa-south1`, so a Cloudflare Worker fronts Cloud Run. It adds ~12–28 ms at p50 on the phones; cookies and push work from the custom origin (§8.4). |
-| Q9 | ~~`africa-south1` is a Tier 2 Cloud Run pricing region. Confirm the free allowance applies and the expected monthly cost is $0.~~ | **Resolved (S-1.3):** billing reports show $0.00 for the project over the 48 h run, so the free allowance covers Tier 2. Costs are reviewed quarterly (R1), and a budget alert is part of the prod setup (S14.1). |
+| Q9 | ~~`africa-south1` is a Tier 2 Cloud Run pricing region. Confirm the free allowance applies and the expected monthly cost is $0.~~ | **Resolved (S-1.3):** billing reports show $0.00 for the project over the 48 h run, so the free allowance covers Tier 2. Each service's list cost is cancelled by its own spending-based discount, with promotional (trial) credits untouched; Google Cloud Assist confirms that's the free tier, applied as a monthly discount valued at Tier 1 prices, so in Johannesburg it covers roughly 29% less usage than in `us-central1`. Costs are reviewed quarterly (R1), and a budget alert is part of the prod setup (S14.1). |
 | Q10 | ~~Should one person's Google and email/password sign-ins be the same user?~~ Auth0 makes them separate users with different subjects. | **Resolved (S1):** yes. The app links identities that share a verified email to one user, and refuses sign-ins whose email isn't verified (§3.4). |
 | R1 | Free-tier terms change without notice (e.g. Oracle, Koyeb in 2026) | Everything sits behind ports, the self-host compose is maintained and tested, and costs are reviewed quarterly. |
 | R2 | Multi-vendor sprawl (GCP, Atlas, R2, Auth0, Resend, Sentry) | Accepted for a free setup. Secrets are listed in `docs/runbooks/accounts.md` (names only, no values). |

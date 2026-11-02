@@ -1,8 +1,8 @@
 # Toe Beans — Backlog
 
-**Version:** 0.13 (draft for iteration)
-**Date:** 1 November 2026
-**Inputs:** `docs/requirements.md` v1.0, `docs/architecture.md` v1.0, `docs/ui.md` v0.7
+**Version:** 0.14 (draft for iteration)
+**Date:** 2 November 2026
+**Inputs:** `docs/requirements.md` v1.0, `docs/architecture.md` v1.1, `docs/ui.md` v0.8
 
 **Changes in 0.3:** spike results S-1.0 to S-1.4 and S0.1–S0.2 recorded as they landed (see Current progress). S-1.4b dropped as not needed, S-1.5 parked, S-1.4a retargeted to `toebeans.co.za`.
 
@@ -25,6 +25,8 @@
 **Changes in 0.12:** the S0 Foundations heading is marked done (all ten tasks were). S1 started: its tasks follow the sign-in design in architecture 0.13 §3.4 (two EU Auth0 tenants with a prod custom domain, Mongo-backed sessions, a mock OIDC provider for e2e), with a new S1.5 for the sign-in page and its e2e tests. Setup steps are in `docs/runbooks/auth0.md`. S1.2–S1.5 done, with account linking by verified email (Q10).
 
 **Changes in 0.13:** S-1.3 done and S-1.6 done (D8 and D9 accepted), so the S-1 spikes story is closed, with S-1.5 still parked as the self-host check. Architecture is accepted as baseline v1.0. Leftovers that named S-1.6 (deploy workflow, registry, trace correlation) belong to S14.1.
+
+**Changes in 0.14:** inputs moved to architecture 1.1 (5-minute tick) and ui 0.8. The spike stays deployed for the tick-interval check.
 
 Work is organised as **vertical slices**: each delivers a usable end-to-end increment through UI → API → application → domain → persistence, with tests. Slices are ordered by **dependency and risk**. The riskiest unknowns (push with the app closed, free hosting) are spiked first, before building on them.
 
@@ -71,7 +73,7 @@ Work is organised as **vertical slices**: each delivers a usable end-to-end incr
 | 2026-11-01 | S-1.3 done. 48 h tick run (30 Oct 23:12 → 1 Nov 23:12 SAST): **2,891 of 2,891 ticks**, 0 duplicates, 0 scheduler errors; lag p50 0.33 s, p95 1.00 s, max 9.15 s. The eight ticks over 4 s all hit warm instances (up 29 min to 25 h), so the delay is Scheduler's, not cold starts. Cloud Run replaced the instance twice during the run without a missed tick (new instances booted in 0.16–0.43 s). Cold start stays at the 30 Oct result (0.62 s server-side, < 2 s on the Samsung); a full cold load of the installed app is measured in S13.3. Gateway fallback: behind a proxy returning each status, a page load that gets 502, 503 or 504 shows the cached *Can't reach Toe Beans* page, a 500 passes through, and the next good load recovers. Billing: $0.00 for the project over the run (Q9). |
 | 2026-11-01 | S-1.6 done: D8 and D9 accepted (architecture 1.0 §2, §6.3, §8.2, §8.4). S-1 spikes story closed. Architecture accepted as baseline v1.0: the remaining proposed decisions are accepted, and later changes go through the decision log. |
 
-**Next up:** S1.6 (callback rate limit, real sign-ins on both phones), then S2 households and invitations. The S-1 spike services on Cloud Run can be torn down.
+**Next up:** S1.6 (callback rate limit, real sign-ins on both phones), then S2 households and invitations. The S-1 spike service and its tick stay up for the tick-interval check: 1 minute until about 9 Nov, then 5 minutes for a week (architecture 1.1 §6.3).
 
 ---
 
