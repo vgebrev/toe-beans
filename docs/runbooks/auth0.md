@@ -24,8 +24,8 @@ Names follow the project convention: kebab-case words (`toe-beans`), not run tog
 
 1. Go to **Applications → Create Application**, name it **Toe Beans** and choose **Regular Web Application**. The server is a confidential client, and no Auth0 SDK runs in the browser.
 2. Under **Settings**:
-   - **Allowed Callback URLs:** each app origin + `/auth/callback`. Dev: `http://localhost:7877/auth/callback, http://localhost:3000/auth/callback`. Prod: `https://toebeans.co.za/auth/callback`.
-   - **Allowed Logout URLs:** each app origin + `/`. Dev: `http://localhost:7877/, http://localhost:3000/`. Prod: `https://toebeans.co.za/`.
+   - **Allowed Callback URLs:** each app origin + `/auth/callback`. Dev: `http://localhost:7877/auth/callback, http://localhost:3000/auth/callback, https://toebeans.test:7877/auth/callback` (the dev server on the LAN, README). Prod: `https://toebeans.co.za/auth/callback`.
+   - **Allowed Logout URLs:** each app origin + `/`. Dev: `http://localhost:7877/, http://localhost:3000/, https://toebeans.test:7877/`. Prod: `https://toebeans.co.za/`.
    - **Allowed Web Origins** and **Allowed Origins (CORS):** leave empty.
    - **Application Logo:** add once the PNG exports exist (S13.1).
 3. Under **Credentials**, set the authentication method to **Client Secret (Basic)**.

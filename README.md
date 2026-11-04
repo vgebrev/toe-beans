@@ -50,7 +50,13 @@ pnpm dev                             # http://localhost:7877
 
 Signing in locally goes through the mock provider: type any user name, and claims such as `{"email": "sam@example.com", "email_verified": true, "name": "Sam"}`. To sign in with the Auth0 dev tenant instead, set `OIDC_*` in `.env` (see `.env.example` and `docs/runbooks/auth0.md`).
 
-Use `pnpm dev --host` to open the app from a phone on the same Wi-Fi (set `PUBLIC_BASE_URL` to the address you open).
+Use `pnpm dev --host` to open the app from a phone on the same Wi-Fi, at one URL on every device:
+
+1. Point `toebeans.test` at the dev machine: `address=/toebeans.test/<LAN IP>` in the network's dnsmasq. If dnsmasq runs on the dev machine and you add a hosts-file entry, give it the LAN IP, not `127.0.0.1`: dnsmasq serves `/etc/hosts` to the network too, and phones would get their own loopback address.
+2. Serve https, so phones get a secure context (the service worker, install and push need one): `mkcert -cert-file .certs/toebeans.test.pem -key-file .certs/toebeans.test-key.pem toebeans.test localhost 127.0.0.1 ::1`, then set `DEV_HTTPS_CERT` and `DEV_HTTPS_KEY` in `.env` (`.env.example`). Install mkcert's root CA (`mkcert -CAROOT`/`rootCA.pem`) on each phone as a CA certificate (Android: Settings → Security → Encryption & credentials → Install a certificate). Never share that CA's key.
+3. Set `PUBLIC_BASE_URL=https://toebeans.test:7877` and sign in through the Auth0 dev tenant, since the mock provider only listens on localhost.
+
+Without step 2 it works over http (`PUBLIC_BASE_URL=http://…`), but only pages and sign-in.
 
 | Command | What it does |
 |---|---|

@@ -12,6 +12,9 @@ apps/web/e2e/.auth/
 .env.*
 !.env.example
 
+# Local dev TLS certificates (mkcert, README)
+.certs/
+
 # Local scratchpad: design files, notes, experiments
 workspace/
 

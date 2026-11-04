@@ -1,5 +1,5 @@
 import { execSync } from 'node:child_process';
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import adapter from '@sveltejs/adapter-node';
 import { sveltekit } from '@sveltejs/kit/vite';
@@ -27,9 +27,26 @@ function release(): string | undefined {
 	}
 }
 
+// https for the dev server and `vite preview` when DEV_HTTPS_CERT and DEV_HTTPS_KEY name a
+// certificate and key (paths from the repo root, e.g. from mkcert; README). A phone then gets a
+// secure context, so the service worker, install and push work on toebeans.test as on prod.
+const rootUrl = new URL('../../', import.meta.url);
+function devHttps(): { cert: Buffer; key: Buffer } | undefined {
+	const { DEV_HTTPS_CERT: cert, DEV_HTTPS_KEY: key } = process.env;
+	if (!cert && !key) return undefined;
+	if (!cert || !key) throw new Error('Set both DEV_HTTPS_CERT and DEV_HTTPS_KEY, or neither');
+	const read = (path: string) => readFileSync(fileURLToPath(new URL(path, rootUrl)));
+	return { cert: read(cert), key: read(key) };
+}
+const https = devHttps();
+
+// Vite refuses Host headers it doesn't know. toebeans.test is the dev machine's name on the LAN
+// (dnsmasq), so phones and laptops open one URL (README).
+const allowedHosts = ['toebeans.test'];
+
 export default defineConfig({
-	server: { port: devPort, strictPort: true },
-	preview: { port: devPort, strictPort: true },
+	server: { port: devPort, strictPort: true, allowedHosts, ...(https && { https }) },
+	preview: { port: devPort, strictPort: true, allowedHosts, ...(https && { https }) },
 	plugins: [
 		tailwindcss(),
 		sveltekit({

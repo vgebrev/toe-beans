@@ -14,3 +14,4 @@ workspace
 infra
 docker
 **/*.test.ts
+.certs
