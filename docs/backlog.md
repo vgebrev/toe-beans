@@ -1,8 +1,8 @@
 # Toe Beans — Backlog
 
-**Version:** 0.15 (draft for iteration)
+**Version:** 0.16 (draft for iteration)
 **Date:** 2 November 2026
-**Inputs:** `docs/requirements.md` v1.0, `docs/architecture.md` v1.2, `docs/ui.md` v0.8
+**Inputs:** `docs/requirements.md` v1.0, `docs/architecture.md` v1.3, `docs/ui.md` v0.9
 
 **Changes in 0.3:** spike results S-1.0 to S-1.4 and S0.1–S0.2 recorded as they landed (see Current progress). S-1.4b dropped as not needed, S-1.5 parked, S-1.4a retargeted to `toebeans.co.za`.
 
@@ -25,6 +25,8 @@
 **Changes in 0.12:** the S0 Foundations heading is marked done (all ten tasks were). S1 started: its tasks follow the sign-in design in architecture 0.13 §3.4 (two EU Auth0 tenants with a prod custom domain, Mongo-backed sessions, a mock OIDC provider for e2e), with a new S1.5 for the sign-in page and its e2e tests. Setup steps are in `docs/runbooks/auth0.md`. S1.2–S1.5 done, with account linking by verified email (Q10).
 
 **Changes in 0.13:** S-1.3 done and S-1.6 done (D8 and D9 accepted), so the S-1 spikes story is closed, with S-1.5 still parked as the self-host check. Architecture is accepted as baseline v1.0. Leftovers that named S-1.6 (deploy workflow, registry, trace correlation) belong to S14.1.
+
+**Changes in 0.16:** S1.6 passed on the Galaxy S23 FE, signing in through a dev server on the LAN over https (see Current progress). It found that the display name changed with each sign-in method, so new S1.7 makes the name the app's and editable on More (architecture 1.3 §5.2, ui 0.9 §4.7), and S2.1 gains J1's new *Your name* step.
 
 **Changes in 0.15:** S1.6's rate limit is built and the ID token signature check is on (architecture 1.2 §3.4, §7); the real sign-ins on the phones remain. S14.1 gains the client-address setup the rate limit needs behind the Worker.
 
@@ -75,6 +77,8 @@ Work is organised as **vertical slices**: each delivers a usable end-to-end incr
 | 2026-11-01 | S-1.3 done. 48 h tick run (30 Oct 23:12 → 1 Nov 23:12 SAST): **2,891 of 2,891 ticks**, 0 duplicates, 0 scheduler errors; lag p50 0.33 s, p95 1.00 s, max 9.15 s. The eight ticks over 4 s all hit warm instances (up 29 min to 25 h), so the delay is Scheduler's, not cold starts. Cloud Run replaced the instance twice during the run without a missed tick (new instances booted in 0.16–0.43 s). Cold start stays at the 30 Oct result (0.62 s server-side, < 2 s on the Samsung); a full cold load of the installed app is measured in S13.3. Gateway fallback: behind a proxy returning each status, a page load that gets 502, 503 or 504 shows the cached *Can't reach Toe Beans* page, a 500 passes through, and the next good load recovers. Billing: $0.00 for the project over the run (Q9). |
 | 2026-11-01 | S-1.6 done: D8 and D9 accepted (architecture 1.0 §2, §6.3, §8.2, §8.4). S-1 spikes story closed. Architecture accepted as baseline v1.0: the remaining proposed decisions are accepted, and later changes go through the decision log. |
 | 2026-11-02 | S1.6 rate limit built (architecture 1.2 §7): a `RateLimiter` port with an in-memory token bucket per client address, shared by `/auth/sign-in` and `/auth/callback` and checked before any write or provider call; over `AUTH_RATE_LIMIT` (30 steps per 10 minutes) the sign-in page asks the person to wait. The OIDC adapter now verifies the ID token's signature against the JWKS (`enableNonRepudiationChecks`), with an integration test that forges `sub` through a proxy. 195 unit, 43 integration and 53 e2e tests. Still to do: the real sign-ins on both phones. |
+| 2026-11-02 | S1.6 Galaxy S23 FE: signed in through the Auth0 dev tenant with Google and with email/password, both linked to one user, on `https://toebeans.test:7877` (the dev server over https on the LAN: mkcert, dnsmasq, README). Found: the display name follows whichever provider signed in last (`vgebrev` from email, `Veli Gebrev` from Google). Redmi still to do. |
+| 2026-11-04 | S1.7 built. `User` gains `version` and `displayNameSource` (schema 2; schema 1 documents are read as they were chosen, so no migration). Sign-ins keep the name unless it's still the email fallback and the provider now has a real one, and write only when something changed. `GET`/`PATCH /api/v1/me`, the first versioned resource: ETag `"<version>"`, 428 without `If-Match`, 412 when stale. *Your name* on More with saving, saved, failed and conflict states, plus shadcn `input` and `label` at 48 px. `hooks.server.ts` now keeps `etag` and `x-request-id` on universal loads' responses; without it, the first load to read them failed with a 500. 233 unit, 46 integration and 59 e2e tests. |
 
 **Next up:** S1.6's real sign-ins on both phones (owner), then S2 households and invitations. The S-1 spike service and its tick stay up for the tick-interval check: 1 minute until about 9 Nov, then 5 minutes for a week (architecture 1.1 §6.3).
 
@@ -135,13 +139,14 @@ Work is organised as **vertical slices**: each delivers a usable end-to-end incr
 | S1.4 | User upsert keyed by `(issuer, subject)`, refreshing email, `email_verified`, name and picture at each sign-in | ✅ |
 | S1.5 | Sign-in page (`ui.md` J1 Welcome step) with the retry message, and sign-out on More. E2e through the mock provider: sign in, deep link survives sign-in, sign out, an unknown session goes back to sign-in (expiry is covered by unit tests), a cross-origin POST is refused. | ✅ |
 | S1.6 | Rate limit the callback (architecture §7), and a real sign-in on both phones against the dev tenant (Google and email). Rate limit done. | 🟨 |
+| S1.7 | The display name is the app's (architecture §5.2): sign-ins only replace the email fallback with a provider's real name, and *Your name* on More → Account edits it (`GET`/`PATCH /api/v1/me` with ETag and `If-Match`, `ui.md` §4.7) | ✅ |
 
 ### S2 Household and invitations ⬜
 *FR-01, scenarios 1 and 9.*
 
 | # | Task | Status |
 |---|---|---|
-| S2.1 | Create household (name, time zone). Onboarding steps 1–2. | ⬜ |
+| S2.1 | Create household (name, time zone). Onboarding steps 1–3, including *Your name* (`ui.md` J1 step 2), saved like Account's name field. | ⬜ |
 | S2.2 | Shareable invite links: create, expiry, revoke, max uses. `/join/:token` flow with all error states. | ⬜ |
 | S2.3 | Email invites: `EmailSender` port, Resend adapter, verified-email match on accept | ⬜ |
 | S2.4 | Household screen: members, pending invites, revoke | ⬜ |

@@ -131,14 +131,63 @@ describe('auth', () => {
 			]);
 		});
 
-		it('finds the same user next time and refreshes the profile from the provider', async () => {
+		it('finds the same user next time and refreshes the picture, keeping the name', async () => {
 			await signIn(google());
 			t.clock.advance(DAY);
 			await signIn(google({ name: 'Sam D.', picture: undefined }));
 			expect(t.users.all()).toEqual([
-				expect.objectContaining({ displayName: 'Sam D.', updatedAt: t.clock.now() })
+				expect.objectContaining({
+					displayName: 'Sam Doe',
+					displayNameSource: 'provider',
+					version: 2,
+					updatedAt: t.clock.now()
+				})
 			]);
 			expect(t.users.all()[0]).not.toHaveProperty('avatarUrl');
+		});
+
+		it("doesn't write when nothing changed, so an open edit isn't made stale", async () => {
+			await signIn(google());
+			t.clock.advance(DAY);
+			await signIn(google());
+			expect(t.users.all()[0]).toMatchObject({
+				version: 1,
+				updatedAt: new Date(t.clock.now().getTime() - DAY)
+			});
+		});
+
+		describe('the display name', () => {
+			const email = google({
+				subject: 'auth0|abc',
+				email: 'sam@example.com',
+				name: 'sam@example.com'
+			});
+
+			it("starts from the email when the provider has no name, then takes Google's", async () => {
+				await signIn(email);
+				expect(t.users.all()[0]).toMatchObject({ displayName: 'sam', displayNameSource: 'email' });
+				await signIn(google());
+				expect(t.users.all()[0]).toMatchObject({
+					displayName: 'Sam Doe',
+					displayNameSource: 'provider'
+				});
+			});
+
+			it("doesn't change with each sign-in method", async () => {
+				await signIn(google());
+				await signIn(email);
+				await signIn(google());
+				await signIn(email);
+				expect(t.users.all()[0]!.displayName).toBe('Sam Doe');
+			});
+
+			it('is never replaced once the person chose it', async () => {
+				await signIn(email);
+				const { id, version } = t.users.all()[0]!;
+				await t.users.rename(id, 'Sammy', version, t.clock.now());
+				await signIn(google());
+				expect(t.users.all()[0]).toMatchObject({ displayName: 'Sammy', displayNameSource: 'user' });
+			});
 		});
 
 		it('links a second sign-in method with the same verified email to the same user (Q10)', async () => {

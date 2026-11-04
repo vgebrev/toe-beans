@@ -8,8 +8,10 @@ import type {
 	SessionRepository,
 	UserRepository
 } from '../../application/ports/index.js';
+import { notFound, staleVersion } from '../../application/errors.js';
 import type { Id } from '../../domain/id.js';
-import type { Identity, User } from '../../domain/user.js';
+import { err, ok } from '../../domain/result.js';
+import type { DisplayNameSource, Identity, User } from '../../domain/user.js';
 import { currentSession } from './unit-of-work.js';
 
 export const USERS = 'users';
@@ -26,6 +28,8 @@ interface UserDoc {
 	identities: IdentityDoc[];
 	email: string;
 	displayName: string;
+	/** Since schema 2. */
+	displayNameSource?: DisplayNameSource;
 	avatarUrl?: string;
 	deletedAt?: Date;
 	version: number;
@@ -34,7 +38,15 @@ interface UserDoc {
 	schemaVersion: number;
 }
 
-const USER_SCHEMA = 1;
+/** 2 added `displayNameSource`. */
+const USER_SCHEMA = 2;
+
+/**
+ * Schema 1 didn't record where the name came from. It was always the provider's, or the email's
+ * local part when the provider had none, so the name itself tells.
+ */
+const sourceOf = (doc: UserDoc): DisplayNameSource =>
+	doc.displayNameSource ?? (doc.displayName === doc.email.split('@')[0] ? 'email' : 'provider');
 
 // A space can't appear in an issuer URL, so the key is unambiguous.
 const identityKey = (issuer: string, subject: string) => `${issuer} ${subject}`;
@@ -50,6 +62,8 @@ function toUser(doc: UserDoc): User {
 		})),
 		email: doc.email,
 		displayName: doc.displayName,
+		displayNameSource: sourceOf(doc),
+		version: doc.version,
 		createdAt: doc.createdAt,
 		updatedAt: doc.updatedAt
 	};
@@ -75,8 +89,9 @@ export function mongoUsers(db: Db): UserRepository {
 					identities: user.identities.map(identityDoc),
 					email: user.email,
 					displayName: user.displayName,
+					displayNameSource: user.displayNameSource,
 					...(user.avatarUrl && { avatarUrl: user.avatarUrl }),
-					version: 1,
+					version: user.version,
 					createdAt: user.createdAt,
 					updatedAt: user.updatedAt,
 					schemaVersion: USER_SCHEMA
@@ -95,16 +110,42 @@ export function mongoUsers(db: Db): UserRepository {
 				{ session: currentSession() }
 			);
 		},
-		async updateProfile(id, { email, displayName, avatarUrl }, at) {
+		async updateProfile(id, { email, displayName, displayNameSource, avatarUrl }, at) {
 			await users.updateOne(
 				{ _id: id },
 				{
-					$set: { email, displayName, updatedAt: at, ...(avatarUrl && { avatarUrl }) },
+					$set: {
+						email,
+						displayName,
+						displayNameSource,
+						updatedAt: at,
+						schemaVersion: USER_SCHEMA,
+						...(avatarUrl && { avatarUrl })
+					},
 					...(!avatarUrl && { $unset: { avatarUrl: '' } }),
 					$inc: { version: 1 }
 				},
 				{ session: currentSession() }
 			);
+		},
+		async rename(id, displayName, expectedVersion, at) {
+			const live = { _id: id, deletedAt: { $exists: false } };
+			const doc = await users.findOneAndUpdate(
+				{ ...live, version: expectedVersion },
+				{
+					$set: {
+						displayName,
+						displayNameSource: 'user',
+						updatedAt: at,
+						schemaVersion: USER_SCHEMA
+					},
+					$inc: { version: 1 }
+				},
+				{ returnDocument: 'after', session: currentSession() }
+			);
+			if (doc) return ok(toUser(doc));
+			const exists = await users.countDocuments(live, { limit: 1, session: currentSession() });
+			return err(exists ? staleVersion : notFound('user'));
 		}
 	};
 }

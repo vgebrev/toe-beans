@@ -18,7 +18,7 @@ test('a signed-out visit goes to sign-in, then back to the same page', async ({ 
 	await expect(page).toHaveURL('/plan?view=week');
 	await expect(page.getByRole('heading', { level: 1 })).toHaveText('Plan');
 	await page.getByRole('navigation', { name: 'Main' }).getByRole('link', { name: 'More' }).click();
-	await expect(page.getByText(person.name)).toBeVisible();
+	await expect(page.getByLabel('Your name')).toHaveValue(person.name);
 	await expect(page.getByText(person.email)).toBeVisible();
 });
 

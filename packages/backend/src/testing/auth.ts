@@ -11,7 +11,8 @@ import type {
 	UnitOfWork,
 	UserRepository
 } from '../application/ports/index.js';
-import type { Result } from '../domain/result.js';
+import { notFound, staleVersion } from '../application/errors.js';
+import { err, ok, type Result } from '../domain/result.js';
 import type { User } from '../domain/user.js';
 
 export interface FakeIdentityProvider extends IdentityProvider {
@@ -60,13 +61,22 @@ export function memoryUsers(): UserRepository & { all(): User[] } {
 		async addIdentity(id, identity, at) {
 			const u = users.get(id)!;
 			u.identities.push(structuredClone(identity));
-			u.updatedAt = at;
+			Object.assign(u, { updatedAt: at, version: u.version + 1 });
 		},
-		async updateProfile(id, { email, displayName, avatarUrl }, at) {
+		async updateProfile(id, { email, displayName, displayNameSource, avatarUrl }, at) {
 			const u = users.get(id)!;
-			Object.assign(u, { email, displayName, updatedAt: at });
+			Object.assign(u, { email, displayName, displayNameSource, updatedAt: at });
+			u.version++;
 			if (avatarUrl) u.avatarUrl = avatarUrl;
 			else delete u.avatarUrl;
+		},
+		async rename(id, displayName, expectedVersion, at) {
+			const u = users.get(id);
+			if (!u || u.deletedAt) return err(notFound('user'));
+			if (u.version !== expectedVersion) return err(staleVersion);
+			Object.assign(u, { displayName, displayNameSource: 'user', updatedAt: at });
+			u.version++;
+			return ok(structuredClone(u));
 		}
 	};
 }

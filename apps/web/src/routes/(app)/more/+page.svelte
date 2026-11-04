@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { version } from '$app/env';
 	import { resolve } from '$app/paths';
+	import DisplayNameForm from '#lib/components/account/DisplayNameForm.svelte';
 	import Logo from '#lib/components/Logo.svelte';
 	import PageHeader from '#lib/components/shell/PageHeader.svelte';
 	import ThemeSwitch from '#lib/components/shell/ThemeSwitch.svelte';
@@ -30,10 +31,22 @@
 		<h2 id="account" class="text-sm font-extrabold tracking-wide text-muted-foreground uppercase">
 			Account
 		</h2>
-		<p class="flex flex-col">
-			<span class="font-bold">{data.viewer.displayName}</span>
-			<span class="text-muted-foreground">{data.viewer.email}</span>
-		</p>
+		{#if data.me}
+			<DisplayNameForm displayName={data.me.profile.displayName} etag={data.me.etag} />
+			<p class="flex flex-col">
+				<span class="font-bold">Email</span>
+				<span class="text-muted-foreground">{data.me.profile.email}</span>
+			</p>
+		{:else}
+			<!-- The API didn't answer: show who's signed in, without an edit that can't save. -->
+			<p class="flex flex-col">
+				<span class="font-bold">{data.viewer.displayName}</span>
+				<span class="text-muted-foreground">{data.viewer.email}</span>
+			</p>
+			<p class="text-sm text-muted-foreground">
+				Couldn't load your account details. Reload the page to change your name.
+			</p>
+		{/if}
 		<!-- A plain form POST: the server ends the session and sends the browser to the provider. -->
 		<form method="POST" action={resolve('/auth/sign-out')}>
 			<Button type="submit" variant="outline" class="w-full">Sign out</Button>

@@ -8,6 +8,15 @@ export const init: ServerInit = async () => {
 	await startBackend();
 };
 
+/**
+ * Headers the API client reads in universal loads (architecture §3.3). Kit serialises a server
+ * render's fetch responses for hydration and makes every header it should keep explicit.
+ */
+const serializedHeaders = new Set(['etag', REQUEST_ID_HEADER]);
+const resolveOptions = {
+	filterSerializedResponseHeaders: (name: string) => serializedHeaders.has(name)
+};
+
 // Probes and the uptime monitor hit these every few minutes; their lines would drown the rest.
 const quietRoutes = new Set(['/healthz', '/readyz']);
 
@@ -61,7 +70,7 @@ async function authenticated(
 
 	event.locals.viewer = null;
 	// Probes don't need a viewer, so they never touch the sessions.
-	if (quietRoutes.has(event.route.id ?? '')) return resolve(event);
+	if (quietRoutes.has(event.route.id ?? '')) return resolve(event, resolveOptions);
 
 	const { viewer, cookies } = await auth.authenticate((name) => event.cookies.get(name));
 	event.locals.viewer = viewer;
@@ -71,7 +80,7 @@ async function authenticated(
 	if (!viewer && event.url.pathname.startsWith('/api/')) {
 		return toResponse(errorResponse({ kind: 'unauthenticated' }));
 	}
-	return resolve(event);
+	return resolve(event, resolveOptions);
 }
 
 /** Unexpected errors: logged, reported, and answered with the request ID only. */

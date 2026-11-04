@@ -1,8 +1,12 @@
 // Storage for users, sessions and sign-ins in progress (architecture §3.4). None of it is
 // household-owned, so these don't build on HouseholdCollection.
 import type { Id } from '../../domain/id.js';
+import type { Result } from '../../domain/result.js';
 import type { Identity, User } from '../../domain/user.js';
+import type { NotFoundError, StaleVersionError } from '../errors.js';
 import type { SignInChecks } from './identity-provider.js';
+
+export type SignInProfile = Pick<User, 'email' | 'displayName' | 'displayNameSource' | 'avatarUrl'>;
 
 export interface UserRepository {
 	findById(id: Id): Promise<User | null>;
@@ -12,11 +16,18 @@ export interface UserRepository {
 	insert(user: User): Promise<void>;
 	/** Adds a sign-in method to an existing user. */
 	addIdentity(id: Id, identity: Identity, at: Date): Promise<void>;
-	updateProfile(
+	/** What a sign-in refreshes from the provider's claims. */
+	updateProfile(id: Id, profile: SignInProfile, at: Date): Promise<void>;
+	/**
+	 * Sets the name the person chose, if the user is still at `expectedVersion` (NFR-13). A
+	 * deleted user is not found.
+	 */
+	rename(
 		id: Id,
-		profile: Pick<User, 'email' | 'displayName' | 'avatarUrl'>,
+		displayName: string,
+		expectedVersion: number,
 		at: Date
-	): Promise<void>;
+	): Promise<Result<User, NotFoundError | StaleVersionError>>;
 }
 
 export interface Session {

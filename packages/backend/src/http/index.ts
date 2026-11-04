@@ -1,13 +1,16 @@
 // Framework-neutral handlers: (ctx, input) → HttpResponse. Slices add one group per resource,
 // built from the use cases over `ports`.
+import { createAccount } from '../application/account/account.js';
 import { createAuth } from '../application/auth/auth.js';
 import type { Ports } from '../application/ports/index.js';
+import { createAccountHttp, type AccountHttp } from './account.js';
 import { CALLBACK_PATH, createAuthHttp, type AuthHttp } from './auth.js';
 import { createHealthHttp, type HealthHttp } from './health.js';
 
 export interface Http {
 	health: HealthHttp;
 	auth: AuthHttp;
+	account: AccountHttp;
 }
 
 export interface HttpOptions {
@@ -26,7 +29,8 @@ export function createHttp(ports: Ports, { publicOrigin }: HttpOptions): Http {
 			publicOrigin,
 			rateLimit: ports.authRateLimit,
 			logger: ports.logger
-		})
+		}),
+		account: createAccountHttp(createAccount(ports))
 	};
 }
 

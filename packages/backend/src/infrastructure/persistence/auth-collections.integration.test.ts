@@ -9,7 +9,8 @@ import {
 	mongoSessions,
 	mongoUsers,
 	PENDING_SIGN_INS,
-	SESSIONS
+	SESSIONS,
+	USERS
 } from './auth-collections.js';
 import { migrate, migrations } from './migrations/index.js';
 
@@ -27,6 +28,8 @@ const newUser = (overrides: Partial<User> = {}): User => ({
 	identities: [{ issuer: ISSUER, subject: `google|${ids.next()}`, linkedAt: at }],
 	email: `${ids.next()}@example.com`,
 	displayName: 'Sam',
+	displayNameSource: 'provider',
+	version: 1,
 	createdAt: at,
 	updatedAt: at,
 	...overrides
@@ -59,10 +62,71 @@ describe('mongoUsers', () => {
 		const user = newUser({ avatarUrl: 'https://img.example/a.jpg' });
 		await users().insert(user);
 		const later = new Date(at.getTime() + 1000);
-		await users().updateProfile(user.id, { email: user.email, displayName: 'Sam D.' }, later);
+		await users().updateProfile(
+			user.id,
+			{ email: user.email, displayName: 'Sam D.', displayNameSource: 'provider' },
+			later
+		);
 		const found = await users().findById(user.id);
-		expect(found).toMatchObject({ displayName: 'Sam D.', updatedAt: later });
+		expect(found).toMatchObject({ displayName: 'Sam D.', version: 2, updatedAt: later });
 		expect(found).not.toHaveProperty('avatarUrl');
+	});
+
+	it('renames at the expected version only, and counts the change', async () => {
+		const user = newUser();
+		await users().insert(user);
+		const later = new Date(at.getTime() + 1000);
+		expect(await users().rename(user.id, 'Sammy', 1, later)).toEqual({
+			ok: true,
+			value: {
+				...user,
+				displayName: 'Sammy',
+				displayNameSource: 'user',
+				version: 2,
+				updatedAt: later
+			}
+		});
+		expect(await users().rename(user.id, 'Old tab', 1, later)).toEqual({
+			ok: false,
+			error: { kind: 'stale-version' }
+		});
+		expect((await users().findById(user.id))?.displayName).toBe('Sammy');
+	});
+
+	it("doesn't rename a missing or deleted user", async () => {
+		const deleted = newUser();
+		await users().insert(deleted);
+		await db.mongo.db.collection(USERS).updateOne({ _id: deleted.id } as never, {
+			$set: { deletedAt: at }
+		});
+		const notFound = { ok: false, error: { kind: 'not-found', resource: 'user' } };
+		expect(await users().rename(deleted.id, 'Sammy', 1, at)).toEqual(notFound);
+		expect(await users().rename(ids.next(), 'Sammy', 1, at)).toEqual(notFound);
+	});
+
+	it('reads schema 1 users, which have no name source', async () => {
+		const [fromEmail, fromProvider] = [newUser(), newUser()];
+		const v1 = (u: User, displayName: string) => ({
+			_id: u.id,
+			identities: u.identities.map((i) => ({ ...i, key: `${i.issuer} ${i.subject}` })),
+			email: u.email,
+			displayName,
+			version: 3,
+			createdAt: at,
+			updatedAt: at,
+			schemaVersion: 1
+		});
+		await db.mongo.db
+			.collection(USERS)
+			.insertMany([
+				v1(fromEmail, fromEmail.email.split('@')[0]!),
+				v1(fromProvider, 'Sam Doe')
+			] as never[]);
+		expect(await users().findById(fromEmail.id)).toMatchObject({
+			displayNameSource: 'email',
+			version: 3
+		});
+		expect((await users().findById(fromProvider.id))?.displayNameSource).toBe('provider');
 	});
 
 	it('allows one user per identity and per email', async () => {

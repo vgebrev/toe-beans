@@ -18,6 +18,7 @@ export type {
 	PendingSignInRepository,
 	Session,
 	SessionRepository,
+	SignInProfile,
 	UserRepository
 } from './auth-repositories.js';
 export type { Clock } from './clock.js';

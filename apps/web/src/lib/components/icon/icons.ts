@@ -22,6 +22,7 @@ import {
 	DashboardSquare01Icon,
 	HealthIcon,
 	HistoryIcon,
+	Loading03Icon,
 	Medicine02Icon,
 	Moon02Icon,
 	MoreVerticalIcon,
@@ -99,6 +100,7 @@ export const icons = {
 	overflow: MoreVerticalIcon,
 	alert: Alert02Icon,
 	offline: WifiDisconnected01Icon,
+	saving: Loading03Icon,
 	// More menu
 	dogs: DogIcon,
 	library: BookOpen01Icon,

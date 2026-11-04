@@ -3,8 +3,8 @@
 import type { Id } from '../../domain/id.js';
 import { err, ok, type Result } from '../../domain/result.js';
 import { hashSecretToken, isSecretToken, newSecretToken } from '../../domain/secret-token.js';
-import { displayNameFor, normaliseEmail, type User } from '../../domain/user.js';
-import type { IdentityClaims, Ports } from '../ports/index.js';
+import { displayNameFor, nameAfterSignIn, normaliseEmail, type User } from '../../domain/user.js';
+import type { IdentityClaims, Ports, SignInProfile } from '../ports/index.js';
 
 /**
  * Who is making a request, resolved from the session. Use cases take it explicitly and never read
@@ -77,48 +77,61 @@ export function createAuth(
 	async function userFor(claims: IdentityClaims & { email: string }): Promise<User | null> {
 		const now = clock.now();
 		const email = normaliseEmail(claims.email);
-		const profile = {
-			email,
-			displayName: displayNameFor(claims.name, email),
-			avatarUrl: claims.picture
+		const fromClaims = displayNameFor(claims.name, email);
+
+		/**
+		 * Brings a known user up to date with the claims, writing only when something changed, so
+		 * a sign-in elsewhere doesn't make an open edit stale (NFR-13).
+		 */
+		const refresh = async (user: User): Promise<User> => {
+			const profile: SignInProfile = {
+				email,
+				...nameAfterSignIn(user, fromClaims),
+				avatarUrl: claims.picture
+			};
+			if (email !== user.email && (await users.findByEmail(email))) {
+				// The provider's email changed to one another user already has. Merging two users
+				// silently would be worse than a stale email, so keep the old one.
+				log.warn('email change not applied: another user has that email', { userId: user.id });
+				profile.email = user.email;
+			}
+			const same = (Object.keys(profile) as (keyof SignInProfile)[]).every(
+				(key) => profile[key] === user[key]
+			);
+			if (same) return user;
+			await users.updateProfile(user.id, profile, now);
+			const updated: User = { ...user, ...profile, version: user.version + 1, updatedAt: now };
+			if (!updated.avatarUrl) delete updated.avatarUrl;
+			return updated;
 		};
 
 		const known = await users.findByIdentity(claims.issuer, claims.subject);
-		if (known) {
-			if (known.deletedAt) return null;
-			if (email !== known.email && (await users.findByEmail(email))) {
-				// The provider's email changed to one another user already has. Merging two users
-				// silently would be worse than a stale email, so keep the old one.
-				log.warn('email change not applied: another user has that email', { userId: known.id });
-				profile.email = known.email;
-			}
-			await users.updateProfile(known.id, profile, now);
-			return { ...known, ...profile, updatedAt: now };
-		}
+		if (known) return known.deletedAt ? null : refresh(known);
 
 		const sameEmail = await users.findByEmail(email);
 		if (sameEmail) {
 			if (sameEmail.deletedAt) return null;
 			const linked = { issuer: claims.issuer, subject: claims.subject, linkedAt: now };
 			await users.addIdentity(sameEmail.id, linked, now);
-			await users.updateProfile(sameEmail.id, profile, now);
 			log.info('sign-in method linked to an existing user', { userId: sameEmail.id });
-			return {
+			return refresh({
 				...sameEmail,
-				...profile,
 				identities: [...sameEmail.identities, linked],
+				version: sameEmail.version + 1,
 				updatedAt: now
-			};
+			});
 		}
 
 		const user: User = {
 			id: ids.next(),
 			identities: [{ issuer: claims.issuer, subject: claims.subject, linkedAt: now }],
-			...profile,
+			email,
+			...fromClaims,
+			...(claims.picture && { avatarUrl: claims.picture }),
+			version: 1,
 			createdAt: now,
 			updatedAt: now
 		};
-		if (!user.avatarUrl) delete user.avatarUrl;
 		await users.insert(user);
 		log.info('user created', { userId: user.id });
 		return user;
