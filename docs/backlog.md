@@ -1,7 +1,7 @@
 # Toe Beans — Backlog
 
-**Version:** 0.16 (draft for iteration)
-**Date:** 2 November 2026
+**Version:** 0.17 (draft for iteration)
+**Date:** 4 November 2026
 **Inputs:** `docs/requirements.md` v1.0, `docs/architecture.md` v1.3, `docs/ui.md` v0.9
 
 **Changes in 0.3:** spike results S-1.0 to S-1.4 and S0.1–S0.2 recorded as they landed (see Current progress). S-1.4b dropped as not needed, S-1.5 parked, S-1.4a retargeted to `toebeans.co.za`.
@@ -25,6 +25,8 @@
 **Changes in 0.12:** the S0 Foundations heading is marked done (all ten tasks were). S1 started: its tasks follow the sign-in design in architecture 0.13 §3.4 (two EU Auth0 tenants with a prod custom domain, Mongo-backed sessions, a mock OIDC provider for e2e), with a new S1.5 for the sign-in page and its e2e tests. Setup steps are in `docs/runbooks/auth0.md`. S1.2–S1.5 done, with account linking by verified email (Q10).
 
 **Changes in 0.13:** S-1.3 done and S-1.6 done (D8 and D9 accepted), so the S-1 spikes story is closed, with S-1.5 still parked as the self-host check. Architecture is accepted as baseline v1.0. Leftovers that named S-1.6 (deploy workflow, registry, trace correlation) belong to S14.1.
+
+**Changes in 0.17:** S1.6 done: the Redmi Note 12 Pro passed the real sign-ins, with S1.7's display name holding across sign-in methods (see Current progress). S1 stays open only for the prod tenant in S1.1.
 
 **Changes in 0.16:** S1.6 passed on the Galaxy S23 FE, signing in through a dev server on the LAN over https (see Current progress). It found that the display name changed with each sign-in method, so new S1.7 makes the name the app's and editable on More (architecture 1.3 §5.2, ui 0.9 §4.7), and S2.1 gains J1's new *Your name* step.
 
@@ -79,8 +81,9 @@ Work is organised as **vertical slices**: each delivers a usable end-to-end incr
 | 2026-11-02 | S1.6 rate limit built (architecture 1.2 §7): a `RateLimiter` port with an in-memory token bucket per client address, shared by `/auth/sign-in` and `/auth/callback` and checked before any write or provider call; over `AUTH_RATE_LIMIT` (30 steps per 10 minutes) the sign-in page asks the person to wait. The OIDC adapter now verifies the ID token's signature against the JWKS (`enableNonRepudiationChecks`), with an integration test that forges `sub` through a proxy. 195 unit, 43 integration and 53 e2e tests. Still to do: the real sign-ins on both phones. |
 | 2026-11-02 | S1.6 Galaxy S23 FE: signed in through the Auth0 dev tenant with Google and with email/password, both linked to one user, on `https://toebeans.test:7877` (the dev server over https on the LAN: mkcert, dnsmasq, README). Found: the display name follows whichever provider signed in last (`vgebrev` from email, `Veli Gebrev` from Google). Redmi still to do. |
 | 2026-11-04 | S1.7 built. `User` gains `version` and `displayNameSource` (schema 2; schema 1 documents are read as they were chosen, so no migration). Sign-ins keep the name unless it's still the email fallback and the provider now has a real one, and write only when something changed. `GET`/`PATCH /api/v1/me`, the first versioned resource: ETag `"<version>"`, 428 without `If-Match`, 412 when stale. *Your name* on More with saving, saved, failed and conflict states, plus shadcn `input` and `label` at 48 px. `hooks.server.ts` now keeps `etag` and `x-request-id` on universal loads' responses; without it, the first load to read them failed with a 500. 233 unit, 46 integration and 59 e2e tests. |
+| 2026-11-04 | S1.6 done. Redmi Note 12 Pro on `https://toebeans.test:7877` (mkcert CA installed, Wi-Fi DNS pointed at the dev machine): the full sign-up and sign-in flow through the Auth0 dev tenant with Google and email/password works, and the display name holds as S1.7 intends whichever method signs in. |
 
-**Next up:** S1.6's real sign-ins on both phones (owner), then S2 households and invitations. The S-1 spike service and its tick stay up for the tick-interval check: 1 minute until about 9 Nov, then 5 minutes for a week (architecture 1.1 §6.3).
+**Next up:** S2 households and invitations, starting with S2.1 (onboarding, including *Your name*). The S-1 spike service and its tick stay up for the tick-interval check: 1 minute until about 9 Nov, then 5 minutes for a week (architecture 1.1 §6.3).
 
 ---
 
@@ -138,7 +141,7 @@ Work is organised as **vertical slices**: each delivers a usable end-to-end incr
 | S1.3 | Server-side sessions: hashed token as `_id`, 90-day sliding and 400-day absolute expiry, TTL index. `__Host-tb_session` cookie (unprefixed on `http` origins). `AuthContext` resolved in `hooks.server.ts`; signed-out pages redirect to sign-in, `/api` returns 401. Origin check for every non-GET request (replacing Kit's). | ✅ |
 | S1.4 | User upsert keyed by `(issuer, subject)`, refreshing email, `email_verified`, name and picture at each sign-in | ✅ |
 | S1.5 | Sign-in page (`ui.md` J1 Welcome step) with the retry message, and sign-out on More. E2e through the mock provider: sign in, deep link survives sign-in, sign out, an unknown session goes back to sign-in (expiry is covered by unit tests), a cross-origin POST is refused. | ✅ |
-| S1.6 | Rate limit the callback (architecture §7), and a real sign-in on both phones against the dev tenant (Google and email). Rate limit done. | 🟨 |
+| S1.6 | Rate limit the callback (architecture §7), and a real sign-in on both phones against the dev tenant (Google and email). Done on both phones. | ✅ |
 | S1.7 | The display name is the app's (architecture §5.2): sign-ins only replace the email fallback with a provider's real name, and *Your name* on More → Account edits it (`GET`/`PATCH /api/v1/me` with ETag and `If-Match`, `ui.md` §4.7) | ✅ |
 
 ### S2 Household and invitations ⬜
