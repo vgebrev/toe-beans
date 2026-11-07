@@ -63,7 +63,9 @@ describe('households', () => {
 						role: 'owner',
 						joinedAt: at,
 						you: true,
-						canRemove: false
+						canRemove: false,
+						canMakeOwner: false,
+						canStepDown: false
 					}
 				]
 			}
@@ -271,5 +273,91 @@ describe('people leaving a household (D18)', () => {
 		};
 		expect(await flags(asOwner)).toEqual([false, true]);
 		expect(await flags(asCaregiver(alex))).toEqual([false, false]);
+	});
+
+	describe('several owners (D19)', () => {
+		const asCoOwner = { userId: alex.id, householdId: HOUSEHOLD, role: 'owner' as const };
+		const promote = (h: Awaited<ReturnType<typeof shared>>, memberId: Id, expectedVersion = 1) =>
+			h.service.changeRole(asOwner, { memberId, role: 'owner', expectedVersion });
+		const roles = (h: Awaited<ReturnType<typeof shared>>) =>
+			household(h).memberships.map((m) => m.role);
+
+		it('lets an owner make a caregiver an owner', async () => {
+			const h = await shared(alex);
+			expect((await promote(h, alex.id)).ok).toBe(true);
+			expect(roles(h)).toEqual(['owner', 'owner']);
+			expect(household(h).version).toBe(2);
+		});
+
+		it("doesn't let a caregiver make anyone an owner, themselves included", async () => {
+			const h = await shared(alex);
+			const changed = await h.service.changeRole(asCaregiver(alex), {
+				memberId: alex.id,
+				role: 'owner',
+				expectedVersion: 1
+			});
+			expect(changed).toMatchObject({ ok: false, error: { kind: 'forbidden' } });
+			expect(roles(h)).toEqual(['owner', 'caregiver']);
+		});
+
+		it("doesn't let owners remove or demote each other", async () => {
+			const h = await shared(alex);
+			await promote(h, alex.id);
+			const memberId = sam.id;
+			expect(
+				await h.service.removeMember(asCoOwner, { memberId, expectedVersion: 2 })
+			).toMatchObject({ ok: false, error: { kind: 'forbidden' } });
+			expect(
+				await h.service.changeRole(asCoOwner, { memberId, role: 'caregiver', expectedVersion: 2 })
+			).toMatchObject({ ok: false, error: { kind: 'forbidden' } });
+			expect(roles(h)).toEqual(['owner', 'owner']);
+		});
+
+		it('lets an owner step down while another stays, but not the last one', async () => {
+			const h = await shared(alex);
+			const stepDown = (ctx: typeof asOwner, expectedVersion: number) =>
+				h.service.changeRole(ctx, { memberId: ctx.userId, role: 'caregiver', expectedVersion });
+			expect(await stepDown(asOwner, 1)).toMatchObject({
+				ok: false,
+				error: { kind: 'conflict' }
+			});
+			await promote(h, alex.id);
+			expect((await stepDown(asOwner, 2)).ok).toBe(true);
+			expect(roles(h)).toEqual(['caregiver', 'owner']);
+			expect(await stepDown(asCoOwner, 3)).toMatchObject({ ok: false });
+		});
+
+		it('hands nothing on when an owner leaves and another stays', async () => {
+			const h = await shared(alex, jo);
+			await promote(h, alex.id);
+			await h.service.removeMember(asOwner, { memberId: sam.id, expectedVersion: 2 });
+			expect(household(h).memberships.map((m) => [m.userId, m.role])).toEqual([
+				[jo.id, 'caregiver'],
+				[alex.id, 'owner']
+			]);
+		});
+
+		it('changes nothing on a stale version, or for someone not there', async () => {
+			const h = await shared(alex);
+			expect(await promote(h, alex.id, 9)).toMatchObject({
+				ok: false,
+				error: { kind: 'stale-version' }
+			});
+			expect(await promote(h, jo.id)).toMatchObject({ ok: false, error: { kind: 'not-found' } });
+		});
+
+		it('offers each person only what they can do', async () => {
+			const h = await shared(alex, jo);
+			await promote(h, alex.id);
+			const view = await h.service.view(asOwner);
+			const offers = view.ok
+				? view.value.members.map((m) => [m.canRemove, m.canMakeOwner, m.canStepDown])
+				: null;
+			expect(offers).toEqual([
+				[false, false, true],
+				[false, false, false],
+				[true, true, false]
+			]);
+		});
 	});
 });

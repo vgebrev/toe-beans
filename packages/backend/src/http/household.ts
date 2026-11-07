@@ -1,6 +1,7 @@
 // /api/v1/household and /api/v1/invitations (architecture §3.3, §5.2). Someone with no household
 // gets a 404 from anything inside one, as if they'd asked for another household's data (§4.4).
 import {
+	ChangeMemberRole,
 	CreateHousehold,
 	CreateInvitation,
 	type CreatedInvitation,
@@ -32,6 +33,10 @@ export interface HouseholdHttp {
 	removeMember(
 		viewer: Viewer,
 		input: { id: string; ifMatch: string | null }
+	): Promise<HttpResponse>;
+	changeMemberRole(
+		viewer: Viewer,
+		input: { id: string; ifMatch: string | null; body: unknown }
 	): Promise<HttpResponse>;
 	getFormer(viewer: Viewer): Promise<HttpResponse>;
 	reactivate(viewer: Viewer): Promise<HttpResponse>;
@@ -112,6 +117,20 @@ export function createHouseholdHttp(
 				expectedVersion: version.value
 			});
 			return respond(removed, () => noContent());
+		},
+
+		async changeMemberRole(viewer, { id, ifMatch, body }) {
+			if (!isMember(viewer)) return noHousehold();
+			const input = parseInput(ChangeMemberRole, body);
+			if (!input.ok) return errorResponse(input.error);
+			const version = versionFromIfMatch(ifMatch);
+			if (!version.ok) return errorResponse(version.error);
+			const changed = await households.changeRole(viewer.member, {
+				memberId: id,
+				role: input.value.role,
+				expectedVersion: version.value
+			});
+			return respond(changed, () => noContent());
 		},
 
 		async getFormer(viewer) {

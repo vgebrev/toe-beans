@@ -27,6 +27,9 @@ export interface Household {
 
 export const HOUSEHOLD_NAME_MAX = 100;
 
+export const ownerCount = (memberships: Membership[]) =>
+	memberships.filter((m) => m.role === 'owner').length;
+
 /**
  * Who's left once this person has gone. A household keeps an owner: if they were the only one, it
  * passes to whoever has been in it longest (D18).

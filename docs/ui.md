@@ -1,11 +1,13 @@
 # Toe Beans — UI and Interaction Design
 
-**Version:** 0.10 (draft for iteration)
+**Version:** 0.11 (draft for iteration)
 **Date:** 7 November 2026
 **Status:** Proposed. Review-round decisions in §8 are accepted.
-**Inputs:** `docs/requirements.md` v1.0, `docs/architecture.md` v1.4
+**Inputs:** `docs/requirements.md` v1.0, `docs/architecture.md` v1.5
 
 **Changes in 0.7:** the logo landed (S0.9). The mark is now a **TB monogram** with four toe beans above it and a heart-shaped bean in the B, from the AI-assisted design board (Monogram Iteration B), replacing the placeholder paw. It was traced from the board and cleaned up rather than redrawn by hand; the variants are the brown-on-cream mark, a cream-on-brown app-icon tile (favicon and maskable) and a white badge. The wordmark uses Fredoka Bold to match the board (§6.4 Logo).
+
+**Changes in 0.11:** §4.8 gains *Make owner* and *Step down* (architecture 1.5 D19).
 
 **Changes in 0.10:** S2 built. New §4.8 Household. J2 gains a state for someone already in another household and for a link that isn't valid, and a refused accept reloads the page to say why (architecture 1.4 D16). J1 step 5 says a link works once. `/household/invites` folds into `/household` (§2.3). §4.8 gains *Remove* and *Leave household*, and J1 step 3 offers *Rejoin* to the last person out of a household (architecture D18).
 
@@ -274,7 +276,7 @@ On More. **Your name** is a text field (48 px, `autocomplete="name"`, up to 100 
 
 On More as **Household & invites**, showing the household's name; the page keeps the More tab marked and links back to it.
 
-- **Members:** display name, "(you)", and role. No emails: the household knows each other by name. An owner sees *Remove* on everyone else, confirmed in a bottom sheet (§5.3) saying they lose access and that their invites stop working. Afterwards "[name] removed" shows at the top of the page.
+- **Members:** display name, "(you)", and role. No emails: the household knows each other by name. An owner sees *Make owner* and *Remove* on each caregiver, each confirmed in a bottom sheet (§5.3): *Remove* says they lose access and that their invites stop working, and *Make owner* says owners can't remove each other, so only they can step down. An owner sees *Step down* on their own row while another owner stays (architecture D19). Afterwards the result shows at the top of the page.
 - **Pending invites:** invitations that can still be used, showing the address or "Invite link", who sent it and until when. *Revoke* appears for an owner, or on your own invitation (architecture D17), and confirms in a bottom sheet naming it (§5.3). If it failed the sheet stays open with **Retry**; if the invitation changed meanwhile, nothing is revoked, the sheet closes and the page says so above the refreshed list.
 - **Invite a caregiver:** the same controls as J1 step 5. *Create an invite link* shows the link once, in a read-only field, with its terms and *Share link* (the share sheet, or copy as the fallback). It's only ever available on this screen at creation, because only its hash is kept (architecture §5.2). *Send invite* keeps the address after a failure, and shows "Invite sent to …" politely once the server has sent it.
 - **Leave household:** at the foot of the page, for everyone, confirmed in a bottom sheet that says what follows: who becomes the owner, that coming back takes a new invite, or for the last person, that the household is deactivated and they can rejoin it. Leaving goes to *Create household* (J1 step 3).

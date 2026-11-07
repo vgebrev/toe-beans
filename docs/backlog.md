@@ -1,8 +1,8 @@
 # Toe Beans — Backlog
 
-**Version:** 0.18 (draft for iteration)
+**Version:** 0.19 (draft for iteration)
 **Date:** 7 November 2026
-**Inputs:** `docs/requirements.md` v1.0, `docs/architecture.md` v1.4, `docs/ui.md` v0.10
+**Inputs:** `docs/requirements.md` v1.0, `docs/architecture.md` v1.5, `docs/ui.md` v0.11
 
 **Changes in 0.3:** spike results S-1.0 to S-1.4 and S0.1–S0.2 recorded as they landed (see Current progress). S-1.4b dropped as not needed, S-1.5 parked, S-1.4a retargeted to `toebeans.co.za`.
 
@@ -25,6 +25,8 @@
 **Changes in 0.12:** the S0 Foundations heading is marked done (all ten tasks were). S1 started: its tasks follow the sign-in design in architecture 0.13 §3.4 (two EU Auth0 tenants with a prod custom domain, Mongo-backed sessions, a mock OIDC provider for e2e), with a new S1.5 for the sign-in page and its e2e tests. Setup steps are in `docs/runbooks/auth0.md`. S1.2–S1.5 done, with account linking by verified email (Q10).
 
 **Changes in 0.13:** S-1.3 done and S-1.6 done (D8 and D9 accepted), so the S-1 spikes story is closed, with S-1.5 still parked as the self-host check. Architecture is accepted as baseline v1.0. Leftovers that named S-1.6 (deploy workflow, registry, trace correlation) belong to S14.1.
+
+**Changes in 0.19:** new S2.7 lets a household have several owners (architecture 1.5 D19, `ui.md` 0.11 §4.8).
 
 **Changes in 0.18:** S2 built (see Current progress), following architecture 1.4 D16 and D17 and `ui.md` 0.10 §4.8. S2.1 to S2.5 done, S2.3 with a real invite sent through Resend and accepted on the Redmi Note 12 Pro. New S2.6 adds leaving and removing members (architecture 1.4 D18, `ui.md` 0.10 §4.8). S2 also builds J1's invite step, which no slice named. S3.4's onboarding step is renumbered to 4, and S14.1 gains the Resend key prod now requires.
 
@@ -86,6 +88,7 @@ Work is organised as **vertical slices**: each delivers a usable end-to-end incr
 | 2026-11-04 | S1.6 done. Redmi Note 12 Pro on `https://toebeans.test:7877` (mkcert CA installed, Wi-Fi DNS pointed at the dev machine): the full sign-up and sign-in flow through the Auth0 dev tenant with Google and email/password works, and the display name holds as S1.7 intends whichever method signs in. |
 | 2026-11-06 | S2 built. Households with a unique index holding each person to one (D16), onboarding (*Your name*, *Create household*, *Invite a caregiver*), and a gate sending anyone without a household there. Invitations by link and email on D17's terms (any member invites; one person, 7 days), with `/join/:token` covering every J2 state, and accepting as one transaction with an atomic claim, tested against real Mongo: two people can't share a use, and a failed join doesn't spend it. Household screen with members, pending invites and revoke in a bottom sheet (shadcn `sheet`, its lucide icon swapped for `<Icon>`). E2e covers scenario 1 by link and scenario 9. Found on the way: any API error in a server render was a 500, because the client reads `content-type` and Kit only keeps listed headers. `EMAIL_SENDER` chooses the console, Mailpit or Resend sender, so a key on a dev machine sends nothing by itself. Not yet tried: a real Resend send, and the Android share sheet on the phones. |
 | 2026-11-07 | S2.3 done: the owner created a household and followed invites through Mailpit and through real Resend mail, accepting on the Redmi Note 12 Pro, so the golden path is verified. S2.6 built from that review, with D16 and D17 confirmed: leaving, removing, succession, deactivating and rejoining (D18). Migration 0003 was needed, as the unique index refused a second household with no members. Not yet tried: these on a phone, and the Android share sheet. |
+| 2026-11-07 | S2.7 built: several owners on D19's terms. |
 
 **Next up:** S3 dogs and profile photos, with the Android share sheet checked on a phone along the way. The S-1 spike service and its tick stay up for the tick-interval check: 1 minute until about 9 Nov, then 5 minutes for a week (architecture 1.1 §6.3).
 
@@ -159,6 +162,7 @@ Work is organised as **vertical slices**: each delivers a usable end-to-end incr
 | S2.4 | Household screen: members, pending invites, revoke | ✅ |
 | S2.5 | Isolation end-to-end test: an outsider can't read or accept another household's data or invites by changing IDs | ✅ |
 | S2.6 | Leaving and removing members (D18): ownership passes on, the last person out deactivates the household and can rejoin it, and removal revokes the invitations someone could return with. | ✅ |
+| S2.7 | Several owners (D19): *Make owner* and *Step down*; owners can't remove or demote each other. | ✅ |
 
 ### S3 Dogs and profile photos ⬜
 *FR-02, scenario 2.*

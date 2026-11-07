@@ -517,3 +517,54 @@ test('removing someone from an older page changes nothing, and says so (D18)', a
 	await expect(page.getByText('The household changed a moment ago')).toBeVisible();
 	await expect(page.getByRole('button', { name: `Remove ${person.name}` })).toHaveCount(0);
 });
+
+test('owners share the household: promoted, safe from each other, and free to step down (D19)', async ({
+	page,
+	browser,
+	baseURL
+}) => {
+	const { caregiver, person } = await twoPeople(page, browser, baseURL!);
+	await page.goto('/household');
+	await page.getByRole('button', { name: `Make ${person.name} an owner` }).click();
+	const sheet = page.getByRole('dialog');
+	await expect(sheet).toContainText("Owners can't remove each other");
+	await sheet.getByRole('button', { name: `Make ${person.name} an owner` }).click();
+	await expect(page.getByText(`${person.name} is now an owner`)).toBeVisible();
+	await expect(page.getByRole('button', { name: `Remove ${person.name}` })).toHaveCount(0);
+
+	// The new owner can't remove the first one, even by calling the API.
+	await caregiver.goto('/household');
+	await expect(caregiver.getByRole('button', { name: /^Remove/ })).toHaveCount(0);
+	const household = await caregiver.request.get('/api/v1/household');
+	const { members } = await household.json();
+	const other = members.find((m: { you: boolean }) => !m.you).id;
+	const refused = await caregiver.request.delete(`/api/v1/household/members/${other}`, {
+		headers: { origin: baseURL!, 'if-match': household.headers()['etag']! }
+	});
+	expect(refused.status()).toBe(403);
+
+	await page.getByRole('button', { name: 'Step down' }).click();
+	await sheet.getByRole('button', { name: 'Step down' }).click();
+	await expect(page.getByText("You've stepped down as owner")).toBeVisible();
+	await expect(page.getByRole('listitem').filter({ hasText: '(you)' })).toContainText('Caregiver');
+	await expect(page.getByRole('button', { name: /^Make/ })).toHaveCount(0);
+
+	// The last owner has nobody to hand over to, so isn't offered it.
+	await caregiver.reload();
+	await expect(caregiver.getByRole('button', { name: 'Step down' })).toHaveCount(0);
+	await caregiver.context().close();
+});
+
+test('with two owners, one leaving hands nothing on (D19)', async ({ page, browser, baseURL }) => {
+	const { caregiver, person } = await twoPeople(page, browser, baseURL!);
+	await page.goto('/household');
+	await page.getByRole('button', { name: `Make ${person.name} an owner` }).click();
+	await page.getByRole('dialog').getByRole('button', { name: /^Make/ }).click();
+	await expect(page.getByText(`${person.name} is now an owner`)).toBeVisible();
+
+	await page.getByRole('button', { name: 'Leave household' }).click();
+	const sheet = page.getByRole('dialog');
+	await expect(sheet).toContainText("You'll need a new invite to come back.");
+	await expect(sheet).not.toContainText('becomes the owner');
+	await caregiver.context().close();
+});

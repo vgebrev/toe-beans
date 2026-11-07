@@ -12,8 +12,11 @@ export const Member = z.object({
 	joinedAt: z.iso.datetime(),
 	/** This member is the person asking. */
 	you: z.boolean(),
-	/** Whether the person asking may remove them: an owner, for anyone but themselves. */
-	canRemove: z.boolean()
+	/** The rest say what the person asking may do here (architecture D19). */
+	canRemove: z.boolean(),
+	canMakeOwner: z.boolean(),
+	/** On your own row, when another owner would stay. */
+	canStepDown: z.boolean()
 });
 export type Member = z.infer<typeof Member>;
 
@@ -24,6 +27,9 @@ export const Household = z.object({
 	members: z.array(Member)
 });
 export type Household = z.infer<typeof Household>;
+
+export const ChangeMemberRole = z.strictObject({ role: Role });
+export type ChangeMemberRole = z.infer<typeof ChangeMemberRole>;
 
 /** What someone without a household can bring back: the one they were the last to leave. */
 export const FormerHousehold = z.object({ name: z.string() });

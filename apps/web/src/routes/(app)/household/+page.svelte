@@ -23,6 +23,8 @@
 	type Action =
 		| { kind: 'revoke'; invitation: Invitation }
 		| { kind: 'remove'; member: Member }
+		| { kind: 'promote'; member: Member }
+		| { kind: 'step-down'; member: Member }
 		| { kind: 'leave'; member: Member };
 
 	let action = $state<Action | null>(null);
@@ -40,7 +42,8 @@
 			return `Nobody will be left in ${household}, so it's deactivated and its pending invites stop working. You can rejoin it later.`;
 		}
 		const back = "You'll need a new invite to come back.";
-		return you?.role === 'owner' ? `${next.displayName} becomes the owner. ${back}` : back;
+		const lastOwner = you?.role === 'owner' && !others.some((m) => m.role === 'owner');
+		return lastOwner ? `${next.displayName} becomes the owner. ${back}` : back;
 	}
 
 	const sheet = $derived.by(() => {
@@ -52,6 +55,22 @@
 					confirm: `Remove ${action.member.displayName}`,
 					working: 'Removing…',
 					failed: "Couldn't remove them — check your connection."
+				};
+			case 'promote':
+				return {
+					title: `Make ${action.member.displayName} an owner?`,
+					description: `They'll be able to remove caregivers, revoke any invite and make others owners. Owners can't remove each other, so you can't undo this: only they can step down.`,
+					confirm: `Make ${action.member.displayName} an owner`,
+					working: 'Saving…',
+					failed: "Couldn't save — check your connection."
+				};
+			case 'step-down':
+				return {
+					title: 'Step down as owner?',
+					description: `You'll stay in ${data.household.name} as a caregiver. Another owner can make you an owner again.`,
+					confirm: 'Step down',
+					working: 'Saving…',
+					failed: "Couldn't save — check your connection."
 				};
 			case 'leave':
 				return {
@@ -81,12 +100,25 @@
 		sheetOpen = true;
 	}
 
-	const send = (current: Action) =>
-		current.kind === 'revoke'
-			? api.send('DELETE', `/household/invitations/${current.invitation.id}`, {
-					ifMatch: current.invitation.etag
-				})
-			: api.send('DELETE', `/household/members/${current.member.id}`, { ifMatch: data.etag });
+	function send(current: Action) {
+		if (current.kind === 'revoke') {
+			const { id, etag } = current.invitation;
+			return api.send('DELETE', `/household/invitations/${id}`, { ifMatch: etag });
+		}
+		const path = `/household/members/${current.member.id}`;
+		if (current.kind === 'promote' || current.kind === 'step-down') {
+			const role = current.kind === 'promote' ? 'owner' : 'caregiver';
+			return api.send('PATCH', path, { body: { role }, ifMatch: data.etag });
+		}
+		return api.send('DELETE', path, { ifMatch: data.etag });
+	}
+
+	const done = {
+		revoke: () => 'Invite revoked',
+		remove: (name: string) => `${name} removed`,
+		promote: (name: string) => `${name} is now an owner`,
+		'step-down': () => "You've stepped down as owner"
+	};
 
 	async function confirm() {
 		if (!action) return;
@@ -99,8 +131,7 @@
 				await goto(resolve('/onboarding/household'), { invalidateAll: true });
 				return;
 			}
-			notice =
-				current.kind === 'revoke' ? 'Invite revoked' : `${current.member.displayName} removed`;
+			notice = done[current.kind](current.kind === 'revoke' ? '' : current.member.displayName);
 			await invalidateAll();
 			return;
 		}
@@ -139,7 +170,7 @@
 			<ul class="flex flex-col gap-2">
 				{#each data.details.members as member (member.id)}
 					<li
-						class="flex items-center justify-between gap-3 rounded-2xl border border-border px-4 py-3"
+						class="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border px-4 py-3"
 					>
 						<span class="flex min-w-0 flex-col">
 							<span class="truncate font-bold">
@@ -147,16 +178,37 @@
 							</span>
 							<span class="text-sm text-muted-foreground">{roles[member.role]}</span>
 						</span>
-						{#if member.canRemove}
-							<Button
-								type="button"
-								variant="outline"
-								aria-label={`Remove ${member.displayName}`}
-								onclick={() => ask({ kind: 'remove', member })}
-							>
-								Remove
-							</Button>
-						{/if}
+						<span class="flex flex-wrap gap-2 empty:hidden">
+							{#if member.canMakeOwner}
+								<Button
+									type="button"
+									variant="outline"
+									aria-label={`Make ${member.displayName} an owner`}
+									onclick={() => ask({ kind: 'promote', member })}
+								>
+									Make owner
+								</Button>
+							{/if}
+							{#if member.canRemove}
+								<Button
+									type="button"
+									variant="outline"
+									aria-label={`Remove ${member.displayName}`}
+									onclick={() => ask({ kind: 'remove', member })}
+								>
+									Remove
+								</Button>
+							{/if}
+							{#if member.canStepDown}
+								<Button
+									type="button"
+									variant="outline"
+									onclick={() => ask({ kind: 'step-down', member })}
+								>
+									Step down
+								</Button>
+							{/if}
+						</span>
 					</li>
 				{/each}
 			</ul>
@@ -237,7 +289,7 @@
 		{/if}
 		<Button
 			type="button"
-			variant="destructive"
+			variant={action?.kind === 'promote' ? 'default' : 'destructive'}
 			class="w-full"
 			disabled={status === 'working'}
 			onclick={confirm}

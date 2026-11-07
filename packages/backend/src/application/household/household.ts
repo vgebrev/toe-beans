@@ -5,6 +5,7 @@ import {
 	cleanHouseholdName,
 	cleanTimeZone,
 	membersAfterLeaving,
+	ownerCount,
 	type Household,
 	type Role
 } from '../../domain/household.js';
@@ -12,6 +13,7 @@ import type { Id } from '../../domain/id.js';
 import { err, ok, type Result } from '../../domain/result.js';
 import type { AuthContext, MemberContext } from '../auth/auth.js';
 import {
+	conflictError,
 	forbidden,
 	notFound,
 	type ConflictError,
@@ -29,6 +31,8 @@ export interface MemberView {
 	joinedAt: Date;
 	you: boolean;
 	canRemove: boolean;
+	canMakeOwner: boolean;
+	canStepDown: boolean;
 }
 
 export interface HouseholdView {
@@ -55,12 +59,25 @@ export function createHouseholds({
 	async function viewOf(household: Household, userId: Id): Promise<HouseholdView> {
 		const people = await users.findByIds(household.memberships.map((m) => m.userId));
 		const names = new Map(people.map((u) => [u.id, u.displayName]));
+		const owners = ownerCount(household.memberships);
 		const isOwner = household.memberships.some((m) => m.userId === userId && m.role === 'owner');
 		const members = household.memberships.flatMap(({ userId: id, role, joinedAt }) => {
 			const displayName = names.get(id);
 			if (displayName === undefined) return [];
 			const you = id === userId;
-			return [{ id, displayName, role, joinedAt, you, canRemove: isOwner && !you }];
+			const caregiver = role === 'caregiver';
+			return [
+				{
+					id,
+					displayName,
+					role,
+					joinedAt,
+					you,
+					canRemove: isOwner && caregiver,
+					canMakeOwner: isOwner && caregiver,
+					canStepDown: you && !caregiver && owners > 1
+				}
+			];
 		});
 		const { name, timeZone, version } = household;
 		return { name, timeZone, members, version };
@@ -107,8 +124,8 @@ export function createHouseholds({
 		},
 
 		/**
-		 * Takes someone out, which is leaving when it's the person asking; removing anyone else
-		 * takes an owner. Someone removed loses the invitations they could come back with. The last
+		 * Takes someone out, which is leaving when it's the person asking; removing a caregiver
+		 * takes an owner, and owners can't remove each other (D19). Someone removed loses the invitations they could come back with. The last
 		 * person out deactivates the household, and with nobody left to watch its invitations, they
 		 * all stop working: a link accepted now would hand a stranger the household.
 		 */
@@ -119,10 +136,12 @@ export function createHouseholds({
 			const leaving = input.memberId === ctx.userId;
 			if (!leaving && ctx.role !== 'owner') return err(forbidden);
 			const { householdId } = ctx;
-			const result = await uow.run<void, NotFoundError | StaleVersionError>(async () => {
+			type Failure = NotFoundError | ForbiddenError | StaleVersionError;
+			const result = await uow.run<void, Failure>(async () => {
 				const household = await households.find(householdId);
 				const member = household?.memberships.find((m) => m.userId === input.memberId);
 				if (!household || !member) return err(notFound('member'));
+				if (!leaving && member.role === 'owner') return err(forbidden);
 				const at = clock.now();
 				const written = { expectedVersion: input.expectedVersion, at };
 				const remaining = membersAfterLeaving(household.memberships, member.userId);
@@ -150,6 +169,39 @@ export function createHouseholds({
 				log.info(event, { householdId, userId: input.memberId });
 			}
 			return result;
+		},
+
+		/**
+		 * Only owners change roles. An owner can make a caregiver an owner, or step down themselves
+		 * while another owner stays, but can't demote anyone else (D19).
+		 */
+		async changeRole(
+			ctx: MemberContext,
+			input: { memberId: string; role: Role; expectedVersion: number }
+		): Promise<Result<void, NotFoundError | ForbiddenError | ConflictError | StaleVersionError>> {
+			if (ctx.role !== 'owner') return err(forbidden);
+			const { householdId } = ctx;
+			const household = await households.find(householdId);
+			const member = household?.memberships.find((m) => m.userId === input.memberId);
+			if (!household || !member) return err(notFound('member'));
+			if (member.role === input.role) return ok(undefined);
+			if (input.role === 'caregiver') {
+				if (member.userId !== ctx.userId) return err(forbidden);
+				if (ownerCount(household.memberships) < 2) {
+					return err(conflictError('A household needs an owner.'));
+				}
+			}
+			const memberships = household.memberships.map((m) =>
+				m.userId === member.userId ? { ...m, role: input.role } : m
+			);
+			const saved = await households.setMembers(householdId, memberships, {
+				expectedVersion: input.expectedVersion,
+				at: clock.now()
+			});
+			if (saved.ok) {
+				log.info('member role changed', { householdId, userId: member.userId, role: input.role });
+			}
+			return saved;
 		},
 
 		/** The name of the household this person can bring back, if there is one. */
