@@ -1,11 +1,13 @@
 # Toe Beans — UI and Interaction Design
 
-**Version:** 0.9 (draft for iteration)
-**Date:** 4 November 2026
+**Version:** 0.10 (draft for iteration)
+**Date:** 7 November 2026
 **Status:** Proposed. Review-round decisions in §8 are accepted.
-**Inputs:** `docs/requirements.md` v1.0, `docs/architecture.md` v1.3
+**Inputs:** `docs/requirements.md` v1.0, `docs/architecture.md` v1.4
 
 **Changes in 0.7:** the logo landed (S0.9). The mark is now a **TB monogram** with four toe beans above it and a heart-shaped bean in the B, from the AI-assisted design board (Monogram Iteration B), replacing the placeholder paw. It was traced from the board and cleaned up rather than redrawn by hand; the variants are the brown-on-cream mark, a cream-on-brown app-icon tile (favicon and maskable) and a white badge. The wordmark uses Fredoka Bold to match the board (§6.4 Logo).
+
+**Changes in 0.10:** S2 built. New §4.8 Household. J2 gains a state for someone already in another household and for a link that isn't valid, and a refused accept reloads the page to say why (architecture 1.4 D16). J1 step 5 says a link works once. `/household/invites` folds into `/household` (§2.3). §4.8 gains *Remove* and *Leave household*, and J1 step 3 offers *Rejoin* to the last person out of a household (architecture D18).
 
 **Changes in 0.9:** new §4.7 Account: the name the household sees is edited on More, following §5.2 (architecture 1.3 §5.2). J1 gains a *Your name* step before Create household, built with S2.
 
@@ -76,7 +78,7 @@ A **floating "+" button** on Today, Plan and History opens a chooser: *Log train
 /library, /library/:exerciseId
 /cues
 /dogs, /dogs/new, /dogs/:id
-/household, /household/invites
+/household
 /settings/notifications
 /join/:token            invitation acceptance
 /onboarding/*           first-run flow
@@ -92,11 +94,11 @@ Each journey maps to a requirements acceptance scenario (§5 there).
 
 1. **Welcome.** Short value statement. **Sign in** → IdP (Google or email).
 2. **Your name:** "What should your household call you?", filled in with the name from sign-in, which for an email sign-up is only the start of the address. Saved like Account's name field (§4.7). Built with S2.
-3. **Create household:** name and time zone (detected from the device, editable).
+3. **Create household:** name and time zone (detected from the device, editable). Someone who was the last to leave a household also sees *Rejoin [household]* above the form, which brings it back with them as owner (architecture D18).
 4. **Add your dog:** photo first (camera or gallery, crop to a circle preview), then name, birth date or estimated age (toggle *I know the date* / *Approximate: months old*), adoption date, notes. A dog can't be saved without a photo. The UI explains why ("helps everyone see at a glance which dog an entry is for").
 5. **Invite a caregiver** (skippable):
    - *Send email invite*, or *Share link* through the Android share sheet (`navigator.share`), with copy as the fallback.
-   - Shows the link's expiry (default 7 days).
+   - Shows the link's expiry (7 days), and that it works once. Inviting two people takes two links (architecture D17).
 6. **Turn on reminders** (skippable). See J7.
 7. **Install prompt** if not yet installed (§6.3). Then land on **Today**, with an empty state that suggests scheduling a first exercise from the library.
 
@@ -111,6 +113,10 @@ Each journey maps to a requirements acceptance scenario (§5 there).
   - already used
   - email mismatch ("This invite was sent to j•••@gmail.com. Sign in with that address.")
   - already a member
+  - already in another household: each person can be in one for now (architecture D16), so it offers *Use a different account*
+  - a link that isn't valid (unknown, or cleared 30 days after it expired)
+
+A dead invitation (expired, revoked, used) doesn't name its household. Accepting doesn't ask for anything else, so an invitee who signed up with email keeps the name from their address until they change it on More. If an accept is refused, the page reloads the invitation and shows the state above; if it fails, it says "Couldn't join — check your connection." with **Retry**.
 
 ### J3 — Plan and practise (scenario 3)
 
@@ -263,6 +269,16 @@ On More. **Your name** is a text field (48 px, `autocomplete="name"`, up to 100 
 - *Save* is enabled only when the name changed and isn't blank. Saving follows §5.2, but inline, since there's no sheet: "Saving…" on the button, then "Saved" beside it (announced politely). A failed save keeps the typed name, shows "Couldn't save — check your connection." and turns the button into **Retry**.
 - A conflict (the name was saved elsewhere, e.g. on another device) says "Your name was changed somewhere else a moment ago." with *See the new name* and *Keep mine*. It's the person's own record, so overwriting is offered (§5.2).
 - If the account can't be loaded, the name and email show as text, with "Couldn't load your account details. Reload the page to change your name."
+
+### 4.8 Household
+
+On More as **Household & invites**, showing the household's name; the page keeps the More tab marked and links back to it.
+
+- **Members:** display name, "(you)", and role. No emails: the household knows each other by name. An owner sees *Remove* on everyone else, confirmed in a bottom sheet (§5.3) saying they lose access and that their invites stop working. Afterwards "[name] removed" shows at the top of the page.
+- **Pending invites:** invitations that can still be used, showing the address or "Invite link", who sent it and until when. *Revoke* appears for an owner, or on your own invitation (architecture D17), and confirms in a bottom sheet naming it (§5.3). If it failed the sheet stays open with **Retry**; if the invitation changed meanwhile, nothing is revoked, the sheet closes and the page says so above the refreshed list.
+- **Invite a caregiver:** the same controls as J1 step 5. *Create an invite link* shows the link once, in a read-only field, with its terms and *Share link* (the share sheet, or copy as the fallback). It's only ever available on this screen at creation, because only its hash is kept (architecture §5.2). *Send invite* keeps the address after a failure, and shows "Invite sent to …" politely once the server has sent it.
+- **Leave household:** at the foot of the page, for everyone, confirmed in a bottom sheet that says what follows: who becomes the owner, that coming back takes a new invite, or for the last person, that the household is deactivated and they can rejoin it. Leaving goes to *Create household* (J1 step 3).
+- If the household changed while a sheet was open, nothing is done, the sheet closes and the top of the page says so above the refreshed members. A failure keeps the sheet open with **Retry**, as for revoking.
 
 ---
 
