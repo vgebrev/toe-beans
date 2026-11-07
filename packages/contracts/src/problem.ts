@@ -8,6 +8,8 @@ export const problemTypes = [
 	'toe-beans/not-found',
 	'toe-beans/conflict',
 	'toe-beans/precondition-required',
+	'toe-beans/rate-limited',
+	'toe-beans/unavailable',
 	'toe-beans/internal'
 ] as const;
 

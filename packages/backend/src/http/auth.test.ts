@@ -7,7 +7,12 @@ import { serializeCookie } from './response.js';
 
 const TOKEN = 'T'.repeat(43);
 const HANDLE = 'H'.repeat(43);
-const viewer = { auth: { userId: 'u' as never }, displayName: 'Sam', email: 'sam@example.com' };
+const viewer = {
+	auth: { userId: 'u' as never },
+	displayName: 'Sam',
+	email: 'sam@example.com',
+	member: null
+};
 
 function fakeAuth(overrides: Partial<Auth> = {}): Auth {
 	return {

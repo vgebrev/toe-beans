@@ -10,7 +10,7 @@ export interface UnauthenticatedError {
 	kind: 'unauthenticated';
 }
 
-/** Signed in and in the household, but the role can't do this (e.g. a caregiver revoking an invite). */
+/** Signed in and in the household, but the role can't do this (e.g. a caregiver revoking someone else's invite). */
 export interface ForbiddenError {
 	kind: 'forbidden';
 }
@@ -34,16 +34,34 @@ export interface PreconditionRequiredError {
 	kind: 'precondition-required';
 }
 
+/** Too many attempts from this caller; they can try again later. */
+export interface RateLimitedError {
+	kind: 'rate-limited';
+}
+
+/** Something outside the app, such as the email provider, didn't work. Trying again may. */
+export interface UnavailableError {
+	kind: 'unavailable';
+	message: string;
+}
+
 export type AppError =
 	| DomainError
 	| UnauthenticatedError
 	| ForbiddenError
 	| NotFoundError
 	| StaleVersionError
-	| PreconditionRequiredError;
+	| PreconditionRequiredError
+	| RateLimitedError
+	| UnavailableError;
 
 export const unauthenticated: UnauthenticatedError = { kind: 'unauthenticated' };
 export const forbidden: ForbiddenError = { kind: 'forbidden' };
 export const notFound = (resource: string): NotFoundError => ({ kind: 'not-found', resource });
 export const staleVersion: StaleVersionError = { kind: 'stale-version' };
 export const preconditionRequired: PreconditionRequiredError = { kind: 'precondition-required' };
+export const rateLimited: RateLimitedError = { kind: 'rate-limited' };
+export const unavailable = (message: string): UnavailableError => ({
+	kind: 'unavailable',
+	message
+});

@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { createIdGenerator } from '../../domain/id.js';
+import { createIdGenerator, type Id } from '../../domain/id.js';
 import { err, ok } from '../../domain/result.js';
 import { hashSecretToken } from '../../domain/secret-token.js';
 import {
@@ -10,6 +10,7 @@ import {
 	memoryUsers
 } from '../../testing/auth.js';
 import { manualClock } from '../../testing/clock.js';
+import { memoryHouseholds } from '../../testing/household.js';
 import type { IdentityClaims, Logger } from '../ports/index.js';
 import {
 	createAuth,
@@ -27,6 +28,7 @@ function setup() {
 	const clock = manualClock('2026-11-01T10:00:00Z');
 	const identity = fakeIdentityProvider();
 	const users = memoryUsers();
+	const households = memoryHouseholds();
 	const sessions = memorySessions();
 	const logger: Logger = {
 		debug: vi.fn(),
@@ -39,6 +41,7 @@ function setup() {
 		{
 			identity,
 			users,
+			households,
 			sessions,
 			pendingSignIns: memoryPendingSignIns(),
 			uow: directUnitOfWork,
@@ -48,7 +51,7 @@ function setup() {
 		},
 		{ callbackUri, postSignOutUri: 'https://app.example/' }
 	);
-	return { auth, clock, identity, users, sessions, logger };
+	return { auth, clock, identity, users, households, sessions, logger };
 }
 
 const google = (overrides: Partial<IdentityClaims> = {}): IdentityClaims => ({
@@ -300,8 +303,31 @@ describe('auth', () => {
 				viewer: {
 					auth: { userId: t.users.all()[0]!.id },
 					displayName: 'Sam Doe',
-					email: 'sam@example.com'
+					email: 'sam@example.com',
+					member: null
 				}
+			});
+		});
+
+		it('resolves the household from the membership, never from the request', async () => {
+			const token = await session();
+			const user = t.users.all()[0]!;
+			const householdId = 'h1' as Id;
+			await t.households.insert({
+				id: householdId,
+				name: 'The Does',
+				timeZone: 'Africa/Johannesburg',
+				memberships: [{ userId: user.id, role: 'caregiver', joinedAt: t.clock.now() }],
+				version: 1,
+				createdAt: t.clock.now(),
+				updatedAt: t.clock.now()
+			});
+			expect((await t.auth.authenticate(token))?.viewer.member).toEqual({
+				userId: user.id,
+				householdId,
+				role: 'caregiver',
+				householdName: 'The Does',
+				timeZone: 'Africa/Johannesburg'
 			});
 		});
 

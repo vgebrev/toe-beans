@@ -1,5 +1,6 @@
-// A person who signs in (architecture §5.2). Not household-owned: households come in S2.
+// A person who signs in (architecture §5.2). Not household-owned: a household lists its members.
 import type { Id } from './id.js';
+import { cleanName } from './name.js';
 
 /** One way of signing in: an OIDC issuer and that issuer's stable ID for the person. */
 export interface Identity {
@@ -70,14 +71,6 @@ export function nameAfterSignIn(current: DisplayName, fromProvider: DisplayName)
 	return upgrade ? fromProvider : current;
 }
 
-/**
- * A name the person typed: surrounding and repeated whitespace removed, 1 to 100 characters, no
- * control characters. Emoji are fine. Null when it isn't acceptable.
- */
-export function cleanDisplayName(input: string): string | null {
-	const name = input.normalize('NFC').trim().replace(/\s+/g, ' ');
-	if (name.length === 0 || [...name].length > DISPLAY_NAME_MAX) return null;
-	// Control characters, and the bidi controls that can make a name display as another.
-	if (/[\p{Cc}\u202a-\u202e\u2066-\u2069]/u.test(name)) return null;
-	return name;
-}
+/** A name the person typed, tidied, or null when it isn't acceptable. */
+export const cleanDisplayName = (input: string): string | null =>
+	cleanName(input, DISPLAY_NAME_MAX);

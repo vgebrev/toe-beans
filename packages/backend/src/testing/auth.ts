@@ -51,6 +51,8 @@ export function memoryUsers(): UserRepository & { all(): User[] } {
 	return {
 		all: () => structuredClone([...users.values()]),
 		findById: async (id) => find((u) => u.id === id),
+		findByIds: async (ids) =>
+			structuredClone([...users.values()].filter((u) => ids.includes(u.id))),
 		findByIdentity: async (issuer, subject) =>
 			find((u) => u.identities.some((i) => i.issuer === issuer && i.subject === subject)),
 		findByEmail: async (email) => find((u) => u.email === email),

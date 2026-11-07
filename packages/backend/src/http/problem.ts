@@ -40,6 +40,20 @@ export function toProblem(error: AppError): Problem {
 				status: 428,
 				detail: 'Send the ETag from the last read, so a newer change is not overwritten.'
 			};
+		case 'rate-limited':
+			return {
+				type: 'toe-beans/rate-limited',
+				title: 'Too many attempts',
+				status: 429,
+				detail: 'Please wait a few minutes, then try again.'
+			};
+		case 'unavailable':
+			return {
+				type: 'toe-beans/unavailable',
+				title: 'That did not work',
+				status: 503,
+				detail: error.message
+			};
 		default:
 			return unreachable(error);
 	}

@@ -80,6 +80,10 @@ export function mongoUsers(db: Db): UserRepository {
 	};
 	return {
 		findById: (id) => one({ _id: id }),
+		async findByIds(ids) {
+			const docs = await users.find({ _id: { $in: ids } }, { session: currentSession() }).toArray();
+			return docs.map(toUser);
+		},
 		findByIdentity: (issuer, subject) => one({ 'identities.key': identityKey(issuer, subject) }),
 		findByEmail: (email) => one({ email }),
 		async insert(user) {

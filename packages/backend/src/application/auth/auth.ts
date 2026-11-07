@@ -1,5 +1,6 @@
 // Sign-in, sessions and sign-out (architecture §3.4, NFR-01). The http layer turns these results
 // into redirects and cookies; nothing here knows about either.
+import type { Household, Role } from '../../domain/household.js';
 import type { Id } from '../../domain/id.js';
 import { err, ok, type Result } from '../../domain/result.js';
 import { hashSecretToken, isSecretToken, newSecretToken } from '../../domain/secret-token.js';
@@ -8,10 +9,19 @@ import type { IdentityClaims, Ports, SignInProfile } from '../ports/index.js';
 
 /**
  * Who is making a request, resolved from the session. Use cases take it explicitly and never read
- * a request (architecture §4.2). S2 adds `householdId` and `role` from the membership.
+ * a request (architecture §4.2).
  */
 export interface AuthContext {
 	userId: Id;
+}
+
+/**
+ * Someone acting inside their household. `householdId` only ever comes from here, resolved from
+ * the membership, never from a request (architecture §4.4).
+ */
+export interface MemberContext extends AuthContext {
+	householdId: Id;
+	role: Role;
 }
 
 /** The signed-in person, as the app shows them. */
@@ -19,6 +29,22 @@ export interface Viewer {
 	auth: AuthContext;
 	displayName: string;
 	email: string;
+	/** Null until they create or join a household. */
+	member: (MemberContext & { householdName: string; timeZone: string }) | null;
+}
+
+export type MemberViewer = Viewer & { member: NonNullable<Viewer['member']> };
+
+function memberOf(household: Household | null, userId: Id): Viewer['member'] {
+	const membership = household?.memberships.find((m) => m.userId === userId);
+	if (!household || !membership) return null;
+	return {
+		userId,
+		householdId: household.id,
+		role: membership.role,
+		householdName: household.name,
+		timeZone: household.timeZone
+	};
 }
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -56,6 +82,7 @@ export function createAuth(
 	{
 		identity,
 		users,
+		households,
 		sessions,
 		pendingSignIns,
 		uow,
@@ -64,7 +91,15 @@ export function createAuth(
 		logger
 	}: Pick<
 		Ports,
-		'identity' | 'users' | 'sessions' | 'pendingSignIns' | 'uow' | 'clock' | 'ids' | 'logger'
+		| 'identity'
+		| 'users'
+		| 'households'
+		| 'sessions'
+		| 'pendingSignIns'
+		| 'uow'
+		| 'clock'
+		| 'ids'
+		| 'logger'
 	>,
 	{ callbackUri, postSignOutUri }: AuthOptions
 ) {
@@ -228,7 +263,11 @@ export function createAuth(
 			const now = clock.now();
 			const session = await sessions.findLive(tokenHash, now);
 			if (!session) return null;
-			const user = await users.findById(session.userId);
+			// Together: each sequential database call costs ~25 ms in production (architecture §8.4).
+			const [user, household] = await Promise.all([
+				users.findById(session.userId),
+				households.findForMember(session.userId)
+			]);
 			if (!user || user.deletedAt) {
 				await sessions.delete(tokenHash);
 				return null;
@@ -236,7 +275,8 @@ export function createAuth(
 			const viewer = {
 				auth: { userId: user.id },
 				displayName: user.displayName,
-				email: user.email
+				email: user.email,
+				member: memberOf(household, user.id)
 			};
 
 			if (now.getTime() - session.extendedAt.getTime() < SESSION_EXTEND_EVERY_MS) {

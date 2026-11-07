@@ -10,6 +10,7 @@ export type SignInProfile = Pick<User, 'email' | 'displayName' | 'displayNameSou
 
 export interface UserRepository {
 	findById(id: Id): Promise<User | null>;
+	findByIds(ids: Id[]): Promise<User[]>;
 	findByIdentity(issuer: string, subject: string): Promise<User | null>;
 	/** `email` is already normalised. */
 	findByEmail(email: string): Promise<User | null>;

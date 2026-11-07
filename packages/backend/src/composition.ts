@@ -9,12 +9,17 @@ import {
 	createSentryReporter,
 	noopErrorReporter
 } from './infrastructure/error-reporting/sentry.js';
+import { createEmailSender } from './infrastructure/email/index.js';
 import { createPinoLogger } from './infrastructure/logging/pino-logger.js';
 import {
 	mongoPendingSignIns,
 	mongoSessions,
 	mongoUsers
 } from './infrastructure/persistence/auth-collections.js';
+import {
+	mongoHouseholds,
+	mongoInvitations
+} from './infrastructure/persistence/household-collections.js';
 import { migrate, migrations } from './infrastructure/persistence/migrations/index.js';
 import { connectMongo, mongoReadiness } from './infrastructure/persistence/mongo.js';
 import { mongoUnitOfWork } from './infrastructure/persistence/unit-of-work.js';
@@ -83,12 +88,21 @@ export async function createBackend(
 		users: overrides.users ?? mongoUsers(mongo.db),
 		sessions: overrides.sessions ?? mongoSessions(mongo.db),
 		pendingSignIns: overrides.pendingSignIns ?? mongoPendingSignIns(mongo.db),
-		authRateLimit: overrides.authRateLimit ?? memoryRateLimiter({ ...config.authRateLimit, clock })
+		authRateLimit: overrides.authRateLimit ?? memoryRateLimiter({ ...config.authRateLimit, clock }),
+		households: overrides.households ?? mongoHouseholds(mongo.db),
+		invitations: overrides.invitations ?? mongoInvitations(mongo.db, clock),
+		email: overrides.email ?? createEmailSender(config.email),
+		inviteRateLimit:
+			overrides.inviteRateLimit ?? memoryRateLimiter({ ...config.inviteRateLimit, clock }),
+		inviteEmailRateLimit:
+			overrides.inviteEmailRateLimit ??
+			memoryRateLimiter({ limit: 10, windowMs: 60 * 60_000, clock })
 	};
 	logger.info('backend started', {
 		appEnv: config.appEnv,
 		release: config.release,
 		errorReporting: Boolean(config.sentry),
+		emailSender: config.email.kind,
 		publicOrigin: config.publicOrigin,
 		oidcIssuer: config.oidc.issuer,
 		durationMs: Math.round(performance.now() - started)

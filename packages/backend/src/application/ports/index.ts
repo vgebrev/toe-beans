@@ -6,14 +6,15 @@ import type {
 	UserRepository
 } from './auth-repositories.js';
 import type { Clock } from './clock.js';
+import type { EmailSender } from './email-sender.js';
 import type { ErrorReporter } from './error-reporter.js';
+import type { HouseholdRepository, InvitationRepository } from './household-repositories.js';
 import type { IdentityProvider } from './identity-provider.js';
 import type { Logger } from './logger.js';
 import type { RateLimiter } from './rate-limiter.js';
 import type { Readiness } from './readiness.js';
 import type { UnitOfWork } from './unit-of-work.js';
 
-export type { EmailFailure, EmailMessage, EmailSender } from './email-sender.js';
 export type {
 	PendingSignIn,
 	PendingSignInRepository,
@@ -23,7 +24,13 @@ export type {
 	UserRepository
 } from './auth-repositories.js';
 export type { Clock } from './clock.js';
+export type { EmailFailure, EmailMessage, EmailSender } from './email-sender.js';
 export type { ErrorReporter } from './error-reporter.js';
+export type {
+	HouseholdRepository,
+	InvitationRepository,
+	NewInvitation
+} from './household-repositories.js';
 export type { IdGenerator } from '../../domain/id.js';
 export type {
 	IdentityClaims,
@@ -49,4 +56,11 @@ export interface Ports {
 	pendingSignIns: PendingSignInRepository;
 	/** Sign-in and its callback, per client address (architecture §7). */
 	authRateLimit: RateLimiter;
+	households: HouseholdRepository;
+	invitations: InvitationRepository;
+	email: EmailSender;
+	/** Looking at or accepting an invitation, per client address (architecture §7). */
+	inviteRateLimit: RateLimiter;
+	/** Invitations sent by email, per household, so one can't be used to mail people at will. */
+	inviteEmailRateLimit: RateLimiter;
 }
