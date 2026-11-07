@@ -33,6 +33,30 @@ export async function signInAtMockProvider(page: Page, person: TestPerson): Prom
 	await page.getByRole('button', { name: 'Sign-in' }).click();
 }
 
+/**
+ * Creates a household for whoever `page` is signed in as, through the API: most suites are about
+ * what comes after onboarding, which has a suite of its own.
+ */
+export async function createHousehold(
+	page: Page,
+	baseURL: string,
+	name = 'The Testers'
+): Promise<void> {
+	const response = await page.request.post('/api/v1/household', {
+		headers: { origin: baseURL, 'content-type': 'application/json' },
+		data: JSON.stringify({ name, timeZone: 'Africa/Johannesburg' })
+	});
+	expect(response.status()).toBe(201);
+}
+
+/** Signs in as someone new from the sign-in page, landing wherever the app sends them. */
+export async function signIn(page: Page, person: TestPerson, returnTo?: string): Promise<void> {
+	const query = returnTo ? `?returnTo=${encodeURIComponent(returnTo)}` : '';
+	await page.goto(`/sign-in${query}`);
+	await page.getByRole('link', { name: 'Sign in' }).click();
+	await signInAtMockProvider(page, person);
+}
+
 /** The mock's page loads a web font from Google; tests don't need it to reach the internet. */
 export async function blockMockFonts(page: Page): Promise<void> {
 	await page.route(/fonts\.(googleapis|gstatic)\.com/, (route) => route.abort());

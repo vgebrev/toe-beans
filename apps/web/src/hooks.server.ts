@@ -10,15 +10,21 @@ export const init: ServerInit = async () => {
 
 /**
  * Headers the API client reads in universal loads (architecture §3.3). Kit serialises a server
- * render's fetch responses for hydration and makes every header it should keep explicit.
+ * render's fetch responses for hydration and makes every header it should keep explicit; reading
+ * any other throws. `content-type` tells a problem from a gateway error, so without it every API
+ * error in a server render would become a 500.
  */
-const serializedHeaders = new Set(['etag', REQUEST_ID_HEADER]);
+const serializedHeaders = new Set(['content-type', 'etag', REQUEST_ID_HEADER]);
 const resolveOptions = {
 	filterSerializedResponseHeaders: (name: string) => serializedHeaders.has(name)
 };
 
 // Probes and the uptime monitor hit these every few minutes; their lines would drown the rest.
 const quietRoutes = new Set(['/healthz', '/readyz']);
+
+// The join page says what an invitation is for before asking anyone to sign in (ui.md J2). The
+// token is what allows it; accepting is a separate route and needs a session.
+const publicApiRoutes = new Set(['/api/v1/invitations/[token]']);
 
 /**
  * Gives each request an ID, puts it on every log line and error report the request causes and
@@ -77,7 +83,8 @@ async function authenticated(
 	for (const { name, value, maxAge, secure, sameSite } of cookies) {
 		event.cookies.set(name, value, { path: '/', maxAge, httpOnly: true, secure, sameSite });
 	}
-	if (!viewer && event.url.pathname.startsWith('/api/')) {
+	const isPublic = publicApiRoutes.has(event.route.id ?? '');
+	if (!viewer && !isPublic && event.url.pathname.startsWith('/api/')) {
 		return toResponse(errorResponse({ kind: 'unauthenticated' }));
 	}
 	return resolve(event, resolveOptions);

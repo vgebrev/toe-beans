@@ -3,24 +3,28 @@
 import { expect, test, type Page } from '@playwright/test';
 import {
 	blockMockFonts,
+	createHousehold,
 	newPerson,
-	signInAtMockProvider,
+	signIn,
 	type TestPerson
 } from './mock-sign-in.js';
 
 test.use({ storageState: { cookies: [], origins: [] } });
 test.beforeEach(({ page }) => blockMockFonts(page));
 
-async function signInAs(page: Page, person: TestPerson) {
-	await page.goto('/sign-in?returnTo=%2Fmore');
-	await page.getByRole('link', { name: 'Sign in' }).click();
-	await signInAtMockProvider(page, person);
+/** Signs in, with a household the first time, and opens More. */
+async function signInAs(page: Page, person: TestPerson, baseURL: string, firstTime = true) {
+	await signIn(page, person, '/more');
+	if (firstTime) {
+		await createHousehold(page, baseURL);
+		await page.goto('/more');
+	}
 	await expect(page).toHaveURL('/more');
 }
 
-test('a chosen name is saved and survives signing in again', async ({ page, context }) => {
+test('a chosen name is saved and survives signing in again', async ({ page, context, baseURL }) => {
 	const person = newPerson();
-	await signInAs(page, person);
+	await signInAs(page, person, baseURL!);
 
 	const name = page.getByLabel('Your name');
 	const save = page.getByRole('button', { name: 'Save' });
@@ -38,12 +42,12 @@ test('a chosen name is saved and survives signing in again', async ({ page, cont
 
 	// The provider's name doesn't take it back.
 	await context.clearCookies();
-	await signInAs(page, { ...person, name: 'Provider Name' });
+	await signInAs(page, { ...person, name: 'Provider Name' }, baseURL!, false);
 	await expect(name).toHaveValue('Sam the walker');
 });
 
-test('a save from an older page offers both versions', async ({ page, context }) => {
-	await signInAs(page, newPerson());
+test('a save from an older page offers both versions', async ({ page, context, baseURL }) => {
+	await signInAs(page, newPerson(), baseURL!);
 	const other = await context.newPage();
 	await other.goto('/more');
 
@@ -66,7 +70,7 @@ test('a save from an older page offers both versions', async ({ page, context })
 });
 
 test('the API needs If-Match and refuses a stale one', async ({ page, baseURL }) => {
-	await signInAs(page, newPerson());
+	await signInAs(page, newPerson(), baseURL!);
 	const headers = { origin: baseURL!, 'content-type': 'application/json' };
 	const me = await page.request.get('/api/v1/me');
 	expect(me.status()).toBe(200);

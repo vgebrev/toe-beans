@@ -1,17 +1,31 @@
 // Sign-in, sessions and sign-out (architecture §3.4, NFR-01), through the mock OIDC provider.
 // Every test here starts signed out.
 import { expect, test } from '@playwright/test';
-import { blockMockFonts, newPerson, signInAtMockProvider } from './mock-sign-in.js';
+import {
+	blockMockFonts,
+	createHousehold,
+	newPerson,
+	signIn,
+	signInAtMockProvider
+} from './mock-sign-in.js';
 
 test.use({ storageState: { cookies: [], origins: [] } });
 test.beforeEach(({ page }) => blockMockFonts(page));
 
-test('a signed-out visit goes to sign-in, then back to the same page', async ({ page }) => {
+test('a signed-out visit goes to sign-in, then back to the same page', async ({
+	page,
+	context,
+	baseURL
+}) => {
+	const person = newPerson();
+	await signIn(page, person);
+	await createHousehold(page, baseURL!);
+	await context.clearCookies();
+
 	await page.goto('/plan?view=week');
 	await expect(page).toHaveURL('/sign-in?returnTo=%2Fplan%3Fview%3Dweek');
 	await expect(page.getByRole('heading', { level: 1 })).toHaveText('Welcome to Toe Beans');
 
-	const person = newPerson();
 	await page.getByRole('link', { name: 'Sign in' }).click();
 	await signInAtMockProvider(page, person);
 
@@ -74,10 +88,9 @@ test('the sign-in page asks to wait after too many attempts', async ({ page }) =
 	);
 });
 
-test('signing out ends the session', async ({ page, context }) => {
-	await page.goto('/sign-in');
-	await page.getByRole('link', { name: 'Sign in' }).click();
-	await signInAtMockProvider(page, newPerson());
+test('signing out ends the session', async ({ page, context, baseURL }) => {
+	await signIn(page, newPerson());
+	await createHousehold(page, baseURL!);
 	await page.goto('/more');
 	const session = (await context.cookies()).find((c) => c.name === 'tb_session')!;
 	expect(session).toMatchObject({ httpOnly: true, sameSite: 'Lax', path: '/' });

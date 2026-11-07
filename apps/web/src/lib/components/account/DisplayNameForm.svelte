@@ -14,6 +14,11 @@
 	interface Props {
 		displayName: string;
 		etag: string;
+		/**
+		 * Onboarding (ui.md J1 step 2): the button reads Continue, and saves even an unchanged name,
+		 * which confirms it as the person's choice so that a later sign-in leaves it alone.
+		 */
+		onconfirmed?: () => void;
 	}
 
 	let props: Props = $props();
@@ -29,7 +34,8 @@
 	let fieldError = $state<string | null>(null);
 
 	const changed = $derived(value.trim() !== saved.displayName);
-	const canSave = $derived(changed && value.trim() !== '' && status !== 'saving');
+	const confirming = $derived(props.onconfirmed !== undefined);
+	const canSave = $derived((changed || confirming) && value.trim() !== '' && status !== 'saving');
 
 	function edited() {
 		fieldError = null;
@@ -52,6 +58,7 @@
 			status = 'saved';
 			// The viewer in the layout carries the name too.
 			await invalidateAll();
+			props.onconfirmed?.();
 			return;
 		}
 		failed(result.error);
@@ -137,18 +144,22 @@
 	{/if}
 
 	<div class="flex items-center gap-3">
-		<Button type="submit" disabled={!canSave || status === 'conflict'}>
+		<Button
+			type="submit"
+			disabled={!canSave || status === 'conflict'}
+			class={confirming ? 'w-full' : undefined}
+		>
 			{#if status === 'saving'}
 				<Icon name="saving" class="animate-spin" />
 				Saving…
 			{:else if status === 'failed'}
 				Retry
 			{:else}
-				Save
+				{confirming ? 'Continue' : 'Save'}
 			{/if}
 		</Button>
 		<p aria-live="polite" class="flex items-center gap-1 text-sm text-muted-foreground">
-			{#if status === 'saved'}
+			{#if status === 'saved' && !confirming}
 				<Icon name="done" size={20} />
 				Saved
 			{/if}

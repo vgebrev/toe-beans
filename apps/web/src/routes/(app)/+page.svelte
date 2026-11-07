@@ -2,15 +2,19 @@
 	import { onMount } from 'svelte';
 	import EmptyState from '#lib/components/shell/EmptyState.svelte';
 	import PageHeader from '#lib/components/shell/PageHeader.svelte';
+	import type { PageProps } from './$types';
 
-	// Formatted on the device, in its locale and time zone (ui.md §5.4). The server can't know
-	// either yet; the household time zone takes over in S2.
+	let { data }: PageProps = $props();
+
+	// In the household's time zone and the device's locale (ui.md §5.4). The server can't know
+	// the locale, so it's formatted on the device.
 	let date = $state('');
 	onMount(() => {
 		date = new Intl.DateTimeFormat(undefined, {
 			weekday: 'long',
 			day: 'numeric',
-			month: 'long'
+			month: 'long',
+			timeZone: data.household.timeZone
 		}).format(new Date());
 	});
 </script>
