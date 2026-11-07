@@ -13,6 +13,7 @@ import type { RateLimiter } from './rate-limiter.js';
 import type { Readiness } from './readiness.js';
 import type { UnitOfWork } from './unit-of-work.js';
 
+export type { EmailFailure, EmailMessage, EmailSender } from './email-sender.js';
 export type {
 	PendingSignIn,
 	PendingSignInRepository,

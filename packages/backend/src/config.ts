@@ -20,6 +20,12 @@ const LOCAL_OIDC = {
 
 const httpUrl = z.url({ protocol: /^https?$/ });
 
+type Sender = 'console' | 'mailpit' | 'resend';
+
+/** Local runs print emails unless told otherwise; prod sends them. */
+const senderOf = (e: { APP_ENV: string; EMAIL_SENDER?: Sender | undefined }): Sender =>
+	e.EMAIL_SENDER ?? (e.APP_ENV === 'prod' ? 'resend' : 'console');
+
 const Env = z
 	.object({
 		APP_ENV: z.enum(['local', 'prod']).default('local'),
@@ -47,7 +53,16 @@ const Env = z
 		// Sign-in steps (start and callback) one client address may make per 10 minutes, per
 		// instance (architecture §7). An attempt is two steps; e2e raises it, since every test
 		// signs in from localhost.
-		AUTH_RATE_LIMIT: z.coerce.number().int().min(2).max(100_000).default(30)
+		AUTH_RATE_LIMIT: z.coerce.number().int().min(2).max(100_000).default(30),
+		// Looks at and acceptances of invitations one client address may make per 10 minutes, per
+		// instance (architecture §7). E2e raises it for the same reason.
+		INVITE_RATE_LIMIT: z.coerce.number().int().min(1).max(100_000).default(30),
+		// Where email goes (architecture §3.7). Always chosen here, never by a key being present, so
+		// a dev machine holding a Resend key still can't mail real people by accident.
+		EMAIL_SENDER: z.enum(['console', 'mailpit', 'resend']).optional(),
+		MAILPIT_URL: httpUrl.default('http://localhost:8025'),
+		RESEND_API_KEY: z.string().max(200).optional(),
+		EMAIL_FROM: z.string().max(200).default('Toe Beans <invites@toebeans.co.za>')
 	})
 	.superRefine((e, ctx) => {
 		// Prod must never fall back to a local database.
@@ -62,12 +77,19 @@ const Env = z
 				if (!e[key]) required(key, 'required in prod');
 				else if (!e[key].startsWith('https:')) required(key, 'must be https in prod');
 			}
+			// The others only suit a dev machine: the console sender prints invite links.
+			if (e.EMAIL_SENDER && e.EMAIL_SENDER !== 'resend') {
+				required('EMAIL_SENDER', 'must be resend in prod');
+			}
 		}
 		// A real provider needs its client credentials; only the mock's are defaulted.
 		if (e.OIDC_ISSUER || e.APP_ENV === 'prod') {
 			for (const key of ['OIDC_CLIENT_ID', 'OIDC_CLIENT_SECRET'] as const) {
 				if (!e[key]) required(key, 'required with OIDC_ISSUER');
 			}
+		}
+		if (senderOf(e) === 'resend' && !e.RESEND_API_KEY) {
+			required('RESEND_API_KEY', 'required to send through Resend');
 		}
 	});
 
@@ -84,6 +106,27 @@ export interface Config {
 	oidc: { issuer: string; clientId: string; clientSecret: string };
 	/** Sign-in steps per client address per `windowMs`. */
 	authRateLimit: { limit: number; windowMs: number };
+	/** Looks at and acceptances of invitations per client address per `windowMs`. */
+	inviteRateLimit: { limit: number; windowMs: number };
+	email: EmailConfig;
+}
+
+/** Which EmailSender runs, with what it needs (`infrastructure/email`). */
+export type EmailConfig =
+	| { kind: 'console' }
+	| { kind: 'mailpit'; url: string; from: string }
+	| { kind: 'resend'; apiKey: string; from: string };
+
+function emailConfig(e: z.infer<typeof Env>): EmailConfig {
+	const from = e.EMAIL_FROM;
+	switch (senderOf(e)) {
+		case 'console':
+			return { kind: 'console' };
+		case 'mailpit':
+			return { kind: 'mailpit', url: e.MAILPIT_URL, from };
+		case 'resend':
+			return { kind: 'resend', apiKey: e.RESEND_API_KEY!, from };
+	}
 }
 
 export class ConfigError extends Error {
@@ -112,6 +155,8 @@ export function loadConfig(env: Record<string, string | undefined>): Config {
 			? { issuer: e.OIDC_ISSUER, clientId: e.OIDC_CLIENT_ID!, clientSecret: e.OIDC_CLIENT_SECRET! }
 			: LOCAL_OIDC,
 		authRateLimit: { limit: e.AUTH_RATE_LIMIT, windowMs: 10 * 60_000 },
+		inviteRateLimit: { limit: e.INVITE_RATE_LIMIT, windowMs: 10 * 60_000 },
+		email: emailConfig(e),
 		...(e.SENTRY_DSN && { sentry: { dsn: e.SENTRY_DSN } }),
 		...((e.APP_RELEASE ?? e.K_REVISION) && { release: e.APP_RELEASE ?? e.K_REVISION })
 	};

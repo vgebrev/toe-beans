@@ -77,7 +77,10 @@ export default defineConfig({
 			OIDC_CLIENT_ID: 'toe-beans-e2e',
 			OIDC_CLIENT_SECRET: 'e2e-secret',
 			// Every test signs in from localhost, which would soon hit the per-address limit.
-			AUTH_RATE_LIMIT: '10000'
+			AUTH_RATE_LIMIT: '10000',
+			INVITE_RATE_LIMIT: '10000',
+			// Whatever .env says: tests invite made-up addresses, and must never send real mail.
+			EMAIL_SENDER: 'console'
 		}
 	}
 });

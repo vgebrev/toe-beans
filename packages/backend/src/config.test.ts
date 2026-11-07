@@ -13,7 +13,9 @@ const local = {
 		clientId: 'toe-beans-local',
 		clientSecret: 'local-secret'
 	},
-	authRateLimit: { limit: 30, windowMs: 600_000 }
+	authRateLimit: { limit: 30, windowMs: 600_000 },
+	inviteRateLimit: { limit: 30, windowMs: 600_000 },
+	email: { kind: 'console' }
 };
 const auth0 = {
 	OIDC_ISSUER: 'https://auth.toebeans.co.za/',
@@ -24,6 +26,7 @@ const prod = {
 	APP_ENV: 'prod',
 	MONGODB_URI: atlas,
 	PUBLIC_BASE_URL: 'https://toebeans.co.za',
+	RESEND_API_KEY: 're_key',
 	...auth0
 };
 
@@ -52,7 +55,9 @@ describe('loadConfig', () => {
 			mongodb: { uri: atlas, db: 'tb' },
 			publicOrigin: 'https://toebeans.co.za',
 			oidc: { issuer: auth0.OIDC_ISSUER, clientId: 'client', clientSecret: 'secret' },
-			authRateLimit: { limit: 30, windowMs: 600_000 }
+			authRateLimit: { limit: 30, windowMs: 600_000 },
+			inviteRateLimit: { limit: 30, windowMs: 600_000 },
+			email: { kind: 'resend', apiKey: 're_key', from: 'Toe Beans <invites@toebeans.co.za>' }
 		});
 	});
 
@@ -87,6 +92,51 @@ describe('loadConfig', () => {
 		expect(() => loadConfig({ ...prod, OIDC_ISSUER: 'http://localhost:8090/default' })).toThrow(
 			/OIDC_ISSUER: must be https in prod/
 		);
+	});
+
+	describe('the email sender', () => {
+		const from = 'Toe Beans <invites@toebeans.co.za>';
+
+		it('prints locally unless told otherwise, even with a Resend key to hand', () => {
+			expect(loadConfig({}).email).toEqual({ kind: 'console' });
+			expect(loadConfig({ RESEND_API_KEY: 're_key' }).email).toEqual({ kind: 'console' });
+		});
+
+		it('uses Mailpit when asked, on its default address or another', () => {
+			expect(loadConfig({ EMAIL_SENDER: 'mailpit' }).email).toEqual({
+				kind: 'mailpit',
+				url: 'http://localhost:8025',
+				from
+			});
+			const elsewhere = { EMAIL_SENDER: 'mailpit', MAILPIT_URL: 'http://mail.test:9000' };
+			expect(loadConfig(elsewhere).email).toMatchObject({ url: 'http://mail.test:9000' });
+		});
+
+		it('uses Resend locally only when asked, and then needs the key', () => {
+			expect(loadConfig({ EMAIL_SENDER: 'resend', RESEND_API_KEY: 're_key' }).email).toEqual({
+				kind: 'resend',
+				apiKey: 're_key',
+				from
+			});
+			expect(() => loadConfig({ EMAIL_SENDER: 'resend' })).toThrow(
+				/RESEND_API_KEY: required to send through Resend/
+			);
+		});
+
+		it('is Resend in prod, and nothing else will do', () => {
+			expect(loadConfig(prod).email).toMatchObject({ kind: 'resend' });
+			expect(() => loadConfig({ ...prod, RESEND_API_KEY: '' })).toThrow(/RESEND_API_KEY/);
+			// The console sender prints invite links, which must never reach production logs.
+			for (const EMAIL_SENDER of ['console', 'mailpit']) {
+				expect(() => loadConfig({ ...prod, EMAIL_SENDER })).toThrow(
+					/EMAIL_SENDER: must be resend in prod/
+				);
+			}
+		});
+
+		it('refuses a sender it does not know', () => {
+			expect(() => loadConfig({ EMAIL_SENDER: 'pigeon' })).toThrow(/EMAIL_SENDER/);
+		});
 	});
 
 	it('takes a real provider only with its client credentials', () => {
