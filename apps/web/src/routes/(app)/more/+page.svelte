@@ -2,6 +2,7 @@
 	import { version } from '$app/env';
 	import { resolve } from '$app/paths';
 	import DisplayNameForm from '#lib/components/account/DisplayNameForm.svelte';
+	import Icon from '#lib/components/icon/Icon.svelte';
 	import Logo from '#lib/components/Logo.svelte';
 	import PageHeader from '#lib/components/shell/PageHeader.svelte';
 	import ThemeSwitch from '#lib/components/shell/ThemeSwitch.svelte';
@@ -15,8 +16,20 @@
 
 <PageHeader title="More" />
 <div class="flex flex-col gap-8 px-4 pt-2">
-	<!-- Dogs, the exercise library, cues, household and notifications join this page as their
-	     slices land (ui.md §2.1). -->
+	<!-- Dogs, the exercise library, cues and notifications join this page as their slices land
+	     (ui.md §2.1). -->
+	<a
+		href={resolve('/(app)/household')}
+		class="flex min-h-12 items-center gap-3 rounded-2xl border border-border px-4 py-3"
+	>
+		<Icon name="household" class="text-primary" />
+		<span class="flex min-w-0 flex-1 flex-col">
+			<span class="font-bold">Household & invites</span>
+			<span class="truncate text-sm text-muted-foreground">{data.household.name}</span>
+		</span>
+		<Icon name="forward" class="text-muted-foreground" />
+	</a>
+
 	<section aria-labelledby="appearance" class="flex flex-col gap-3">
 		<h2
 			id="appearance"
