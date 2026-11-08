@@ -14,9 +14,17 @@ export const init: ServerInit = async () => {
  * any other throws. `content-type` tells a problem from a gateway error, so without it every API
  * error in a server render would become a 500.
  */
+/**
+ * The Latin fonts start loading with the CSS instead of after it, so they're usually in before
+ * first paint and the text doesn't visibly swap (ui.md §6.4). Only Latin: the other subsets have
+ * a unicode-range that keeps phones from downloading them, and preloading would defeat that.
+ */
+const latinFont = /-latin-wght-normal\.[\w-]+\.woff2$/;
 const serializedHeaders = new Set(['content-type', 'etag', REQUEST_ID_HEADER]);
 const resolveOptions = {
-	filterSerializedResponseHeaders: (name: string) => serializedHeaders.has(name)
+	filterSerializedResponseHeaders: (name: string) => serializedHeaders.has(name),
+	preload: ({ type, path }: { type: 'js' | 'css' | 'font' | 'asset'; path: string }) =>
+		type === 'font' ? latinFont.test(path) : type === 'js' || type === 'css'
 };
 
 // Probes and the uptime monitor hit these every few minutes; their lines would drown the rest.

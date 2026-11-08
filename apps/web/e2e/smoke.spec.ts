@@ -34,3 +34,16 @@ test('the server is ready and tags responses with a request ID', async ({ reques
 	expect(await response.json()).toEqual({ status: 'ready' });
 	expect(response.headers()['x-request-id']).toMatch(/^[0-9a-f-]{36}$/);
 });
+
+test('only the Latin fonts are preloaded, so text rarely swaps after first paint', async ({
+	page
+}) => {
+	await page.goto('/');
+	const fonts = await page
+		.locator('link[rel="preload"][as="font"]')
+		.evaluateAll((links) => links.map((l) => (l as HTMLLinkElement).href.split('/').pop()));
+	expect(fonts.map((f) => f!.replace(/\.[\w-]+\.woff2$/, '')).sort()).toEqual([
+		'fredoka-latin-wght-normal',
+		'nunito-latin-wght-normal'
+	]);
+});
