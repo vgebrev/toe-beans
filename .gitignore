@@ -15,6 +15,9 @@ apps/web/e2e/.auth/
 # Local dev TLS certificates (mkcert, README)
 .certs/
 
+# Dog photos from `pnpm dev` (PHOTO_DIR's default, under apps/web)
+.data/
+
 # Local scratchpad: design files, notes, experiments
 workspace/
 

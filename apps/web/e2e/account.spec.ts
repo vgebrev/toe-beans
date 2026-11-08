@@ -29,7 +29,12 @@ test('a chosen name is saved and survives signing in again', async ({ page, cont
 	const name = page.getByLabel('Your name');
 	const save = page.getByRole('button', { name: 'Save' });
 	await expect(name).toHaveValue(person.name);
-	await expect(save).toBeDisabled();
+	// Never disabled: an unchanged or empty name says why nothing was saved.
+	await save.click();
+	await expect(page.getByText("That's already your name")).toBeVisible();
+	await name.fill(' ');
+	await save.click();
+	await expect(page.getByText('Enter your name.')).toBeVisible();
 	expect((await name.boundingBox())!.height).toBeGreaterThanOrEqual(48);
 
 	await name.fill('  Sam   the walker ');

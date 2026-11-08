@@ -6,6 +6,7 @@ import type {
 	UserRepository
 } from './auth-repositories.js';
 import type { Clock } from './clock.js';
+import type { DogRepository, PhotoProcessor, PhotoStore } from './dog-ports.js';
 import type { EmailSender } from './email-sender.js';
 import type { ErrorReporter } from './error-reporter.js';
 import type { HouseholdRepository, InvitationRepository } from './household-repositories.js';
@@ -24,6 +25,15 @@ export type {
 	UserRepository
 } from './auth-repositories.js';
 export type { Clock } from './clock.js';
+export type {
+	DogChanges,
+	DogRepository,
+	NewDog,
+	PhotoProcessor,
+	PhotoStore,
+	ProcessedPhoto,
+	StoredPhoto
+} from './dog-ports.js';
 export type { EmailFailure, EmailMessage, EmailSender } from './email-sender.js';
 export type { ErrorReporter } from './error-reporter.js';
 export type {
@@ -63,4 +73,7 @@ export interface Ports {
 	inviteRateLimit: RateLimiter;
 	/** Invitations sent by email, per household, so one can't be used to mail people at will. */
 	inviteEmailRateLimit: RateLimiter;
+	dogs: DogRepository;
+	photos: PhotoStore;
+	photoProcessor: PhotoProcessor;
 }

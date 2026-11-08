@@ -1,11 +1,13 @@
 # Toe Beans — UI and Interaction Design
 
-**Version:** 0.11 (draft for iteration)
-**Date:** 7 November 2026
+**Version:** 0.12 (draft for iteration)
+**Date:** 8 November 2026
 **Status:** Proposed. Review-round decisions in §8 are accepted.
-**Inputs:** `docs/requirements.md` v1.0, `docs/architecture.md` v1.5
+**Inputs:** `docs/requirements.md` v1.0, `docs/architecture.md` v1.6
 
 **Changes in 0.7:** the logo landed (S0.9). The mark is now a **TB monogram** with four toe beans above it and a heart-shaped bean in the B, from the AI-assisted design board (Monogram Iteration B), replacing the placeholder paw. It was traced from the board and cleaned up rather than redrawn by hand; the variants are the brown-on-cream mark, a cream-on-brown app-icon tile (favicon and maskable) and a white badge. The wordmark uses Fredoka Bold to match the board (§6.4 Logo).
+
+**Changes in 0.12:** S3 built. J1 step 4 as built: *Take photo* or *Gallery*, then a framing square with the circle overlay (drag, pinch, a zoom slider and arrow keys), and birth date as *I know the date* or *Approximate* with months old. J2 names the dogs. §2.2: the switcher shows on Today, Plan, History and Care, with name chips. §5.1 gains two rules from using it: one confirm button per context (a sheet is its own context), and a control is never disabled without the reason on screen; the photo moved into its own sheet in J1 to follow the first, and the household, name and email-invite buttons stopped greying out for missing input to follow the second. §4.5: editing is its own page and the overflow sheet holds *Edit details* and *Archive*; the Recent sections wait for their slices. The dog accent palette is defined (§6.4), and More gains *Dogs* (§2.1). The custom dog icon read as a monkey, so it's replaced by Phosphor's *Dog*, the documented fallback library (§6.4).
 
 **Changes in 0.11:** §4.8 gains *Make owner* and *Step down* (architecture 1.5 D19).
 
@@ -65,6 +67,7 @@ A **floating "+" button** on Today, Plan and History opens a chooser: *Log train
 - The selection filters Today, Plan, History and Care, and pre-fills new records. It persists per device in `localStorage`, a convenience only.
 - With a single dog, the switcher collapses to that dog's avatar (it opens the dog profile).
 - In **All dogs** mode every list item carries an avatar and name. Multi-dog items are never merged into one card (FR-06).
+- *As built (S3):* the switcher sits under the title on Today, Plan, History and Care, not on the pages under More. Each chip is the avatar and the dog's name (`aria-pressed`), and the selected one gets the dog's accent ring; the row scrolls sideways if it's wider than the screen. Archived dogs aren't in it. With no dogs, Today asks to add one.
 
 ### 2.3 Routes (indicative)
 
@@ -98,6 +101,7 @@ Each journey maps to a requirements acceptance scenario (§5 there).
 2. **Your name:** "What should your household call you?", filled in with the name from sign-in, which for an email sign-up is only the start of the address. Saved like Account's name field (§4.7). Built with S2.
 3. **Create household:** name and time zone (detected from the device, editable). Someone who was the last to leave a household also sees *Rejoin [household]* above the form, which brings it back with them as owner (architecture D18).
 4. **Add your dog:** photo first (camera or gallery, crop to a circle preview), then name, birth date or estimated age (toggle *I know the date* / *Approximate: months old*), adoption date, notes. A dog can't be saved without a photo. The UI explains why ("helps everyone see at a glance which dog an entry is for").
+   - *As built (S3):* *Take photo* opens the camera, *Gallery* the picker. The photo then shows in a square with the circle dimmed around: drag to move it, pinch or use the *Zoom* slider (for anyone who can't pinch), or the arrow keys and +/− when the square has focus; it can't be moved off the circle. The photo is chosen and framed in its own sheet (*Add photo*), whose one confirm button, *Use photo*, returns to the form with the circle preview; the form's own *Add dog* saves (§5.1). *Another photo*, beside it in the sheet's footer, starts again, and *Use photo* tapped before choosing says to choose one first. The framing square is sized to the height the sheet leaves it, so the whole sheet fits on the phone without scrolling, and the footer stays pinned if it ever doesn't (e.g. very large text). Birth date is optional; *Approximate* asks for months old and stores a date that many months back, marked as an estimate (architecture §5.2). Not skippable: every record belongs to a dog. The same form is *Add a dog* under More → Dogs.
 5. **Invite a caregiver** (skippable):
    - *Send email invite*, or *Share link* through the Android share sheet (`navigator.share`), with copy as the fallback.
    - Shows the link's expiry (7 days), and that it works once. Inviting two people takes two links (architecture D17).
@@ -106,7 +110,7 @@ Each journey maps to a requirements acceptance scenario (§5 there).
 
 ### J2 — Accepting an invitation (scenario 1)
 
-`/join/:token` → if signed out: "You've been invited to join **{household}** to help care for **{dogs}**" → *Sign in to accept* → IdP → back to `/join/:token`.
+`/join/:token` → if signed out: "You've been invited to join **{household}** to help care for **{dogs}**" (the dogs not archived; the line is left out while there are none) → *Sign in to accept* → IdP → back to `/join/:token`.
 
 - **Accept** → Today.
 - **Error states** (all plain-language, no technical detail):
@@ -258,6 +262,7 @@ The header shows a week strip (Mon–Sun) with dots for days that have sessions,
 - Large circular photo with a *Change photo* action, name, age (computed, with "approx." where estimated), time since adoption, notes.
 - Sections: *Recent training*, *Recent events*, *Upcoming care*, each with "See all" linking to the filtered view.
 - Archive is in the overflow menu, with confirmation.
+- *As built (S3):* *Change photo* opens the same photo sheet as J1, whose one button is *Save photo*; the profile then says "Photo changed." *Edit details* is its own page (`/dogs/:id/edit`), the J1 form without the photo. The overflow button opens a sheet with *Edit details* and *Archive*, which turns into the confirmation naming the dog. An archived dog's profile says so at the top with *Bring back*; it's listed under *Archived* on More → Dogs. A change made elsewhere meanwhile saves nothing: the edit page offers *See their version*, and the sheets close and say so above the reloaded profile (§5.2). The *Recent training*, *Recent events* and *Upcoming care* sections arrive with their slices.
 
 ### 4.6 Library and cues
 
@@ -293,12 +298,14 @@ On More as **Household & invites**, showing the household's name; the page keeps
 - Prefer chips and segmented controls over dropdowns for short option sets. Use dropdowns or searchable pickers for exercises.
 - Validate on blur and on submit. Errors appear inline under the field with `aria-describedby`.
 - The primary action is a full-width button at the bottom of sheets and forms, kept above the keyboard.
+- **One confirm button per context.** A screen or sheet has a single primary button, which does the whole step. A sub-step that needs its own confirmation (choosing and framing a photo, picking from a long list) goes in its own sheet with its own one button, and returns to the form, whose button saves.
+- **Never disabled without a reason on screen.** Don't grey out a button because a field is empty or unchanged: leave it enabled and, on tap, say what's missing inline (§5.2 Validation) or why nothing was sent. A control may be disabled only while its reason is visible: its own label ("Saving…", "Opening photo…"), or an alert beside it (a conflict). Controls that can't be used yet are better hidden until they can.
 
 ### 5.2 Feedback and status
 
 | Situation | Convention |
 |---|---|
-| Saving | Button shows a spinner + "Saving…". Inputs stay editable but submit is disabled. |
+| Saving | Button shows a spinner + "Saving…". Inputs stay editable but submit is disabled; its label is the reason (§5.1). |
 | Saved | Sheet closes, then a snackbar "Saved" (with *Undo* for deletes). |
 | Failed (network/5xx) | Sheet stays open with all input kept. Banner: "Couldn't save — check your connection." Button → **Retry**. |
 | Conflict (412) | "Alex changed this a moment ago." Options: *See their version* / *Overwrite with mine* (the latter only for simple records like cues). |
@@ -364,9 +371,9 @@ All icons go through one wrapper component (`<Icon name="…">`). That keeps the
 | Tabler | MIT | Outline, plus a partial filled set | Good | Large set, but sharper corners. |
 | Material Symbols Rounded | Apache 2.0 | Variable (fill, weight, grade) | Pets, cruelty-free | Most Android-native, least distinctive. |
 
-**Decision (review round 3):** **Hugeicons free (Stroke Rounded)**. Phosphor stays the fallback if the free set has gaps that custom icons can't cover. Don't mix libraries; any gap gets a custom icon drawn to the same 24 px grid and 1.5 px rounded stroke.
+**Decision (review round 3):** **Hugeicons free (Stroke Rounded)**. Phosphor stays the fallback if the free set has gaps that custom icons can't cover. Don't mix libraries; any gap gets a custom icon drawn to the same 24 px grid and 1.5 px rounded stroke. *(Amended in 0.12: or Phosphor's icon, when a drawn one doesn't read well; the dog is the one so far.)*
 
-**As built (S0.9):** the icons are mapped by meaning in `apps/web/src/lib/components/icon/icons.ts` (nav tabs, actions, More entries, theme choices, and paw, bone, treat, walk, vaccination, medication, vet). `@hugeicons/svelte` was dropped: its component draws the icon only after hydration, so server-rendered pages showed empty icons; `<Icon>` renders the same data on the server. Gaps in the free set: **dog** (a custom floppy-eared head; the logo has no dog to draw it from) and **leash** (*walk*, a walking figure, stands in). There's no cat in the MVP, so it isn't mapped.
+**As built (S0.9):** the icons are mapped by meaning in `apps/web/src/lib/components/icon/icons.ts` (nav tabs, actions, More entries, theme choices, and paw, bone, treat, walk, vaccination, medication, vet). `@hugeicons/svelte` was dropped: its component draws the icon only after hydration, so server-rendered pages showed empty icons; `<Icon>` renders the same data on the server. Gaps in the free set: **dog** (Phosphor's *Dog*, MIT, rescaled to the 24 px grid; its 16-unit line on Phosphor's 256 grid is the same 1.5 px. The custom floppy-eared head it replaced in S3 read as a monkey) and **leash** (*walk*, a walking figure, stands in). There's no cat in the MVP, so it isn't mapped.
 
 #### Logo
 
@@ -410,7 +417,7 @@ Light mode is **Beagle**: white coat with tan and brown patches. Dark mode is **
 | Not yet successful | Soft blue tint, never red |
 | Not assessed | Neutral grey, outlined |
 
-Each badge shows an icon plus a text label. Badge colours (from the mock-ups, label on tint): Successful `#1E5B2E` on `#E3F2E6` (7.0) / `#8FD3A0` on `#1D3324` (7.7); Partially `#6E4A00` on `#FCEFD6` (7.0) / `#F2C46B` on `#3A2E14` (8.2); Not yet `#1F4E79` on `#E4EEF8` (7.4) / `#9CC4EC` on `#1B2A3A` (8.0); Not assessed: `text-muted` label, outline `#CDBFAE` / `#5A4D42`. The dog accent palette (§5.5) is still to define: about 6 colours, each with a light and a dark variant, distinguishable from each other and from `primary` (S3).
+Each badge shows an icon plus a text label. Badge colours (from the mock-ups, label on tint): Successful `#1E5B2E` on `#E3F2E6` (7.0) / `#8FD3A0` on `#1D3324` (7.7); Partially `#6E4A00` on `#FCEFD6` (7.0) / `#F2C46B` on `#3A2E14` (8.2); Not yet `#1F4E79` on `#E4EEF8` (7.4) / `#9CC4EC` on `#1B2A3A` (8.0); Not assessed: `text-muted` label, outline `#CDBFAE` / `#5A4D42`. The dog accent palette (§5.5), defined in S3: teal `#0E726C` / `#4FC1B6`, blue `#2E5EAA` / `#86AEF2`, violet `#6B4DB5` / `#B7A0F2`, magenta `#A13A86` / `#EC8FCD`, green `#4B7520` / `#9DCC6B`, slate `#4E6273` / `#A3B5C6` (light / dark), tokens `dog-0` to `dog-5`. No brown or orange, to stay clear of `primary`, and no red, to stay clear of `danger`. Each is at least 4.6:1 on `bg`, `surface` and `soft`, more than the 3:1 a ring or dot needs, and the avatar fallback's initial (`on-dog`: white / `#1A110A`) is at least 5.4:1 on each; `tokens.test.ts` checks every pairing.
 
 **As built (S0.9):** the tokens live in `apps/web/src/lib/theme/tokens.ts`, and `app.css` declares each once as `light-dark(<Beagle>, <German Shepherd>)`. With no override, `color-scheme: light dark` follows the system setting live. An override sets `data-theme` on `<html>`, which pins `color-scheme`; the inline script in `app.html` applies a stored override before first paint and also sets the `theme-color` metas, so Android's status bar matches. A unit test fails if `app.css` drifts from `tokens.ts` or any used pairing drops below AA, and an e2e test checks the override with the app's scripts blocked. The switch is on More → Appearance.
 

@@ -6,6 +6,7 @@ import { hashSecretToken } from '../../domain/secret-token.js';
 import type { User } from '../../domain/user.js';
 import { directUnitOfWork, memoryUsers } from '../../testing/auth.js';
 import { manualClock } from '../../testing/clock.js';
+import { memoryDogs } from '../../testing/dogs.js';
 import { fakeEmailSender, memoryHouseholds, memoryInvitations } from '../../testing/household.js';
 import type { MemberViewer, Viewer } from '../auth/auth.js';
 import type { RateLimiter } from '../ports/index.js';
@@ -68,10 +69,12 @@ async function setup({ inviteEmailRateLimit = allowAll } = {}) {
 	const invitations = memoryInvitations();
 	const email = fakeEmailSender();
 	const clock = manualClock(at);
+	const dogs = memoryDogs(() => clock.now());
 	const service = createInvitations(
 		{
 			invitations,
 			households,
+			dogs,
 			users,
 			email,
 			inviteEmailRateLimit,
@@ -82,7 +85,7 @@ async function setup({ inviteEmailRateLimit = allowAll } = {}) {
 		},
 		{ publicOrigin: ORIGIN }
 	);
-	return { service, invitations, households, email, clock };
+	return { service, invitations, households, dogs, email, clock };
 }
 
 const tokenOf = (url: string) => url.slice(`${ORIGIN}/join/`.length);
@@ -261,6 +264,35 @@ describe('the join page preview', () => {
 		expect(await service.preview(tokenOf(url), signedIn(alex))).toEqual(
 			ok({ status: 'open', signedIn: true, householdName: 'The Does' })
 		);
+	});
+
+	it("names the household's dogs, leaving out archived ones", async () => {
+		const { service, dogs } = await setup();
+		const dog = (id: string, name: string, archived = false) =>
+			dogs.insert({
+				id: id as Id,
+				householdId: HOUSEHOLD,
+				name,
+				photo: { photoId: `p${id}` as Id, updatedAt: at },
+				accent: 0,
+				...(archived && { archivedAt: at })
+			});
+		await dog('d1', 'Rosie');
+		await dog('d2', 'Old Ben', true);
+		await dog('d3', 'Milo');
+		const { url } = await service.createLink(member(sam));
+		expect(await service.preview(tokenOf(url), null)).toEqual(
+			ok({
+				status: 'open',
+				signedIn: false,
+				householdName: 'The Does',
+				dogNames: ['Rosie', 'Milo']
+			})
+		);
+		// Only someone who can still join hears about the dogs.
+		const other = await service.preview(tokenOf(url), member(alex, 'owner', 'h9' as Id));
+		expect(other).toMatchObject({ value: { status: 'in-another-household' } });
+		expect(other.ok && other.value).not.toHaveProperty('dogNames');
 	});
 
 	it("doesn't find a token that was never issued, or isn't one", async () => {

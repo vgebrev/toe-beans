@@ -2,6 +2,8 @@
 // emulated in Chromium: the target is Chrome on Android. The tests run against the production
 // build, so they exercise what ships, and need MongoDB like `pnpm dev` does.
 import { existsSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { defineConfig, devices } from '@playwright/test';
 import { SIGNED_IN } from './e2e/mock-sign-in.js';
@@ -80,7 +82,11 @@ export default defineConfig({
 			AUTH_RATE_LIMIT: '10000',
 			INVITE_RATE_LIMIT: '10000',
 			// Whatever .env says: tests invite made-up addresses, and must never send real mail.
-			EMAIL_SENDER: 'console'
+			EMAIL_SENDER: 'console',
+			// Test photos in their own directory, never dev's photos or a real bucket.
+			PHOTO_STORE: 'filesystem',
+			PHOTO_DIR: join(tmpdir(), 'toe-beans-e2e-photos'),
+			BODY_SIZE_LIMIT: '11M'
 		}
 	}
 });

@@ -10,12 +10,14 @@ import {
 	noopErrorReporter
 } from './infrastructure/error-reporting/sentry.js';
 import { createEmailSender } from './infrastructure/email/index.js';
+import { createPhotoStore, sharpPhotoProcessor } from './infrastructure/photos/index.js';
 import { createPinoLogger } from './infrastructure/logging/pino-logger.js';
 import {
 	mongoPendingSignIns,
 	mongoSessions,
 	mongoUsers
 } from './infrastructure/persistence/auth-collections.js';
+import { mongoDogs } from './infrastructure/persistence/dog-collection.js';
 import {
 	mongoHouseholds,
 	mongoInvitations
@@ -96,13 +98,17 @@ export async function createBackend(
 			overrides.inviteRateLimit ?? memoryRateLimiter({ ...config.inviteRateLimit, clock }),
 		inviteEmailRateLimit:
 			overrides.inviteEmailRateLimit ??
-			memoryRateLimiter({ limit: 10, windowMs: 60 * 60_000, clock })
+			memoryRateLimiter({ limit: 10, windowMs: 60 * 60_000, clock }),
+		dogs: overrides.dogs ?? mongoDogs(mongo.db, clock),
+		photos: overrides.photos ?? createPhotoStore(config.photos),
+		photoProcessor: overrides.photoProcessor ?? sharpPhotoProcessor()
 	};
 	logger.info('backend started', {
 		appEnv: config.appEnv,
 		release: config.release,
 		errorReporting: Boolean(config.sentry),
 		emailSender: config.email.kind,
+		photoStore: config.photos.kind,
 		publicOrigin: config.publicOrigin,
 		oidcIssuer: config.oidc.issuer,
 		durationMs: Math.round(performance.now() - started)

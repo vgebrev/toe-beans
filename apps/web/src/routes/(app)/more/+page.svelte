@@ -10,25 +10,45 @@
 	import type { PageProps } from './$types';
 
 	let { data }: PageProps = $props();
+
+	const listFormat = new Intl.ListFormat('en', { type: 'conjunction' });
+	const dogsLine = $derived.by(() => {
+		const names = data.dogs?.filter((d) => !d.archived).map((d) => d.name);
+		if (!names) return 'Your dogs';
+		return names.length > 0 ? listFormat.format(names) : 'Add your dog';
+	});
 </script>
 
 <svelte:head><title>More · Toe Beans</title></svelte:head>
 
 <PageHeader title="More" />
 <div class="flex flex-col gap-8 px-4 pt-2">
-	<!-- Dogs, the exercise library, cues and notifications join this page as their slices land
+	<!-- The exercise library, cues and notifications join this page as their slices land
 	     (ui.md §2.1). -->
-	<a
-		href={resolve('/(app)/household')}
-		class="flex min-h-12 items-center gap-3 rounded-2xl border border-border px-4 py-3"
-	>
-		<Icon name="household" class="text-primary" />
-		<span class="flex min-w-0 flex-1 flex-col">
-			<span class="font-bold">Household & invites</span>
-			<span class="truncate text-sm text-muted-foreground">{data.household.name}</span>
-		</span>
-		<Icon name="forward" class="text-muted-foreground" />
-	</a>
+	<div class="flex flex-col gap-3">
+		<a
+			href={resolve('/(app)/dogs')}
+			class="flex min-h-12 items-center gap-3 rounded-2xl border border-border px-4 py-3"
+		>
+			<Icon name="dogs" class="text-primary" />
+			<span class="flex min-w-0 flex-1 flex-col">
+				<span class="font-bold">Dogs</span>
+				<span class="truncate text-sm text-muted-foreground">{dogsLine}</span>
+			</span>
+			<Icon name="forward" class="text-muted-foreground" />
+		</a>
+		<a
+			href={resolve('/(app)/household')}
+			class="flex min-h-12 items-center gap-3 rounded-2xl border border-border px-4 py-3"
+		>
+			<Icon name="household" class="text-primary" />
+			<span class="flex min-w-0 flex-1 flex-col">
+				<span class="font-bold">Household & invites</span>
+				<span class="truncate text-sm text-muted-foreground">{data.household.name}</span>
+			</span>
+			<Icon name="forward" class="text-muted-foreground" />
+		</a>
+	</div>
 
 	<section aria-labelledby="appearance" class="flex flex-col gap-3">
 		<h2

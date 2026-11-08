@@ -51,6 +51,8 @@ export interface JoinPreview {
 	status: JoinStatus;
 	signedIn: boolean;
 	householdName?: string;
+	/** Who they'd help care for (`ui.md` J2): the dogs not archived, with an open invitation only. */
+	dogNames?: string[];
 	emailHint?: string;
 }
 
@@ -82,6 +84,7 @@ export function createInvitations(
 	{
 		invitations,
 		households,
+		dogs,
 		users,
 		email,
 		inviteEmailRateLimit,
@@ -93,6 +96,7 @@ export function createInvitations(
 		Ports,
 		| 'invitations'
 		| 'households'
+		| 'dogs'
 		| 'users'
 		| 'email'
 		| 'inviteEmailRateLimit'
@@ -232,10 +236,15 @@ export function createInvitations(
 			}
 			const household = await households.find(invitation.householdId);
 			if (!household) return err(notFound('invitation'));
+			const dogNames =
+				status === 'open'
+					? (await dogs.list(household.id)).filter((d) => !d.archivedAt).map((d) => d.name)
+					: [];
 			return ok({
 				status,
 				signedIn,
 				householdName: household.name,
+				...(dogNames.length > 0 && { dogNames }),
 				...(status === 'email-mismatch' && { emailHint: maskEmail(invitation.email!) })
 			});
 		},

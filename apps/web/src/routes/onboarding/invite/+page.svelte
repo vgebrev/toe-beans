@@ -1,5 +1,5 @@
 <script lang="ts">
-	// J1 step 5, skippable. The dog step lands before it with S3.4, and reminders after it with S12.
+	// J1 step 5, skippable, after Add your dog. Reminders come after it with S12.
 	import { resolve } from '$app/paths';
 	import InviteActions from '#lib/components/household/InviteActions.svelte';
 	import { Button } from '#lib/components/ui/button/index.js';

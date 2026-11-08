@@ -1,7 +1,7 @@
 # Toe Beans — Architecture
 
-**Version:** 1.5 (accepted baseline)
-**Date:** 7 November 2026
+**Version:** 1.6 (accepted baseline)
+**Date:** 8 November 2026
 **Status:** Accepted as the baseline on 1 November 2026, once the S-1 spikes closed. From here on a change of decision is recorded in the decision log (§2) with what prompted it, and a change that moves scope goes through `requirements.md` as a recorded scope change.
 **Inputs:** `docs/requirements.md` v1.0 (baselined)
 
@@ -30,6 +30,8 @@
 **Changes in 0.13:** S1 design. Auth0 runs as two tenants, dev and prod, both in the **EU** region: Auth0 has no African region, Europe is the nearest, and only sign-in talks to it, so its distance never touches normal requests. Prod signs in on `auth.toebeans.co.za` from the first user, because users are keyed by issuer (D5, §3.4, §8.4). The identity provider is the one exception to D13's same-country rule: account email and name sit in the EU, which POPIA §72 allows (GDPR-adequate protection). §3.4 now specifies the sign-in flow, the login transaction, server-side sessions (90-day sliding, 400-day absolute), cookies on http origins, logout, and a mock OIDC provider for e2e and offline dev, so no test-only sign-in backdoor exists. S1.2–S1.5 built: one person's Google and email/password sign-ins become one user, linked in the app by verified email, and sign-in with an unverified email is refused (§3.4, §5.2; Q10 raised and resolved). Kit's CSRF check is off and the hooks Origin check covers every non-GET request against the runtime `PUBLIC_BASE_URL`, because adapter-node assumes `https` and behind the Worker sees `run.app`; this replaces the planned build-time `paths.origin`, so the origin stays runtime config (§3.4, §8.4). The e2e suite gains `auth`, and the other suites start signed in (§10).
 
 **Changes in 1.0:** S-1.3 result and baseline. Cloud Run in `africa-south1` with Cloud Scheduler meets every spike target: 2,891 of 2,891 ticks over 48 h with no errors (lag p50 0.33 s, p95 1.00 s, max 9.15 s, the slow ones on warm instances, so the delay is Scheduler's), two instance replacements without a missed tick, a cold container serving its first response in 0.62 s against the 5 s budget, and $0 billed for the Tier 2 region (§6.3, §8.2, §8.4; Q9 resolved). The service worker's *Can't reach Toe Beans* page for platform 502/503/504 works (§7). D8 and D9 accepted on these results (S-1.6). The remaining proposed decisions (D5, D7, D10–D12, D15) are accepted as the baseline; D5, D10, D12 and the CI half of D15 are already built. Leftovers that named S-1.6 move to S14.1 (deploy workflow, registry, trace correlation), and §8.1 and §8.4 no longer mention a build-time origin, which 0.13 replaced with the runtime `PUBLIC_BASE_URL`.
+
+**Changes in 1.6:** S3: dogs and photos built. D20: a dog is added in one multipart request carrying its photo, which is stored first and removed again if the dog isn't saved, so no orphan sweep is needed (FR-02, NFR-05). D21: SeaweedFS (`weed mini`) is the local S3-compatible store in compose and the S3 adapter's integration test, replacing MinIO (§3.6). The S3 adapter signs with `aws4fetch` rather than the AWS SDK. `sharp` turns the photo upright, crops it square and writes WebP at 1024 and 256 px with no metadata, refusing anything but JPEG, PNG and WebP and anything over 50 megapixels (§3.6). Photo URLs carry the photo's ID, so the day-long private cache never shows a replaced photo; `HttpResponse` gains a streamed body for them (§3.3, §3.6). §5.2's Dog keeps one `birth: {date, precision: day|month|year}` instead of two fields, and an `accent` index picked when it's added. adapter-node's request body limit is raised to 11 MB (§8.1). The invitation preview names the household's dogs (`ui.md` J2).
 
 **Changes in 1.5:** D19: a household can have several owners. Owners make caregivers owners and can step down, but can't remove or demote each other. `PATCH /api/v1/household/members/:id` changes a role (FR-01, §5.2).
 
@@ -85,6 +87,8 @@ Status: **P** = proposed, **A** = accepted (with what settled it; *baseline* = a
 | D16 | Households per person | One. A unique multikey index on `memberships.userId` enforces it across documents, which also covers a double tap and two invites accepted at once. An invite to someone already in a household is refused, not merged (FR-01). Allowing more later means dropping the index and adding a household switcher. | A (S2) | 5.2 |
 | D17 | Invitation terms | Any member can invite, as FR-01 says a caregiver can. An owner can revoke any invitation, a caregiver only their own. Each invitation lets one person in and lasts 7 days, so a leaked link admits at most one stranger; a second person gets their own link, revocable on its own. Both are constants, with no choice in the UI yet (FR-01, NFR-02). | A (S2) | 5.2 |
 | D18 | Leaving a household | Anyone can leave, and an owner can remove a caregiver; a household keeps an owner, so if the only one goes, the longest-standing member takes over. Removing someone also revokes the invitations they made or were sent, which they could otherwise return with. Someone who leaves by choice keeps theirs: they may be for a person the household still wants. The last person out deactivates the household: its records stay, every open invitation is revoked (accepted then, a link would hand a stranger the household and its history), and only that person can bring it back, as owner, from onboarding. Limiting it to them means nobody regains data they'd already walked away from. If they've left several, the latest is offered. Later versions can sweep long-inactive ones (FR-01, NFR-02). | A (S2) | 5.2 |
+| D20 | Adding a dog with its photo | One multipart `POST /api/v1/dogs` with the details as JSON in a `dog` part and the photo in a `photo` part. The photo is re-encoded and stored first, then the dog inserted; if that fails the objects are deleted. Uploading first and claiming a `photoId` later was the alternative: simpler requests, but unclaimed photos need a TTL and a sweep. Changing a photo is `PUT /api/v1/dogs/:id/photo` with If-Match; the old objects go once the dog points at the new ones (FR-02, NFR-05, NFR-13). | A (S3) | 3.6 |
+| D21 | Local S3-compatible store | SeaweedFS (`weed mini`, Apache-2.0), pinned by digest: one container, credentials from env, the bucket made at start, unsigned reads refused. Compose runs it for the app profile and `PHOTO_STORE=s3` in dev; the S3 adapter's integration test runs it in Testcontainers. Garage needs an init step for its layout, keys and bucket, and RustFS was still young. `pnpm dev` and e2e default to the filesystem adapter (§3.6). | A (S3) | 3.6 |
 | D19 | Several owners | A household can have more than one, so a couple stand equal: with one, either partner could be at the other's mercy. Any owner can make a caregiver an owner. Owners can't remove or demote each other, so neither can lock the other out, which makes promoting someone a step only they can undo, and the sheet says so. An owner can step down to caregiver while another owner stays. If owners fall out, each can still leave (FR-01). | A (S2) | 5.2 |
 
 ---
@@ -201,7 +205,7 @@ No access or refresh tokens are kept: the ID token is used once at the callback,
 | Backblaze B2 | ~10 GB free, S3-compatible. | Egress rules more complex. |
 | Google Cloud Storage | Same project as Cloud Run. | Free tier only in US regions. Egress billed. |
 | GridFS in Atlas | No extra vendor. | Eats into the 512 MB. |
-| Local volume, or a self-hosted S3-compatible store | Self-host path. MinIO's community edition stopped publishing Docker images in October 2025 and its repo is archived, so it is no longer a candidate. The local S3-compatible service (SeaweedFS, Garage or RustFS) is chosen in S3.2. | No durability on serverless hosts. |
+| Local volume, or a self-hosted S3-compatible store | Self-host path. MinIO's community edition stopped publishing Docker images in October 2025 and its repo is archived, so it is no longer a candidate. SeaweedFS is the local S3-compatible store (D21). | No durability on serverless hosts. |
 
 Code depends on a `PhotoStore` port (`put`, `getStream`, `delete`). The adapters are S3-compatible (R2, B2, a local S3-compatible store) and local-filesystem (self-host/dev).
 
@@ -212,6 +216,11 @@ Code depends on a `PhotoStore` port (`put`, `getStream`, `delete`). The adapters
 4. Files are stored under random keys (`households/{hid}/dogs/{dogId}/{photoId}-{size}.webp`).
 
 **Serving:** `GET /api/v1/dogs/{id}/photo?size=thumb` authorizes household membership and then streams the bytes with `Cache-Control: private, max-age=86400` and an ETag (NFR-02, scenario 9). Presigned redirects were considered. Streaming is simpler and keeps object URLs out of the client entirely. Revisit only if bandwidth becomes an issue.
+
+**As built (S3):**
+- `PhotoStore` has three adapters: S3 (`aws4fetch` SigV4 over `fetch`, path-style, 30 s timeout, errors naming only the status), filesystem (keys checked against a safe pattern, written beside and renamed into place) and the in-memory test double. `PHOTO_STORE` chooses, defaulting to `filesystem` locally (`.data/photos`, gitignored) and `s3` in prod; prod with `filesystem` must name `PHOTO_DIR`, a volume that outlives the container. Config: `S3_ENDPOINT`, `S3_BUCKET`, `S3_REGION` (default `auto` for R2), `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`.
+- The phone frames the photo in a square and sends a 1024 px JPEG, usually a few hundred KB (`ui.md` J1). The server checks for a photo and ≤ 10 MB, then `sharp` reads the bytes themselves (never the declared type): JPEG, PNG or WebP only, at most 50 megapixels, turned upright from its EXIF orientation, cropped square and written as WebP (quality 80, 75 for the thumbnail) with no metadata. `sharp` is native, so it's a runtime dependency of `apps/web` and adds about 40 MB to the image (385 MB in all, 55 MB over the Node base).
+- A dog's photo URL is `…/photo?size=…&v={photoId}`. The server ignores `v`, but a new photo means a new URL, so a browser's day-old copy is never shown in place of a replacement. The ETag is `"{photoId}-{size}"`, and a matching If-None-Match is a 304 without reading storage.
 
 ### 3.7 Email (invitations)
 
@@ -334,8 +343,10 @@ Common fields (`_id`, `householdId`, `version`, timestamps, `schemaVersion`) are
 - `findByTokenHash` is the only lookup without a household: holding the token is the authority. Everything else is scoped through `HouseholdCollection`.
 - A TTL index clears an invitation 30 days after `expiresAt` (NFR-02: the invitee's address isn't kept for long). Until then an expired link says so; afterwards it says it isn't valid.
 
-**Dog** — `name`, `birthDate?` | `estimatedBirthDate?` (`{date, precision: month|year}`), `adoptionDate?`, `notes?`, `photo: {photoId, updatedAt}` (required), `archivedAt?`
-- Archiving rather than deleting keeps history intact.
+**Dog** — `name` (≤ 50), `birth?: {date, precision: day|month|year}` (`day` is a known date; the others are estimates, shown as "about …"), `adoptionDate?`, `notes?` (≤ 2000), `photo: {photoId, updatedAt}` (required), `accent` (0–5), `archivedAt?`
+- Archiving rather than deleting keeps history intact. `PATCH` with `archived` archives or brings a dog back, keeping when it was first archived.
+- Dates are plain `YYYY-MM-DD`, from 1990 to today anywhere on Earth (UTC + 14 h), so no time zone is needed to check them. An adoption date can't be before a known birth date; an estimated one can be off, so it doesn't rule one out.
+- `accent` is the palette colour (`ui.md` §5.5) least used by the household's dogs still here when the dog is added, so it stays put when others are archived.
 
 **Exercise** (library, content-owned) — `id` (stable slug, e.g. `recall-basic`), `contentVersion`, `title`, `skillArea` (name-recognition | recall | toileting | greetings | settling | doorbell | barking | loose-leash | cats), `goal`, `setup`, `steps[]`, `suggestedDurationMin`, `successCriteria`, `ifStruggling`, `safetyNotes?`, `sources[]: {title, url, kind: article|video}`, `reviewedBy`, `reviewedAt` (see §3.8)
 - Loaded from `content/exercises/` at startup into an in-memory catalogue (disposable cache, allowed by NFR-08). Not stored in Mongo.
@@ -469,6 +480,8 @@ Consequences for the design: the reminders setup includes a "make reminders reli
 - `apps/web`'s `dependencies` are exactly what the server bundle imports at runtime; everything bundled, the workspace packages included, is a devDependency, so the deploy step stays small. Check with a grep of `build/` for bare imports when adding one.
 - The image ships `apps/web`'s production dependencies next to the build, not just the bundle: SvelteKit deliberately leaves `@opentelemetry/api` (pulled in by `@sentry/node`) outside the bundle so instrumentation and the runtime share one copy, so `apps/web` depends on it directly (S0.4).
 - The image is built in CI and pushed to GHCR (free for public images; private images use Artifact Registry's free 0.5 GB on the Cloud Run path).
+
+adapter-node refuses request bodies over 512 KB by default; the image sets `BODY_SIZE_LIMIT=11M` so a photo of up to 10 MB gets through (§3.6). The dev server has no limit; `pnpm start` reads it from `.env`.
 
 ### 8.2 Hosting options
 

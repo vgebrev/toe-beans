@@ -73,7 +73,11 @@
 
 	async function sendEmail(event: SubmitEvent) {
 		event.preventDefault();
-		if (email.trim() === '' || emailStatus === 'sending') return;
+		if (emailStatus === 'sending') return;
+		if (email.trim() === '') {
+			emailFieldError = "Enter the email address of the person you're inviting.";
+			return;
+		}
 		emailStatus = 'sending';
 		emailFieldError = null;
 		emailError = null;
@@ -151,12 +155,7 @@
 		{#if emailError}
 			<p role="alert" class="rounded-2xl border border-border bg-soft px-4 py-3">{emailError}</p>
 		{/if}
-		<Button
-			type="submit"
-			variant="outline"
-			class="w-full"
-			disabled={email.trim() === '' || emailStatus === 'sending'}
-		>
+		<Button type="submit" variant="outline" class="w-full" disabled={emailStatus === 'sending'}>
 			{#if emailStatus === 'sending'}
 				<Icon name="saving" class="animate-spin" />
 				Sending…

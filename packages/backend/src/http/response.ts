@@ -10,6 +10,8 @@ export interface HttpResponse {
 	headers: Record<string, string>;
 	/** Serialised as JSON. Absent for 204 and redirects. */
 	body?: unknown;
+	/** Bytes sent as they are, such as a photo, instead of a JSON `body`. */
+	stream?: ReadableStream<Uint8Array>;
 	/** Each becomes its own Set-Cookie header. */
 	cookies?: SetCookie[];
 }

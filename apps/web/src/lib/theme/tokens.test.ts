@@ -27,7 +27,7 @@ describe('brand tokens (ui.md §6.4, WCAG 2.2 AA)', () => {
 	it('declares every token in app.css with the same values', () => {
 		const declared = new Map(
 			[
-				...appCss.matchAll(/--tb-([a-z-]+):\s*light-dark\((#[0-9a-f]{6}),\s*(#[0-9a-f]{6})\)/gi)
+				...appCss.matchAll(/--tb-([a-z0-9-]+):\s*light-dark\((#[0-9a-f]{6}),\s*(#[0-9a-f]{6})\)/gi)
 			].map(([, name, light, dark]) => [
 				name,
 				{ light: light!.toUpperCase(), dark: dark!.toUpperCase() }

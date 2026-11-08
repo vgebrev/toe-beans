@@ -2,6 +2,7 @@
 // redirect, the provider's code, the token exchange and ID token validation, and our session.
 import { fileURLToPath } from 'node:url';
 import { expect, type Page } from '@playwright/test';
+import sharp from 'sharp';
 
 /** The session the phone projects start with, saved by `auth.setup.ts` (gitignored). */
 export const SIGNED_IN = fileURLToPath(new URL('.auth/viewer.json', import.meta.url));
@@ -60,4 +61,45 @@ export async function signIn(page: Page, person: TestPerson, returnTo?: string):
 /** The mock's page loads a web font from Google; tests don't need it to reach the internet. */
 export async function blockMockFonts(page: Page): Promise<void> {
 	await page.route(/fonts\.(googleapis|gstatic)\.com/, (route) => route.abort());
+}
+
+/**
+ * A JPEG like a phone camera's, landscape with location in its EXIF, in halves of two colours so
+ * the framing shows. For `setInputFiles` or an API multipart.
+ */
+export async function photoFile(colours: [string, string] = ['#C98A4B', '#2E5EAA']) {
+	const half = await sharp({
+		create: { width: 600, height: 900, channels: 3, background: colours[1] }
+	})
+		.png()
+		.toBuffer();
+	const buffer = await sharp({
+		create: { width: 1200, height: 900, channels: 3, background: colours[0] }
+	})
+		.composite([{ input: half, left: 600, top: 0 }])
+		.jpeg()
+		.withExif({ IFD3: { GPSLatitudeRef: 'S', GPSLatitude: '33/1 55/1 0/1' } })
+		.toBuffer();
+	return { name: 'dog.jpg', mimeType: 'image/jpeg', buffer };
+}
+
+export interface CreatedDog {
+	id: string;
+	name: string;
+	etag: string;
+	photo: { thumb: string; large: string };
+}
+
+/** Adds a dog to the household of whoever `page` is signed in as, through the API. */
+export async function addDog(
+	page: Page,
+	baseURL: string,
+	details: Record<string, unknown> = { name: 'Rosie' }
+): Promise<CreatedDog> {
+	const response = await page.request.post('/api/v1/dogs', {
+		headers: { origin: baseURL },
+		multipart: { dog: JSON.stringify(details), photo: await photoFile() }
+	});
+	expect(response.status()).toBe(201);
+	return response.json();
 }

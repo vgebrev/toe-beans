@@ -26,6 +26,13 @@ type Sender = 'console' | 'mailpit' | 'resend';
 const senderOf = (e: { APP_ENV: string; EMAIL_SENDER?: Sender | undefined }): Sender =>
 	e.EMAIL_SENDER ?? (e.APP_ENV === 'prod' ? 'resend' : 'console');
 
+/** Local runs keep photos in a directory unless told otherwise; prod uses a bucket. */
+const storeOf = (e: { APP_ENV: string; PHOTO_STORE?: 'filesystem' | 's3' | undefined }) =>
+	e.PHOTO_STORE ?? (e.APP_ENV === 'prod' ? 's3' : 'filesystem');
+
+/** Relative to where the server starts: apps/web for `pnpm dev`. Gitignored. */
+const LOCAL_PHOTO_DIR = '.data/photos';
+
 const Env = z
 	.object({
 		APP_ENV: z.enum(['local', 'prod']).default('local'),
@@ -62,7 +69,19 @@ const Env = z
 		EMAIL_SENDER: z.enum(['console', 'mailpit', 'resend']).optional(),
 		MAILPIT_URL: httpUrl.default('http://localhost:8025'),
 		RESEND_API_KEY: z.string().max(200).optional(),
-		EMAIL_FROM: z.string().max(200).default('Toe Beans <invites@toebeans.co.za>')
+		EMAIL_FROM: z.string().max(200).default('Toe Beans <invites@toebeans.co.za>'),
+		// Where dog photos go (architecture §3.6). Prod defaults to S3 (R2), as a serverless host's
+		// disk doesn't last; self-hosting can choose a mounted directory instead.
+		PHOTO_STORE: z.enum(['filesystem', 's3']).optional(),
+		PHOTO_DIR: z.string().max(500).optional(),
+		S3_ENDPOINT: httpUrl.optional(),
+		S3_BUCKET: z
+			.string()
+			.regex(/^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$/, 'must be a bucket name')
+			.optional(),
+		S3_REGION: z.string().max(50).default('auto'),
+		S3_ACCESS_KEY_ID: z.string().max(200).optional(),
+		S3_SECRET_ACCESS_KEY: z.string().max(200).optional()
 	})
 	.superRefine((e, ctx) => {
 		// Prod must never fall back to a local database.
@@ -88,6 +107,19 @@ const Env = z
 				if (!e[key]) required(key, 'required with OIDC_ISSUER');
 			}
 		}
+		if (storeOf(e) === 's3') {
+			for (const key of [
+				'S3_ENDPOINT',
+				'S3_BUCKET',
+				'S3_ACCESS_KEY_ID',
+				'S3_SECRET_ACCESS_KEY'
+			] as const) {
+				if (!e[key]) required(key, 'required with PHOTO_STORE=s3');
+			}
+		} else if (e.APP_ENV === 'prod' && !e.PHOTO_DIR) {
+			// No default in prod: the directory must be a volume that outlives the container.
+			required('PHOTO_DIR', 'required with PHOTO_STORE=filesystem in prod');
+		}
 		if (senderOf(e) === 'resend' && !e.RESEND_API_KEY) {
 			required('RESEND_API_KEY', 'required to send through Resend');
 		}
@@ -109,6 +141,33 @@ export interface Config {
 	/** Looks at and acceptances of invitations per client address per `windowMs`. */
 	inviteRateLimit: { limit: number; windowMs: number };
 	email: EmailConfig;
+	photos: PhotoConfig;
+}
+
+/** Which PhotoStore runs (`infrastructure/photos`). */
+export type PhotoConfig =
+	| { kind: 'filesystem'; directory: string }
+	| {
+			kind: 's3';
+			endpoint: string;
+			bucket: string;
+			region: string;
+			accessKeyId: string;
+			secretAccessKey: string;
+	  };
+
+function photoConfig(e: z.infer<typeof Env>): PhotoConfig {
+	if (storeOf(e) === 'filesystem') {
+		return { kind: 'filesystem', directory: e.PHOTO_DIR ?? LOCAL_PHOTO_DIR };
+	}
+	return {
+		kind: 's3',
+		endpoint: e.S3_ENDPOINT!,
+		bucket: e.S3_BUCKET!,
+		region: e.S3_REGION,
+		accessKeyId: e.S3_ACCESS_KEY_ID!,
+		secretAccessKey: e.S3_SECRET_ACCESS_KEY!
+	};
 }
 
 /** Which EmailSender runs, with what it needs (`infrastructure/email`). */
@@ -157,6 +216,7 @@ export function loadConfig(env: Record<string, string | undefined>): Config {
 		authRateLimit: { limit: e.AUTH_RATE_LIMIT, windowMs: 10 * 60_000 },
 		inviteRateLimit: { limit: e.INVITE_RATE_LIMIT, windowMs: 10 * 60_000 },
 		email: emailConfig(e),
+		photos: photoConfig(e),
 		...(e.SENTRY_DSN && { sentry: { dsn: e.SENTRY_DSN } }),
 		...((e.APP_RELEASE ?? e.K_REVISION) && { release: e.APP_RELEASE ?? e.K_REVISION })
 	};

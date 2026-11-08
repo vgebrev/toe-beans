@@ -19,6 +19,10 @@
 		return `${resolve('/auth/sign-in')}?returnTo=${returnTo}${prompt ? `&prompt=${prompt}` : ''}`;
 	};
 
+	// English like the rest of the copy, and the same on the server and the phone, so hydration
+	// doesn't change it.
+	const listFormat = new Intl.ListFormat('en', { type: 'conjunction' });
+
 	let status = $state<'idle' | 'joining' | 'failed' | 'too-many' | 'signed-out'>('idle');
 
 	async function accept() {
@@ -105,6 +109,11 @@
 		</Button>
 	{:else if preview}
 		{@render heading(`You've been invited to join ${preview.householdName}`)}
+		{#if preview.dogNames}
+			<p class="text-lg">
+				to help care for <strong>{listFormat.format(preview.dogNames)}</strong>
+			</p>
+		{/if}
 		<p class="text-muted-foreground">
 			Plan training, log practice and keep on top of care together.
 		</p>

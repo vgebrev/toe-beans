@@ -5,6 +5,7 @@ import {
 	blockMockFonts,
 	createHousehold,
 	newPerson,
+	photoFile,
 	signIn,
 	signInAtMockProvider,
 	type TestPerson
@@ -60,10 +61,27 @@ test('first run: your name, your household, then an invite you can skip', async 
 		await page.evaluate(() => Intl.DateTimeFormat().resolvedOptions().timeZone)
 	);
 	const create = page.getByRole('button', { name: 'Create household' });
-	await expect(create).toBeDisabled();
+	// Never disabled: a tap without a name says what's missing.
+	await create.click();
+	await expect(page.getByText('Enter a name for your household.')).toBeVisible();
 	await page.getByLabel('Household name').fill('  The   Does ');
 	await page.getByLabel('Time zone').selectOption('Africa/Johannesburg');
 	await create.click();
+
+	// Step 4, photo first: a dog can't be saved without one (ui.md J1).
+	await expect(page).toHaveURL('/onboarding/dog');
+	await page.getByLabel('Name', { exact: true }).fill('Rosie');
+	await page.getByRole('button', { name: 'Add dog' }).click();
+	await expect(page.getByText('Add a photo of your dog.')).toBeVisible();
+	await page.getByRole('button', { name: 'Add photo' }).click();
+	await page
+		.getByRole('dialog', { name: 'Add a photo' })
+		.getByLabel('Gallery')
+		.setInputFiles(await photoFile());
+	await page.getByRole('button', { name: 'Use photo' }).click();
+	await page.getByText('Approximate', { exact: true }).click();
+	await page.getByLabel('Months old').fill('4');
+	await page.getByRole('button', { name: 'Add dog' }).click();
 
 	await expect(page).toHaveURL('/onboarding/invite');
 	await page.getByRole('link', { name: 'Done for now' }).click();
@@ -223,7 +241,7 @@ test('a failed save keeps what was typed and offers a retry (NFR-04)', async ({ 
 
 	await page.unroute('**/api/v1/household');
 	await page.getByRole('button', { name: 'Retry' }).click();
-	await expect(page).toHaveURL('/onboarding/invite');
+	await expect(page).toHaveURL('/onboarding/dog');
 });
 
 test("an email that can't be sent says so, and keeps the address", async ({ page, baseURL }) => {

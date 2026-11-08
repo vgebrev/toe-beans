@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
-# The app image (architecture §8.1): the adapter-node server plus the one package the bundle
-# imports at runtime. Build from the repo root: docker build -f docker/Dockerfile .
+# The app image (architecture §8.1): the adapter-node server plus the packages the bundle
+# imports at runtime (OpenTelemetry's API, and sharp, which is native). Build from the repo root: docker build -f docker/Dockerfile .
 
 ARG NODE_IMAGE=node:24.21.0-slim
 
@@ -28,6 +28,8 @@ FROM ${NODE_IMAGE} AS runtime
 ENV NODE_ENV=production
 # Cloud Run sets PORT itself; 8080 is its default too.
 ENV PORT=8080
+# adapter-node refuses bodies over 512 KB by default. A dog's photo may be up to 10 MB (§3.6).
+ENV BODY_SIZE_LIMIT=11M
 WORKDIR /app
 COPY --from=build /out/package.json ./
 COPY --from=build /out/node_modules ./node_modules

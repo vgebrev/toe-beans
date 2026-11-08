@@ -42,11 +42,18 @@
 		rejoining = 'failed';
 	}
 
-	const canSave = $derived(name.trim() !== '' && timeZone !== '' && status !== 'saving');
-
+	// Never disabled for a missing field: a tap says what's missing.
 	async function save(event: SubmitEvent) {
 		event.preventDefault();
-		if (!canSave) return;
+		if (status === 'saving') return;
+		const missing = {
+			name: name.trim() === '' ? 'Enter a name for your household.' : undefined,
+			timeZone: timeZone === '' ? 'Choose your time zone.' : undefined
+		};
+		if (missing.name || missing.timeZone) {
+			errors = missing;
+			return;
+		}
 		status = 'saving';
 		errors = {};
 		const result = await api.send('POST', '/household', {
@@ -54,7 +61,7 @@
 			schema: Household
 		});
 		if (result.ok) {
-			await goto(resolve('/onboarding/invite'), { invalidateAll: true });
+			await goto(resolve('/onboarding/dog'), { invalidateAll: true });
 			return;
 		}
 		const { error } = result;
@@ -160,7 +167,7 @@
 		</p>
 	{/if}
 
-	<Button type="submit" class="w-full" disabled={!canSave}>
+	<Button type="submit" class="w-full" disabled={status === 'saving'}>
 		{#if status === 'saving'}
 			<Icon name="saving" class="animate-spin" />
 			Saving…

@@ -17,7 +17,7 @@ export const tabs: readonly Tab[] = [
 	{ route: '/(app)/plan', label: 'Plan', icon: 'plan' },
 	{ route: '/(app)/history', label: 'History', icon: 'history' },
 	{ route: '/(app)/care', label: 'Care', icon: 'care' },
-	{ route: '/(app)/more', label: 'More', icon: 'more', also: ['/(app)/household'] }
+	{ route: '/(app)/more', label: 'More', icon: 'more', also: ['/(app)/household', '/(app)/dogs'] }
 ];
 
 /** Whether a tab is the current destination: Today only itself, the others their subtree. */

@@ -15,19 +15,27 @@ const local = {
 	},
 	authRateLimit: { limit: 30, windowMs: 600_000 },
 	inviteRateLimit: { limit: 30, windowMs: 600_000 },
-	email: { kind: 'console' }
+	email: { kind: 'console' },
+	photos: { kind: 'filesystem', directory: '.data/photos' }
 };
 const auth0 = {
 	OIDC_ISSUER: 'https://auth.toebeans.co.za/',
 	OIDC_CLIENT_ID: 'client',
 	OIDC_CLIENT_SECRET: 'secret'
 };
+const r2 = {
+	S3_ENDPOINT: 'https://account.r2.cloudflarestorage.com',
+	S3_BUCKET: 'toe-beans-photos',
+	S3_ACCESS_KEY_ID: 'key-id',
+	S3_SECRET_ACCESS_KEY: 'key-secret'
+};
 const prod = {
 	APP_ENV: 'prod',
 	MONGODB_URI: atlas,
 	PUBLIC_BASE_URL: 'https://toebeans.co.za',
 	RESEND_API_KEY: 're_key',
-	...auth0
+	...auth0,
+	...r2
 };
 
 describe('loadConfig', () => {
@@ -57,7 +65,52 @@ describe('loadConfig', () => {
 			oidc: { issuer: auth0.OIDC_ISSUER, clientId: 'client', clientSecret: 'secret' },
 			authRateLimit: { limit: 30, windowMs: 600_000 },
 			inviteRateLimit: { limit: 30, windowMs: 600_000 },
-			email: { kind: 'resend', apiKey: 're_key', from: 'Toe Beans <invites@toebeans.co.za>' }
+			email: { kind: 'resend', apiKey: 're_key', from: 'Toe Beans <invites@toebeans.co.za>' },
+			photos: {
+				kind: 's3',
+				endpoint: r2.S3_ENDPOINT,
+				bucket: 'toe-beans-photos',
+				region: 'auto',
+				accessKeyId: 'key-id',
+				secretAccessKey: 'key-secret'
+			}
+		});
+	});
+
+	describe('photo store', () => {
+		it('is a local directory unless told otherwise', () => {
+			expect(loadConfig({ PHOTO_DIR: '/tmp/photos' }).photos).toEqual({
+				kind: 'filesystem',
+				directory: '/tmp/photos'
+			});
+		});
+
+		it('takes a bucket only with all its settings', () => {
+			expect(loadConfig({ PHOTO_STORE: 's3', ...r2, S3_REGION: 'us-east-1' }).photos).toMatchObject(
+				{ kind: 's3', region: 'us-east-1' }
+			);
+			expect(() => loadConfig({ PHOTO_STORE: 's3', ...r2, S3_SECRET_ACCESS_KEY: '' })).toThrow(
+				/S3_SECRET_ACCESS_KEY: required with PHOTO_STORE=s3/
+			);
+			expect(() => loadConfig({ PHOTO_STORE: 's3', ...r2, S3_BUCKET: 'No_Caps' })).toThrow(
+				/S3_BUCKET/
+			);
+		});
+
+		it('is a bucket in prod, or a directory only when one is named', () => {
+			expect(() => loadConfig({ ...prod, S3_BUCKET: '' })).toThrow(/S3_BUCKET/);
+			expect(() => loadConfig({ ...prod, PHOTO_STORE: 'filesystem' })).toThrow(
+				/PHOTO_DIR: required with PHOTO_STORE=filesystem in prod/
+			);
+			expect(
+				loadConfig({ ...prod, PHOTO_STORE: 'filesystem', PHOTO_DIR: '/data/photos' }).photos
+			).toEqual({ kind: 'filesystem', directory: '/data/photos' });
+		});
+
+		it('never puts the secret key in an error', () => {
+			expect(() => loadConfig({ ...prod, S3_ENDPOINT: 'nope' })).toThrow(
+				expect.not.objectContaining({ message: expect.stringContaining('key-secret') })
+			);
 		});
 	});
 

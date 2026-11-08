@@ -30,7 +30,10 @@ export interface RequestOptions {
 }
 
 export interface SendOptions<T> extends RequestOptions {
+	/** Sent as JSON. */
 	body?: unknown;
+	/** Sent as multipart/form-data instead, e.g. a dog with its photo. The browser sets the type. */
+	form?: FormData;
 	/** The ETag the edit is based on. A stale one gets a 412 `toe-beans/conflict`. */
 	ifMatch?: string;
 	/** Schema for the response body. Leave out for 204 No Content. */
@@ -65,10 +68,10 @@ export function createApiClient(fetch: typeof globalThis.fetch, base = '/api/v1'
 		method: string,
 		path: string,
 		schema: Schema<T> | undefined,
-		{ body, ifMatch, signal }: SendOptions<T>
+		{ body, form, ifMatch, signal }: SendOptions<T>
 	): Promise<ApiResult<T>> {
 		const headers: Record<string, string> = { accept: 'application/json' };
-		if (body !== undefined) headers['content-type'] = 'application/json';
+		if (body !== undefined && !form) headers['content-type'] = 'application/json';
 		if (ifMatch !== undefined) headers['if-match'] = ifMatch;
 
 		let response: Response;
@@ -76,7 +79,7 @@ export function createApiClient(fetch: typeof globalThis.fetch, base = '/api/v1'
 			response = await fetch(`${base}${path}`, {
 				method,
 				headers,
-				body: body === undefined ? undefined : JSON.stringify(body),
+				body: form ?? (body === undefined ? undefined : JSON.stringify(body)),
 				signal
 			});
 		} catch (error) {

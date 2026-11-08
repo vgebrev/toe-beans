@@ -30,21 +30,31 @@
 	const initial = untrack(() => ({ displayName: props.displayName, etag: props.etag }));
 	let saved = $state(initial);
 	let value = $state(initial.displayName);
-	let status = $state<'idle' | 'saving' | 'saved' | 'failed' | 'conflict' | 'signed-out'>('idle');
+	let status = $state<
+		'idle' | 'saving' | 'saved' | 'unchanged' | 'failed' | 'conflict' | 'signed-out'
+	>('idle');
 	let fieldError = $state<string | null>(null);
 
 	const changed = $derived(value.trim() !== saved.displayName);
 	const confirming = $derived(props.onconfirmed !== undefined);
-	const canSave = $derived((changed || confirming) && value.trim() !== '' && status !== 'saving');
 
 	function edited() {
 		fieldError = null;
-		if (status === 'saved') status = 'idle';
+		if (status === 'saved' || status === 'unchanged') status = 'idle';
 	}
 
+	// Never disabled for want of a change: a tap says why nothing was sent.
 	async function save(event?: SubmitEvent) {
 		event?.preventDefault();
-		if (!canSave && status !== 'conflict') return;
+		if (status === 'saving') return;
+		if (value.trim() === '') {
+			fieldError = 'Enter your name.';
+			return;
+		}
+		if (!changed && !confirming && status !== 'conflict') {
+			status = 'unchanged';
+			return;
+		}
 		status = 'saving';
 		fieldError = null;
 		const result = await api.send('PATCH', '/me', {
@@ -146,7 +156,7 @@
 	<div class="flex items-center gap-3">
 		<Button
 			type="submit"
-			disabled={!canSave || status === 'conflict'}
+			disabled={status === 'saving' || status === 'conflict'}
 			class={confirming ? 'w-full' : undefined}
 		>
 			{#if status === 'saving'}
@@ -162,6 +172,8 @@
 			{#if status === 'saved' && !confirming}
 				<Icon name="done" size={20} />
 				Saved
+			{:else if status === 'unchanged'}
+				That's already your name, so there's nothing to save.
 			{/if}
 		</p>
 	</div>

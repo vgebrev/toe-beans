@@ -35,11 +35,24 @@ export const tokens = {
 	'not-yet-bg': { light: '#E4EEF8', dark: '#1B2A3A' },
 	'not-yet-fg': { light: '#1F4E79', dark: '#9CC4EC' },
 	/** The outlined, neutral "Not assessed" badge. Its label uses text-muted. */
-	'not-assessed-border': { light: '#CDBFAE', dark: '#5A4D42' }
+	'not-assessed-border': { light: '#CDBFAE', dark: '#5A4D42' },
+	// Dog accents (ui.md §5.5): the switcher ring, the avatar fallback and calendar dots, one per
+	// dog by `accent`. Never the only signal: the dog's name is always beside it.
+	'dog-0': { light: '#0E726C', dark: '#4FC1B6' },
+	'dog-1': { light: '#2E5EAA', dark: '#86AEF2' },
+	'dog-2': { light: '#6B4DB5', dark: '#B7A0F2' },
+	'dog-3': { light: '#A13A86', dark: '#EC8FCD' },
+	'dog-4': { light: '#4B7520', dark: '#9DCC6B' },
+	'dog-5': { light: '#4E6273', dark: '#A3B5C6' },
+	/** The initial on a dog's avatar fallback. */
+	'on-dog': { light: '#FFFFFF', dark: '#1A110A' }
 } as const satisfies Record<string, { light: string; dark: string }>;
 
 export type TokenName = keyof typeof tokens;
 export type Scheme = 'light' | 'dark';
+
+/** In `accent` order: a dog's accent index picks one (ui.md §5.5). */
+export const DOG_ACCENTS = ['dog-0', 'dog-1', 'dog-2', 'dog-3', 'dog-4', 'dog-5'] as const;
 
 /** WCAG 2.x: 4.5 for text, 3 for UI component boundaries and focus indicators. */
 export const TEXT = 4.5;
@@ -62,7 +75,12 @@ export const contrastPairs: readonly { fg: TokenName; bg: TokenName; min: number
 	{ fg: 'input', bg: 'bg', min: NON_TEXT },
 	{ fg: 'input', bg: 'surface', min: NON_TEXT },
 	// The focus ring is drawn in primary.
-	{ fg: 'primary', bg: 'bg', min: NON_TEXT }
+	{ fg: 'primary', bg: 'bg', min: NON_TEXT },
+	// A dog's accent is a ring or dot on any background, and the fallback's initial sits on it.
+	...DOG_ACCENTS.flatMap((dog) => [
+		...(['bg', 'surface', 'soft'] as const).map((bg) => ({ fg: dog, bg, min: NON_TEXT })),
+		{ fg: 'on-dog' as const, bg: dog, min: TEXT }
+	])
 ];
 
 /** WCAG 2.x relative luminance of a `#RRGGBB` colour. */

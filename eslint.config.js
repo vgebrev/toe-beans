@@ -11,7 +11,7 @@ import ts from 'typescript-eslint';
 const sibling = (...layers) => `(^|/)(${layers.join('|')})(/|\\.js$)`;
 // Any library: not a relative or #subpath import, and not vitest (tests sit next to the code).
 const anyPackage = '^(?![./]|#|vitest$)';
-const drivers = '^(mongodb|web-push|openid-client|@aws-sdk/|pino|@sentry/)';
+const drivers = '^(mongodb|web-push|openid-client|@aws-sdk/|aws4fetch|sharp|pino|@sentry/)';
 const framework = {
 	regex: '^(@sveltejs/|\\$app/|svelte($|/))',
 	message: 'backend and contracts are framework-independent (NFR-15): no SvelteKit or Svelte.'
@@ -163,7 +163,7 @@ export default defineConfig(
 						forbid('^@toe-beans/backend', 'Client-side code may import @toe-beans/contracts only.'),
 						forbid('^@sentry/(?!browser$)', 'The browser uses @sentry/browser only.'),
 						forbid(
-							'^(mongodb|web-push|openid-client|@aws-sdk/|pino)',
+							'^(mongodb|web-push|openid-client|@aws-sdk/|aws4fetch|sharp|pino)',
 							'Drivers and SDKs belong in packages/backend/src/infrastructure.'
 						)
 					]

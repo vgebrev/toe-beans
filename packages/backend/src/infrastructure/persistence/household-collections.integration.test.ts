@@ -10,6 +10,7 @@ import { manualClock } from '../../testing/clock.js';
 import { fakeEmailSender } from '../../testing/household.js';
 import { householdIsolationSuite } from '../../testing/household-isolation.js';
 import { mongoUsers } from './auth-collections.js';
+import { mongoDogs } from './dog-collection.js';
 import {
 	HOUSEHOLDS,
 	INVITATIONS,
@@ -188,6 +189,7 @@ describe('accepting, on a real transaction', () => {
 			{
 				invitations: invitations(),
 				households: households(),
+				dogs: mongoDogs(db.mongo.db, clock),
 				users: mongoUsers(db.mongo.db),
 				email: fakeEmailSender(),
 				inviteEmailRateLimit: allowAll,

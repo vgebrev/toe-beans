@@ -1,8 +1,8 @@
 # Toe Beans — Backlog
 
-**Version:** 0.19 (draft for iteration)
-**Date:** 7 November 2026
-**Inputs:** `docs/requirements.md` v1.0, `docs/architecture.md` v1.5, `docs/ui.md` v0.11
+**Version:** 0.20 (draft for iteration)
+**Date:** 8 November 2026
+**Inputs:** `docs/requirements.md` v1.0, `docs/architecture.md` v1.6, `docs/ui.md` v0.12
 
 **Changes in 0.3:** spike results S-1.0 to S-1.4 and S0.1–S0.2 recorded as they landed (see Current progress). S-1.4b dropped as not needed, S-1.5 parked, S-1.4a retargeted to `toebeans.co.za`.
 
@@ -25,6 +25,8 @@
 **Changes in 0.12:** the S0 Foundations heading is marked done (all ten tasks were). S1 started: its tasks follow the sign-in design in architecture 0.13 §3.4 (two EU Auth0 tenants with a prod custom domain, Mongo-backed sessions, a mock OIDC provider for e2e), with a new S1.5 for the sign-in page and its e2e tests. Setup steps are in `docs/runbooks/auth0.md`. S1.2–S1.5 done, with account linking by verified email (Q10).
 
 **Changes in 0.13:** S-1.3 done and S-1.6 done (D8 and D9 accepted), so the S-1 spikes story is closed, with S-1.5 still parked as the self-host check. Architecture is accepted as baseline v1.0. Leftovers that named S-1.6 (deploy workflow, registry, trace correlation) belong to S14.1.
+
+**Changes in 0.20:** S3 built (see Current progress), following architecture 1.6 D20 and D21 and `ui.md` 0.12. S3.2 picks SeaweedFS. New S3.5 for the photo flow and share sheet on the phones, which is all that's left of S3.
 
 **Changes in 0.19:** new S2.7 lets a household have several owners (architecture 1.5 D19, `ui.md` 0.11 §4.8).
 
@@ -89,8 +91,9 @@ Work is organised as **vertical slices**: each delivers a usable end-to-end incr
 | 2026-11-06 | S2 built. Households with a unique index holding each person to one (D16), onboarding (*Your name*, *Create household*, *Invite a caregiver*), and a gate sending anyone without a household there. Invitations by link and email on D17's terms (any member invites; one person, 7 days), with `/join/:token` covering every J2 state, and accepting as one transaction with an atomic claim, tested against real Mongo: two people can't share a use, and a failed join doesn't spend it. Household screen with members, pending invites and revoke in a bottom sheet (shadcn `sheet`, its lucide icon swapped for `<Icon>`). E2e covers scenario 1 by link and scenario 9. Found on the way: any API error in a server render was a 500, because the client reads `content-type` and Kit only keeps listed headers. `EMAIL_SENDER` chooses the console, Mailpit or Resend sender, so a key on a dev machine sends nothing by itself. Not yet tried: a real Resend send, and the Android share sheet on the phones. |
 | 2026-11-07 | S2.3 done: the owner created a household and followed invites through Mailpit and through real Resend mail, accepting on the Redmi Note 12 Pro, so the golden path is verified. S2.6 built from that review, with D16 and D17 confirmed: leaving, removing, succession, deactivating and rejoining (D18). Migration 0003 was needed, as the unique index refused a second household with no members. Not yet tried: these on a phone, and the Android share sheet. |
 | 2026-11-07 | S2.7 built: several owners on D19's terms. |
+| 2026-11-08 | S3.1–S3.4 built. Dogs with an exact or estimated birth date, archive and bring back, and an accent picked on adding (architecture §5.2). A dog is added in one multipart request with its photo (D20); `sharp` turns it upright, crops it square and writes WebP at 1024 and 256 px with no metadata, and the photo is streamed only after the household check, cached privately for a day under a URL that changes with it. `PhotoStore` adapters for S3 (`aws4fetch`) and the filesystem; SeaweedFS runs in compose and in the S3 adapter's integration test (D21), and the dogs e2e suite also passed against it. UI: onboarding step 4 with camera or gallery and drag-and-pinch framing, Dogs under More, the profile with *Change photo*, *Edit details* and *Archive*, the switcher on the four main tabs, the dog accent palette, and the dogs' names on the join page. 432 unit, 80 integration and 119 e2e tests. Found on the way: a number input binds to a number in Svelte, which broke *Approximate* until e2e caught it. Not yet tried: any of it on a phone (S3.5). |
 
-**Next up:** S3 dogs and profile photos, with the Android share sheet checked on a phone along the way. The S-1 spike service and its tick stay up for the tick-interval check: 1 minute until about 9 Nov, then 5 minutes for a week (architecture 1.1 §6.3).
+**Next up:** S3.5 on the phones, then S4 exercise library. The S-1 spike service and its tick stay up for the tick-interval check: 1 minute until about 9 Nov, then 5 minutes for a week (architecture 1.1 §6.3).
 
 ---
 
@@ -164,15 +167,16 @@ Work is organised as **vertical slices**: each delivers a usable end-to-end incr
 | S2.6 | Leaving and removing members (D18): ownership passes on, the last person out deactivates the household and can rejoin it, and removal revokes the invitations someone could return with. | ✅ |
 | S2.7 | Several owners (D19): *Make owner* and *Step down*; owners can't remove or demote each other. | ✅ |
 
-### S3 Dogs and profile photos ⬜
+### S3 Dogs and profile photos 🟨
 *FR-02, scenario 2.*
 
 | # | Task | Status |
 |---|---|---|
-| S3.1 | Dog aggregate, CRUD, archive. Exact or estimated birth date. | ⬜ |
-| S3.2 | `PhotoStore` port with S3 (R2, plus a local S3-compatible store in compose: SeaweedFS, Garage or RustFS, since MinIO CE is no longer published) and filesystem adapters. Upload pipeline (client downscale, `sharp` re-encode, EXIF strip, 2 sizes). | ⬜ |
-| S3.3 | Authorised photo serving endpoint with private caching | ⬜ |
-| S3.4 | Dog switcher and active-dog context. Dog profile screen. Onboarding step 4 (`ui.md` J1), before the invite step. J2's invitation gains the dogs' names. | ⬜ |
+| S3.1 | Dog aggregate, CRUD, archive. Exact or estimated birth date. | ✅ |
+| S3.2 | `PhotoStore` port with S3 (R2, plus SeaweedFS in compose, D21) and filesystem adapters. Upload pipeline (client framing and downscale, `sharp` re-encode, EXIF strip, 2 sizes). | ✅ |
+| S3.3 | Authorised photo serving endpoint with private caching | ✅ |
+| S3.4 | Dog switcher and active-dog context. Dog profile screen. Onboarding step 4 (`ui.md` J1), before the invite step. J2's invitation gains the dogs' names. | ✅ |
+| S3.5 | On both phones: add a dog with a camera photo (framing by touch, upload over mobile data), change it, and check the Android share sheet for invite links (left over from S2). | ⬜ |
 
 ### S4 Exercise library ⬜
 *FR-03, NFR-14.*

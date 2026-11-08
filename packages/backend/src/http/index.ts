@@ -2,11 +2,13 @@
 // built from the use cases over `ports`.
 import { createAccount } from '../application/account/account.js';
 import { createAuth } from '../application/auth/auth.js';
+import { createDogs } from '../application/dogs/dogs.js';
 import { createHouseholds } from '../application/household/household.js';
 import { createInvitations } from '../application/household/invitations.js';
 import type { Ports } from '../application/ports/index.js';
 import { createAccountHttp, type AccountHttp } from './account.js';
 import { CALLBACK_PATH, createAuthHttp, type AuthHttp } from './auth.js';
+import { createDogsHttp, type DogsHttp } from './dogs.js';
 import { createHealthHttp, type HealthHttp } from './health.js';
 import { createHouseholdHttp, type HouseholdHttp } from './household.js';
 
@@ -15,6 +17,7 @@ export interface Http {
 	auth: AuthHttp;
 	account: AccountHttp;
 	household: HouseholdHttp;
+	dogs: DogsHttp;
 }
 
 export interface HttpOptions {
@@ -39,12 +42,14 @@ export function createHttp(ports: Ports, { publicOrigin }: HttpOptions): Http {
 			createHouseholds(ports),
 			createInvitations(ports, { publicOrigin }),
 			{ rateLimit: ports.inviteRateLimit, logger: ports.logger }
-		)
+		),
+		dogs: createDogsHttp(createDogs(ports))
 	};
 }
 
 export type { AuthContext, Viewer } from '../application/auth/auth.js';
 export { safeReturnTo, signInPath, type CookieReader, type SignInError } from './auth.js';
+export type { DogForm } from './dogs.js';
 export * from './response.js';
 export { toProblem } from './problem.js';
 export { REQUEST_ID_HEADER, requestIdFrom } from './request-id.js';

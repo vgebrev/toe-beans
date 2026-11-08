@@ -88,6 +88,8 @@ export const InvitationPreview = z.object({
 	]),
 	signedIn: z.boolean(),
 	householdName: z.string().optional(),
+	/** With `open`: the dogs they'd help care for, not archived ones. */
+	dogNames: z.array(z.string()).optional(),
 	/** With `email-mismatch`: the address it was sent to, masked. */
 	emailHint: z.string().optional()
 });

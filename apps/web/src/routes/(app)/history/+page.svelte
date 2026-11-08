@@ -5,7 +5,7 @@
 
 <svelte:head><title>History · Toe Beans</title></svelte:head>
 
-<PageHeader title="History" />
+<PageHeader title="History" switcher />
 <EmptyState
 	icon="history"
 	title="No history yet"
