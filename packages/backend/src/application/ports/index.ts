@@ -9,6 +9,7 @@ import type { Clock } from './clock.js';
 import type { DogRepository, PhotoProcessor, PhotoStore } from './dog-ports.js';
 import type { EmailSender } from './email-sender.js';
 import type { ErrorReporter } from './error-reporter.js';
+import type { ExerciseCatalogue } from './exercise-catalogue.js';
 import type { HouseholdRepository, InvitationRepository } from './household-repositories.js';
 import type { IdentityProvider } from './identity-provider.js';
 import type { Logger } from './logger.js';
@@ -36,6 +37,7 @@ export type {
 } from './dog-ports.js';
 export type { EmailFailure, EmailMessage, EmailSender } from './email-sender.js';
 export type { ErrorReporter } from './error-reporter.js';
+export type { ExerciseCatalogue } from './exercise-catalogue.js';
 export type {
 	HouseholdRepository,
 	InvitationRepository,
@@ -76,4 +78,6 @@ export interface Ports {
 	dogs: DogRepository;
 	photos: PhotoStore;
 	photoProcessor: PhotoProcessor;
+	/** The curated library from `content/exercises/` (architecture §3.8). */
+	exercises: ExerciseCatalogue;
 }

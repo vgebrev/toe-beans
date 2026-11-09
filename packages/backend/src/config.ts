@@ -74,6 +74,8 @@ const Env = z
 		// disk doesn't last; self-hosting can choose a mounted directory instead.
 		PHOTO_STORE: z.enum(['filesystem', 's3']).optional(),
 		PHOTO_DIR: z.string().max(500).optional(),
+		// The exercise library's directory; by default the nearest content/exercises (architecture §3.8).
+		CONTENT_DIR: z.string().max(500).optional(),
 		S3_ENDPOINT: httpUrl.optional(),
 		S3_BUCKET: z
 			.string()
@@ -142,6 +144,8 @@ export interface Config {
 	inviteRateLimit: { limit: number; windowMs: number };
 	email: EmailConfig;
 	photos: PhotoConfig;
+	/** Where the exercise YAML files are; unset finds the nearest `content/exercises`. */
+	contentDir?: string;
 }
 
 /** Which PhotoStore runs (`infrastructure/photos`). */
@@ -217,6 +221,7 @@ export function loadConfig(env: Record<string, string | undefined>): Config {
 		inviteRateLimit: { limit: e.INVITE_RATE_LIMIT, windowMs: 10 * 60_000 },
 		email: emailConfig(e),
 		photos: photoConfig(e),
+		...(e.CONTENT_DIR && { contentDir: e.CONTENT_DIR }),
 		...(e.SENTRY_DSN && { sentry: { dsn: e.SENTRY_DSN } }),
 		...((e.APP_RELEASE ?? e.K_REVISION) && { release: e.APP_RELEASE ?? e.K_REVISION })
 	};

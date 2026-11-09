@@ -3,12 +3,14 @@
 import { createAccount } from '../application/account/account.js';
 import { createAuth } from '../application/auth/auth.js';
 import { createDogs } from '../application/dogs/dogs.js';
+import { createExercises } from '../application/exercises/exercises.js';
 import { createHouseholds } from '../application/household/household.js';
 import { createInvitations } from '../application/household/invitations.js';
 import type { Ports } from '../application/ports/index.js';
 import { createAccountHttp, type AccountHttp } from './account.js';
 import { CALLBACK_PATH, createAuthHttp, type AuthHttp } from './auth.js';
 import { createDogsHttp, type DogsHttp } from './dogs.js';
+import { createExercisesHttp, type ExercisesHttp } from './exercises.js';
 import { createHealthHttp, type HealthHttp } from './health.js';
 import { createHouseholdHttp, type HouseholdHttp } from './household.js';
 
@@ -18,6 +20,7 @@ export interface Http {
 	account: AccountHttp;
 	household: HouseholdHttp;
 	dogs: DogsHttp;
+	exercises: ExercisesHttp;
 }
 
 export interface HttpOptions {
@@ -43,7 +46,8 @@ export function createHttp(ports: Ports, { publicOrigin }: HttpOptions): Http {
 			createInvitations(ports, { publicOrigin }),
 			{ rateLimit: ports.inviteRateLimit, logger: ports.logger }
 		),
-		dogs: createDogsHttp(createDogs(ports))
+		dogs: createDogsHttp(createDogs(ports)),
+		exercises: createExercisesHttp(createExercises(ports))
 	};
 }
 

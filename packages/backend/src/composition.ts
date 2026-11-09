@@ -9,6 +9,10 @@ import {
 	createSentryReporter,
 	noopErrorReporter
 } from './infrastructure/error-reporting/sentry.js';
+import {
+	findContentDirectory,
+	loadExerciseCatalogue
+} from './infrastructure/content/exercise-files.js';
 import { createEmailSender } from './infrastructure/email/index.js';
 import { createPhotoStore, sharpPhotoProcessor } from './infrastructure/photos/index.js';
 import { createPinoLogger } from './infrastructure/logging/pino-logger.js';
@@ -64,6 +68,20 @@ export async function createBackend(
 				})
 			: noopErrorReporter);
 
+	// Before Mongo: a bad library is the cheaper failure to find (architecture §3.8).
+	let exercises;
+	try {
+		exercises =
+			overrides.exercises ??
+			(await loadExerciseCatalogue(config.contentDir ?? findContentDirectory(), {
+				strict: config.appEnv === 'prod',
+				logger
+			}));
+	} catch (err) {
+		logger.error('could not load the exercise library', { err });
+		throw err;
+	}
+
 	let mongo;
 	try {
 		mongo = await connectMongo(config.mongodb.uri, config.mongodb.db);
@@ -101,7 +119,8 @@ export async function createBackend(
 			memoryRateLimiter({ limit: 10, windowMs: 60 * 60_000, clock }),
 		dogs: overrides.dogs ?? mongoDogs(mongo.db, clock),
 		photos: overrides.photos ?? createPhotoStore(config.photos),
-		photoProcessor: overrides.photoProcessor ?? sharpPhotoProcessor()
+		photoProcessor: overrides.photoProcessor ?? sharpPhotoProcessor(),
+		exercises
 	};
 	logger.info('backend started', {
 		appEnv: config.appEnv,
@@ -109,6 +128,7 @@ export async function createBackend(
 		errorReporting: Boolean(config.sentry),
 		emailSender: config.email.kind,
 		photoStore: config.photos.kind,
+		exercises: exercises.all().length,
 		publicOrigin: config.publicOrigin,
 		oidcIssuer: config.oidc.issuer,
 		durationMs: Math.round(performance.now() - started)

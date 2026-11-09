@@ -1,0 +1,43 @@
+id: toilet-routine
+contentVersion: 1
+title: Toilet routine
+skillArea: toileting
+goal: Your puppy learns that outside, in their spot, is where to go.
+setup: >-
+  Pick a toilet spot outside, close to the door. Keep a few treats by the door. Plan trips after
+  every sleep, meal, play session and drink, plus every hour or two while awake, and last thing at
+  night.
+steps:
+  - Take your puppy to their spot on a lead (or walk with them), calmly and without distractions.
+  - Stand quietly and wait. If you like, say a cue such as "go toilet" while they start to go.
+  - As soon as they finish, praise them and give a treat right there, within a few seconds.
+  - Then play or explore a little, so going doesn't mean the fun ends.
+  - If nothing happens after about five minutes, go back in, keep a close eye on them, and try again
+    in 10 to 15 minutes.
+suggestedDurationMin: 5
+successCriteria: >-
+  Most trips outside end with your puppy going in their spot, and accidents indoors become rare.
+  Expect the odd accident for months: bladder control keeps developing until about a year old.
+ifStruggling: |-
+  Take them out more often and supervise more closely indoors. Watch for sniffing, circling or
+  heading for a corner, and calmly take them out.
+
+  If you find an accident, clean it with an enzyme (non-ammonia) cleaner and say nothing to your
+  puppy. Reacting afterwards only teaches them to hide when they need to go.
+
+  Never cut back food or water to control toileting.
+safetyNotes: >-
+  See your vet if your puppy needs to go much more often than usual, strains, has diarrhoea for more
+  than a day, or there's blood in their urine or stool.
+sources:
+  - title: How to toilet train your puppy or dog
+    url: https://www.rspca.org.uk/adviceandwelfare/pets/dogs/training/toilettraining
+    kind: article
+  - title: How can I toilet train my puppy or adult dog?
+    url: https://kb.rspca.org.au/categories/companion-animals/dogs/caring-for-my-dog/how-can-i-toilet-train-my-puppy-or-adult-dog
+    kind: article
+  - title: How do I toilet train my dog?
+    url: https://www.royalkennelclub.com/your-dog/dog-training/get-started/dog-training-and-games/how-do-i-toilet-train-my-dog/
+    kind: article
+reviewedBy: veli
+reviewedAt: 2026-11-09

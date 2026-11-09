@@ -1,0 +1,37 @@
+id: name-game
+contentVersion: 1
+title: The name game
+skillArea: name-recognition
+goal: Your puppy looks at you, happily, when they hear their name.
+setup: >-
+  A quiet room with nothing much going on, and a pocket of tiny, tasty treats your puppy doesn't
+  get at mealtimes. Keep the treats out of sight so your puppy learns to answer the sound, not the
+  food.
+steps:
+  - Wait until your puppy is looking away from you, but not busy with anything exciting.
+  - Say their name once, in a bright, friendly voice.
+  - The moment they glance at you, say "yes!" (or click) and give a treat.
+  - Wait for them to look away again, then repeat. Five to ten goes is plenty.
+  - Over later sessions, try from a little further away, then from another room, then outdoors,
+    changing only one thing at a time.
+suggestedDurationMin: 3
+successCriteria: >-
+  Your puppy turns to you straight away, eight times out of ten, when you say their name once in
+  this place. Then make it a little harder.
+ifStruggling: |-
+  Go back to an easier spot: closer, quieter, or a room they know well. Use a better treat.
+
+  Say the name only once. If they don't look, make a small kissy noise or move away to catch their
+  interest, and reward that look. Repeating the name teaches them it can be ignored.
+
+  Keep their name for good things. Calling it before something they dislike, like a bath or the
+  end of play, makes it less worth answering.
+sources:
+  - title: How to Teach Your Dog Their Name
+    url: https://www.akc.org/expert-advice/training/how-to-teach-dog-name/
+    kind: article
+  - title: 'How To Teach Your Dog Their Name: Step-by-Step Guide'
+    url: https://www.purina.co.uk/pet-care-articles-and-advice/articles/expert-dog-care/dog-behaviour/dog-training/teach-your-puppy
+    kind: article
+reviewedBy: veli
+reviewedAt: 2026-11-09

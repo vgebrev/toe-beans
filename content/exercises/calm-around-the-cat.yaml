@@ -1,0 +1,46 @@
+id: calm-around-the-cat
+contentVersion: 1
+title: Calm around the cat
+skillArea: cats
+goal: Your puppy learns to stay calm and look away when the cat is around, so the cat feels safe sharing the home.
+setup: >-
+  First, swap scents for a few days: let each pet sniff bedding the other has used. Then set up a
+  baby gate or a closed glass door between them. Make sure the cat has high places and rooms the
+  puppy can't reach. Your puppy is on a lead, and you have tasty treats.
+steps:
+  - With the cat on the far side of the barrier, at a distance where your puppy notices but stays
+    relaxed, let your puppy see the cat.
+  - Each time your puppy looks at the cat, say "yes" and give a treat, so the cat means good things.
+  - Soon your puppy will look at the cat and then back at you. Reward that look away generously.
+  - Keep it to a minute or two, and end before either pet gets restless. Let the cat leave whenever
+    they want.
+  - Over many sessions, shorten the distance a little. Only meet without the barrier, puppy still on
+    a lead, once both stay calm at the gate.
+suggestedDurationMin: 5
+successCriteria: >-
+  Your puppy can watch the cat through the barrier and then turn back to you without lunging,
+  whining or fixating, and the cat stays relaxed on their side.
+ifStruggling: |-
+  Add distance, and keep sessions shorter. If your puppy fixes on the cat and can't look away, you're
+  too close: calmly lead them away and try again further back.
+
+  Watch the cat too. Hiding, hissing or a swishing tail mean the cat needs more space and time.
+
+  Avoid even one chase: it's very rewarding for a puppy and frightening for a cat, and can set
+  things back a long way.
+safetyNotes: >-
+  Never leave your puppy and cat together unsupervised, however well things go. Make sure the cat
+  can always escape to somewhere high or puppy-free. If either pet seems very stressed, or your puppy
+  shows intense stalking, ask a qualified, reward-based behaviourist for help.
+sources:
+  - title: Introducing your new puppy to your cat
+    url: https://www.bluecross.org.uk/advice/dog/introducing-your-new-puppy-to-your-cat
+    kind: article
+  - title: How should I introduce my new dog or puppy to my existing cat?
+    url: https://kb.rspca.org.au/categories/companion-animals/cats/caring-for-my-cat/how-should-i-introduce-my-new-dog-or-puppy-to-my-existing-cat
+    kind: article
+  - title: How to introduce a new puppy to your cat
+    url: https://www.cats.org.uk/cats-blog/how-to-introduce-a-new-puppy-to-your-cat
+    kind: article
+reviewedBy: veli
+reviewedAt: 2026-11-09

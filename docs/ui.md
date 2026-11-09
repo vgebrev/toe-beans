@@ -1,11 +1,13 @@
 # Toe Beans — UI and Interaction Design
 
-**Version:** 0.12 (draft for iteration)
-**Date:** 8 November 2026
+**Version:** 0.13 (draft for iteration)
+**Date:** 9 November 2026
 **Status:** Proposed. Review-round decisions in §8 are accepted.
-**Inputs:** `docs/requirements.md` v1.0, `docs/architecture.md` v1.6
+**Inputs:** `docs/requirements.md` v1.0, `docs/architecture.md` v1.7
 
 **Changes in 0.7:** the logo landed (S0.9). The mark is now a **TB monogram** with four toe beans above it and a heart-shaped bean in the B, from the AI-assisted design board (Monogram Iteration B), replacing the placeholder paw. It was traced from the board and cleaned up rather than redrawn by hand; the variants are the brown-on-cream mark, a cream-on-brown app-icon tile (favicon and maskable) and a white badge. The wordmark uses Fredoka Bold to match the board (§6.4 Logo).
+
+**Changes in 0.13:** S4 built: §4.6 records the library and exercise screens as built, the skill-area names the UI uses, and the `#if-struggling` anchor for the Quick log's stressed tip (§4.3). *Schedule* and *Log practice* wait for S6 and S7.
 
 **Changes in 0.12:** S3 built. J1 step 4 as built: *Take photo* or *Gallery*, then a framing square with the circle overlay (drag, pinch, a zoom slider and arrow keys), and birth date as *I know the date* or *Approximate* with months old. J2 names the dogs. §2.2: the switcher shows on Today, Plan, History and Care, with name chips. §5.1 gains two rules from using it: one confirm button per context (a sheet is its own context), and a control is never disabled without the reason on screen; the photo moved into its own sheet in J1 to follow the first, and the household, name and email-invite buttons stopped greying out for missing input to follow the second. §4.5: editing is its own page and the overflow sheet holds *Edit details* and *Archive*; the Recent sections wait for their slices. The dog accent palette is defined (§6.4), and More gains *Dogs* (§2.1). The custom dog icon read as a monkey, so it's replaced by Phosphor's *Dog*, the documented fallback library (§6.4).
 
@@ -267,6 +269,7 @@ The header shows a week strip (Mon–Sun) with dots for days that have sessions,
 ### 4.6 Library and cues
 
 - **Library:** skill-area chips, then exercise cards (title, goal, duration). The detail page holds the full instructions and a **Schedule** / **Log practice** pair at the bottom. It's read-only, and no "create exercise" is offered in Phase 1.
+- *As built (S4):* More → *Exercise library* (`/library`). The chips (*All*, *Name*, *Recall*, *Toilet training*, *Calm greetings*, *Settling*, *Doorbell*, *Barking*, *Loose-lead walking*, *Around cats*) scroll sideways and are links to `?area=…`, so a filter survives a reload and Back; under *All* the cards are grouped under skill-area headings. A card shows the title, two lines of goal and the minutes. The detail page (`/library/:id`) shows the skill area and minutes as chips, then *Goal*, *Setup*, numbered *Steps*, *You're ready to move on when* (the success criteria), *If your puppy struggles* in a soft panel (anchored `#if-struggling` for §4.3's tip), *Safety* when there are notes, and *Further reading*, whose links open in a new tab with the site's name under each title. A *Draft* badge marks unreviewed exercises, which only a local server shows (architecture D22). The sticky *Schedule* / *Log practice* pair arrives with S6 and S7, rather than as buttons that can't do anything yet (§5.1).
 - **Cues:** a simple editable list (cue word, meaning, hand signal, reward convention), with tap-to-edit in a sheet. It shows "Last edited by Sam, 2 days ago" for shared awareness.
 
 ### 4.7 Account

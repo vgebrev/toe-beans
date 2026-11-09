@@ -1,0 +1,41 @@
+id: four-paws-greeting
+contentVersion: 1
+title: Four paws on the floor
+skillArea: greetings
+goal: Your puppy greets people with all four paws on the floor, because that's what earns attention.
+setup: >-
+  Start with someone your puppy knows, at home. Have small treats ready. Your puppy can be on a lead
+  or behind a gate at first, so jumping isn't possible.
+steps:
+  - Your helper walks towards your puppy calmly.
+  - While all four paws stay on the floor, your helper (or you) drops a treat on the floor between
+    the puppy's front paws and says hello softly.
+  - If your puppy jumps, your helper quietly turns away and steps back. No words, no touching.
+  - As soon as the paws are back down, the helper turns back, praises and treats low, near the
+    floor.
+  - Repeat several short approaches, then swap helpers. Later, practise at the front door.
+suggestedDurationMin: 5
+successCriteria: >-
+  Your puppy stays on the floor for most greetings with this person in this place, even as they bend
+  down to say hello.
+ifStruggling: |-
+  Make the greeting less exciting: approach more slowly, speak more softly, and keep greetings
+  short. Feed treats low and early, before the jump starts.
+
+  Use the gate or lead with visitors so jumping can't happen while they're learning. Ask everyone to
+  respond the same way; a single person who welcomes jumping keeps it going.
+
+  Never push your puppy down or tread on their paws. If they're too excited, let them calm down
+  with a chew in another room before trying again.
+sources:
+  - title: How to stop your dog jumping up
+    url: https://www.battersea.org.uk/pet-advice/dog-advice/how-teach-your-dog-not-jump
+    kind: article
+  - title: How to stop your dog from jumping up on people
+    url: https://www.akc.org/expert-advice/training/how-to-stop-your-dog-from-jumping-up-on-people/
+    kind: article
+  - title: Why does my dog jump up?
+    url: https://vcahospitals.com/know-your-pet/dog-behavior-problems-greeting-behavior-jumping-up
+    kind: article
+reviewedBy: veli
+reviewedAt: 2026-11-09
