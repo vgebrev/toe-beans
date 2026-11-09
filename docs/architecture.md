@@ -1,6 +1,6 @@
 # Toe Beans — Architecture
 
-**Version:** 1.7 (accepted baseline)
+**Version:** 1.8 (accepted baseline)
 **Date:** 9 November 2026
 **Status:** Accepted as the baseline on 1 November 2026, once the S-1 spikes closed. From here on a change of decision is recorded in the decision log (§2) with what prompted it, and a change that moves scope goes through `requirements.md` as a recorded scope change.
 **Inputs:** `docs/requirements.md` v1.0 (baselined)
@@ -32,6 +32,8 @@
 **Changes in 1.0:** S-1.3 result and baseline. Cloud Run in `africa-south1` with Cloud Scheduler meets every spike target: 2,891 of 2,891 ticks over 48 h with no errors (lag p50 0.33 s, p95 1.00 s, max 9.15 s, the slow ones on warm instances, so the delay is Scheduler's), two instance replacements without a missed tick, a cold container serving its first response in 0.62 s against the 5 s budget, and $0 billed for the Tier 2 region (§6.3, §8.2, §8.4; Q9 resolved). The service worker's *Can't reach Toe Beans* page for platform 502/503/504 works (§7). D8 and D9 accepted on these results (S-1.6). The remaining proposed decisions (D5, D7, D10–D12, D15) are accepted as the baseline; D5, D10, D12 and the CI half of D15 are already built. Leftovers that named S-1.6 move to S14.1 (deploy workflow, registry, trace correlation), and §8.1 and §8.4 no longer mention a build-time origin, which 0.13 replaced with the runtime `PUBLIC_BASE_URL`.
 
 **Changes in 1.7:** S4: the exercise library built. D22: exercises are read from `content/exercises/*.yaml` at startup, not bundled; the §3.8 gate runs as the content test in CI (`pnpm content:check`) and again at a prod start, which refuses a library that may not ship, while a local server serves drafts with a *Draft* badge so they can be reviewed in the app. A flagged term is reworded or acknowledged in the exercise's `reviewedTerms` (§3.8, §5.2, FR-03, NFR-14).
+
+**Changes in 1.8:** the 5-minute tick is confirmed as the permanent setup (D9, §6.3, §8.2, §8.4). The spike ran at 1 minute until 6 Nov 2026 (9,808 of 9,808 ticks, about 0.41 US cents a day of Cloud Run usage) and at 5 minutes since (829 of 829 ticks over 2.9 days, no scheduler errors, about 0.1 c a day). Instance starts fell from 1.03 to 0.35 a day, and no person started a cold instance.
 
 **Changes in 1.6:** S3: dogs and photos built. D20: a dog is added in one multipart request carrying its photo, which is stored first and removed again if the dog isn't saved, so no orphan sweep is needed (FR-02, NFR-05). D21: SeaweedFS (`weed mini`) is the local S3-compatible store in compose and the S3 adapter's integration test, replacing MinIO (§3.6). The S3 adapter signs with `aws4fetch` rather than the AWS SDK. `sharp` turns the photo upright, crops it square and writes WebP at 1024 and 256 px with no metadata, refusing anything but JPEG, PNG and WebP and anything over 50 megapixels (§3.6). Photo URLs carry the photo's ID, so the day-long private cache never shows a replaced photo; `HttpResponse` gains a streamed body for them (§3.3, §3.6). §5.2's Dog keeps one `birth: {date, precision: day|month|year}` instead of two fields, and an `accent` index picked when it's added. adapter-node's request body limit is raised to 11 MB (§8.1). The invitation preview names the household's dogs (`ui.md` J2).
 
@@ -432,7 +434,7 @@ Measured in S-1.3 (Scheduler in `me-central1`, the nearest region offering it, c
 **Interval: 5 minutes, sending ahead (1.1).** Each tick sends every reminder due before the next tick, so a reminder goes out up to 5 minutes **early, never late**: the 1:00 tick sends a 1:03 reminder. That's 8,600 tick requests a month instead of 43k, about a fifth of the tick's Cloud Run cost, which the free tier covers either way (Q9). Times are picked in 5-minute steps and reminder offsets are multiples of 5, so in practice reminders land on time or a few minutes early. The phone adds up to ~1–2 minutes in deep sleep (§6.4), and the UI never promises exact times (NFR-16).
 - The interval and the send-ahead window are configuration (`TICK_INTERVAL_MINUTES`, default 5), so going back to 1 minute is a deploy, not a code change. The send-ahead window equals the interval.
 - **Exact jobs** are never sent early: the *Test reminders* push (`ui.md` J7) must arrive only after the phone has been locked a while, so it is sent by the first tick at or after its due time.
-- **To confirm:** the spike runs at 1 minute until about 9 Nov 2026, then at 5 minutes for a week, comparing Cloud Run cost and how often a person (rather than a tick) starts a cold instance (`spikes/pwa`, `pnpm ticks --every=5`). If people hit cold starts noticeably more often, revisit the interval.
+- **Confirmed (1.8):** the spike ran at 1 minute from 30 Oct to 6 Nov 2026 (9,808 of 9,808 ticks, 1.03 instance starts a day, about 0.41 c a day of Cloud Run usage), then at 5 minutes (from 6 Nov 16:45 UTC to 9 Nov: 829 of 829 ticks, none duplicated, no scheduler errors, lag p50 0.98 s, p95 1.30 s, max 16.19 s; 0.35 instance starts a day, none started by a person; about 0.1 c a day). If people later hit cold starts noticeably more often (`spikes/pwa`, `pnpm ticks --every=5`), revisit the interval.
 
 Agenda, Bree and BullMQ were considered. Agenda adds little over ~150 lines of our own code against the same collection. BullMQ needs Redis, one more free-tier dependency.
 
@@ -508,7 +510,7 @@ Android Chrome PWA ──HTTPS (toebeans.co.za)──► Cloud Run (africa-south
                                  │  ├─► Auth0 (OIDC)
                                  │  ├─► FCM via Web Push (VAPID)
                                  │  └─► Resend (invite emails)
-Cloud Scheduler ──every 1 min──► POST /internal/tick (OIDC-authenticated)
+Cloud Scheduler ──every 5 min──► POST /internal/tick (OIDC-authenticated)
 GitHub Actions ──nightly──► mongodump → encrypted → R2 backups bucket
 
 ```
@@ -584,7 +586,7 @@ This is recorded as risk R3.
 
 **Cold start budget.** At most 5 s from a cold container to the first response (review round 1: "a handful of seconds").
 - Mitigations: a small image, Cloud Run startup CPU boost, lazy initialisation of non-critical clients, and a pooled Mongo connection reused across requests.
-- The tick also keeps an instance warm for much of the day, though Cloud Run doesn't guarantee that. At 1 minute it did for the whole S-1.3 run; at 5 minutes, the spike's second week measures it (§6.3).
+- The tick also keeps an instance warm for much of the day, though Cloud Run doesn't guarantee that. At 1 minute it did for the whole S-1.3 run, and at 5 minutes the spike saw 0.35 instance starts a day, none of them caused by a person opening the app (§6.3).
 - If the budget is missed, `min-instances=1` fixes it but isn't free. That would reopen D9.
 - **Measured (S-1.3):** with the tick paused until the instance had scaled to zero, opening the app on the Galaxy S23 FE started a new instance; Node was up 0.29 s after process start and served the first response 0.62 s later, under 2 s as seen on the phone. Later instance starts took 0.16–0.43 s to boot. Cold starts aren't a concern; S13.3 still measures full cold loads of the installed app on both phones.
 

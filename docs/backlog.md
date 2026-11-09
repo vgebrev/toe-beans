@@ -1,8 +1,8 @@
 # Toe Beans — Backlog
 
-**Version:** 0.22 (draft for iteration)
+**Version:** 0.23 (draft for iteration)
 **Date:** 9 November 2026
-**Inputs:** `docs/requirements.md` v1.0, `docs/architecture.md` v1.7, `docs/ui.md` v0.13
+**Inputs:** `docs/requirements.md` v1.0, `docs/architecture.md` v1.8, `docs/ui.md` v0.13
 
 **Changes in 0.3:** spike results S-1.0 to S-1.4 and S0.1–S0.2 recorded as they landed (see Current progress). S-1.4b dropped as not needed, S-1.5 parked, S-1.4a retargeted to `toebeans.co.za`.
 
@@ -27,6 +27,8 @@
 **Changes in 0.13:** S-1.3 done and S-1.6 done (D8 and D9 accepted), so the S-1 spikes story is closed, with S-1.5 still parked as the self-host check. Architecture is accepted as baseline v1.0. Leftovers that named S-1.6 (deploy workflow, registry, trace correlation) belong to S14.1.
 
 **Changes in 0.22:** S4 done, following architecture 1.7 D22 and `ui.md` 0.13. S4.2's sources were gathered by AI-assisted search at the owner's request and vetted by the owner in S4.3a, which approved all nine starter exercises.
+
+**Changes in 0.23:** the tick-interval check closed early, following architecture 1.8: the 5-minute tick is the permanent setup, and the S-1 spike is torn down.
 
 **Changes in 0.21:** S2 and S3 done: the owner tested both on the phones in Chrome, including S3.5's photo flow and the Android share sheet. The installed PWA wasn't part of it; that's S13.
 
@@ -97,9 +99,9 @@ Work is organised as **vertical slices**: each delivers a usable end-to-end incr
 | 2026-11-07 | S2.7 built: several owners on D19's terms. |
 | 2026-11-08 | S3.1–S3.4 built. Dogs with an exact or estimated birth date, archive and bring back, and an accent picked on adding (architecture §5.2). A dog is added in one multipart request with its photo (D20); `sharp` turns it upright, crops it square and writes WebP at 1024 and 256 px with no metadata, and the photo is streamed only after the household check, cached privately for a day under a URL that changes with it. `PhotoStore` adapters for S3 (`aws4fetch`) and the filesystem; SeaweedFS runs in compose and in the S3 adapter's integration test (D21), and the dogs e2e suite also passed against it. UI: onboarding step 4 with camera or gallery and drag-and-pinch framing, Dogs under More, the profile with *Change photo*, *Edit details* and *Archive*, the switcher on the four main tabs, the dog accent palette, and the dogs' names on the join page. 432 unit, 80 integration and 119 e2e tests. Found on the way: a number input binds to a number in Svelte, which broke *Approximate* until e2e caught it. Not yet tried: any of it on a phone (S3.5). |
 | 2026-11-08 | S2 and S3 done. The owner tested both on the phones in Chrome, not installed: households and invites, including the Android share sheet, and dogs with camera photos, framing and changing them (S3.5). From that review: the photo moved into its own sheet with one confirm button, sized to fit without scrolling; buttons stopped greying out for missing input (`ui.md` §5.1); the dog icon became Phosphor's *Dog*. Known: a tap on onboarding's *Continue* before the page's scripts load submits the form natively (seen once in e2e). |
-
 | 2026-11-09 | S4 done. Exercises are YAML in `content/exercises/`, read at startup (D22) and checked by a strict schema; the §3.8 gate (unreviewed, unacknowledged flagged terms, skill-area coverage) is the content test in CI (`pnpm content:check`) and refuses a prod start, while a local server shows drafts with a badge. Sources for all nine areas are in `content/sources/`, from welfare charities and vet-led sites first (Dogs Trust, Blue Cross, Battersea, RSPCA UK and Australia, Cats Protection, VCA, AKC); every URL was checked to resolve, and two that now redirect to an index page (Best Friends) were replaced. Nine draft exercises, one per area, in original wording, with *If your puppy struggles* and safety notes where a vet or behaviourist may be needed; none uses a flagged term. Library and detail screens under More, with skill-area chips as links. The owner reviewed and approved all nine exercises (S4.3a), so the gate passes. 453 unit, 80 integration and 127 e2e tests. The page header now centres the logo on the title alone, so Today's date no longer pushes it down. |
-**Next up:** S5 cue dictionary. The S-1 spike service and its tick stay up for the tick-interval check: 1 minute until about 9 Nov, then 5 minutes for a week (architecture 1.1 §6.3).
+| 2026-11-09 | The 5-minute tick confirmed (architecture 1.8 §6.3). Since the switch on 6 Nov: 829 of 829 ticks, no scheduler errors, 0.35 instance starts a day with none started by a person, and Cloud Run usage down from about 0.41 c to 0.1 c a day, well within the free tier. The S-1 spike's Cloud Run service (`toe-beans-spike`) and Scheduler job (`toe-beans-tick`) are torn down. |
+**Next up:** S5 cue dictionary. The 5-minute tick is confirmed (architecture 1.8 §6.3); the S-1 spike is torn down until S14 deploys the app.
 
 ---
 
