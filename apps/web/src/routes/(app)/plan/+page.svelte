@@ -5,7 +5,7 @@
 
 <svelte:head><title>Plan · Toe Beans</title></svelte:head>
 
-<PageHeader title="Plan" />
+<PageHeader title="Plan" switcher />
 <EmptyState
 	icon="plan"
 	title="No sessions planned"

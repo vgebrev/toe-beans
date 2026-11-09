@@ -4,14 +4,28 @@ import type { ErrorReporter, Logger, Ports } from './application/ports/index.js'
 import type { Config } from './config.js';
 import { createIdGenerator } from './domain/id.js';
 import { createHttp, type Http } from './http/index.js';
+import { oidcIdentityProvider } from './infrastructure/auth/oidc-provider.js';
 import {
 	createSentryReporter,
 	noopErrorReporter
 } from './infrastructure/error-reporting/sentry.js';
+import { createEmailSender } from './infrastructure/email/index.js';
+import { createPhotoStore, sharpPhotoProcessor } from './infrastructure/photos/index.js';
 import { createPinoLogger } from './infrastructure/logging/pino-logger.js';
+import {
+	mongoPendingSignIns,
+	mongoSessions,
+	mongoUsers
+} from './infrastructure/persistence/auth-collections.js';
+import { mongoDogs } from './infrastructure/persistence/dog-collection.js';
+import {
+	mongoHouseholds,
+	mongoInvitations
+} from './infrastructure/persistence/household-collections.js';
 import { migrate, migrations } from './infrastructure/persistence/migrations/index.js';
 import { connectMongo, mongoReadiness } from './infrastructure/persistence/mongo.js';
 import { mongoUnitOfWork } from './infrastructure/persistence/unit-of-work.js';
+import { memoryRateLimiter } from './infrastructure/rate-limit/memory-rate-limiter.js';
 import { withRequestContext, type RequestContext } from './infrastructure/request-context.js';
 import { systemClock } from './infrastructure/system-clock.js';
 
@@ -71,18 +85,38 @@ export async function createBackend(
 		uow: overrides.uow ?? mongoUnitOfWork(mongo.client),
 		logger,
 		errors,
-		readiness: overrides.readiness ?? mongoReadiness(mongo.db)
+		readiness: overrides.readiness ?? mongoReadiness(mongo.db),
+		identity: overrides.identity ?? oidcIdentityProvider(config.oidc),
+		users: overrides.users ?? mongoUsers(mongo.db),
+		sessions: overrides.sessions ?? mongoSessions(mongo.db),
+		pendingSignIns: overrides.pendingSignIns ?? mongoPendingSignIns(mongo.db),
+		authRateLimit: overrides.authRateLimit ?? memoryRateLimiter({ ...config.authRateLimit, clock }),
+		households: overrides.households ?? mongoHouseholds(mongo.db),
+		invitations: overrides.invitations ?? mongoInvitations(mongo.db, clock),
+		email: overrides.email ?? createEmailSender(config.email),
+		inviteRateLimit:
+			overrides.inviteRateLimit ?? memoryRateLimiter({ ...config.inviteRateLimit, clock }),
+		inviteEmailRateLimit:
+			overrides.inviteEmailRateLimit ??
+			memoryRateLimiter({ limit: 10, windowMs: 60 * 60_000, clock }),
+		dogs: overrides.dogs ?? mongoDogs(mongo.db, clock),
+		photos: overrides.photos ?? createPhotoStore(config.photos),
+		photoProcessor: overrides.photoProcessor ?? sharpPhotoProcessor()
 	};
 	logger.info('backend started', {
 		appEnv: config.appEnv,
 		release: config.release,
 		errorReporting: Boolean(config.sentry),
+		emailSender: config.email.kind,
+		photoStore: config.photos.kind,
+		publicOrigin: config.publicOrigin,
+		oidcIssuer: config.oidc.issuer,
 		durationMs: Math.round(performance.now() - started)
 	});
 	const db = mongo;
 	return {
 		config,
-		http: createHttp(ports),
+		http: createHttp(ports, { publicOrigin: config.publicOrigin }),
 		logger,
 		errors,
 		withRequestContext,

@@ -1,11 +1,21 @@
 # Toe Beans — UI and Interaction Design
 
-**Version:** 0.7 (draft for iteration)
-**Date:** 1 November 2026
+**Version:** 0.12 (draft for iteration)
+**Date:** 8 November 2026
 **Status:** Proposed. Review-round decisions in §8 are accepted.
-**Inputs:** `docs/requirements.md` v1.0, `docs/architecture.md` v0.11
+**Inputs:** `docs/requirements.md` v1.0, `docs/architecture.md` v1.6
 
 **Changes in 0.7:** the logo landed (S0.9). The mark is now a **TB monogram** with four toe beans above it and a heart-shaped bean in the B, from the AI-assisted design board (Monogram Iteration B), replacing the placeholder paw. It was traced from the board and cleaned up rather than redrawn by hand; the variants are the brown-on-cream mark, a cream-on-brown app-icon tile (favicon and maskable) and a white badge. The wordmark uses Fredoka Bold to match the board (§6.4 Logo).
+
+**Changes in 0.12:** S3 built. J1 step 4 as built: *Take photo* or *Gallery*, then a framing square with the circle overlay (drag, pinch, a zoom slider and arrow keys), and birth date as *I know the date* or *Approximate* with months old. J2 names the dogs. §2.2: the switcher shows on Today, Plan, History and Care, with name chips. §5.1 gains two rules from using it: one confirm button per context (a sheet is its own context), and a control is never disabled without the reason on screen; the photo moved into its own sheet in J1 to follow the first, and the household, name and email-invite buttons stopped greying out for missing input to follow the second. §4.5: editing is its own page and the overflow sheet holds *Edit details* and *Archive*; the Recent sections wait for their slices. The dog accent palette is defined (§6.4), and More gains *Dogs* (§2.1). The custom dog icon read as a monkey, so it's replaced by Phosphor's *Dog*, the documented fallback library (§6.4).
+
+**Changes in 0.11:** §4.8 gains *Make owner* and *Step down* (architecture 1.5 D19).
+
+**Changes in 0.10:** S2 built. New §4.8 Household. J2 gains a state for someone already in another household and for a link that isn't valid, and a refused accept reloads the page to say why (architecture 1.4 D16). J1 step 5 says a link works once. `/household/invites` folds into `/household` (§2.3). §4.8 gains *Remove* and *Leave household*, and J1 step 3 offers *Rejoin* to the last person out of a household (architecture D18).
+
+**Changes in 0.9:** new §4.7 Account: the name the household sees is edited on More, following §5.2 (architecture 1.3 §5.2). J1 gains a *Your name* step before Create household, built with S2.
+
+**Changes in 0.8:** with the reminder tick every 5 minutes (architecture 1.1 §6.3), the J7 reminder test arrives 3–8 minutes after the tap and the screen waits 10 minutes before suggesting the battery setting. Time pickers for planned sessions and care tasks use 5-minute steps (J3).
 
 **Changes in 0.6:** S0.8 and S0.9 built the shell and brand. The colour table gains the tokens the build needed: `soft`, `input`, `warn`, `on-danger` and the outcome badge colours from the mock-ups, all contrast-tested (§6.4). Icons are drawn by our own `<Icon>` from the free Hugeicons data, because the `@hugeicons/svelte` component only draws after hydration; the free set has no dog, so a custom one stands in (§6.4). Bottom-bar labels are 14 px, not the mock-ups' 12 px, to meet the type minimum (§6.4). The theme mechanism is recorded (§6.4).
 
@@ -57,6 +67,7 @@ A **floating "+" button** on Today, Plan and History opens a chooser: *Log train
 - The selection filters Today, Plan, History and Care, and pre-fills new records. It persists per device in `localStorage`, a convenience only.
 - With a single dog, the switcher collapses to that dog's avatar (it opens the dog profile).
 - In **All dogs** mode every list item carries an avatar and name. Multi-dog items are never merged into one card (FR-06).
+- *As built (S3):* the switcher sits under the title on Today, Plan, History and Care, not on the pages under More. Each chip is the avatar and the dog's name (`aria-pressed`), and the selected one gets the dog's accent ring; the row scrolls sideways if it's wider than the screen. Archived dogs aren't in it. With no dogs, Today asks to add one.
 
 ### 2.3 Routes (indicative)
 
@@ -72,7 +83,7 @@ A **floating "+" button** on Today, Plan and History opens a chooser: *Log train
 /library, /library/:exerciseId
 /cues
 /dogs, /dogs/new, /dogs/:id
-/household, /household/invites
+/household
 /settings/notifications
 /join/:token            invitation acceptance
 /onboarding/*           first-run flow
@@ -87,17 +98,19 @@ Each journey maps to a requirements acceptance scenario (§5 there).
 ### J1 — First run and onboarding (scenario 1)
 
 1. **Welcome.** Short value statement. **Sign in** → IdP (Google or email).
-2. **Create household:** name and time zone (detected from the device, editable).
-3. **Add your dog:** photo first (camera or gallery, crop to a circle preview), then name, birth date or estimated age (toggle *I know the date* / *Approximate: months old*), adoption date, notes. A dog can't be saved without a photo. The UI explains why ("helps everyone see at a glance which dog an entry is for").
-4. **Invite a caregiver** (skippable):
+2. **Your name:** "What should your household call you?", filled in with the name from sign-in, which for an email sign-up is only the start of the address. Saved like Account's name field (§4.7). Built with S2.
+3. **Create household:** name and time zone (detected from the device, editable). Someone who was the last to leave a household also sees *Rejoin [household]* above the form, which brings it back with them as owner (architecture D18).
+4. **Add your dog:** photo first (camera or gallery, crop to a circle preview), then name, birth date or estimated age (toggle *I know the date* / *Approximate: months old*), adoption date, notes. A dog can't be saved without a photo. The UI explains why ("helps everyone see at a glance which dog an entry is for").
+   - *As built (S3):* *Take photo* opens the camera, *Gallery* the picker. The photo then shows in a square with the circle dimmed around: drag to move it, pinch or use the *Zoom* slider (for anyone who can't pinch), or the arrow keys and +/− when the square has focus; it can't be moved off the circle. The photo is chosen and framed in its own sheet (*Add photo*), whose one confirm button, *Use photo*, returns to the form with the circle preview; the form's own *Add dog* saves (§5.1). *Another photo*, beside it in the sheet's footer, starts again, and *Use photo* tapped before choosing says to choose one first. The framing square is sized to the height the sheet leaves it, so the whole sheet fits on the phone without scrolling, and the footer stays pinned if it ever doesn't (e.g. very large text). Birth date is optional; *Approximate* asks for months old and stores a date that many months back, marked as an estimate (architecture §5.2). Not skippable: every record belongs to a dog. The same form is *Add a dog* under More → Dogs.
+5. **Invite a caregiver** (skippable):
    - *Send email invite*, or *Share link* through the Android share sheet (`navigator.share`), with copy as the fallback.
-   - Shows the link's expiry (default 7 days).
-5. **Turn on reminders** (skippable). See J7.
-6. **Install prompt** if not yet installed (§6.3). Then land on **Today**, with an empty state that suggests scheduling a first exercise from the library.
+   - Shows the link's expiry (7 days), and that it works once. Inviting two people takes two links (architecture D17).
+6. **Turn on reminders** (skippable). See J7.
+7. **Install prompt** if not yet installed (§6.3). Then land on **Today**, with an empty state that suggests scheduling a first exercise from the library.
 
 ### J2 — Accepting an invitation (scenario 1)
 
-`/join/:token` → if signed out: "You've been invited to join **{household}** to help care for **{dogs}**" → *Sign in to accept* → IdP → back to `/join/:token`.
+`/join/:token` → if signed out: "You've been invited to join **{household}** to help care for **{dogs}**" (the dogs not archived; the line is left out while there are none) → *Sign in to accept* → IdP → back to `/join/:token`.
 
 - **Accept** → Today.
 - **Error states** (all plain-language, no technical detail):
@@ -106,10 +119,14 @@ Each journey maps to a requirements acceptance scenario (§5 there).
   - already used
   - email mismatch ("This invite was sent to j•••@gmail.com. Sign in with that address.")
   - already a member
+  - already in another household: each person can be in one for now (architecture D16), so it offers *Use a different account*
+  - a link that isn't valid (unknown, or cleared 30 days after it expired)
+
+A dead invitation (expired, revoked, used) doesn't name its household. Accepting doesn't ask for anything else, so an invitee who signed up with email keeps the name from their address until they change it on More. If an accept is refused, the page reloads the invitation and shows the state above; if it fails, it says "Couldn't join — check your connection." with **Retry**.
 
 ### J3 — Plan and practise (scenario 3)
 
-1. Plan → **+ Schedule**. Pick the dog (pre-filled), the exercise (library picker with search and skill-area chips), the date and time, and repeat (*Never / Daily / Weekdays / Custom days*, with an end date).
+1. Plan → **+ Schedule**. Pick the dog (pre-filled), the exercise (library picker with search and skill-area chips), the date and time (5-minute steps, matching the reminder tick in `architecture.md` §6.3; care tasks too), and repeat (*Never / Daily / Weekdays / Custom days*, with an end date).
 2. The session appears on Plan and on Today on the day.
 3. Caregiver B opens Today → taps the session card → **exercise instructions** (goal, setup, steps, duration, success criteria, *If your puppy struggles*). A sticky bottom button reads **Log practice**.
 4. **Quick log sheet** (§5.2) → choose *Partially successful* → *Add details* → *Relaxed/confident*, *Garden* → **Save**.
@@ -154,7 +171,7 @@ Settings → Notifications (also offered during onboarding and via a Today banne
 
 The manufacturer is preselected where Chrome reports the phone model (`navigator.userAgentData` high-entropy `model`), with a picker to change it. An *Open Chrome's settings* shortcut isn't possible from a web app, so the steps are text plus a screenshot per manufacturer. *Done* hides the card; it stays reachable from Settings → Notifications → *Reminder tips*.
 
-**Test reminders** sends a push **3 minutes** later and asks the user to lock the phone and put it down. When it arrives, its tap opens a "Reminders are working" screen. A test that arrives instantly says nothing, because phones only start dropping pushes after a minute or two locked. If nothing arrives within 5 minutes the screen, next time it's opened, says "Didn't get it? Check the battery setting above" (the service worker reports the test's arrival to the server, as in the S-1.2 spike).
+**Test reminders** sends a push **3 minutes** later and asks the user to lock the phone and put it down. When it arrives, its tap opens a "Reminders are working" screen. A test that arrives instantly says nothing, because phones only start dropping pushes after a minute or two locked. The server sends it no earlier than 3 minutes later, so with the 5-minute tick (`architecture.md` §6.3) it arrives 3–8 minutes after the tap. If nothing arrives within 10 minutes the screen, next time it's opened, says "Didn't get it? Check the battery setting above" (the service worker reports the test's arrival to the server, as in the S-1.2 spike).
 
 The screen also lists **other devices** of the current user, so they can be removed. A note always says: "Reminders can be delayed by your phone's battery or network settings. Today always shows what's due."
 
@@ -245,11 +262,30 @@ The header shows a week strip (Mon–Sun) with dots for days that have sessions,
 - Large circular photo with a *Change photo* action, name, age (computed, with "approx." where estimated), time since adoption, notes.
 - Sections: *Recent training*, *Recent events*, *Upcoming care*, each with "See all" linking to the filtered view.
 - Archive is in the overflow menu, with confirmation.
+- *As built (S3):* *Change photo* opens the same photo sheet as J1, whose one button is *Save photo*; the profile then says "Photo changed." *Edit details* is its own page (`/dogs/:id/edit`), the J1 form without the photo. The overflow button opens a sheet with *Edit details* and *Archive*, which turns into the confirmation naming the dog. An archived dog's profile says so at the top with *Bring back*; it's listed under *Archived* on More → Dogs. A change made elsewhere meanwhile saves nothing: the edit page offers *See their version*, and the sheets close and say so above the reloaded profile (§5.2). The *Recent training*, *Recent events* and *Upcoming care* sections arrive with their slices.
 
 ### 4.6 Library and cues
 
 - **Library:** skill-area chips, then exercise cards (title, goal, duration). The detail page holds the full instructions and a **Schedule** / **Log practice** pair at the bottom. It's read-only, and no "create exercise" is offered in Phase 1.
 - **Cues:** a simple editable list (cue word, meaning, hand signal, reward convention), with tap-to-edit in a sheet. It shows "Last edited by Sam, 2 days ago" for shared awareness.
+
+### 4.7 Account
+
+On More. **Your name** is a text field (48 px, `autocomplete="name"`, up to 100 characters) with the hint "Everyone in your household sees this name", then the email, read-only, then *Sign out*. The provider sets the name at first sign-in; once the person saves one, sign-ins leave it alone (architecture §5.2).
+
+- *Save* is enabled only when the name changed and isn't blank. Saving follows §5.2, but inline, since there's no sheet: "Saving…" on the button, then "Saved" beside it (announced politely). A failed save keeps the typed name, shows "Couldn't save — check your connection." and turns the button into **Retry**.
+- A conflict (the name was saved elsewhere, e.g. on another device) says "Your name was changed somewhere else a moment ago." with *See the new name* and *Keep mine*. It's the person's own record, so overwriting is offered (§5.2).
+- If the account can't be loaded, the name and email show as text, with "Couldn't load your account details. Reload the page to change your name."
+
+### 4.8 Household
+
+On More as **Household & invites**, showing the household's name; the page keeps the More tab marked and links back to it.
+
+- **Members:** display name, "(you)", and role. No emails: the household knows each other by name. An owner sees *Make owner* and *Remove* on each caregiver, each confirmed in a bottom sheet (§5.3): *Remove* says they lose access and that their invites stop working, and *Make owner* says owners can't remove each other, so only they can step down. An owner sees *Step down* on their own row while another owner stays (architecture D19). Afterwards the result shows at the top of the page.
+- **Pending invites:** invitations that can still be used, showing the address or "Invite link", who sent it and until when. *Revoke* appears for an owner, or on your own invitation (architecture D17), and confirms in a bottom sheet naming it (§5.3). If it failed the sheet stays open with **Retry**; if the invitation changed meanwhile, nothing is revoked, the sheet closes and the page says so above the refreshed list.
+- **Invite a caregiver:** the same controls as J1 step 5. *Create an invite link* shows the link once, in a read-only field, with its terms and *Share link* (the share sheet, or copy as the fallback). It's only ever available on this screen at creation, because only its hash is kept (architecture §5.2). *Send invite* keeps the address after a failure, and shows "Invite sent to …" politely once the server has sent it.
+- **Leave household:** at the foot of the page, for everyone, confirmed in a bottom sheet that says what follows: who becomes the owner, that coming back takes a new invite, or for the last person, that the household is deactivated and they can rejoin it. Leaving goes to *Create household* (J1 step 3).
+- If the household changed while a sheet was open, nothing is done, the sheet closes and the top of the page says so above the refreshed members. A failure keeps the sheet open with **Retry**, as for revoking.
 
 ---
 
@@ -262,12 +298,14 @@ The header shows a week strip (Mon–Sun) with dots for days that have sessions,
 - Prefer chips and segmented controls over dropdowns for short option sets. Use dropdowns or searchable pickers for exercises.
 - Validate on blur and on submit. Errors appear inline under the field with `aria-describedby`.
 - The primary action is a full-width button at the bottom of sheets and forms, kept above the keyboard.
+- **One confirm button per context.** A screen or sheet has a single primary button, which does the whole step. A sub-step that needs its own confirmation (choosing and framing a photo, picking from a long list) goes in its own sheet with its own one button, and returns to the form, whose button saves.
+- **Never disabled without a reason on screen.** Don't grey out a button because a field is empty or unchanged: leave it enabled and, on tap, say what's missing inline (§5.2 Validation) or why nothing was sent. A control may be disabled only while its reason is visible: its own label ("Saving…", "Opening photo…"), or an alert beside it (a conflict). Controls that can't be used yet are better hidden until they can.
 
 ### 5.2 Feedback and status
 
 | Situation | Convention |
 |---|---|
-| Saving | Button shows a spinner + "Saving…". Inputs stay editable but submit is disabled. |
+| Saving | Button shows a spinner + "Saving…". Inputs stay editable but submit is disabled; its label is the reason (§5.1). |
 | Saved | Sheet closes, then a snackbar "Saved" (with *Undo* for deletes). |
 | Failed (network/5xx) | Sheet stays open with all input kept. Banner: "Couldn't save — check your connection." Button → **Retry**. |
 | Conflict (412) | "Alex changed this a moment ago." Options: *See their version* / *Overwrite with mine* (the latter only for simple records like cues). |
@@ -333,9 +371,9 @@ All icons go through one wrapper component (`<Icon name="…">`). That keeps the
 | Tabler | MIT | Outline, plus a partial filled set | Good | Large set, but sharper corners. |
 | Material Symbols Rounded | Apache 2.0 | Variable (fill, weight, grade) | Pets, cruelty-free | Most Android-native, least distinctive. |
 
-**Decision (review round 3):** **Hugeicons free (Stroke Rounded)**. Phosphor stays the fallback if the free set has gaps that custom icons can't cover. Don't mix libraries; any gap gets a custom icon drawn to the same 24 px grid and 1.5 px rounded stroke.
+**Decision (review round 3):** **Hugeicons free (Stroke Rounded)**. Phosphor stays the fallback if the free set has gaps that custom icons can't cover. Don't mix libraries; any gap gets a custom icon drawn to the same 24 px grid and 1.5 px rounded stroke. *(Amended in 0.12: or Phosphor's icon, when a drawn one doesn't read well; the dog is the one so far.)*
 
-**As built (S0.9):** the icons are mapped by meaning in `apps/web/src/lib/components/icon/icons.ts` (nav tabs, actions, More entries, theme choices, and paw, bone, treat, walk, vaccination, medication, vet). `@hugeicons/svelte` was dropped: its component draws the icon only after hydration, so server-rendered pages showed empty icons; `<Icon>` renders the same data on the server. Gaps in the free set: **dog** (a custom floppy-eared head; the logo has no dog to draw it from) and **leash** (*walk*, a walking figure, stands in). There's no cat in the MVP, so it isn't mapped.
+**As built (S0.9):** the icons are mapped by meaning in `apps/web/src/lib/components/icon/icons.ts` (nav tabs, actions, More entries, theme choices, and paw, bone, treat, walk, vaccination, medication, vet). `@hugeicons/svelte` was dropped: its component draws the icon only after hydration, so server-rendered pages showed empty icons; `<Icon>` renders the same data on the server. Gaps in the free set: **dog** (Phosphor's *Dog*, MIT, rescaled to the 24 px grid; its 16-unit line on Phosphor's 256 grid is the same 1.5 px. The custom floppy-eared head it replaced in S3 read as a monkey) and **leash** (*walk*, a walking figure, stands in). There's no cat in the MVP, so it isn't mapped.
 
 #### Logo
 
@@ -379,7 +417,7 @@ Light mode is **Beagle**: white coat with tan and brown patches. Dark mode is **
 | Not yet successful | Soft blue tint, never red |
 | Not assessed | Neutral grey, outlined |
 
-Each badge shows an icon plus a text label. Badge colours (from the mock-ups, label on tint): Successful `#1E5B2E` on `#E3F2E6` (7.0) / `#8FD3A0` on `#1D3324` (7.7); Partially `#6E4A00` on `#FCEFD6` (7.0) / `#F2C46B` on `#3A2E14` (8.2); Not yet `#1F4E79` on `#E4EEF8` (7.4) / `#9CC4EC` on `#1B2A3A` (8.0); Not assessed: `text-muted` label, outline `#CDBFAE` / `#5A4D42`. The dog accent palette (§5.5) is still to define: about 6 colours, each with a light and a dark variant, distinguishable from each other and from `primary` (S3).
+Each badge shows an icon plus a text label. Badge colours (from the mock-ups, label on tint): Successful `#1E5B2E` on `#E3F2E6` (7.0) / `#8FD3A0` on `#1D3324` (7.7); Partially `#6E4A00` on `#FCEFD6` (7.0) / `#F2C46B` on `#3A2E14` (8.2); Not yet `#1F4E79` on `#E4EEF8` (7.4) / `#9CC4EC` on `#1B2A3A` (8.0); Not assessed: `text-muted` label, outline `#CDBFAE` / `#5A4D42`. The dog accent palette (§5.5), defined in S3: teal `#0E726C` / `#4FC1B6`, blue `#2E5EAA` / `#86AEF2`, violet `#6B4DB5` / `#B7A0F2`, magenta `#A13A86` / `#EC8FCD`, green `#4B7520` / `#9DCC6B`, slate `#4E6273` / `#A3B5C6` (light / dark), tokens `dog-0` to `dog-5`. No brown or orange, to stay clear of `primary`, and no red, to stay clear of `danger`. Each is at least 4.6:1 on `bg`, `surface` and `soft`, more than the 3:1 a ring or dot needs, and the avatar fallback's initial (`on-dog`: white / `#1A110A`) is at least 5.4:1 on each; `tokens.test.ts` checks every pairing.
 
 **As built (S0.9):** the tokens live in `apps/web/src/lib/theme/tokens.ts`, and `app.css` declares each once as `light-dark(<Beagle>, <German Shepherd>)`. With no override, `color-scheme: light dark` follows the system setting live. An override sets `data-theme` on `<html>`, which pins `color-scheme`; the inline script in `app.html` applies a stored override before first paint and also sets the `theme-color` metas, so Android's status bar matches. A unit test fails if `app.css` drifts from `tokens.ts` or any used pairing drops below AA, and an e2e test checks the override with the app's scripts blocked. The switch is on More → Appearance.
 

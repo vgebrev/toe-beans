@@ -1,5 +1,15 @@
 // The backend's framework-neutral HttpResponse → a web Response.
-import type { HttpResponse } from '@toe-beans/backend';
+import { serializeCookie, type HttpResponse } from '@toe-beans/backend';
 
-export const toResponse = ({ status, headers, body }: HttpResponse): Response =>
-	new Response(body === undefined ? null : JSON.stringify(body), { status, headers });
+export function toResponse({
+	status,
+	headers,
+	body,
+	stream,
+	cookies = []
+}: HttpResponse): Response {
+	const out = new Headers(headers);
+	for (const cookie of cookies) out.append('set-cookie', serializeCookie(cookie));
+	const payload = stream ?? (body === undefined ? null : JSON.stringify(body));
+	return new Response(payload, { status, headers: out });
+}

@@ -4,19 +4,19 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project status
 
-Toe Beans is a mobile-first, installable PWA for puppy training and care, shared by caregivers in one household. The requirements are `docs/requirements.md` (baselined v1.0, 25 Oct 2026). The product is at the foundations stage (backlog S0): a pnpm workspace with no features yet. `spikes/` holds throwaway de-risking spikes, each installed separately (see each spike's README).
+Toe Beans is a mobile-first, installable PWA for puppy training and care, shared by caregivers in one household. The requirements are `docs/requirements.md` (baselined v1.0, 25 Oct 2026). The S-1 spikes and S0 foundations are done; feature slices start with S1 (sign-in, built) in `docs/backlog.md`. `spikes/` holds throwaway de-risking spikes, each installed separately (see each spike's README).
 
 ## Commands
 
 Run from the repo root (Node ≥ 24, pnpm 10):
 
 - `pnpm install`, then `cp .env.example .env` for local settings (ports, `MONGODB_URI`, log level). `.env` is gitignored; `.env.example` is public, so it holds sample values only, never secrets. Shell variables win over `.env`. `pnpm dev`, `build`, `test:e2e`, `compose` and the app's `start` read it.
-- `pnpm dev`: the web app (Vite dev server) on http://localhost:7877 (`DEV_PORT`; PUPP on a phone keypad; `pnpm dev --host` to reach it from a phone on the same Wi-Fi). It needs MongoDB as a replica set at `MONGODB_URI` (default `localhost:27017`); start one with `pnpm compose up -d --wait mongo`
+- `pnpm dev`: the web app (Vite dev server) on http://localhost:7877 (`DEV_PORT`; PUPP on a phone keypad; `pnpm dev --host` to reach it from a phone on the same Wi-Fi). It needs MongoDB as a replica set at `MONGODB_URI` (default `localhost:27017`) and an OIDC provider: `pnpm compose up -d --wait` starts Mongo and the mock provider on `localhost:8090` (any subject and claims JSON sign in), which the app uses unless `OIDC_ISSUER` is set (the Auth0 dev tenant, `docs/runbooks/auth0.md`). Behind `--host`, set `PUBLIC_BASE_URL` to the address the phone opens (`https://toebeans.test:7877` with the mkcert setup in the README). Email goes where `EMAIL_SENDER` says: `console` by default, `mailpit` for a local inbox at `MAILPIT_URL`, `resend` for real mail (never chosen by the key alone)
 - `pnpm lint`: ESLint (including the layer rules) and Prettier check; `pnpm format` fixes formatting
 - `pnpm check`: type-check every package (`tsc`, and `svelte-check` for `apps/web`)
 - `pnpm test`: all Vitest unit tests. One file: `pnpm test packages/backend/src/domain/result.test.ts`; by name: `pnpm test -t 'narrows on ok'`
 - `pnpm test:integration`: `*.integration.test.ts` against MongoDB in Docker (Testcontainers; needs Docker running)
-- `pnpm test:e2e`: Playwright (`apps/web/e2e`) against the production build on emulated Galaxy S23 FE and Redmi Note 12 Pro. Needs MongoDB like `pnpm dev` (database `toe-beans-e2e`) and Chromium (`pnpm --filter @toe-beans/web exec playwright install chromium`). One project: `pnpm test:e2e --project=galaxy-s23-fe` (keep the `=` when a file or `-g` follows)
+- `pnpm test:e2e`: Playwright (`apps/web/e2e`) against the production build on emulated Galaxy S23 FE and Redmi Note 12 Pro. Needs Mongo and the mock provider like `pnpm dev` (database `toe-beans-e2e`; it always signs in through the mock, whatever `.env` says) and Chromium (`pnpm --filter @toe-beans/web exec playwright install chromium`). One project: `pnpm test:e2e --project=galaxy-s23-fe` (keep the `=` when a file or `-g` follows)
 - `pnpm build`: production build of `apps/web` (adapter-node, output in `apps/web/build`)
 - `pnpm compose …`: `docker compose` on `docker/compose.yaml`. `--profile app up --build -d --wait` also runs the app image on `localhost:3000`. On port clashes set `MONGO_PORT` / `APP_PORT` in `.env` (and the port in `MONGODB_URI` to match). The image alone: `docker build -f docker/Dockerfile .`
 - `apps/web` `dependencies` hold only what the server bundle imports at runtime (now just `@opentelemetry/api`); everything bundled is a devDependency, so the image stays small.
@@ -33,7 +33,7 @@ Branches: work lands on `develop` (commit there or on a feature branch off it); 
 - Packages export TypeScript source (no build step); relative imports use `.js` extensions (NodeNext).
 - The layer rules (architecture §4.2) are `no-restricted-imports` blocks in `eslint.config.js`. If a lint error says a layer can't import something, fix the design (add a port, move the code) rather than loosening the rule.
 
-Design docs (drafts under review; each records its own changes in a "Changes in" line under the header): `docs/architecture.md` (decision log, domain model, layering, hosting), `docs/ui.md` (journeys, layouts, interaction conventions), `docs/backlog.md` (vertical slices and current progress). Record technical trade-offs in the architecture decision log against requirement IDs (FR-xx / NFR-xx), not silently in code. Update slice status in the backlog as work lands.
+Design docs (each records its own changes in a "Changes in" line under the header): `docs/architecture.md` (accepted baseline v1.0: decision log, domain model, layering, hosting; a changed decision is recorded in its decision log), `docs/ui.md` (journeys, layouts, interaction conventions), `docs/backlog.md` (vertical slices and current progress). Record technical trade-offs in the architecture decision log against requirement IDs (FR-xx / NFR-xx), not silently in code. Update slice status in the backlog as work lands.
 
 Doc versioning: a committed "Changes in x.y" line is closed. When a batch of work changes a doc, and its current version's line is already committed (check with `git diff HEAD -- docs/`), bump the minor version, set the date and add a new "Changes in" line. Don't append to an older line. Uncommitted changes in the same batch go into the open new version. Summarise what changed and why, with section and decision references, not a diary. When a doc's version changes, update the "Inputs" versions in the docs that drive work from it (the backlog cites architecture and ui). `requirements.md` is baselined, so it changes only through a recorded scope change.
 

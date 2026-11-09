@@ -70,6 +70,14 @@ jobs:
           --health-interval 5s
           --health-timeout 10s
           --health-retries 30
+      # The mock OIDC provider the tests sign in through (architecture §3.4), as in compose.
+      # Its issuer follows the Host header, so it must be reached as localhost:8090.
+      mock-oidc:
+        image: ghcr.io/navikt/mock-oauth2-server:6.1.3@sha256:2a813381bf282da46ff36ff386059e7903e25865056af8149f4fb3f1441916b8
+        env:
+          JSON_CONFIG: '{"interactiveLogin": true}'
+        ports:
+          - 8090:8080
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:

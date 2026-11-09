@@ -35,6 +35,13 @@
 	--tb-not-yet-bg: light-dark(#e4eef8, #1b2a3a);
 	--tb-not-yet-fg: light-dark(#1f4e79, #9cc4ec);
 	--tb-not-assessed-border: light-dark(#cdbfae, #5a4d42);
+	--tb-dog-0: light-dark(#0e726c, #4fc1b6);
+	--tb-dog-1: light-dark(#2e5eaa, #86aef2);
+	--tb-dog-2: light-dark(#6b4db5, #b7a0f2);
+	--tb-dog-3: light-dark(#a13a86, #ec8fcd);
+	--tb-dog-4: light-dark(#4b7520, #9dcc6b);
+	--tb-dog-5: light-dark(#4e6273, #a3b5c6);
+	--tb-on-dog: light-dark(#ffffff, #1a110a);
 
 	--radius: 1rem;
 }
@@ -94,6 +101,13 @@
 	--color-not-yet: var(--tb-not-yet-bg);
 	--color-not-yet-foreground: var(--tb-not-yet-fg);
 	--color-not-assessed-border: var(--tb-not-assessed-border);
+	--color-dog-0: var(--tb-dog-0);
+	--color-dog-1: var(--tb-dog-1);
+	--color-dog-2: var(--tb-dog-2);
+	--color-dog-3: var(--tb-dog-3);
+	--color-dog-4: var(--tb-dog-4);
+	--color-dog-5: var(--tb-dog-5);
+	--color-on-dog: var(--tb-on-dog);
 
 	/* Nunito for body and UI; Fredoka only for display text of 20 px and up (ui.md §6.4). */
 	--font-sans: 'Nunito Variable', system-ui, sans-serif;

@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 
-const destinations = ['/', '/plan', '/history', '/care', '/more'];
+const destinations = ['/', '/plan', '/history', '/care', '/more', '/household'];
 
 for (const path of destinations) {
 	test(`${path} renders on the phone without errors, sideways scrolling or third parties`, async ({
@@ -33,4 +33,17 @@ test('the server is ready and tags responses with a request ID', async ({ reques
 	expect(response.status()).toBe(200);
 	expect(await response.json()).toEqual({ status: 'ready' });
 	expect(response.headers()['x-request-id']).toMatch(/^[0-9a-f-]{36}$/);
+});
+
+test('only the Latin fonts are preloaded, so text rarely swaps after first paint', async ({
+	page
+}) => {
+	await page.goto('/');
+	const fonts = await page
+		.locator('link[rel="preload"][as="font"]')
+		.evaluateAll((links) => links.map((l) => (l as HTMLLinkElement).href.split('/').pop()));
+	expect(fonts.map((f) => f!.replace(/\.[\w-]+\.woff2$/, '')).sort()).toEqual([
+		'fredoka-latin-wght-normal',
+		'nunito-latin-wght-normal'
+	]);
 });

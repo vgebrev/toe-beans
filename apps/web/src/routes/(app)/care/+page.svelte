@@ -5,7 +5,7 @@
 
 <svelte:head><title>Care · Toe Beans</title></svelte:head>
 
-<PageHeader title="Care" />
+<PageHeader title="Care" switcher />
 <EmptyState
 	icon="vaccination"
 	title="No care tasks yet"

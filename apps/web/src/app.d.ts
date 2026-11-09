@@ -7,6 +7,7 @@ declare global {
 			/** Shown with unexpected errors, so a report can be matched to the logs (NFR-12). */
 			requestId?: string;
 		}
+		// `viewer` is added in lib/server/locals.d.ts, which may import backend types.
 		interface Locals {
 			requestId: string;
 		}

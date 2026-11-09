@@ -6,9 +6,17 @@ dist/
 coverage/
 
 # Environment and secrets
+# Playwright's saved test session (mock provider, test data only)
+apps/web/e2e/.auth/
 .env
 .env.*
 !.env.example
+
+# Local dev TLS certificates (mkcert, README)
+.certs/
+
+# Dog photos from `pnpm dev` (PHOTO_DIR's default, under apps/web)
+.data/
 
 # Local scratchpad: design files, notes, experiments
 workspace/

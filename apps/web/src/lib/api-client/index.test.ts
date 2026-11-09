@@ -43,6 +43,18 @@ describe('createApiClient', () => {
 		});
 	});
 
+	it('sends a multipart form as it is, leaving the content type to the browser', async () => {
+		const fetchMock = respond(201, { id: 'd1', name: 'Ripley' });
+		const form = new FormData();
+		form.set('dog', JSON.stringify({ name: 'Ripley' }));
+		const result = await createApiClient(fetchMock).send('POST', '/dogs', { form, schema: Dog });
+
+		expect(result).toMatchObject({ ok: true, data: { id: 'd1' } });
+		const init = fetchMock.mock.calls[0]![1]!;
+		expect(init.body).toBe(form);
+		expect(init.headers).toEqual({ accept: 'application/json' });
+	});
+
 	it('returns problem details with the request ID', async () => {
 		const problem = { type: 'toe-beans/conflict', title: 'Changed by someone else', status: 412 };
 		const fetchMock = respond(412, problem, {
