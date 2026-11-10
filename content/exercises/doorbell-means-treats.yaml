@@ -1,0 +1,41 @@
+id: doorbell-means-treats
+contentVersion: 1
+title: The doorbell means treats
+skillArea: doorbell
+goal: The sound of the doorbell or a knock tells your puppy something good is coming, not that it's time to rush the door.
+setup: >-
+  A recording of your doorbell on your phone (or a helper who can knock quietly), and tasty treats.
+  While you're training, a note on the door asking visitors to message instead of ringing helps
+  avoid real rings that are too much too soon.
+steps:
+  - With your puppy near you, play the doorbell sound at very low volume, or knock softly on a table.
+  - Straight after the sound, give a treat. Sound first, then treat, every time.
+  - Repeat five or six times with pauses in between, so the sound comes at unpredictable moments.
+  - Over later sessions, raise the volume a little, then move the sound closer to the real door.
+  - Once your puppy looks to you for a treat when they hear it, start tossing the treat onto their
+    bed or mat, so the bell comes to mean "go to your bed".
+suggestedDurationMin: 5
+successCriteria: >-
+  At this volume, your puppy turns to you or heads for their bed when the sound plays, instead of
+  barking or running to the door.
+ifStruggling: |-
+  Turn it down. If your puppy barks or runs to the door, the sound was too loud or too close; go back
+  to a level where they notice it but stay relaxed.
+
+  Use better treats, and keep sessions very short. Real visitors arriving during training can set
+  things back, so manage the door while your puppy is learning.
+safetyNotes: >-
+  If your puppy seems frightened by the sound (cowering, trembling, hiding), stop and ask a qualified,
+  reward-based behaviourist for help.
+sources:
+  - title: How to prepare your dog for visitors
+    url: https://www.dogstrust.org.uk/dog-advice/training/home/visitor-training
+    kind: article
+  - title: Creative solutions to poor door greeting behavior
+    url: https://www.oregonhumane.org/portland-training/creative-solutions-to-poor-door-greeting-behavior/
+    kind: article
+  - title: Desensitization and counter-conditioning
+    url: https://eastbayspca.org/wp-content/uploads/2024/05/Desensitization-and-Counter-Conditioning-Canine.pdf
+    kind: article
+reviewedBy: veli
+reviewedAt: 2026-11-09

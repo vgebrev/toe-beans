@@ -34,6 +34,8 @@ WORKDIR /app
 COPY --from=build /out/package.json ./
 COPY --from=build /out/node_modules ./node_modules
 COPY --from=build /repo/apps/web/build ./build
+# The exercise library, read at startup (architecture §3.8); found as /app/content/exercises.
+COPY --from=build /repo/content/exercises ./content/exercises
 # The image's built-in unprivileged user. Files stay root-owned, so the app can't modify itself.
 USER node
 EXPOSE 8080

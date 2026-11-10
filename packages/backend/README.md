@@ -7,7 +7,7 @@ it through `createBackend()` and the `http` handlers, and a Fastify app could la
 |---|---|---|
 | `domain/` | other domain files, `node:crypto` | entities, value objects, domain services |
 | `application/` | `domain` | use cases, ports (`Clock`, `Logger`, `ErrorReporter`, `Readiness`, repositories, `PushSender`, …) |
-| `infrastructure/` | `application`, `domain`, any driver | Mongo (`persistence/`: client, `UnitOfWork`, `HouseholdCollection`, migrations, readiness), `logging/` (pino, `scrubText`), `error-reporting/` (Sentry), `rate-limit/` (in-memory token buckets), the request context, `email/` (console, Mailpit, Resend, chosen by `EMAIL_SENDER`), R2, web-push, OIDC adapters |
+| `infrastructure/` | `application`, `domain`, any driver | Mongo (`persistence/`: client, `UnitOfWork`, `HouseholdCollection`, migrations, readiness), `logging/` (pino, `scrubText`), `error-reporting/` (Sentry), `rate-limit/` (in-memory token buckets), the request context, `email/` (console, Mailpit, Resend, chosen by `EMAIL_SENDER`), `content/` (the exercise library's YAML files), R2, web-push, OIDC adapters |
 | `http/` | `application`, `domain`, `@toe-beans/contracts` | framework-neutral handlers: (ctx, input) → Result |
 | `worker/` | `application`, `domain` | the notification tick |
 | `testing/` | `application`, `domain` | test doubles for the ports (`manualClock`) and `householdIsolationSuite` |

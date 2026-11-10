@@ -16,6 +16,7 @@
 		"test": "vitest run",
 		"test:integration": "vitest run --config vitest.integration.config.ts",
 		"test:e2e": "pnpm --filter @toe-beans/web test:e2e",
+		"content:check": "vitest run packages/backend/src/infrastructure/content/library.test.ts",
 		"compose": "docker compose $([ -f .env ] && echo --env-file .env) -f docker/compose.yaml"
 	},
 	"devDependencies": {

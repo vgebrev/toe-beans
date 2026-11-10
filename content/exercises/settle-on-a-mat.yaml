@@ -1,0 +1,42 @@
+id: settle-on-a-mat
+contentVersion: 1
+title: Settle on a mat
+skillArea: settling
+goal: Your puppy learns to lie down and relax on their mat, at home and later in new places.
+setup: >-
+  A mat or towel you use only for this (not their bed), a quiet room, and a small pot of low-key
+  treats. Choose a time when your puppy has been out and played, but isn't over-tired.
+steps:
+  - Put the mat down and sit next to it. Drop a treat on the mat each time your puppy sniffs it or
+    steps on it.
+  - >-
+    Wait for more: all four paws on the mat, then sitting, then lying down. Reward each new step by
+    placing a treat on the mat between their front paws.
+  - Once they lie down readily, reward signs of relaxing, such as rolling onto a hip, stretching out
+    or resting their chin.
+  - Slowly leave longer gaps between treats, a few seconds at a time, while staying calm and quiet
+    yourself.
+  - End by saying a release word ("free" or "OK") and invite them off the mat. Pick the mat up until
+    next time.
+suggestedDurationMin: 5
+successCriteria: >-
+  Your puppy walks to the mat and lies down on their own, and stays relaxed for a minute or two with
+  only the odd treat.
+ifStruggling: |-
+  Go back to rewarding smaller steps, even a glance at the mat. Keep sessions very short and your own
+  movements slow.
+
+  If your puppy wanders off, wait quietly and reward the moment they come back to the mat. There's
+  no need to bring them back or say anything.
+
+  Puppies need a lot of sleep. If they can't settle at all, they may be over-tired: give them a quiet
+  rest in a safe space and try another time.
+sources:
+  - title: "My dog won't settle: teaching your dog to be calm and relaxed"
+    url: https://www.battersea.org.uk/pet-advice/dog-advice/my-dog-wont-settle-teaching-your-dog-be-calm-and-relaxed
+    kind: article
+  - title: 'Teaching Calm: SOFT and Handling Exercises'
+    url: https://vcahospitals.com/know-your-pet/dog-behavior-and-training---teaching-calm---soft-and-handling-exercises
+    kind: article
+reviewedBy: veli
+reviewedAt: 2026-11-09

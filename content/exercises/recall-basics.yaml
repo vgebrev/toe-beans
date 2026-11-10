@@ -1,0 +1,44 @@
+id: recall-basics
+contentVersion: 1
+title: Recall basics
+skillArea: recall
+goal: Your puppy turns and comes to you happily when they hear your recall cue.
+setup: >-
+  Indoors in a quiet room, with a handful of high-value treats and, if you have one, a second person
+  to take turns with. Choose one recall word (like "come" or "here") that everyone in the household
+  will use.
+steps:
+  - From a step or two away, say your recall cue once in a cheerful voice.
+  - As soon as your puppy moves towards you, praise them warmly.
+  - When they reach you, reward right at your feet, with a few treats one after another.
+  - Let them wander off again (or have your partner call them back), and repeat a few times.
+  - Add distance only when it's easy. Later, try another room, then the garden.
+suggestedDurationMin: 5
+successCriteria: >-
+  Your puppy comes straight to you, without detours, nearly every time you call once from across the
+  room. Then try the next setting.
+ifStruggling: |-
+  Make it easier: get closer, crouch down, clap or move away from your puppy, and use a better
+  treat. Call when they're not busy with something more interesting.
+
+  Never call them to something they dislike, such as nail clipping or the end of a walk; go and get
+  them instead. If you've called and they don't come, don't keep repeating the cue. Go to them
+  calmly and try again later from an easier spot.
+
+  Finish every session on an easy win.
+safetyNotes: >-
+  Outdoors, keep a long line on your puppy (attached to a harness, not a collar) until recall is
+  solid in that kind of place. No dog's recall is perfect: keep them on a lead near roads and
+  livestock.
+sources:
+  - title: How to train your dog to come back when called
+    url: https://www.dogstrust.org.uk/dog-advice/training/basics/recall-training
+    kind: article
+  - title: Dog recall training
+    url: https://www.bluecross.org.uk/advice/dog/behaviour-and-training/dog-recall-training
+    kind: article
+  - title: How can I teach my dog recall (to come when called)?
+    url: https://kb.rspca.org.au/categories/companion-animals/dogs/training/how-can-i-teach-my-dog-recall-to-come-when-called
+    kind: article
+reviewedBy: veli
+reviewedAt: 2026-11-09

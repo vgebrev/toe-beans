@@ -1,0 +1,39 @@
+id: loose-lead-first-steps
+contentVersion: 1
+title: Loose-lead first steps
+skillArea: loose-leash
+goal: Your puppy learns that walking beside you with a slack lead is what keeps the walk going.
+setup: >-
+  Start indoors or in the garden, with your puppy on a flat collar or a comfortable harness and a
+  normal lead (not an extending one). Fill a pocket with small treats.
+steps:
+  - Stand still with the lead loose. Reward your puppy every time they come to your side.
+  - Take one or two steps. If the lead stays slack, reward at your side, by your leg.
+  - Keep going, rewarding every few steps while the lead is loose.
+  - If the lead goes tight, stop and stand still. Wait for your puppy to look back or step towards
+    you so the lead slackens, then reward and walk on.
+  - Change direction often to keep it a game. Move to quiet streets only once this is easy at home.
+suggestedDurationMin: 5
+successCriteria: >-
+  Your puppy walks beside you with a slack lead for about ten steps at a time in this place, with
+  rewards every few steps.
+ifStruggling: |-
+  Go somewhere less exciting, and reward more often. Short, frequent sessions work better than one
+  long one.
+
+  Let your puppy sniff; it's part of a walk. Use "go sniff" as a reward for a few loose-lead steps.
+
+  If your puppy bites the lead, make the lead dull and offer a toy to carry instead. Never tug the
+  lead to bring your puppy back.
+safetyNotes: >-
+  Puppies tire quickly and their joints are still growing: keep walks short and gentle, and let them
+  rest. Check that a harness doesn't rub.
+sources:
+  - title: Teaching your dog to walk on a loose leash
+    url: https://www.maddiesfund.org/teaching-your-dog-to-walk-on-a-loose-leash.htm
+    kind: article
+  - title: How to stop your dog pulling the lead
+    url: https://www.rspcaqld.org.au/resources/pet-care/how-to-stop-your-dog-pulling-the-lead-MCDU4OMEJLXZBIZEIZ7P3N2PSFOQ
+    kind: article
+reviewedBy: veli
+reviewedAt: 2026-11-09

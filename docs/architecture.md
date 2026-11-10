@@ -1,7 +1,7 @@
 # Toe Beans — Architecture
 
-**Version:** 1.6 (accepted baseline)
-**Date:** 8 November 2026
+**Version:** 1.8 (accepted baseline)
+**Date:** 9 November 2026
 **Status:** Accepted as the baseline on 1 November 2026, once the S-1 spikes closed. From here on a change of decision is recorded in the decision log (§2) with what prompted it, and a change that moves scope goes through `requirements.md` as a recorded scope change.
 **Inputs:** `docs/requirements.md` v1.0 (baselined)
 
@@ -30,6 +30,10 @@
 **Changes in 0.13:** S1 design. Auth0 runs as two tenants, dev and prod, both in the **EU** region: Auth0 has no African region, Europe is the nearest, and only sign-in talks to it, so its distance never touches normal requests. Prod signs in on `auth.toebeans.co.za` from the first user, because users are keyed by issuer (D5, §3.4, §8.4). The identity provider is the one exception to D13's same-country rule: account email and name sit in the EU, which POPIA §72 allows (GDPR-adequate protection). §3.4 now specifies the sign-in flow, the login transaction, server-side sessions (90-day sliding, 400-day absolute), cookies on http origins, logout, and a mock OIDC provider for e2e and offline dev, so no test-only sign-in backdoor exists. S1.2–S1.5 built: one person's Google and email/password sign-ins become one user, linked in the app by verified email, and sign-in with an unverified email is refused (§3.4, §5.2; Q10 raised and resolved). Kit's CSRF check is off and the hooks Origin check covers every non-GET request against the runtime `PUBLIC_BASE_URL`, because adapter-node assumes `https` and behind the Worker sees `run.app`; this replaces the planned build-time `paths.origin`, so the origin stays runtime config (§3.4, §8.4). The e2e suite gains `auth`, and the other suites start signed in (§10).
 
 **Changes in 1.0:** S-1.3 result and baseline. Cloud Run in `africa-south1` with Cloud Scheduler meets every spike target: 2,891 of 2,891 ticks over 48 h with no errors (lag p50 0.33 s, p95 1.00 s, max 9.15 s, the slow ones on warm instances, so the delay is Scheduler's), two instance replacements without a missed tick, a cold container serving its first response in 0.62 s against the 5 s budget, and $0 billed for the Tier 2 region (§6.3, §8.2, §8.4; Q9 resolved). The service worker's *Can't reach Toe Beans* page for platform 502/503/504 works (§7). D8 and D9 accepted on these results (S-1.6). The remaining proposed decisions (D5, D7, D10–D12, D15) are accepted as the baseline; D5, D10, D12 and the CI half of D15 are already built. Leftovers that named S-1.6 move to S14.1 (deploy workflow, registry, trace correlation), and §8.1 and §8.4 no longer mention a build-time origin, which 0.13 replaced with the runtime `PUBLIC_BASE_URL`.
+
+**Changes in 1.7:** S4: the exercise library built. D22: exercises are read from `content/exercises/*.yaml` at startup, not bundled; the §3.8 gate runs as the content test in CI (`pnpm content:check`) and again at a prod start, which refuses a library that may not ship, while a local server serves drafts with a *Draft* badge so they can be reviewed in the app. A flagged term is reworded or acknowledged in the exercise's `reviewedTerms` (§3.8, §5.2, FR-03, NFR-14).
+
+**Changes in 1.8:** the 5-minute tick is confirmed as the permanent setup (D9, §6.3, §8.2, §8.4). The spike ran at 1 minute until 6 Nov 2026 (9,808 of 9,808 ticks, about 0.41 US cents a day of Cloud Run usage) and at 5 minutes since (829 of 829 ticks over 2.9 days, no scheduler errors, about 0.1 c a day). Instance starts fell from 1.03 to 0.35 a day, and no person started a cold instance.
 
 **Changes in 1.6:** S3: dogs and photos built. D20: a dog is added in one multipart request carrying its photo, which is stored first and removed again if the dog isn't saved, so no orphan sweep is needed (FR-02, NFR-05). D21: SeaweedFS (`weed mini`) is the local S3-compatible store in compose and the S3 adapter's integration test, replacing MinIO (§3.6). The S3 adapter signs with `aws4fetch` rather than the AWS SDK. `sharp` turns the photo upright, crops it square and writes WebP at 1024 and 256 px with no metadata, refusing anything but JPEG, PNG and WebP and anything over 50 megapixels (§3.6). Photo URLs carry the photo's ID, so the day-long private cache never shows a replaced photo; `HttpResponse` gains a streamed body for them (§3.3, §3.6). §5.2's Dog keeps one `birth: {date, precision: day|month|year}` instead of two fields, and an `accent` index picked when it's added. adapter-node's request body limit is raised to 11 MB (§8.1). The invitation preview names the household's dogs (`ui.md` J2).
 
@@ -90,6 +94,7 @@ Status: **P** = proposed, **A** = accepted (with what settled it; *baseline* = a
 | D20 | Adding a dog with its photo | One multipart `POST /api/v1/dogs` with the details as JSON in a `dog` part and the photo in a `photo` part. The photo is re-encoded and stored first, then the dog inserted; if that fails the objects are deleted. Uploading first and claiming a `photoId` later was the alternative: simpler requests, but unclaimed photos need a TTL and a sweep. Changing a photo is `PUT /api/v1/dogs/:id/photo` with If-Match; the old objects go once the dog points at the new ones (FR-02, NFR-05, NFR-13). | A (S3) | 3.6 |
 | D21 | Local S3-compatible store | SeaweedFS (`weed mini`, Apache-2.0), pinned by digest: one container, credentials from env, the bucket made at start, unsigned reads refused. Compose runs it for the app profile and `PHOTO_STORE=s3` in dev; the S3 adapter's integration test runs it in Testcontainers. Garage needs an init step for its layout, keys and bucket, and RustFS was still young. `pnpm dev` and e2e default to the filesystem adapter (§3.6). | A (S3) | 3.6 |
 | D19 | Several owners | A household can have more than one, so a couple stand equal: with one, either partner could be at the other's mercy. Any owner can make a caregiver an owner. Owners can't remove or demote each other, so neither can lock the other out, which makes promoting someone a step only they can undo, and the sheet says so. An owner can step down to caregiver while another owner stays. If owners fall out, each can still leave (FR-01). | A (S2) | 5.2 |
+| D22 | Loading the exercise library | Read `content/exercises/*.yaml` once at startup into an in-memory catalogue (`CONTENT_DIR`, else the nearest `content/exercises`; the image copies it to `/app/content/exercises`). The §3.8 gate (`libraryProblems`) runs as a unit test, so CI's verify job fails on it, and at a prod start, which throws; locally each problem is logged and unreviewed exercises are served as drafts. `GET /api/v1/exercises` and `/:id` need a session but no household check, as the library isn't household data. Alternatives: bundling the content into the server build through a Vite plugin (the gate would run in `vite build`, but the backend would depend on the web build to get its content, and Vite's config can't import the backend's TypeScript); storing it in Mongo (a sync step for read-only content). | A (S4) | 3.8 |
 
 ---
 
@@ -243,6 +248,7 @@ research (articles, videos) ──► source notes ──► AI-assisted draft/e
 
 - **Original wording, attributed.** AI editing is used to synthesise and rewrite, not to copy. Exercises must not reproduce articles or video transcripts verbatim. Each exercise lists its `sources[]` (shown in the app as "Further reading").
 - **Safety gate (NFR-14).** The build fails if an exercise lacks `ifStruggling`, `reviewedBy` or `reviewedAt`. A lint step flags punitive or aversive vocabulary (e.g. "correct", "punish", "alpha", "dominance", "leash pop") for the human reviewer to check.
+- **As built (S4, D22).** The format is a strict Zod schema in `infrastructure/content/exercise-files.ts` (unknown keys, an `id` that isn't the file name, or `reviewedBy` without `reviewedAt` all fail); the rules that decide whether the library may ship are the domain's `libraryProblems`: unreviewed exercises, flagged terms (`FLAGGED_TERMS`, matched as whole words) the reviewer hasn't acknowledged in `reviewedTerms`, acknowledgements that no longer match, and skill areas with no exercise. "The build" is CI: the content test (`pnpm content:check`, part of `pnpm test`) runs the real library through them, and a prod start refuses to begin if any remain, so a bad library can't reach users even if it were merged. `content/README.md` is the authoring guide.
 - **Versioning.** Any substantive edit bumps `contentVersion`. Session logs keep the version they were practised against.
 - **Coverage check.** The build verifies that every one of the 9 skill areas in FR-03 has at least one exercise.
 
@@ -348,7 +354,7 @@ Common fields (`_id`, `householdId`, `version`, timestamps, `schemaVersion`) are
 - Dates are plain `YYYY-MM-DD`, from 1990 to today anywhere on Earth (UTC + 14 h), so no time zone is needed to check them. An adoption date can't be before a known birth date; an estimated one can be off, so it doesn't rule one out.
 - `accent` is the palette colour (`ui.md` §5.5) least used by the household's dogs still here when the dog is added, so it stays put when others are archived.
 
-**Exercise** (library, content-owned) — `id` (stable slug, e.g. `recall-basic`), `contentVersion`, `title`, `skillArea` (name-recognition | recall | toileting | greetings | settling | doorbell | barking | loose-leash | cats), `goal`, `setup`, `steps[]`, `suggestedDurationMin`, `successCriteria`, `ifStruggling`, `safetyNotes?`, `sources[]: {title, url, kind: article|video}`, `reviewedBy`, `reviewedAt` (see §3.8)
+**Exercise** (library, content-owned) — `id` (stable slug, e.g. `recall-basic`), `contentVersion`, `title`, `skillArea` (name-recognition | recall | toileting | greetings | settling | doorbell | barking | loose-leash | cats), `goal`, `setup`, `steps[]`, `suggestedDurationMin`, `successCriteria`, `ifStruggling`, `safetyNotes?`, `sources[]: {title, url, kind: article|video}`, `reviewedBy`, `reviewedAt`, `reviewedTerms[]` (see §3.8)
 - Loaded from `content/exercises/` at startup into an in-memory catalogue (disposable cache, allowed by NFR-08). Not stored in Mongo.
 - Logs record `exerciseId` + `contentVersion`.
 
@@ -428,7 +434,7 @@ Measured in S-1.3 (Scheduler in `me-central1`, the nearest region offering it, c
 **Interval: 5 minutes, sending ahead (1.1).** Each tick sends every reminder due before the next tick, so a reminder goes out up to 5 minutes **early, never late**: the 1:00 tick sends a 1:03 reminder. That's 8,600 tick requests a month instead of 43k, about a fifth of the tick's Cloud Run cost, which the free tier covers either way (Q9). Times are picked in 5-minute steps and reminder offsets are multiples of 5, so in practice reminders land on time or a few minutes early. The phone adds up to ~1–2 minutes in deep sleep (§6.4), and the UI never promises exact times (NFR-16).
 - The interval and the send-ahead window are configuration (`TICK_INTERVAL_MINUTES`, default 5), so going back to 1 minute is a deploy, not a code change. The send-ahead window equals the interval.
 - **Exact jobs** are never sent early: the *Test reminders* push (`ui.md` J7) must arrive only after the phone has been locked a while, so it is sent by the first tick at or after its due time.
-- **To confirm:** the spike runs at 1 minute until about 9 Nov 2026, then at 5 minutes for a week, comparing Cloud Run cost and how often a person (rather than a tick) starts a cold instance (`spikes/pwa`, `pnpm ticks --every=5`). If people hit cold starts noticeably more often, revisit the interval.
+- **Confirmed (1.8):** the spike ran at 1 minute from 30 Oct to 6 Nov 2026 (9,808 of 9,808 ticks, 1.03 instance starts a day, about 0.41 c a day of Cloud Run usage), then at 5 minutes (from 6 Nov 16:45 UTC to 9 Nov: 829 of 829 ticks, none duplicated, no scheduler errors, lag p50 0.98 s, p95 1.30 s, max 16.19 s; 0.35 instance starts a day, none started by a person; about 0.1 c a day). If people later hit cold starts noticeably more often (`spikes/pwa`, `pnpm ticks --every=5`), revisit the interval.
 
 Agenda, Bree and BullMQ were considered. Agenda adds little over ~150 lines of our own code against the same collection. BullMQ needs Redis, one more free-tier dependency.
 
@@ -504,7 +510,7 @@ Android Chrome PWA ──HTTPS (toebeans.co.za)──► Cloud Run (africa-south
                                  │  ├─► Auth0 (OIDC)
                                  │  ├─► FCM via Web Push (VAPID)
                                  │  └─► Resend (invite emails)
-Cloud Scheduler ──every 1 min──► POST /internal/tick (OIDC-authenticated)
+Cloud Scheduler ──every 5 min──► POST /internal/tick (OIDC-authenticated)
 GitHub Actions ──nightly──► mongodump → encrypted → R2 backups bucket
 
 ```
@@ -580,7 +586,7 @@ This is recorded as risk R3.
 
 **Cold start budget.** At most 5 s from a cold container to the first response (review round 1: "a handful of seconds").
 - Mitigations: a small image, Cloud Run startup CPU boost, lazy initialisation of non-critical clients, and a pooled Mongo connection reused across requests.
-- The tick also keeps an instance warm for much of the day, though Cloud Run doesn't guarantee that. At 1 minute it did for the whole S-1.3 run; at 5 minutes, the spike's second week measures it (§6.3).
+- The tick also keeps an instance warm for much of the day, though Cloud Run doesn't guarantee that. At 1 minute it did for the whole S-1.3 run, and at 5 minutes the spike saw 0.35 instance starts a day, none of them caused by a person opening the app (§6.3).
 - If the budget is missed, `min-instances=1` fixes it but isn't free. That would reopen D9.
 - **Measured (S-1.3):** with the tick paused until the instance had scaled to zero, opening the app on the Galaxy S23 FE started a new instance; Node was up 0.29 s after process start and served the first response 0.62 s later, under 2 s as seen on the phone. Later instance starts took 0.16–0.43 s to boot. Cold starts aren't a concern; S13.3 still measures full cold loads of the installed app on both phones.
 

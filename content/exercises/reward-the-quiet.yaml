@@ -1,0 +1,47 @@
+id: reward-the-quiet
+contentVersion: 1
+title: Reward the quiet
+skillArea: barking
+goal: Your puppy learns that quiet, calm moments are what bring good things, and barking isn't needed to get your attention.
+setup: >-
+  Over a day or two, notice when your puppy barks and what seems to set it off: wanting attention,
+  boredom, something outside, or being alone. Keep treats handy in the rooms where it happens.
+steps:
+  - Catch the quiet. When your puppy is calm in a situation where they'd often bark, praise softly and
+    drop a treat.
+  - If they bark for attention, look away and stay still. The moment they're quiet for a second or
+    two, turn back and reward.
+  - If they bark at something outside, calmly say "thank you", move away from the window, and reward
+    them for following you.
+  - >-
+    Meet the need behind the barking: enough sleep, play, chews and company through the day.
+  - Gradually wait for slightly longer quiet before rewarding.
+suggestedDurationMin: 5
+successCriteria: >-
+  Barking in this situation is shorter and less frequent, and your puppy settles again more quickly
+  after it.
+ifStruggling: |-
+  Look for the reason first. A puppy barking because they're scared or lonely needs help with that,
+  not a lesson in being quiet.
+
+  Make situations easier: block the view from the window, play calm background noise, or use
+  shorter absences.
+
+  Reacting loudly tends to make barking worse, because to your puppy it can sound like you're
+  barking too. Stay calm and quiet yourself.
+safetyNotes: >-
+  If barking starts suddenly or changes, see your vet: pain or illness can be the cause. If your
+  puppy barks or howls whenever left alone, ask a qualified, reward-based behaviourist about
+  separation-related problems.
+sources:
+  - title: 'Barking: causes, triggers and how to help'
+    url: https://www.dogstrust.org.uk/dog-advice/training/unwanted-behaviours/stop-your-dog-barking
+    kind: article
+  - title: How to solve common puppy problems
+    url: https://www.dogstrust.org.uk/dog-advice/puppy/solve-common-puppy-problems
+    kind: article
+  - title: My dog is barking excessively, what should I do?
+    url: https://kb.rspca.org.au/categories/companion-animals/dogs/behaviour/my-dog-is-barking-excessively-what-should-i-do
+    kind: article
+reviewedBy: veli
+reviewedAt: 2026-11-09
