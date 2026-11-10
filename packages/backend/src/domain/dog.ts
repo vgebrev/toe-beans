@@ -2,7 +2,7 @@
 // event and care task belongs to one, so archiving replaces deleting: history keeps its dog.
 import { validationError, type ValidationError } from './errors.js';
 import type { Id } from './id.js';
-import { cleanName } from './name.js';
+import { cleanName, cleanText } from './name.js';
 import { err, ok, type Result } from './result.js';
 
 /** A calendar date with no time or zone, `YYYY-MM-DD`. */
@@ -63,18 +63,9 @@ export function isPlainDate(value: string): value is PlainDate {
 export const latestToday = (now: Date): PlainDate =>
 	new Date(now.getTime() + MAX_UTC_OFFSET_MS).toISOString().slice(0, 10) as PlainDate;
 
-/**
- * Trimmed, with Windows line ends made plain, 1 to `DOG_NOTES_MAX` characters. Newlines and tabs
- * are fine; other control characters aren't. Undefined when blank, null when not acceptable.
- */
-export function cleanNotes(input: string): string | undefined | null {
-	const notes = input.normalize('NFC').replace(/\r\n?/g, '\n').trim();
-	if (notes.length === 0) return undefined;
-	if ([...notes].length > DOG_NOTES_MAX) return null;
-	// As for names: control characters, and the bidi controls that can make text display as other text.
-	if (/[\p{Cc}‪-‮⁦-⁩]/u.test(notes.replace(/[\n\t]/g, ''))) return null;
-	return notes;
-}
+/** Notes on a dog: see `cleanText`. */
+export const cleanNotes = (input: string): string | undefined | null =>
+	cleanText(input, DOG_NOTES_MAX);
 
 export interface DogDetailsInput {
 	name: string;

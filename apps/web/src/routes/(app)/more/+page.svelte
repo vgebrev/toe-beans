@@ -23,7 +23,7 @@
 
 <PageHeader title="More" />
 <div class="flex flex-col gap-8 px-4 pt-2">
-	<!-- Cues and notifications join this page as their slices land (ui.md §2.1). -->
+	<!-- Notifications join this page with their slice (ui.md §2.1). -->
 	<div class="flex flex-col gap-3">
 		<a
 			href={resolve('/(app)/dogs')}
@@ -44,6 +44,17 @@
 			<span class="flex min-w-0 flex-1 flex-col">
 				<span class="font-bold">Exercise library</span>
 				<span class="truncate text-sm text-muted-foreground">Step-by-step training guides</span>
+			</span>
+			<Icon name="forward" class="text-muted-foreground" />
+		</a>
+		<a
+			href={resolve('/(app)/cues')}
+			class="flex min-h-12 items-center gap-3 rounded-2xl border border-border px-4 py-3"
+		>
+			<Icon name="cues" class="text-primary" />
+			<span class="flex min-w-0 flex-1 flex-col">
+				<span class="font-bold">Cue dictionary</span>
+				<span class="truncate text-sm text-muted-foreground">The words everyone uses</span>
 			</span>
 			<Icon name="forward" class="text-muted-foreground" />
 		</a>

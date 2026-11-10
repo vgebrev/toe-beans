@@ -21,6 +21,7 @@ import {
 	mongoSessions,
 	mongoUsers
 } from './infrastructure/persistence/auth-collections.js';
+import { mongoCues } from './infrastructure/persistence/cue-collection.js';
 import { mongoDogs } from './infrastructure/persistence/dog-collection.js';
 import {
 	mongoHouseholds,
@@ -120,7 +121,8 @@ export async function createBackend(
 		dogs: overrides.dogs ?? mongoDogs(mongo.db, clock),
 		photos: overrides.photos ?? createPhotoStore(config.photos),
 		photoProcessor: overrides.photoProcessor ?? sharpPhotoProcessor(),
-		exercises
+		exercises,
+		cues: overrides.cues ?? mongoCues(mongo.db, clock)
 	};
 	logger.info('backend started', {
 		appEnv: config.appEnv,
