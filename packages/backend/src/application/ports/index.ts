@@ -6,6 +6,7 @@ import type {
 	UserRepository
 } from './auth-repositories.js';
 import type { Clock } from './clock.js';
+import type { CueRepository } from './cue-repository.js';
 import type { DogRepository, PhotoProcessor, PhotoStore } from './dog-ports.js';
 import type { EmailSender } from './email-sender.js';
 import type { ErrorReporter } from './error-reporter.js';
@@ -26,6 +27,7 @@ export type {
 	UserRepository
 } from './auth-repositories.js';
 export type { Clock } from './clock.js';
+export type { CueChanges, CueRepository, NewCue } from './cue-repository.js';
 export type {
 	DogChanges,
 	DogRepository,
@@ -80,4 +82,6 @@ export interface Ports {
 	photoProcessor: PhotoProcessor;
 	/** The curated library from `content/exercises/` (architecture §3.8). */
 	exercises: ExerciseCatalogue;
+	/** The shared cue dictionary (FR-04). */
+	cues: CueRepository;
 }

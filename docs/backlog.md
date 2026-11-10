@@ -1,8 +1,8 @@
 # Toe Beans — Backlog
 
-**Version:** 0.23 (draft for iteration)
-**Date:** 9 November 2026
-**Inputs:** `docs/requirements.md` v1.0, `docs/architecture.md` v1.8, `docs/ui.md` v0.13
+**Version:** 0.24 (draft for iteration)
+**Date:** 10 November 2026
+**Inputs:** `docs/requirements.md` v1.0, `docs/architecture.md` v1.9, `docs/ui.md` v0.14
 
 **Changes in 0.3:** spike results S-1.0 to S-1.4 and S0.1–S0.2 recorded as they landed (see Current progress). S-1.4b dropped as not needed, S-1.5 parked, S-1.4a retargeted to `toebeans.co.za`.
 
@@ -29,6 +29,8 @@
 **Changes in 0.22:** S4 done, following architecture 1.7 D22 and `ui.md` 0.13. S4.2's sources were gathered by AI-assisted search at the owner's request and vetted by the owner in S4.3a, which approved all nine starter exercises.
 
 **Changes in 0.23:** the tick-interval check closed early, following architecture 1.8: the 5-minute tick is the permanent setup, and the S-1 spike is torn down.
+
+**Changes in 0.24:** S5 done. S5.1 built (architecture 1.9 D23, ui 0.14 §4.6); S5.2 added for the owner's check on the phones, as for S3.5, and passed.
 
 **Changes in 0.21:** S2 and S3 done: the owner tested both on the phones in Chrome, including S3.5's photo flow and the Android share sheet. The installed PWA wasn't part of it; that's S13.
 
@@ -101,7 +103,9 @@ Work is organised as **vertical slices**: each delivers a usable end-to-end incr
 | 2026-11-08 | S2 and S3 done. The owner tested both on the phones in Chrome, not installed: households and invites, including the Android share sheet, and dogs with camera photos, framing and changing them (S3.5). From that review: the photo moved into its own sheet with one confirm button, sized to fit without scrolling; buttons stopped greying out for missing input (`ui.md` §5.1); the dog icon became Phosphor's *Dog*. Known: a tap on onboarding's *Continue* before the page's scripts load submits the form natively (seen once in e2e). |
 | 2026-11-09 | S4 done. Exercises are YAML in `content/exercises/`, read at startup (D22) and checked by a strict schema; the §3.8 gate (unreviewed, unacknowledged flagged terms, skill-area coverage) is the content test in CI (`pnpm content:check`) and refuses a prod start, while a local server shows drafts with a badge. Sources for all nine areas are in `content/sources/`, from welfare charities and vet-led sites first (Dogs Trust, Blue Cross, Battersea, RSPCA UK and Australia, Cats Protection, VCA, AKC); every URL was checked to resolve, and two that now redirect to an index page (Best Friends) were replaced. Nine draft exercises, one per area, in original wording, with *If your puppy struggles* and safety notes where a vet or behaviourist may be needed; none uses a flagged term. Library and detail screens under More, with skill-area chips as links. The owner reviewed and approved all nine exercises (S4.3a), so the gate passes. 453 unit, 80 integration and 127 e2e tests. The page header now centres the logo on the title alone, so Today's date no longer pushes it down. |
 | 2026-11-09 | The 5-minute tick confirmed (architecture 1.8 §6.3). Since the switch on 6 Nov: 829 of 829 ticks, no scheduler errors, 0.35 instance starts a day with none started by a person, and Cloud Run usage down from about 0.41 c to 0.1 c a day, well within the free tier. The S-1 spike's Cloud Run service (`toe-beans-spike`) and Scheduler job (`toe-beans-tick`) are torn down. |
-**Next up:** S5 cue dictionary. The 5-minute tick is confirmed (architecture 1.8 §6.3); the S-1 spike is torn down until S14 deploys the app.
+| 2026-11-09 | S5.1 built. The cue dictionary on More → *Cue dictionary*: add, edit and delete in a sheet, alphabetical, each cue saying who last edited it and when. Cue words are unique per household whatever their case (D23). Every change and delete carries If-Match; a conflict names who changed it and offers *See their version* or *Overwrite with mine*, and a cue deleted meanwhile can be added again from what was typed. Mongo adapter with the household-isolation suite (migration 0005), and an e2e scenario 9 check by ID. `cleanText` moved from the dog's notes into `domain/name.ts` for reuse. 477 unit, 88 integration and 133 e2e tests. |
+| 2026-11-10 | S5 done. The owner tried cues on the phones in Chrome (S5.2): adding, editing and deleting, and a conflict from a second device. Nothing to change. |
+**Next up:** S6 training planner.
 
 ---
 
@@ -197,12 +201,13 @@ Work is organised as **vertical slices**: each delivers a usable end-to-end incr
 | S4.3a | **Human review** of each exercise (sets `reviewedBy`/`reviewedAt`). All nine approved by the owner on 9 Nov 2026. | ✅ |
 | S4.4 | Library list and detail screens. *Schedule* and *Log practice* join the detail page with S6 and S7. | ✅ |
 
-### S5 Cue dictionary ⬜
+### S5 Cue dictionary ✅
 *FR-04.*
 
 | # | Task | Status |
 |---|---|---|
-| S5.1 | Cue CRUD with optimistic concurrency and a conflict UI | ⬜ |
+| S5.1 | Cue CRUD with optimistic concurrency and a conflict UI | ✅ |
+| S5.2 | On a phone: add, edit and delete cues, and see a conflict from a second device | ✅ |
 
 ### S6 Training planner ⬜
 *FR-05.*

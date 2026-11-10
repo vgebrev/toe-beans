@@ -1,6 +1,6 @@
 # Toe Beans — Architecture
 
-**Version:** 1.8 (accepted baseline)
+**Version:** 1.9 (accepted baseline)
 **Date:** 9 November 2026
 **Status:** Accepted as the baseline on 1 November 2026, once the S-1 spikes closed. From here on a change of decision is recorded in the decision log (§2) with what prompted it, and a change that moves scope goes through `requirements.md` as a recorded scope change.
 **Inputs:** `docs/requirements.md` v1.0 (baselined)
@@ -34,6 +34,8 @@
 **Changes in 1.7:** S4: the exercise library built. D22: exercises are read from `content/exercises/*.yaml` at startup, not bundled; the §3.8 gate runs as the content test in CI (`pnpm content:check`) and again at a prod start, which refuses a library that may not ship, while a local server serves drafts with a *Draft* badge so they can be reviewed in the app. A flagged term is reworded or acknowledged in the exercise's `reviewedTerms` (§3.8, §5.2, FR-03, NFR-14).
 
 **Changes in 1.8:** the 5-minute tick is confirmed as the permanent setup (D9, §6.3, §8.2, §8.4). The spike ran at 1 minute until 6 Nov 2026 (9,808 of 9,808 ticks, about 0.41 US cents a day of Cloud Run usage) and at 5 minutes since (829 of 829 ticks over 2.9 days, no scheduler errors, about 0.1 c a day). Instance starts fell from 1.03 to 0.35 a day, and no person started a cold instance.
+
+**Changes in 1.9:** S5 cue dictionary. D23 records the choices FR-04 left open: a cue word is unique in its household whatever its case, each cue keeps who saved it last, a delete is a real delete behind If-Match, and a household keeps up to 200 cues. §5.2 gives the Cue its fields and limits. NFR-13 is met as for dogs (§3.3), with *Overwrite with mine* offered because a cue is a simple record (`ui.md` §5.2).
 
 **Changes in 1.6:** S3: dogs and photos built. D20: a dog is added in one multipart request carrying its photo, which is stored first and removed again if the dog isn't saved, so no orphan sweep is needed (FR-02, NFR-05). D21: SeaweedFS (`weed mini`) is the local S3-compatible store in compose and the S3 adapter's integration test, replacing MinIO (§3.6). The S3 adapter signs with `aws4fetch` rather than the AWS SDK. `sharp` turns the photo upright, crops it square and writes WebP at 1024 and 256 px with no metadata, refusing anything but JPEG, PNG and WebP and anything over 50 megapixels (§3.6). Photo URLs carry the photo's ID, so the day-long private cache never shows a replaced photo; `HttpResponse` gains a streamed body for them (§3.3, §3.6). §5.2's Dog keeps one `birth: {date, precision: day|month|year}` instead of two fields, and an `accent` index picked when it's added. adapter-node's request body limit is raised to 11 MB (§8.1). The invitation preview names the household's dogs (`ui.md` J2).
 
@@ -95,6 +97,7 @@ Status: **P** = proposed, **A** = accepted (with what settled it; *baseline* = a
 | D21 | Local S3-compatible store | SeaweedFS (`weed mini`, Apache-2.0), pinned by digest: one container, credentials from env, the bucket made at start, unsigned reads refused. Compose runs it for the app profile and `PHOTO_STORE=s3` in dev; the S3 adapter's integration test runs it in Testcontainers. Garage needs an init step for its layout, keys and bucket, and RustFS was still young. `pnpm dev` and e2e default to the filesystem adapter (§3.6). | A (S3) | 3.6 |
 | D19 | Several owners | A household can have more than one, so a couple stand equal: with one, either partner could be at the other's mercy. Any owner can make a caregiver an owner. Owners can't remove or demote each other, so neither can lock the other out, which makes promoting someone a step only they can undo, and the sheet says so. An owner can step down to caregiver while another owner stays. If owners fall out, each can still leave (FR-01). | A (S2) | 5.2 |
 | D22 | Loading the exercise library | Read `content/exercises/*.yaml` once at startup into an in-memory catalogue (`CONTENT_DIR`, else the nearest `content/exercises`; the image copies it to `/app/content/exercises`). The §3.8 gate (`libraryProblems`) runs as a unit test, so CI's verify job fails on it, and at a prod start, which throws; locally each problem is logged and unreviewed exercises are served as drafts. `GET /api/v1/exercises` and `/:id` need a session but no household check, as the library isn't household data. Alternatives: bundling the content into the server build through a Vite plugin (the gate would run in `vite build`, but the backend would depend on the web build to get its content, and Vite's config can't import the backend's TypeScript); storing it in Mongo (a sync step for read-only content). | A (S4) | 3.8 |
+| D23 | The cue dictionary (FR-04, NFR-13) | `/api/v1/cues` and `/cues/{id}`: GET, POST, PATCH and DELETE, the last two with If-Match. **A cue word is unique in the household**, compared trimmed and case-folded, so "Sit" and "sit" can't mean two things to the same puppy; the use case checks it against the household's list (a household is a handful of people, so the race between two adds is accepted rather than adding a unique index). **Each cue records `updatedBy`**, shown as "Last edited by Sam, 2 days ago"; someone who has left reads as "A former member". **Deleting removes the document**: nothing else refers to a cue, so there's no history to keep, and the sheet confirms it by name (`ui.md` §5.3). Up to 200 cues a household, so one can't fill the database. Listed alphabetically by the server (`Intl.Collator`, numeric). | Soft delete with undo: no reader for a deleted cue. A unique index on a stored lowercase key: more moving parts for a race two people won't hit. |
 
 ---
 
@@ -358,8 +361,8 @@ Common fields (`_id`, `householdId`, `version`, timestamps, `schemaVersion`) are
 - Loaded from `content/exercises/` at startup into an in-memory catalogue (disposable cache, allowed by NFR-08). Not stored in Mongo.
 - Logs record `exerciseId` + `contentVersion`.
 
-**Cue** — `label` (spoken word), `meaning`, `handSignal?`, `rewardConvention?`, `notes?`
-- Household-wide, editable by any caregiver (FR-04).
+**Cue** — `label` (spoken word), `meaning`, `handSignal?`, `rewardConvention?`, `notes?`, `updatedBy`
+- Household-wide, editable and deletable by any member (FR-04, D23). `label` is 1–50 characters on one line and unique in the household whatever its case; `meaning` is required; `meaning`, `handSignal` and `rewardConvention` take up to 500 characters and `notes` 2000, line breaks allowed. Up to 200 a household.
 
 **TrainingPlan** (recurring series) — `dogId`, `exerciseId`, `recurrence` (subset of RFC 5545: `FREQ=DAILY|WEEKLY; BYDAY; INTERVAL; UNTIL|COUNT`), `timeOfDay`, `startDate`, `endedAt?`
 
