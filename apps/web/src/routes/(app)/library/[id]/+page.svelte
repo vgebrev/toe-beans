@@ -1,8 +1,9 @@
 <script lang="ts">
 	// One exercise (ui.md §4.6, FR-03): goal, setup, steps, duration, success criteria, *If your
 	// puppy struggles* (anchored, so the Quick log's stressed tip can link to it, §4.3), safety
-	// notes and further reading. Schedule and Log practice join the bottom with S6 and S7.
+	// notes and further reading. Schedule sits at the bottom; Log practice joins it with S7.
 	import { resolve } from '$app/paths';
+	import { buttonVariants } from '#lib/components/ui/button/index.js';
 	import Icon from '#lib/components/icon/Icon.svelte';
 	import PageHeader from '#lib/components/shell/PageHeader.svelte';
 	import { paragraphs, skillAreaLabels } from '#lib/exercises/skill-areas.js';
@@ -134,5 +135,19 @@
 				{/each}
 			</ul>
 		</section>
+		<div
+			class="sticky bottom-[calc(5rem+env(safe-area-inset-bottom))] -mx-4 bg-background/95 px-4 py-3"
+		>
+			<!-- The query names the exercise; the route is resolved. -->
+			<!-- eslint-disable svelte/no-navigation-without-resolve -->
+			<a
+				href={`${resolve('/(app)/plan/new')}?exercise=${encodeURIComponent(exercise.id)}`}
+				class={buttonVariants({ class: 'w-full' })}
+			>
+				<Icon name="schedule" />
+				Schedule
+			</a>
+			<!-- eslint-enable svelte/no-navigation-without-resolve -->
+		</div>
 	{/if}
 </div>

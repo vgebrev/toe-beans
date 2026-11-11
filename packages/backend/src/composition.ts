@@ -27,6 +27,10 @@ import {
 	mongoHouseholds,
 	mongoInvitations
 } from './infrastructure/persistence/household-collections.js';
+import {
+	mongoPlannedSessions,
+	mongoTrainingPlans
+} from './infrastructure/persistence/planner-collections.js';
 import { migrate, migrations } from './infrastructure/persistence/migrations/index.js';
 import { connectMongo, mongoReadiness } from './infrastructure/persistence/mongo.js';
 import { mongoUnitOfWork } from './infrastructure/persistence/unit-of-work.js';
@@ -122,7 +126,9 @@ export async function createBackend(
 		photos: overrides.photos ?? createPhotoStore(config.photos),
 		photoProcessor: overrides.photoProcessor ?? sharpPhotoProcessor(),
 		exercises,
-		cues: overrides.cues ?? mongoCues(mongo.db, clock)
+		cues: overrides.cues ?? mongoCues(mongo.db, clock),
+		plans: overrides.plans ?? mongoTrainingPlans(mongo.db, clock),
+		plannedSessions: overrides.plannedSessions ?? mongoPlannedSessions(mongo.db, clock)
 	};
 	logger.info('backend started', {
 		appEnv: config.appEnv,

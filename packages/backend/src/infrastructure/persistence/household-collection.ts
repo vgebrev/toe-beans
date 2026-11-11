@@ -125,6 +125,64 @@ export class HouseholdCollection<T extends HouseholdDocument> {
 		return deletedCount === 1 ? ok(undefined) : err(await this.#missOn(householdId, id));
 	}
 
+	/**
+	 * Inserts each document unless one matching its `match` exists in the household, in one round
+	 * trip. `match` should name a unique index's fields, so a race inserts nothing twice.
+	 */
+	async insertMissing(
+		householdId: Id,
+		items: readonly { match: Filter<Fields<T>>; id: Id; fields: Fields<T> }[]
+	): Promise<void> {
+		if (items.length === 0) return;
+		const now = this.#options.clock.now();
+		await this.#collection.bulkWrite(
+			items.map(({ match, id, fields }) => ({
+				updateOne: {
+					filter: this.#scope(householdId, match),
+					update: {
+						$setOnInsert: {
+							...fields,
+							_id: id,
+							householdId,
+							version: 1,
+							createdAt: now,
+							updatedAt: now,
+							schemaVersion: this.#options.schemaVersion
+						}
+					} as never,
+					upsert: true
+				}
+			})),
+			{ ordered: false, session: currentSession() }
+		);
+	}
+
+	/**
+	 * Sets fields on the document if it matches `filter`, without counting as an edit: the version
+	 * and `updatedAt` stay. For bookkeeping that no one else's ETag should depend on.
+	 */
+	async setQuietly(
+		householdId: Id,
+		id: Id,
+		filter: Filter<Fields<T>>,
+		$set: Partial<Fields<T>>
+	): Promise<boolean> {
+		const { modifiedCount } = await this.#collection.updateOne(
+			this.#scope(householdId, { ...filter, _id: id }),
+			{ $set } as never,
+			{ session: currentSession() }
+		);
+		return modifiedCount === 1;
+	}
+
+	/** Deletes every document in the household that matches `filter`, whatever its version. */
+	async deleteWhere(householdId: Id, filter: Filter<Fields<T>>): Promise<number> {
+		const { deletedCount } = await this.#collection.deleteMany(this.#scope(householdId, filter), {
+			session: currentSession()
+		});
+		return deletedCount;
+	}
+
 	/** Why a versioned write matched nothing: gone (or another household's), or changed since. */
 	async #missOn(householdId: Id, id: Id): Promise<WriteError> {
 		const exists = await this.#collection.countDocuments(this.#scope(householdId, { _id: id }), {

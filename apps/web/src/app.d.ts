@@ -12,7 +12,10 @@ declare global {
 			requestId: string;
 		}
 		// interface PageData {}
-		// interface PageState {}
+		/** Survives a `goto`, so a page can say what just happened on the one before. */
+		interface PageState {
+			notice?: string;
+		}
 		// interface Platform {}
 	}
 }

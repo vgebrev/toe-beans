@@ -10,6 +10,11 @@ export type IconSvgElement = readonly (readonly [
 
 import {
 	Add01Icon,
+	ArrowTurnBackwardIcon,
+	CalendarAdd01Icon,
+	NextIcon,
+	RepeatIcon,
+	Search01Icon,
 	Alert02Icon,
 	Archive02Icon,
 	ArrowLeft01Icon,
@@ -115,7 +120,12 @@ export const icons = {
 	walk: WalkingIcon,
 	vaccination: SyringeIcon,
 	medication: Medicine02Icon,
-	vet: StethoscopeIcon
+	vet: StethoscopeIcon,
+	repeat: RepeatIcon,
+	schedule: CalendarAdd01Icon,
+	skip: NextIcon,
+	restore: ArrowTurnBackwardIcon,
+	search: Search01Icon
 } satisfies Record<string, IconSvgElement>;
 
 export type IconName = keyof typeof icons;

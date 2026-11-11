@@ -1,12 +1,12 @@
 // A household's dog and its profile photo (architecture §5.2, FR-02). Every training session,
 // event and care task belongs to one, so archiving replaces deleting: history keeps its dog.
+import { isPlainDate, type PlainDate } from './calendar.js';
 import { validationError, type ValidationError } from './errors.js';
 import type { Id } from './id.js';
 import { cleanName, cleanText } from './name.js';
 import { err, ok, type Result } from './result.js';
 
-/** A calendar date with no time or zone, `YYYY-MM-DD`. */
-export type PlainDate = string & { readonly __brand: 'PlainDate' };
+export { isPlainDate, type PlainDate } from './calendar.js';
 
 /** `day` is a known date; `month` and `year` are estimates ("about 4 months", ui.md §5.4). */
 export type DatePrecision = 'day' | 'month' | 'year';
@@ -50,14 +50,6 @@ export const ACCENT_COUNT = 6;
 const EARLIEST_DATE = '1990-01-01';
 /** The furthest ahead of UTC any time zone is, so "today" anywhere is never in the future. */
 const MAX_UTC_OFFSET_MS = 14 * 60 * 60 * 1000;
-
-export function isPlainDate(value: string): value is PlainDate {
-	const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
-	if (!match) return false;
-	const [, y, m, d] = match.map(Number) as [number, number, number, number];
-	const date = new Date(Date.UTC(y, m - 1, d));
-	return date.getUTCFullYear() === y && date.getUTCMonth() === m - 1 && date.getUTCDate() === d;
-}
 
 /** The latest date that's today somewhere on Earth at `now`. */
 export const latestToday = (now: Date): PlainDate =>

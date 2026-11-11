@@ -14,6 +14,7 @@ import type { ExerciseCatalogue } from './exercise-catalogue.js';
 import type { HouseholdRepository, InvitationRepository } from './household-repositories.js';
 import type { IdentityProvider } from './identity-provider.js';
 import type { Logger } from './logger.js';
+import type { PlannedSessionRepository, TrainingPlanRepository } from './planner-repositories.js';
 import type { RateLimiter } from './rate-limiter.js';
 import type { Readiness } from './readiness.js';
 import type { UnitOfWork } from './unit-of-work.js';
@@ -53,6 +54,14 @@ export type {
 	SignInChecks
 } from './identity-provider.js';
 export type { LogFields, Logger } from './logger.js';
+export type {
+	NewPlannedSession,
+	NewTrainingPlan,
+	PlannedSessionChanges,
+	PlannedSessionRepository,
+	TrainingPlanChanges,
+	TrainingPlanRepository
+} from './planner-repositories.js';
 export type { RateLimitDecision, RateLimiter } from './rate-limiter.js';
 export type { Readiness } from './readiness.js';
 export type { UnitOfWork } from './unit-of-work.js';
@@ -84,4 +93,8 @@ export interface Ports {
 	exercises: ExerciseCatalogue;
 	/** The shared cue dictionary (FR-04). */
 	cues: CueRepository;
+	/** Recurring series of planned sessions (FR-05). */
+	plans: TrainingPlanRepository;
+	/** Planned sessions, one-off or from a series (FR-05). */
+	plannedSessions: PlannedSessionRepository;
 }
