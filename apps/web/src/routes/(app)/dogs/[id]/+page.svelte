@@ -187,8 +187,9 @@
 						<Sheet.Title class="font-display text-xl font-semibold">Archive {dog.name}?</Sheet.Title
 						>
 						<Sheet.Description class="text-base">
-							{dog.name}'s training, events and care stay in History. They leave the dog switcher
-							and can't be picked for new records. You can bring them back from their profile.
+							{dog.name}'s training, events and care stay in History. Their planned sessions are
+							cancelled. They leave the dog switcher and can't be picked for new records. You can
+							bring them back from their profile, and their sessions still ahead with them.
 						</Sheet.Description>
 					</Sheet.Header>
 					{#if archiveStatus === 'failed'}

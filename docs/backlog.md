@@ -1,8 +1,8 @@
 # Toe Beans — Backlog
 
-**Version:** 0.25 (draft for iteration)
+**Version:** 0.26 (draft for iteration)
 **Date:** 11 November 2026
-**Inputs:** `docs/requirements.md` v1.0, `docs/architecture.md` v1.10, `docs/ui.md` v0.15
+**Inputs:** `docs/requirements.md` v1.0, `docs/architecture.md` v1.11, `docs/ui.md` v0.16
 
 **Changes in 0.3:** spike results S-1.0 to S-1.4 and S0.1–S0.2 recorded as they landed (see Current progress). S-1.4b dropped as not needed, S-1.5 parked, S-1.4a retargeted to `toebeans.co.za`.
 
@@ -33,6 +33,8 @@
 **Changes in 0.24:** S5 done. S5.1 built (architecture 1.9 D23, ui 0.14 §4.6); S5.2 added for the owner's check on the phones, as for S3.5, and passed.
 
 **Changes in 0.25:** S6 done: S6.1–S6.3 built (architecture 1.10 D24, ui 0.15 §4.3) and tried on the phones (S6.4). Inputs moved to architecture 1.10 and ui 0.15.
+
+**Changes in 0.26:** S6.4's open question settled: archiving a dog cancels its planned sessions and pauses its series, and bringing it back restores them (architecture 1.11 D24, ui 0.16 §4.5). Inputs moved to architecture 1.11 and ui 0.16.
 
 **Changes in 0.21:** S2 and S3 done: the owner tested both on the phones in Chrome, including S3.5's photo flow and the Android share sheet. The installed PWA wasn't part of it; that's S13.
 
@@ -108,7 +110,7 @@ Work is organised as **vertical slices**: each delivers a usable end-to-end incr
 | 2026-11-09 | S5.1 built. The cue dictionary on More → *Cue dictionary*: add, edit and delete in a sheet, alphabetical, each cue saying who last edited it and when. Cue words are unique per household whatever their case (D23). Every change and delete carries If-Match; a conflict names who changed it and offers *See their version* or *Overwrite with mine*, and a cue deleted meanwhile can be added again from what was typed. Mongo adapter with the household-isolation suite (migration 0005), and an e2e scenario 9 check by ID. `cleanText` moved from the dog's notes into `domain/name.ts` for reuse. 477 unit, 88 integration and 133 e2e tests. |
 | 2026-11-10 | S5 done. The owner tried cues on the phones in Chrome (S5.2): adding, editing and deleting, and a conflict from a second device. Nothing to change. |
 | 2026-11-10 | S6.1–S6.3 built. One-off sessions and weekly series (*Daily*, *Weekdays*, *Custom days*, optional end), materialised 21 days ahead and to any week listed, idempotent through the unique `(planId, occurrenceKey)` (D24). Move, skip, cancel and put back one session; change or cancel *this and following*, which ends the series and starts a new one, keeping logged sessions. All with If-Match and the conflict handling of §5.2 (no overwrite). Household-clock arithmetic in `domain/calendar.ts` with `Intl`, daylight saving tested on London's changes. Plan week view, Schedule with an exercise picker sheet, the session page and its change page; the exercise page's *Schedule*. Mongo adapters with both isolation suites (migration 0006) and an e2e scenario 9 check by ID. Found on the way: the picker sheet's chip row collapsed to nothing in a flex column, and the sheet's own `h-auto` beat a plain height class. 524 unit, 102 integration and 143 e2e tests. Reminders for sessions arrive with S12.3. Not yet tried: any of it on a phone (S6.4). |
-| 2026-11-11 | S6 done. The owner tried scheduling on the phones. Open: whether archiving a dog should end its series (S6.4). |
+| 2026-11-11 | S6 done. The owner tried scheduling on the phones. Then, on the owner's call, archiving a dog cancels its planned sessions (still shown as *Cancelled*) and pauses its series, in the archive's transaction; bringing it back plans again those still ahead and resumes the series from today (D24). The archive sheet says so. 527 unit, 104 integration and 145 e2e tests. |
 
 **Next up:** S7 quick training log, which completes planned sessions (S7.1 links a log to its planned session in one transaction).
 
@@ -222,7 +224,7 @@ Work is organised as **vertical slices**: each delivers a usable end-to-end incr
 | S6.1 | One-off planned sessions: schedule, reschedule, skip, cancel | ✅ |
 | S6.2 | Recurring plans: recurrence subset, rolling-horizon materialisation (idempotent), edit *this / this and following* | ✅ |
 | S6.3 | Plan week view | ✅ |
-| S6.4 | On a phone: schedule once and repeating, the time picker's 5-minute rounding, skip, cancel and put back, *this and following*, and a conflict from a second device. Still open: archiving a dog doesn't end its series, so its sessions stay on Plan; decide before S8's Today lists them as overdue. | ✅ |
+| S6.4 | On a phone: schedule once and repeating, the time picker's 5-minute rounding, skip, cancel and put back, *this and following*, and a conflict from a second device. Archiving a dog now cancels its planned sessions and pauses its series; bringing it back restores those still ahead (D24). | ✅ |
 
 ### S7 Quick training log ⬜
 *FR-07, scenario 3.*

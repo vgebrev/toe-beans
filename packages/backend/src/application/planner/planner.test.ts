@@ -113,7 +113,7 @@ async function setup() {
 			.all()
 			.map((s) => `${s.occurrenceKey ?? '-'} ${s.status}`)
 			.sort();
-	return { clock, plans, sessions, planner, dog, archived, schedule, dates };
+	return { clock, plans, sessions, planner, dogs, ids, dog, archived, schedule, dates };
 }
 
 describe('scheduling one session', () => {
@@ -449,5 +449,95 @@ describe('changing a series from a session on', () => {
 		// Listing later weeks adds nothing back.
 		await planner.list(sam, { from: '2026-12-14', to: '2026-12-20' });
 		expect(dates()).toEqual(['2026-11-11 planned']);
+	});
+});
+
+describe('archiving a dog and bringing it back', () => {
+	it('cancels what it had planned and pauses its series, leaving other dogs alone', async () => {
+		const { planner, plans, sessions, dogs, ids, dog, schedule } = await setup();
+		const other = await dogs.insert({
+			id: ids.next(),
+			householdId: 'h1' as Id,
+			name: 'Pip',
+			photo: { photoId: 'p3' as Id, updatedAt: at },
+			accent: 2
+		});
+		const once = await schedule({ date: '2026-11-12' });
+		const series = await schedule({ repeat: { days: [1, 3, 5] } });
+		const skipped = await planner.update(sam, {
+			id: series.session.id,
+			expectedVersion: 1,
+			changes: { status: 'skipped' }
+		});
+		expect(skipped.ok).toBe(true);
+		const pips = await schedule({ dogId: other.id });
+
+		expect(await planner.dogArchived(alex, dog.id)).toEqual({ ok: true, value: undefined });
+
+		expect(plans.all()).toMatchObject([
+			{ id: series.plan!.id, paused: true, updatedBy: 'alex', version: 2 }
+		]);
+		const byId = () => new Map(sessions.all().map((s) => [s.id, s]));
+		expect(byId().get(once.session.id)).toMatchObject({
+			status: 'cancelled',
+			cancelledWithDog: true,
+			updatedBy: 'alex',
+			version: 2
+		});
+		expect(byId().get(series.session.id)).toMatchObject({ status: 'skipped' });
+		const ofSeries = () => sessions.all().filter((s) => s.planId === series.plan!.id);
+		expect(ofSeries().length).toBeGreaterThan(1);
+		expect(ofSeries().filter((s) => s.status === 'planned')).toEqual([]);
+		expect(byId().get(pips.session.id)).toMatchObject({ status: 'planned', version: 1 });
+
+		// A paused series gets nothing new when a later week is listed.
+		const later = await planner.list(sam, { from: '2027-01-04', to: '2027-01-10' });
+		expect(later.ok && later.value).toEqual([]);
+	});
+
+	it('plans again what archiving cancelled, from now on, and the series carries on', async () => {
+		const { planner, plans, sessions, dog, schedule, clock } = await setup();
+		const once = await schedule({ date: '2026-11-12' });
+		const byHand = await schedule({ date: '2026-11-13' });
+		await planner.update(sam, {
+			id: byHand.session.id,
+			expectedVersion: 1,
+			changes: { status: 'cancelled' }
+		});
+		const series = await schedule({ repeat: { days: [1, 2, 3, 4, 5, 6, 7] } });
+		await planner.dogArchived(sam, dog.id);
+
+		// Back after a month: 10 December, 08:00 in Johannesburg.
+		clock.set(new Date('2026-12-10T06:00:00Z'));
+		expect(await planner.dogRestored(alex, dog.id)).toEqual({ ok: true, value: undefined });
+
+		expect(plans.all()[0]).not.toHaveProperty('paused');
+		const byId = new Map(sessions.all().map((s) => [s.id, s]));
+		// Past by now, so it stays cancelled; cancelled by hand stays too.
+		expect(byId.get(once.session.id)).toMatchObject({ status: 'cancelled' });
+		expect(byId.get(byHand.session.id)).toMatchObject({ status: 'cancelled' });
+		const ofSeries = sessions.all().filter((s) => s.planId === series.plan!.id);
+		const planned = ofSeries.filter((s) => s.status === 'planned').map((s) => s.occurrenceKey);
+		// Nothing for the days it was away; every day from today for three weeks.
+		expect(planned[0]).toBe('2026-12-10');
+		expect(planned).toContain('2026-12-31');
+		expect(
+			ofSeries.filter((s) => s.occurrenceKey! < '2026-12-10' && s.status === 'planned')
+		).toEqual([]);
+		expect(
+			ofSeries.filter((s) => s.occurrenceKey! > '2026-12-01' && s.occurrenceKey! < '2026-12-10')
+		).toEqual([]);
+	});
+
+	it('plans again a session still ahead', async () => {
+		const { planner, sessions, dog, schedule } = await setup();
+		const once = await schedule({ date: '2026-11-12' });
+		await planner.dogArchived(sam, dog.id);
+		await planner.dogRestored(sam, dog.id);
+		expect(sessions.all().find((s) => s.id === once.session.id)).toMatchObject({
+			status: 'planned',
+			version: 3
+		});
+		expect(sessions.all()[0]).not.toHaveProperty('cancelledWithDog');
 	});
 });

@@ -177,6 +177,47 @@ describe('mongoPlannedSessions', () => {
 		]);
 	});
 
+	it('cancels a dog’s planned sessions as an edit, and nothing else', async () => {
+		const household = ids.next();
+		const dogId = ids.next();
+		const who = ids.next();
+		const planned = await sessions().insert(newSession(household, { dogId }));
+		const skipped = await sessions().insert(newSession(household, { dogId, status: 'skipped' }));
+		const otherDog = await sessions().insert(newSession(household));
+		const elsewhere = await sessions().insert(newSession(ids.next(), { dogId }));
+		clock.advance(1000);
+		expect(await sessions().cancelPlannedFor(household, dogId, who)).toBe(1);
+		expect(await sessions().findById(household, planned.id)).toMatchObject({
+			status: 'cancelled',
+			cancelledWithDog: true,
+			updatedBy: who,
+			version: 2,
+			updatedAt: new Date(at.getTime() + 1000)
+		});
+		expect(await sessions().findById(household, skipped.id)).toEqual(skipped);
+		expect(await sessions().findById(household, otherDog.id)).toEqual(otherDog);
+		expect(await sessions().findById(elsewhere.householdId, elsewhere.id)).toEqual(elsewhere);
+		clock.set(at);
+	});
+
+	it('plans again what was cancelled with the dog, from a time on', async () => {
+		const household = ids.next();
+		const dogId = ids.next();
+		const who = ids.next();
+		const past = await sessions().insert(
+			newSession(household, { dogId, scheduledAt: new Date('2026-11-09T15:30:00Z') })
+		);
+		const ahead = await sessions().insert(newSession(household, { dogId }));
+		const byHand = await sessions().insert(newSession(household, { dogId, status: 'cancelled' }));
+		await sessions().cancelPlannedFor(household, dogId, who);
+		expect(await sessions().restoreFor(household, dogId, at, who)).toBe(1);
+		const back = await sessions().findById(household, ahead.id);
+		expect(back).toMatchObject({ status: 'planned', version: 3 });
+		expect(back).not.toHaveProperty('cancelledWithDog');
+		expect(await sessions().findById(household, past.id)).toMatchObject({ status: 'cancelled' });
+		expect(await sessions().findById(household, byHand.id)).toEqual(byHand);
+	});
+
 	it('materialises inside a transaction, which a rollback undoes', async () => {
 		const household = ids.next();
 		const planId = ids.next();

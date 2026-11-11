@@ -110,6 +110,34 @@ export function memoryPlannedSessions(
 			),
 		update: async (householdId, id, expectedVersion, changes) =>
 			store.update(householdId, id, expectedVersion, changes),
+		async cancelPlannedFor(householdId, dogId, updatedBy) {
+			const planned = own(householdId).filter((s) => s.dogId === dogId && s.status === 'planned');
+			for (const s of planned) {
+				store.update(householdId, s.id, s.version, {
+					status: 'cancelled',
+					cancelledWithDog: true,
+					updatedBy
+				});
+			}
+			return planned.length;
+		},
+		async restoreFor(householdId, dogId, from, updatedBy) {
+			const back = own(householdId).filter(
+				(s) =>
+					s.dogId === dogId &&
+					s.status === 'cancelled' &&
+					s.cancelledWithDog &&
+					s.scheduledAt >= from
+			);
+			for (const s of back) {
+				store.update(householdId, s.id, s.version, {
+					status: 'planned',
+					cancelledWithDog: undefined,
+					updatedBy
+				});
+			}
+			return back.length;
+		},
 		async deleteUnloggedFrom(householdId, planId, from) {
 			const doomed = own(householdId).filter(
 				(s) => s.planId === planId && s.occurrenceKey! >= from && s.status !== 'completed'

@@ -176,10 +176,10 @@ export function createPlanner({
 	 */
 	async function extend(ctx: PlannerContext, through: PlainDate) {
 		const running = await plans.listRunning(ctx.householdId, today(ctx));
-		for (const stale of running.filter((p) => p.horizon < through)) {
+		for (const stale of running.filter((p) => p.horizon < through && !p.paused)) {
 			await uow.run(async () => {
 				const plan = await plans.findById(ctx.householdId, stale.id);
-				if (plan) await materialise(plan, through, ctx.timeZone);
+				if (plan && !plan.paused) await materialise(plan, through, ctx.timeZone);
 				return ok(undefined);
 			});
 		}
@@ -326,7 +326,7 @@ export function createPlanner({
 			const updated = await sessions.update(ctx.householdId, session.id, input.expectedVersion, {
 				...(exerciseId !== undefined && { exerciseId }),
 				...(scheduledAt && { scheduledAt }),
-				...(status !== undefined && { status }),
+				...(status !== undefined && { status, cancelledWithDog: undefined }),
 				updatedBy: ctx.userId
 			});
 			if (!updated.ok) return updated;
@@ -413,6 +413,53 @@ export function createPlanner({
 			});
 			if (ended.ok) log.info('series ended', { householdId: ctx.householdId, planId: plan.id });
 			return ended;
+		},
+
+		/**
+		 * When a dog is archived (D24): its series pause and every session of its still planned is
+		 * cancelled, past ones too, so nothing of it stays due. Call inside the archive's transaction.
+		 */
+		async dogArchived(ctx: PlannerContext, dogId: Id): Promise<Result<void, WriteFailure>> {
+			const running = await plans.listRunning(ctx.householdId, today(ctx));
+			for (const plan of running.filter((p) => p.dogId === dogId && !p.paused)) {
+				const paused = await plans.update(ctx.householdId, plan.id, plan.version, {
+					paused: true,
+					updatedBy: ctx.userId
+				});
+				if (!paused.ok) return paused;
+			}
+			const cancelled = await sessions.cancelPlannedFor(ctx.householdId, dogId, ctx.userId);
+			log.info('dog sessions cancelled', { householdId: ctx.householdId, dogId, cancelled });
+			return ok(undefined);
+		},
+
+		/**
+		 * When the dog is brought back: what archiving cancelled is planned again if it's still
+		 * ahead, and its series go on from today. A session cancelled by hand stays cancelled, and
+		 * the dates the dog was away get no sessions. Call inside the transaction that brings it back.
+		 */
+		async dogRestored(ctx: PlannerContext, dogId: Id): Promise<Result<void, WriteFailure>> {
+			const now = today(ctx);
+			const running = await plans.listRunning(ctx.householdId, now);
+			const through = addDays(now, HORIZON_DAYS);
+			for (const plan of running.filter((p) => p.dogId === dogId && p.paused)) {
+				const resumed = await plans.update(ctx.householdId, plan.id, plan.version, {
+					paused: undefined,
+					updatedBy: ctx.userId
+				});
+				if (!resumed.ok) return resumed;
+				// Skip the days it was away rather than fill them with missed sessions.
+				const yesterday = addDays(now, -1);
+				let horizon = resumed.value.horizon;
+				if (horizon < yesterday) {
+					await plans.advanceHorizon(ctx.householdId, plan.id, horizon, yesterday);
+					horizon = yesterday;
+				}
+				await materialise({ ...resumed.value, horizon }, through, ctx.timeZone);
+			}
+			const restored = await sessions.restoreFor(ctx.householdId, dogId, clock.now(), ctx.userId);
+			log.info('dog sessions restored', { householdId: ctx.householdId, dogId, restored });
+			return ok(undefined);
 		},
 
 		/** For S12's tick: every running series' sessions up to the horizon. */

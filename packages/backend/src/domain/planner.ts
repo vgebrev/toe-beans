@@ -40,6 +40,8 @@ export interface TrainingPlan {
 	time: PlainTime;
 	days: Weekday[];
 	until?: PlainDate;
+	/** Set while its dog is archived: no new sessions until the dog is back (D24). */
+	paused?: true;
 	/**
 	 * Sessions exist for every date up to and including this one. Starts the day before
 	 * `startDate`, and only moves forward. Not an edit, so it doesn't change the version.
@@ -66,6 +68,8 @@ export interface PlannedSession {
 	occurrenceKey?: PlainDate;
 	/** Set by the quick log (S7). */
 	sessionLogId?: Id;
+	/** Cancelled by archiving its dog, so bringing the dog back plans it again (D24). */
+	cancelledWithDog?: true;
 	/** Who changed it last, for "Alex changed this a moment ago" (ui.md §5.2). */
 	updatedBy: Id;
 	version: number;

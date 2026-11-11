@@ -233,6 +233,47 @@ test('a change made elsewhere is never overwritten', async ({ page, baseURL }) =
 	await expect(page.getByText(/at 09:30/)).toBeVisible();
 });
 
+test('archiving a dog cancels its sessions, not the other dog’s, and bringing it back restores them', async ({
+	page,
+	baseURL
+}) => {
+	const [rosie, pip] = await household(page, baseURL!, ['Rosie', 'Pip']);
+	const once = await schedule(page, baseURL!, { dogId: rosie!.id, date: dateIn(1) });
+	const series = await schedule(page, baseURL!, {
+		dogId: rosie!.id,
+		date: dateIn(1),
+		repeat: { days: [1, 2, 3, 4, 5, 6, 7] }
+	});
+	const pips = await schedule(page, baseURL!, { dogId: pip!.id, date: dateIn(1) });
+
+	await page.goto(`/dogs/${rosie!.id}`);
+	await page.getByRole('button', { name: 'More for Rosie' }).click();
+	await page.getByRole('button', { name: 'Archive Rosie' }).click();
+	await expect(page.getByRole('dialog', { name: 'Archive Rosie?' })).toContainText(
+		'Their planned sessions are cancelled.'
+	);
+	await page.getByRole('button', { name: 'Archive Rosie' }).click();
+	await expect(page.getByText(/is archived: their history stays/)).toBeVisible();
+
+	const after = await sessionsOn(page, dateIn(0), dateIn(27));
+	const rosies = after.filter((s) => s.id !== pips.id);
+	expect(rosies.map((s) => s.id)).toContain(once.id);
+	expect(rosies.filter((s) => s.plan?.id === series.plan!.id).length).toBeGreaterThan(1);
+	expect(rosies.every((s) => s.status === 'cancelled')).toBe(true);
+	expect(after.find((s) => s.id === pips.id)).toMatchObject({ status: 'planned' });
+	// A week beyond what was planned gets nothing new for Rosie.
+	expect(await sessionsOn(page, dateIn(35), dateIn(41))).toEqual([]);
+
+	await page.getByRole('button', { name: 'Bring Rosie back' }).click();
+	await expect(page.getByRole('button', { name: 'Bring Rosie back' })).toBeHidden();
+	const back = await sessionsOn(page, dateIn(1), dateIn(27));
+	expect(back.find((s) => s.id === once.id)).toMatchObject({ status: 'planned' });
+	expect(
+		back.filter((s) => s.plan?.id === series.plan!.id).every((s) => s.status === 'planned')
+	).toBe(true);
+	expect((await sessionsOn(page, dateIn(35), dateIn(41))).length).toBe(7);
+});
+
 test("another household can't see or change a session by its ID (scenario 9)", async ({
 	page,
 	browser,

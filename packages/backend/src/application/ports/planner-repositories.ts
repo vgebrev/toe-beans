@@ -11,11 +11,11 @@ export type NewPlannedSession = Omit<PlannedSession, 'version' | 'createdAt' | '
 
 /** A field set to undefined is removed: `until: undefined` makes a series open-ended. */
 export type TrainingPlanChanges = Partial<
-	Pick<TrainingPlan, 'exerciseId' | 'time' | 'days' | 'until'>
+	Pick<TrainingPlan, 'exerciseId' | 'time' | 'days' | 'until' | 'paused'>
 > & { updatedBy: Id };
 
 export type PlannedSessionChanges = Partial<
-	Pick<PlannedSession, 'exerciseId' | 'scheduledAt' | 'status'>
+	Pick<PlannedSession, 'exerciseId' | 'scheduledAt' | 'status' | 'cancelledWithDog'>
 > & { updatedBy: Id };
 
 export interface TrainingPlanRepository {
@@ -54,6 +54,10 @@ export interface PlannedSessionRepository {
 		expectedVersion: number,
 		changes: PlannedSessionChanges
 	): Promise<Result<PlannedSession, NotFoundError | StaleVersionError>>;
+	/** Cancels every one of the dog's sessions that's still planned, marked as cancelled with it. */
+	cancelPlannedFor(householdId: Id, dogId: Id, updatedBy: Id): Promise<number>;
+	/** Plans again the dog's sessions cancelled with it that are at `from` or later. */
+	restoreFor(householdId: Id, dogId: Id, from: Date, updatedBy: Id): Promise<number>;
 	/** Deletes the plan's sessions from that occurrence date on that haven't been logged. */
 	deleteUnloggedFrom(householdId: Id, planId: Id, from: PlainDate): Promise<number>;
 }

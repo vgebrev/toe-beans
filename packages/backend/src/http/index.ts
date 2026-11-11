@@ -39,6 +39,7 @@ export function createHttp(ports: Ports, { publicOrigin }: HttpOptions): Http {
 		callbackUri: publicOrigin + CALLBACK_PATH,
 		postSignOutUri: publicOrigin + '/'
 	});
+	const planner = createPlanner(ports);
 	return {
 		health: createHealthHttp(ports),
 		auth: createAuthHttp(auth, {
@@ -52,10 +53,10 @@ export function createHttp(ports: Ports, { publicOrigin }: HttpOptions): Http {
 			createInvitations(ports, { publicOrigin }),
 			{ rateLimit: ports.inviteRateLimit, logger: ports.logger }
 		),
-		dogs: createDogsHttp(createDogs(ports)),
+		dogs: createDogsHttp(createDogs(ports, planner)),
 		exercises: createExercisesHttp(createExercises(ports)),
 		cues: createCuesHttp(createCues(ports)),
-		planner: createPlannerHttp(createPlanner(ports))
+		planner: createPlannerHttp(planner)
 	};
 }
 

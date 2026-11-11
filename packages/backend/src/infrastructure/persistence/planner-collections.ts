@@ -106,6 +106,18 @@ export function mongoPlannedSessions(db: Db, clock: Clock): PlannedSessionReposi
 			const updated = await sessions.update(householdId, id, expectedVersion, changes);
 			return updated.ok ? ok(toSession(updated.value)) : updated;
 		},
+		cancelPlannedFor: (householdId, dogId, updatedBy) =>
+			sessions.updateWhere(
+				householdId,
+				{ dogId, status: 'planned' },
+				{ status: 'cancelled', cancelledWithDog: true, updatedBy }
+			),
+		restoreFor: (householdId, dogId, from, updatedBy) =>
+			sessions.updateWhere(
+				householdId,
+				{ dogId, status: 'cancelled', cancelledWithDog: true, scheduledAt: { $gte: from } },
+				{ status: 'planned', cancelledWithDog: undefined, updatedBy }
+			),
 		deleteUnloggedFrom: (householdId, planId, from) =>
 			sessions.deleteWhere(householdId, {
 				planId,

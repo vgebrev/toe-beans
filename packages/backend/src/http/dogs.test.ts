@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import type { MemberViewer, Viewer } from '../application/auth/auth.js';
 import { createDogs } from '../application/dogs/dogs.js';
 import { createIdGenerator, type Id } from '../domain/id.js';
+import { ok } from '../domain/result.js';
+import { directUnitOfWork } from '../testing/auth.js';
 import { manualClock } from '../testing/clock.js';
 import { fakePhoto, fakePhotoProcessor, memoryDogs, memoryPhotoStore } from '../testing/dogs.js';
 import { createDogsHttp } from './dogs.js';
@@ -31,14 +33,18 @@ const outsider = member('h2');
 function setup() {
 	const clock = manualClock(at);
 	const ids = createIdGenerator(() => clock.now().getTime());
-	const dogs = createDogs({
-		dogs: memoryDogs(() => clock.now()),
-		photos: memoryPhotoStore(),
-		photoProcessor: fakePhotoProcessor,
-		clock,
-		ids,
-		logger: silent
-	});
+	const dogs = createDogs(
+		{
+			dogs: memoryDogs(() => clock.now()),
+			photos: memoryPhotoStore(),
+			photoProcessor: fakePhotoProcessor,
+			uow: directUnitOfWork,
+			clock,
+			ids,
+			logger: silent
+		},
+		{ dogArchived: async () => ok(undefined), dogRestored: async () => ok(undefined) }
+	);
 	const http = createDogsHttp(dogs);
 	const add = async () => {
 		const created = await http.create(viewer, {

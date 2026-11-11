@@ -1,9 +1,9 @@
 # Toe Beans — UI and Interaction Design
 
-**Version:** 0.15 (draft for iteration)
-**Date:** 10 November 2026
+**Version:** 0.16 (draft for iteration)
+**Date:** 11 November 2026
 **Status:** Proposed. Review-round decisions in §8 are accepted.
-**Inputs:** `docs/requirements.md` v1.0, `docs/architecture.md` v1.10
+**Inputs:** `docs/requirements.md` v1.0, `docs/architecture.md` v1.11
 
 **Changes in 0.7:** the logo landed (S0.9). The mark is now a **TB monogram** with four toe beans above it and a heart-shaped bean in the B, from the AI-assisted design board (Monogram Iteration B), replacing the placeholder paw. It was traced from the board and cleaned up rather than redrawn by hand; the variants are the brown-on-cream mark, a cream-on-brown app-icon tile (favicon and maskable) and a white badge. The wordmark uses Fredoka Bold to match the board (§6.4 Logo).
 
@@ -12,6 +12,8 @@
 **Changes in 0.14:** S5 built: §4.6 records the cue dictionary as built (list, edit sheet, conflict and delete handling), following §5.2's conflict row with *Overwrite with mine*.
 
 **Changes in 0.15:** S6 built: §4.3 records Plan, Schedule and the session page as built (architecture 1.10 D24). §4.6: the exercise page's sticky *Schedule* is in; *Log practice* joins it with S7. The FAB's *Schedule session* waits for the FAB itself (S8).
+
+**Changes in 0.16:** §4.5: the archive confirmation says the dog's planned sessions are cancelled, and come back with the dog if still ahead (architecture 1.11 D24). Inputs moved to architecture 1.11.
 
 **Changes in 0.12:** S3 built. J1 step 4 as built: *Take photo* or *Gallery*, then a framing square with the circle overlay (drag, pinch, a zoom slider and arrow keys), and birth date as *I know the date* or *Approximate* with months old. J2 names the dogs. §2.2: the switcher shows on Today, Plan, History and Care, with name chips. §5.1 gains two rules from using it: one confirm button per context (a sheet is its own context), and a control is never disabled without the reason on screen; the photo moved into its own sheet in J1 to follow the first, and the household, name and email-invite buttons stopped greying out for missing input to follow the second. §4.5: editing is its own page and the overflow sheet holds *Edit details* and *Archive*; the Recent sections wait for their slices. The dog accent palette is defined (§6.4), and More gains *Dogs* (§2.1). The custom dog icon read as a monkey, so it's replaced by Phosphor's *Dog*, the documented fallback library (§6.4).
 
@@ -270,7 +272,7 @@ The header shows a week strip (Mon–Sun) with dots for days that have sessions,
 - Large circular photo with a *Change photo* action, name, age (computed, with "approx." where estimated), time since adoption, notes.
 - Sections: *Recent training*, *Recent events*, *Upcoming care*, each with "See all" linking to the filtered view.
 - Archive is in the overflow menu, with confirmation.
-- *As built (S3):* *Change photo* opens the same photo sheet as J1, whose one button is *Save photo*; the profile then says "Photo changed." *Edit details* is its own page (`/dogs/:id/edit`), the J1 form without the photo. The overflow button opens a sheet with *Edit details* and *Archive*, which turns into the confirmation naming the dog. An archived dog's profile says so at the top with *Bring back*; it's listed under *Archived* on More → Dogs. A change made elsewhere meanwhile saves nothing: the edit page offers *See their version*, and the sheets close and say so above the reloaded profile (§5.2). The *Recent training*, *Recent events* and *Upcoming care* sections arrive with their slices.
+- *As built (S3):* *Change photo* opens the same photo sheet as J1, whose one button is *Save photo*; the profile then says "Photo changed." *Edit details* is its own page (`/dogs/:id/edit`), the J1 form without the photo. The overflow button opens a sheet with *Edit details* and *Archive*, which turns into the confirmation naming the dog; since S6 it also says the dog's planned sessions are cancelled (they stay on Plan as *Cancelled*) and that bringing the dog back restores those still ahead. An archived dog's profile says so at the top with *Bring back*; it's listed under *Archived* on More → Dogs. A change made elsewhere meanwhile saves nothing: the edit page offers *See their version*, and the sheets close and say so above the reloaded profile (§5.2). The *Recent training*, *Recent events* and *Upcoming care* sections arrive with their slices.
 
 ### 4.6 Library and cues
 

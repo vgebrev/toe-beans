@@ -1,34 +1,61 @@
 import { describe, expect, it } from 'vitest';
 import { createIdGenerator, type Id } from '../../domain/id.js';
+import { directUnitOfWork } from '../../testing/auth.js';
 import { manualClock } from '../../testing/clock.js';
 import { fakePhoto, fakePhotoProcessor, memoryDogs, memoryPhotoStore } from '../../testing/dogs.js';
-import type { MemberContext } from '../auth/auth.js';
+import { ok } from '../../domain/result.js';
+import type { PlannerContext } from '../planner/planner.js';
 import { createDogs, PHOTO_MAX_BYTES } from './dogs.js';
 
 const at = new Date('2026-11-08T08:00:00Z');
 const silent = { debug() {}, info() {}, warn() {}, error() {}, child: () => silent };
-const ctx: MemberContext = { userId: 'u1' as Id, householdId: 'h1' as Id, role: 'caregiver' };
-const outsider: MemberContext = { userId: 'u9' as Id, householdId: 'h9' as Id, role: 'owner' };
+const ctx: PlannerContext = {
+	userId: 'u1' as Id,
+	householdId: 'h1' as Id,
+	role: 'caregiver',
+	timeZone: 'UTC'
+};
+const outsider: PlannerContext = {
+	userId: 'u9' as Id,
+	householdId: 'h9' as Id,
+	role: 'owner',
+	timeZone: 'UTC'
+};
 
 function setup() {
 	const clock = manualClock(at);
 	const dogs = memoryDogs(() => clock.now());
 	const photos = memoryPhotoStore();
 	const ids = createIdGenerator(() => clock.now().getTime());
-	const service = createDogs({
-		dogs,
-		photos,
-		photoProcessor: fakePhotoProcessor,
-		clock,
-		ids,
-		logger: silent
-	});
+	const archivedDogs: string[] = [];
+	const planner = {
+		dogArchived: async (_: PlannerContext, dogId: Id) => {
+			archivedDogs.push(`archived ${dogId}`);
+			return ok(undefined);
+		},
+		dogRestored: async (_: PlannerContext, dogId: Id) => {
+			archivedDogs.push(`restored ${dogId}`);
+			return ok(undefined);
+		}
+	};
+	const service = createDogs(
+		{
+			dogs,
+			photos,
+			photoProcessor: fakePhotoProcessor,
+			uow: directUnitOfWork,
+			clock,
+			ids,
+			logger: silent
+		},
+		planner
+	);
 	const add = async (name = 'Rosie') => {
 		const created = await service.create(ctx, { details: { name }, photo: fakePhoto() });
 		if (!created.ok) throw new Error('could not add the dog');
 		return created.value;
 	};
-	return { clock, dogs, photos, service, add };
+	return { clock, dogs, photos, service, add, archivedDogs };
 }
 
 describe('adding a dog', () => {
@@ -195,7 +222,7 @@ describe('updating a dog', () => {
 	});
 
 	it('archives and brings back, keeping when it was first archived', async () => {
-		const { add, service, clock } = setup();
+		const { add, service, clock, archivedDogs } = setup();
 		const rosie = await add();
 		const archived = await service.update(ctx, {
 			id: rosie.id,
@@ -219,12 +246,14 @@ describe('updating a dog', () => {
 			archived: false
 		});
 		expect(back.ok && back.value).not.toHaveProperty('archivedAt');
+		// The planner hears of each change once, not of archiving again.
+		expect(archivedDogs).toEqual([`archived ${rosie.id}`, `restored ${rosie.id}`]);
 	});
 
 	it("refuses a stale version, and can't touch another household's dog", async () => {
 		const { add, service } = setup();
 		const rosie = await add();
-		const rename = (who: MemberContext, expectedVersion: number) =>
+		const rename = (who: PlannerContext, expectedVersion: number) =>
 			service.update(who, { id: rosie.id, expectedVersion, details: { name: 'Milo' } });
 		expect(await rename(ctx, 7)).toEqual({ ok: false, error: { kind: 'stale-version' } });
 		expect(await rename(outsider, 1)).toMatchObject({ error: { kind: 'not-found' } });

@@ -14,6 +14,7 @@ import { validationError } from '../../domain/errors.js';
 import { isId, type Id } from '../../domain/id.js';
 import { err, ok, type Result } from '../../domain/result.js';
 import type { MemberContext } from '../auth/auth.js';
+import type { Planner, PlannerContext } from '../planner/planner.js';
 import {
 	notFound,
 	staleVersion,
@@ -48,14 +49,22 @@ export type Dogs = ReturnType<typeof createDogs>;
 
 const orUndefined = <T>(value: T | null | undefined): T | undefined => value ?? undefined;
 
-export function createDogs({
-	dogs,
-	photos,
-	photoProcessor,
-	clock,
-	ids,
-	logger
-}: Pick<Ports, 'dogs' | 'photos' | 'photoProcessor' | 'clock' | 'ids' | 'logger'>) {
+/**
+ * `planner` is told when a dog is archived or brought back, in the same transaction, so the
+ * dog's plans pause and resume with it (D24).
+ */
+export function createDogs(
+	{
+		dogs,
+		photos,
+		photoProcessor,
+		uow,
+		clock,
+		ids,
+		logger
+	}: Pick<Ports, 'dogs' | 'photos' | 'photoProcessor' | 'uow' | 'clock' | 'ids' | 'logger'>,
+	planner: Pick<Planner, 'dogArchived' | 'dogRestored'>
+) {
 	const log = logger.child({ component: 'dogs' });
 	/** A malformed ID can't be anyone's dog, so it's not found without asking the database. */
 	const find = async (ctx: MemberContext, id: string) =>
@@ -159,9 +168,10 @@ export function createDogs({
 		/**
 		 * Changes the details given, and archives or brings back the dog with `archived`. The
 		 * result is checked as a whole, so a new birth date can't land after the adoption date.
+		 * Archiving also cancels the dog's planned sessions, and bringing it back plans them again.
 		 */
 		async update(
-			ctx: MemberContext,
+			ctx: PlannerContext,
 			input: { id: string; expectedVersion: number; details: DogInput; archived?: boolean }
 		): Promise<Result<Dog, ValidationError | NotFoundError | StaleVersionError>> {
 			const dog = await find(ctx, input.id);
@@ -187,7 +197,16 @@ export function createDogs({
 			if (input.archived !== undefined) {
 				changes.archivedAt = input.archived ? (dog.archivedAt ?? now) : undefined;
 			}
-			const updated = await dogs.update(ctx.householdId, dog.id, input.expectedVersion, changes);
+			const archiving = input.archived === true && !dog.archivedAt;
+			const restoring = input.archived === false && !!dog.archivedAt;
+			const updated = await uow.run<Dog, NotFoundError | StaleVersionError>(async () => {
+				const saved = await dogs.update(ctx.householdId, dog.id, input.expectedVersion, changes);
+				if (!saved.ok || !(archiving || restoring)) return saved;
+				const plans = archiving
+					? await planner.dogArchived(ctx, dog.id)
+					: await planner.dogRestored(ctx, dog.id);
+				return plans.ok ? saved : plans;
+			});
 			if (updated.ok && input.archived !== undefined && input.archived !== !!dog.archivedAt) {
 				const event = input.archived ? 'dog archived' : 'dog unarchived';
 				log.info(event, { householdId: ctx.householdId, dogId: dog.id });

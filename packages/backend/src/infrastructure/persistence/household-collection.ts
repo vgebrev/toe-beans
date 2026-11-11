@@ -175,6 +175,30 @@ export class HouseholdCollection<T extends HouseholdDocument> {
 		return modifiedCount === 1;
 	}
 
+	/**
+	 * Applies `changes` to every document in the household that matches `filter`, as an edit of
+	 * each: versions go up, so a change someone started on one of them meets a 412 (NFR-13). A
+	 * field set to undefined is removed.
+	 */
+	async updateWhere(
+		householdId: Id,
+		filter: Filter<Fields<T>>,
+		changes: Changes<T>
+	): Promise<number> {
+		const $set: Record<string, unknown> = { updatedAt: this.#options.clock.now() };
+		const $unset: Record<string, ''> = {};
+		for (const [key, value] of Object.entries(changes)) {
+			if (value === undefined) $unset[key] = '';
+			else $set[key] = value;
+		}
+		const { modifiedCount } = await this.#collection.updateMany(
+			this.#scope(householdId, filter),
+			{ $set, $unset, $inc: { version: 1 } } as never,
+			{ session: currentSession() }
+		);
+		return modifiedCount;
+	}
+
 	/** Deletes every document in the household that matches `filter`, whatever its version. */
 	async deleteWhere(householdId: Id, filter: Filter<Fields<T>>): Promise<number> {
 		const { deletedCount } = await this.#collection.deleteMany(this.#scope(householdId, filter), {
