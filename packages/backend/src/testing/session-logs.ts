@@ -28,6 +28,20 @@ export function memorySessionLogs(now: () => Date): SessionLogRepository & { all
 		findById: async (householdId, id) => structuredClone(live(householdId, id) ?? null),
 		findByIds: async (householdId, ids) =>
 			structuredClone(ids.flatMap((id) => live(householdId, id) ?? [])),
+		listPractisedBetween: async (householdId, from, to) =>
+			structuredClone(
+				[...items.values()]
+					.filter(
+						(l) =>
+							l.householdId === householdId &&
+							!l.deletedAt &&
+							l.practisedAt >= from &&
+							l.practisedAt < to
+					)
+					.sort(
+						(a, b) => a.practisedAt.getTime() - b.practisedAt.getTime() || a.id.localeCompare(b.id)
+					)
+			),
 		async update(householdId, id, expectedVersion, changes) {
 			const item = live(householdId, id);
 			if (!item) return err(notFound('log'));

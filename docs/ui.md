@@ -1,9 +1,9 @@
 # Toe Beans — UI and Interaction Design
 
-**Version:** 0.17 (draft for iteration)
+**Version:** 0.18 (draft for iteration)
 **Date:** 11 November 2026
 **Status:** Proposed. Review-round decisions in §8 are accepted.
-**Inputs:** `docs/requirements.md` v1.0, `docs/architecture.md` v1.12
+**Inputs:** `docs/requirements.md` v1.0, `docs/architecture.md` v1.13
 
 **Changes in 0.7:** the logo landed (S0.9). The mark is now a **TB monogram** with four toe beans above it and a heart-shaped bean in the B, from the AI-assisted design board (Monogram Iteration B), replacing the placeholder paw. It was traced from the board and cleaned up rather than redrawn by hand; the variants are the brown-on-cream mark, a cream-on-brown app-icon tile (favicon and maskable) and a white badge. The wordmark uses Fredoka Bold to match the board (§6.4 Logo).
 
@@ -16,6 +16,8 @@
 **Changes in 0.16:** §4.5: the archive confirmation says the dog's planned sessions are cancelled, and come back with the dog if still ahead (architecture 1.11 D24). Inputs moved to architecture 1.11.
 
 **Changes in 0.17:** S7 built: §4.2 records the quick log sheet as built, from a planned session's page and as *Log practice* on the exercise page (J4's FAB waits for S8), and the log page `/logs/:id` with *Edit* (J8). The *When* control follows J5's chips (*Now / 15 min ago / 1 h ago / Earlier*). The stressed tip's link opens in a new tab so the sheet's choices survive. Plan's session cards show the outcome once logged (J3 step 5). Inputs moved to architecture 1.12 (D25).
+
+**Changes in 0.18:** S8 built: §4.1 records Today as built. *Overdue* includes yesterday's still-planned sessions (architecture D26), *Done* every practice logged today, ad hoc too, and *Log* sits beside the card rather than inside it. A card opens the session page, as on Plan, rather than the instructions (J3 step 3), and the overflow menu waits: *Change*, *Skip* and *Cancel* are on that page. *Coming up* waits for care (S11).
 
 **Changes in 0.12:** S3 built. J1 step 4 as built: *Take photo* or *Gallery*, then a framing square with the circle overlay (drag, pinch, a zoom slider and arrow keys), and birth date as *I know the date* or *Approximate* with months old. J2 names the dogs. §2.2: the switcher shows on Today, Plan, History and Care, with name chips. §5.1 gains two rules from using it: one confirm button per context (a sheet is its own context), and a control is never disabled without the reason on screen; the photo moved into its own sheet in J1 to follow the first, and the household, name and email-invite buttons stopped greying out for missing input to follow the second. §4.5: editing is its own page and the overflow sheet holds *Edit details* and *Archive*; the Recent sections wait for their slices. The dog accent palette is defined (§6.4), and More gains *Dogs* (§2.1). The custom dog icon read as a monkey, so it's replaced by Phosphor's *Dog*, the documented fallback library (§6.4).
 
@@ -233,6 +235,7 @@ Layout sketches are indicative and assume a ~400 dp width.
 - Order: Overdue → Planned (by time) → Done → Coming up. Skipped and cancelled sessions are collapsed under "Skipped (n)".
 - Tapping a card opens the instructions. **[Log]** opens the quick log sheet directly.
 - Long-press or overflow on a planned card: *Reschedule*, *Skip*, *Cancel*.
+- *As built (S8):* the header's date and the switcher, then *Overdue (n)* in the attention colour with its alert icon, *Planned*, *Done* and *Skipped (n)*, collapsed; a section with nothing for the chosen dog isn't shown. *Overdue* holds today's sessions past their time and yesterday's still planned, which say *Yesterday* (architecture D26). A planned or overdue card is the session card from Plan (time, avatar, exercise, dog, ↻) with **Log** beside it, outside the card's link; its accessible name says which exercise and dog. The card opens the session page (its *See the instructions*, *Change*, *Skip* and *Cancel*), not the instructions directly, so the overflow menu isn't built. **Log** opens the quick log for that session (§4.2); once saved, "Logged. Recall basics is done." and the card moves to *Done*. *Done* lists every practice logged today, ad hoc ones too: time, avatar, exercise, dog, the outcome badge and "by {name}", opening the log. With nothing at all for the chosen dog: "Nothing planned today", **Schedule** (today's date filled in) and *Browse the library*. If the day doesn't load it says so, never an empty day. The day is fetched again when the app comes back to the front. *Coming up* waits for care (S11).
 
 ### 4.2 Quick log sheet (bottom sheet)
 

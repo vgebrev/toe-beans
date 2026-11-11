@@ -14,6 +14,8 @@ export interface SessionLogRepository {
 	insert(log: NewSessionLog): Promise<SessionLog>;
 	findById(householdId: Id, id: Id): Promise<SessionLog | null>;
 	findByIds(householdId: Id, ids: readonly Id[]): Promise<SessionLog[]>;
+	/** Practised at or after `from` and before `to`, in time order. */
+	listPractisedBetween(householdId: Id, from: Date, to: Date): Promise<SessionLog[]>;
 	/** Applies `changes` if the log is still at `expectedVersion` (NFR-13). */
 	update(
 		householdId: Id,

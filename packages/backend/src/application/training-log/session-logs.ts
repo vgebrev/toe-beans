@@ -2,6 +2,7 @@
 // the household's dogs: against a planned session, which it completes in the same transaction,
 // or ad hoc. The outcome defaults to not assessed and every other detail is optional, so a log
 // never asks anyone to claim success. Editing carries the version it was based on (NFR-13).
+import { addDays, instantAt, type PlainDate, type PlainTime } from '../../domain/calendar.js';
 import { conflictError, validationError } from '../../domain/errors.js';
 import type { Exercise } from '../../domain/exercise.js';
 import { isId, type Id } from '../../domain/id.js';
@@ -42,6 +43,7 @@ export interface LogRequest extends LogDetailsInput {
 }
 
 type WriteFailure = NotFoundError | StaleVersionError;
+const MIDNIGHT = '00:00' as PlainTime;
 
 export type SessionLogs = ReturnType<typeof createSessionLogs>;
 
@@ -71,16 +73,21 @@ export function createSessionLogs({
 	const invalid = (fields: Record<string, string[]>) =>
 		err(validationError('The log is not valid.', fields));
 
-	async function view(entry: SessionLog): Promise<LogView> {
-		const people = await users.findByIds([...new Set([entry.caregiverId, entry.updatedBy])]);
+	/** One lookup for every name the logs need. */
+	async function views(entries: readonly SessionLog[]): Promise<LogView[]> {
+		if (entries.length === 0) return [];
+		const people = await users.findByIds([
+			...new Set(entries.flatMap((e) => [e.caregiverId, e.updatedBy]))
+		]);
 		const names = new Map(people.map((u) => [u.id, u.displayName]));
-		return {
+		return entries.map((entry) => ({
 			log: entry,
 			exercise: exercises.get(entry.exerciseId),
 			caregiverName: names.get(entry.caregiverId) ?? FORMER_MEMBER,
 			updatedByName: names.get(entry.updatedBy) ?? FORMER_MEMBER
-		};
+		}));
 	}
+	const view = async (entry: SessionLog) => (await views([entry]))[0]!;
 
 	const find = async (ctx: PlannerContext, id: string) =>
 		isId(id) ? logs.findById(ctx.householdId, id) : null;
@@ -112,6 +119,16 @@ export function createSessionLogs({
 	}
 
 	return {
+		/** Every dog's logs practised on `date` (the household's clocks), in time order. */
+		async listOn(ctx: PlannerContext, date: PlainDate): Promise<LogView[]> {
+			const found = await logs.listPractisedBetween(
+				ctx.householdId,
+				instantAt(date, MIDNIGHT, ctx.timeZone),
+				instantAt(addDays(date, 1), MIDNIGHT, ctx.timeZone)
+			);
+			return views(found);
+		},
+
 		async get(ctx: PlannerContext, id: string): Promise<Result<LogView, NotFoundError>> {
 			const entry = await find(ctx, id);
 			return entry ? ok(await view(entry)) : err(notFound('log'));

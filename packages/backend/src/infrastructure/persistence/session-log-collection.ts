@@ -39,6 +39,14 @@ export function mongoSessionLogs(db: Db, clock: Clock): SessionLogRepository {
 				toLog
 			);
 		},
+		async listPractisedBetween(householdId, from, to) {
+			const docs = await logs.find(
+				householdId,
+				{ practisedAt: { $gte: from, $lt: to }, ...live } as never,
+				{ sort: { practisedAt: 1, _id: 1 } }
+			);
+			return docs.map(toLog);
+		},
 		async update(householdId, id, expectedVersion, changes) {
 			const updated = await logs.update(householdId, id, expectedVersion, changes);
 			return updated.ok ? ok(toLog(updated.value)) : updated;

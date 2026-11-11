@@ -66,6 +66,17 @@ describe('mongoSessionLogs', () => {
 		);
 	});
 
+	it('lists the logs practised in a range, in time order', async () => {
+		const household = ids.next();
+		const minute = 60_000;
+		const later = await logs().insert(newLog(household, { practisedAt: new Date(+at + minute) }));
+		const first = await logs().insert(newLog(household, { practisedAt: at }));
+		await logs().insert(newLog(household, { practisedAt: new Date(+at + 2 * minute) }));
+		await logs().insert(newLog(household, { practisedAt: new Date(+at - 1) }));
+		const listed = await logs().listPractisedBetween(household, at, new Date(+at + 2 * minute));
+		expect(listed.map((l) => l.id)).toEqual([first.id, later.id]);
+	});
+
 	it('hides soft-deleted logs', async () => {
 		const household = ids.next();
 		const log = await logs().insert(newLog(household));
@@ -74,6 +85,7 @@ describe('mongoSessionLogs', () => {
 			.updateOne({ _id: log.id as never }, { $set: { deletedAt: at } });
 		expect(await logs().findById(household, log.id)).toBeNull();
 		expect(await logs().findByIds(household, [log.id])).toEqual([]);
+		expect(await logs().listPractisedBetween(household, at, new Date(+at + 1))).toEqual([]);
 	});
 
 	it('allows one log per planned session', async () => {
@@ -132,6 +144,10 @@ describe('mongoSessionLogs', () => {
 householdIsolationSuite('mongoSessionLogs', () => ({
 	create: async (householdId) => (await logs().insert(newLog(householdId))).id,
 	read: (householdId, id) => logs().findById(householdId, id),
+	list: async (householdId) =>
+		(await logs().listPractisedBetween(householdId, new Date(0), new Date(+at + 1))).map(
+			(l) => l.id
+		),
 	update: async (householdId, id) => {
 		const current = await db.mongo.db.collection(SESSION_LOGS).findOne({ _id: id as never });
 		return logs().update(householdId, id, current!.version as number, {

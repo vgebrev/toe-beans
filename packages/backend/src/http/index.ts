@@ -9,6 +9,7 @@ import { createHouseholds } from '../application/household/household.js';
 import { createInvitations } from '../application/household/invitations.js';
 import { createPlanner } from '../application/planner/planner.js';
 import type { Ports } from '../application/ports/index.js';
+import { createToday } from '../application/today/today.js';
 import { createSessionLogs } from '../application/training-log/session-logs.js';
 import { createAccountHttp, type AccountHttp } from './account.js';
 import { CALLBACK_PATH, createAuthHttp, type AuthHttp } from './auth.js';
@@ -19,6 +20,7 @@ import { createHealthHttp, type HealthHttp } from './health.js';
 import { createHouseholdHttp, type HouseholdHttp } from './household.js';
 import { createPlannerHttp, type PlannerHttp } from './planner.js';
 import { createSessionLogsHttp, type SessionLogsHttp } from './session-logs.js';
+import { createTodayHttp, type TodayHttp } from './today.js';
 
 export interface Http {
 	health: HealthHttp;
@@ -30,6 +32,7 @@ export interface Http {
 	cues: CuesHttp;
 	planner: PlannerHttp;
 	sessionLogs: SessionLogsHttp;
+	today: TodayHttp;
 }
 
 export interface HttpOptions {
@@ -43,6 +46,7 @@ export function createHttp(ports: Ports, { publicOrigin }: HttpOptions): Http {
 		postSignOutUri: publicOrigin + '/'
 	});
 	const planner = createPlanner(ports);
+	const sessionLogs = createSessionLogs(ports);
 	return {
 		health: createHealthHttp(ports),
 		auth: createAuthHttp(auth, {
@@ -60,7 +64,8 @@ export function createHttp(ports: Ports, { publicOrigin }: HttpOptions): Http {
 		exercises: createExercisesHttp(createExercises(ports)),
 		cues: createCuesHttp(createCues(ports)),
 		planner: createPlannerHttp(planner),
-		sessionLogs: createSessionLogsHttp(createSessionLogs(ports))
+		sessionLogs: createSessionLogsHttp(sessionLogs),
+		today: createTodayHttp(createToday(ports, { planner, sessionLogs }))
 	};
 }
 
