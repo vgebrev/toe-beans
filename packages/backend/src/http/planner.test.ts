@@ -7,6 +7,7 @@ import { directUnitOfWork, memoryUsers } from '../testing/auth.js';
 import { manualClock } from '../testing/clock.js';
 import { memoryDogs } from '../testing/dogs.js';
 import { memoryPlannedSessions, memoryTrainingPlans } from '../testing/planner.js';
+import { memorySessionLogs } from '../testing/session-logs.js';
 import { createPlannerHttp } from './planner.js';
 
 const silent = { debug() {}, info() {}, warn() {}, error() {}, child: () => silent };
@@ -73,6 +74,7 @@ async function setup() {
 		createPlanner({
 			plans: memoryTrainingPlans(now),
 			plannedSessions: memoryPlannedSessions(now),
+			sessionLogs: memorySessionLogs(now),
 			dogs,
 			exercises: { all: () => [recall], get: (id) => (id === recall.id ? recall : undefined) },
 			users,

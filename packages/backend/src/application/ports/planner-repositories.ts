@@ -15,7 +15,10 @@ export type TrainingPlanChanges = Partial<
 > & { updatedBy: Id };
 
 export type PlannedSessionChanges = Partial<
-	Pick<PlannedSession, 'exerciseId' | 'scheduledAt' | 'status' | 'cancelledWithDog'>
+	Pick<
+		PlannedSession,
+		'exerciseId' | 'scheduledAt' | 'status' | 'cancelledWithDog' | 'sessionLogId'
+	>
 > & { updatedBy: Id };
 
 export interface TrainingPlanRepository {

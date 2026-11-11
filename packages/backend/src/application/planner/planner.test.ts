@@ -6,6 +6,7 @@ import { directUnitOfWork, memoryUsers } from '../../testing/auth.js';
 import { manualClock } from '../../testing/clock.js';
 import { memoryDogs } from '../../testing/dogs.js';
 import { memoryPlannedSessions, memoryTrainingPlans } from '../../testing/planner.js';
+import { memorySessionLogs } from '../../testing/session-logs.js';
 import { createPlanner, type PlannerContext } from './planner.js';
 
 // Tuesday 10 November 2026, 08:00 in Johannesburg.
@@ -86,6 +87,7 @@ async function setup() {
 	const planner = createPlanner({
 		plans,
 		plannedSessions: sessions,
+		sessionLogs: memorySessionLogs(now),
 		dogs,
 		exercises: { all: () => library, get: (id) => library.find((e) => e.id === id) },
 		users,
@@ -135,6 +137,7 @@ describe('scheduling one session', () => {
 			},
 			plan: null,
 			exercise: library[0],
+			log: null,
 			updatedByName: 'Sam'
 		});
 	});

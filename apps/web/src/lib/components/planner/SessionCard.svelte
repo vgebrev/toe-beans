@@ -1,11 +1,12 @@
 <script lang="ts">
 	// A planned session as a card (ui.md §4.3, §5.5): the time, the dog's avatar and name, the
-	// exercise, ↻ for a repeating one, and its status when it isn't simply planned. The whole card
-	// opens the session.
+	// exercise, ↻ for a repeating one, and its status when it isn't simply planned, with the
+	// outcome once logged. The whole card opens the session.
 	import { resolve } from '$app/paths';
 	import type { Dog, PlannedSession } from '@toe-beans/contracts';
 	import DogAvatar from '#lib/components/dogs/DogAvatar.svelte';
 	import Icon from '#lib/components/icon/Icon.svelte';
+	import OutcomeBadge from '#lib/components/training-log/OutcomeBadge.svelte';
 	import { statusLabels } from '#lib/planner/status.js';
 
 	interface Props {
@@ -41,6 +42,9 @@
 					<Icon name="repeat" size={16} />
 					<span>Repeats</span>
 				</span>
+			{/if}
+			{#if session.log}
+				<OutcomeBadge outcome={session.log.outcome} short />
 			{/if}
 		</span>
 	</span>

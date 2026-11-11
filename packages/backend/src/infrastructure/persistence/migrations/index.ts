@@ -5,6 +5,7 @@ import { deactivatedHouseholds } from './0003-deactivated-households.js';
 import { dogIndexes } from './0004-dogs.js';
 import { cueIndexes } from './0005-cues.js';
 import { plannerIndexes } from './0006-planner.js';
+import { sessionLogIndexes } from './0007-session-logs.js';
 import type { Migration } from './runner.js';
 
 export const migrations: readonly Migration[] = [
@@ -13,7 +14,8 @@ export const migrations: readonly Migration[] = [
 	deactivatedHouseholds,
 	dogIndexes,
 	cueIndexes,
-	plannerIndexes
+	plannerIndexes,
+	sessionLogIndexes
 ];
 
 export { migrate, type Migration } from './runner.js';

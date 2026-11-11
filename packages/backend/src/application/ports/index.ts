@@ -17,6 +17,7 @@ import type { Logger } from './logger.js';
 import type { PlannedSessionRepository, TrainingPlanRepository } from './planner-repositories.js';
 import type { RateLimiter } from './rate-limiter.js';
 import type { Readiness } from './readiness.js';
+import type { SessionLogRepository } from './session-log-repository.js';
 import type { UnitOfWork } from './unit-of-work.js';
 
 export type {
@@ -64,6 +65,11 @@ export type {
 } from './planner-repositories.js';
 export type { RateLimitDecision, RateLimiter } from './rate-limiter.js';
 export type { Readiness } from './readiness.js';
+export type {
+	NewSessionLog,
+	SessionLogChanges,
+	SessionLogRepository
+} from './session-log-repository.js';
 export type { UnitOfWork } from './unit-of-work.js';
 
 export interface Ports {
@@ -97,4 +103,6 @@ export interface Ports {
 	plans: TrainingPlanRepository;
 	/** Planned sessions, one-off or from a series (FR-05). */
 	plannedSessions: PlannedSessionRepository;
+	/** Practised sessions, planned or not (FR-07). */
+	sessionLogs: SessionLogRepository;
 }

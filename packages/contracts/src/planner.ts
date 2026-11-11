@@ -1,6 +1,7 @@
 // The training planner: /api/v1/planned-sessions and /api/v1/training-plans (architecture §5.2,
 // D24, FR-05).
 import { z } from 'zod';
+import { Outcome } from './session-logs.js';
 
 /** ISO weekday: Monday is 1, Sunday 7. */
 export const Weekday = z.number().int().min(1).max(7);
@@ -37,6 +38,8 @@ export const PlannedSession = z.object({
 	time: z.string(),
 	status: SessionStatus,
 	plan: TrainingPlan.optional(),
+	/** The log that completed it. */
+	log: z.object({ id: z.string(), outcome: Outcome }).optional(),
 	updatedAt: z.iso.datetime(),
 	/** Who changed it last: "Alex changed this a moment ago" (ui.md §5.2). */
 	updatedBy: z.string(),

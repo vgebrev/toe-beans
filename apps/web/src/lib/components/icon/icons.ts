@@ -10,6 +10,13 @@ export type IconSvgElement = readonly (readonly [
 
 import {
 	Add01Icon,
+	CheckmarkCircle02Icon,
+	CircleIcon,
+	HourglassIcon,
+	MinusSignIcon,
+	PlusSignIcon,
+	Progress02Icon,
+	TaskDone01Icon,
 	ArrowTurnBackwardIcon,
 	CalendarAdd01Icon,
 	NextIcon,
@@ -125,7 +132,15 @@ export const icons = {
 	schedule: CalendarAdd01Icon,
 	skip: NextIcon,
 	restore: ArrowTurnBackwardIcon,
-	search: Search01Icon
+	search: Search01Icon,
+	// The quick log (ui.md §4.2) and outcome badges (§6.4): an icon beside every label
+	log: TaskDone01Icon,
+	minus: MinusSignIcon,
+	plus: PlusSignIcon,
+	'outcome-successful': CheckmarkCircle02Icon,
+	'outcome-partial': Progress02Icon,
+	'outcome-not-yet': HourglassIcon,
+	'outcome-not-assessed': CircleIcon
 } satisfies Record<string, IconSvgElement>;
 
 export type IconName = keyof typeof icons;

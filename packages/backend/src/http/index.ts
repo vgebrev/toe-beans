@@ -9,6 +9,7 @@ import { createHouseholds } from '../application/household/household.js';
 import { createInvitations } from '../application/household/invitations.js';
 import { createPlanner } from '../application/planner/planner.js';
 import type { Ports } from '../application/ports/index.js';
+import { createSessionLogs } from '../application/training-log/session-logs.js';
 import { createAccountHttp, type AccountHttp } from './account.js';
 import { CALLBACK_PATH, createAuthHttp, type AuthHttp } from './auth.js';
 import { createCuesHttp, type CuesHttp } from './cues.js';
@@ -17,6 +18,7 @@ import { createExercisesHttp, type ExercisesHttp } from './exercises.js';
 import { createHealthHttp, type HealthHttp } from './health.js';
 import { createHouseholdHttp, type HouseholdHttp } from './household.js';
 import { createPlannerHttp, type PlannerHttp } from './planner.js';
+import { createSessionLogsHttp, type SessionLogsHttp } from './session-logs.js';
 
 export interface Http {
 	health: HealthHttp;
@@ -27,6 +29,7 @@ export interface Http {
 	exercises: ExercisesHttp;
 	cues: CuesHttp;
 	planner: PlannerHttp;
+	sessionLogs: SessionLogsHttp;
 }
 
 export interface HttpOptions {
@@ -56,7 +59,8 @@ export function createHttp(ports: Ports, { publicOrigin }: HttpOptions): Http {
 		dogs: createDogsHttp(createDogs(ports, planner)),
 		exercises: createExercisesHttp(createExercises(ports)),
 		cues: createCuesHttp(createCues(ports)),
-		planner: createPlannerHttp(planner)
+		planner: createPlannerHttp(planner),
+		sessionLogs: createSessionLogsHttp(createSessionLogs(ports))
 	};
 }
 

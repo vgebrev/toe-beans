@@ -1,8 +1,8 @@
 <script lang="ts">
 	// A planned session (ui.md §4.1, §4.3, FR-05): which dog, which exercise, when, and how it
-	// repeats. A planned one can be changed, skipped or cancelled; a repeating one asks whether
-	// for this session only or this and the rest. Skipped and cancelled ones can be put back.
-	// Neither counts as done. A change made elsewhere meanwhile changes nothing and says so above
+	// repeats. A planned one is logged with the quick log (§4.2), or changed, skipped or
+	// cancelled; a repeating one asks whether for this session only or this and the rest. Skipped
+	// and cancelled ones can be put back. Neither counts as done; a logged one shows its outcome. A change made elsewhere meanwhile changes nothing and says so above
 	// the latest version (§5.2).
 	import { goto, invalidateAll } from '$app/navigation';
 	import { resolve } from '$app/paths';
@@ -11,6 +11,8 @@
 	import DogAvatar from '#lib/components/dogs/DogAvatar.svelte';
 	import Icon from '#lib/components/icon/Icon.svelte';
 	import PageHeader from '#lib/components/shell/PageHeader.svelte';
+	import OutcomeBadge from '#lib/components/training-log/OutcomeBadge.svelte';
+	import QuickLogSheet from '#lib/components/training-log/QuickLogSheet.svelte';
 	import { Button, buttonVariants } from '#lib/components/ui/button/index.js';
 	import * as Sheet from '#lib/components/ui/sheet/index.js';
 	import { createApiClient, type ApiError } from '#lib/api-client/index.js';
@@ -31,6 +33,19 @@
 	let status = $state<'idle' | 'working' | 'failed' | 'signed-out'>('idle');
 	let sheet = $state<'change' | 'cancel' | null>(null);
 	let sheetOpen = $state(false);
+	let logOpen = $state(false);
+	/** Bumped on each open, so the quick log starts afresh. */
+	let logRound = $state(0);
+
+	function openLog() {
+		logRound++;
+		logOpen = true;
+	}
+
+	async function logged() {
+		notice = `Logged. ${session?.exercise.title ?? 'The session'} is done.`;
+		await invalidateAll();
+	}
 
 	const planHref = (date: string) => `${resolve('/(app)/plan')}?week=${isoWeek(date)}&day=${date}`;
 	const editHref = (scope: 'this' | 'following') =>
@@ -140,7 +155,12 @@
 					</dd>
 				</div>
 			{/if}
-			{#if session.status !== 'planned'}
+			{#if session.status === 'completed' && session.log}
+				<div>
+					<dt class="text-sm text-muted-foreground">Done · how it went</dt>
+					<dd class="pt-1"><OutcomeBadge outcome={session.log.outcome} /></dd>
+				</div>
+			{:else if session.status !== 'planned'}
 				<div>
 					<dt class="text-sm text-muted-foreground">Status</dt>
 					<dd class="font-bold">
@@ -180,15 +200,29 @@
 			</p>
 		{/if}
 
+		{#if session.status === 'completed' && session.log}
+			<a
+				href={resolve('/(app)/logs/[id]', { id: session.log.id })}
+				class={buttonVariants({ variant: 'outline' })}
+			>
+				<Icon name="log" />
+				See the log
+			</a>
+		{/if}
+
 		{#if session.status === 'planned'}
 			<div class="flex flex-col gap-3">
+				<Button aria-haspopup="dialog" onclick={openLog}>
+					<Icon name="log" />
+					Log practice
+				</Button>
 				{#if session.plan}
-					<Button aria-haspopup="dialog" onclick={() => open('change')}>
+					<Button variant="outline" aria-haspopup="dialog" onclick={() => open('change')}>
 						<Icon name="edit" />
 						Change
 					</Button>
 				{:else}
-					<a href={editHref('this')} class={buttonVariants()}>
+					<a href={editHref('this')} class={buttonVariants({ variant: 'outline' })}>
 						<Icon name="edit" />
 						Change
 					</a>
@@ -223,6 +257,18 @@
 		{/if}
 	{/if}
 </div>
+
+{#if session && data.dogs}
+	{#key logRound}
+		<QuickLogSheet
+			bind:open={logOpen}
+			target={{ kind: 'session', session }}
+			dogs={data.dogs}
+			timeZone={data.household.timeZone}
+			onfinished={logged}
+		/>
+	{/key}
+{/if}
 
 {#if session}
 	<Sheet.Root bind:open={sheetOpen}>

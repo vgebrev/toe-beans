@@ -36,7 +36,7 @@ export interface PlannerHttp {
 }
 
 export const sessionDto = (
-	{ session, plan, exercise, updatedByName }: SessionView,
+	{ session, plan, exercise, log, updatedByName }: SessionView,
 	timeZone: string
 ): SessionDto => {
 	const { date, time } = zonedDateTime(session.scheduledAt, timeZone);
@@ -63,6 +63,7 @@ export const sessionDto = (
 				etag: etag(plan.version)
 			}
 		}),
+		...(log && { log: { id: log.id, outcome: log.outcome } }),
 		updatedAt: session.updatedAt.toISOString(),
 		updatedBy: updatedByName,
 		etag: etag(session.version)

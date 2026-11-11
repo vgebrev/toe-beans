@@ -31,6 +31,7 @@ import {
 	mongoPlannedSessions,
 	mongoTrainingPlans
 } from './infrastructure/persistence/planner-collections.js';
+import { mongoSessionLogs } from './infrastructure/persistence/session-log-collection.js';
 import { migrate, migrations } from './infrastructure/persistence/migrations/index.js';
 import { connectMongo, mongoReadiness } from './infrastructure/persistence/mongo.js';
 import { mongoUnitOfWork } from './infrastructure/persistence/unit-of-work.js';
@@ -128,7 +129,8 @@ export async function createBackend(
 		exercises,
 		cues: overrides.cues ?? mongoCues(mongo.db, clock),
 		plans: overrides.plans ?? mongoTrainingPlans(mongo.db, clock),
-		plannedSessions: overrides.plannedSessions ?? mongoPlannedSessions(mongo.db, clock)
+		plannedSessions: overrides.plannedSessions ?? mongoPlannedSessions(mongo.db, clock),
+		sessionLogs: overrides.sessionLogs ?? mongoSessionLogs(mongo.db, clock)
 	};
 	logger.info('backend started', {
 		appEnv: config.appEnv,

@@ -33,6 +33,7 @@ import {
 	type TrainingPlan
 } from '../../domain/planner.js';
 import { err, ok, type Result } from '../../domain/result.js';
+import type { SessionLog } from '../../domain/session-log.js';
 import type { MemberContext } from '../auth/auth.js';
 import { FORMER_MEMBER } from '../cues/cues.js';
 import {
@@ -54,6 +55,8 @@ export interface SessionView {
 	plan: TrainingPlan | null;
 	/** Undefined only if the library no longer has it. */
 	exercise: Exercise | undefined;
+	/** The log that completed it, for its outcome. */
+	log: SessionLog | null;
 	updatedByName: string;
 }
 
@@ -88,6 +91,7 @@ export type Planner = ReturnType<typeof createPlanner>;
 export function createPlanner({
 	plans,
 	plannedSessions: sessions,
+	sessionLogs,
 	dogs,
 	exercises,
 	users,
@@ -97,7 +101,16 @@ export function createPlanner({
 	logger
 }: Pick<
 	Ports,
-	'plans' | 'plannedSessions' | 'dogs' | 'exercises' | 'users' | 'uow' | 'clock' | 'ids' | 'logger'
+	| 'plans'
+	| 'plannedSessions'
+	| 'sessionLogs'
+	| 'dogs'
+	| 'exercises'
+	| 'users'
+	| 'uow'
+	| 'clock'
+	| 'ids'
+	| 'logger'
 >) {
 	const log = logger.child({ component: 'planner' });
 	const today = (ctx: PlannerContext) => todayIn(clock.now(), ctx.timeZone);
@@ -106,16 +119,20 @@ export function createPlanner({
 
 	async function views(ctx: PlannerContext, list: PlannedSession[]): Promise<SessionView[]> {
 		const planIds = [...new Set(list.flatMap((s) => (s.planId ? [s.planId] : [])))];
-		const [planList, people] = await Promise.all([
+		const logIds = list.flatMap((s) => (s.sessionLogId ? [s.sessionLogId] : []));
+		const [planList, logList, people] = await Promise.all([
 			planIds.length > 0 ? plans.findByIds(ctx.householdId, planIds) : [],
+			logIds.length > 0 ? sessionLogs.findByIds(ctx.householdId, logIds) : [],
 			users.findByIds([...new Set(list.map((s) => s.updatedBy))])
 		]);
 		const byId = new Map(planList.map((p) => [p.id, p]));
+		const logsById = new Map(logList.map((l) => [l.id, l]));
 		const names = new Map(people.map((u) => [u.id, u.displayName]));
 		return list.map((session) => ({
 			session,
 			plan: (session.planId && byId.get(session.planId)) || null,
 			exercise: exercises.get(session.exerciseId),
+			log: (session.sessionLogId && logsById.get(session.sessionLogId)) || null,
 			updatedByName: names.get(session.updatedBy) ?? FORMER_MEMBER
 		}));
 	}

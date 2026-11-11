@@ -1,15 +1,30 @@
 <script lang="ts">
 	// One exercise (ui.md §4.6, FR-03): goal, setup, steps, duration, success criteria, *If your
 	// puppy struggles* (anchored, so the Quick log's stressed tip can link to it, §4.3), safety
-	// notes and further reading. Schedule sits at the bottom; Log practice joins it with S7.
+	// notes and further reading. Schedule and Log practice (the quick log, ad hoc, §4.2) sit at
+	// the bottom.
 	import { resolve } from '$app/paths';
-	import { buttonVariants } from '#lib/components/ui/button/index.js';
+	import type { SessionLog } from '@toe-beans/contracts';
+	import { Button, buttonVariants } from '#lib/components/ui/button/index.js';
 	import Icon from '#lib/components/icon/Icon.svelte';
 	import PageHeader from '#lib/components/shell/PageHeader.svelte';
+	import QuickLogSheet from '#lib/components/training-log/QuickLogSheet.svelte';
+	import { getActiveDog } from '#lib/dogs/active-dog.svelte.js';
 	import { paragraphs, skillAreaLabels } from '#lib/exercises/skill-areas.js';
 	import type { PageProps } from './$types';
 
 	let { data }: PageProps = $props();
+
+	const active = getActiveDog();
+	const currentDogs = $derived((data.dogs ?? []).filter((d) => !d.archived));
+	let logOpen = $state(false);
+	let logRound = $state(0);
+	let logged = $state<SessionLog | null>(null);
+
+	function openLog() {
+		logRound++;
+		logOpen = true;
+	}
 </script>
 
 <svelte:head><title>{data.exercise?.title ?? 'Exercise'} · Toe Beans</title></svelte:head>
@@ -34,6 +49,21 @@
 		</p>
 	{:else}
 		{@const exercise = data.exercise}
+		<div aria-live="polite" class="empty:hidden">
+			{#if logged}
+				<p class="flex flex-wrap items-center justify-between gap-2 rounded-2xl bg-soft px-4 py-3">
+					<span>
+						Logged {exercise.title}{logged.dogId
+							? ` for ${data.dogs?.find((d) => d.id === logged?.dogId)?.name ?? 'your dog'}`
+							: ''}.
+					</span>
+					<a
+						href={resolve('/(app)/logs/[id]', { id: logged.id })}
+						class="flex min-h-12 items-center font-bold text-primary underline">See the log</a
+					>
+				</p>
+			{/if}
+		</div>
 		<ul class="flex flex-wrap gap-2 text-sm font-bold" aria-label="About this exercise">
 			<li class="rounded-full bg-soft px-3 py-1 text-primary">
 				{skillAreaLabels[exercise.skillArea]}
@@ -140,14 +170,47 @@
 		>
 			<!-- The query names the exercise; the route is resolved. -->
 			<!-- eslint-disable svelte/no-navigation-without-resolve -->
-			<a
-				href={`${resolve('/(app)/plan/new')}?exercise=${encodeURIComponent(exercise.id)}`}
-				class={buttonVariants({ class: 'w-full' })}
-			>
-				<Icon name="schedule" />
-				Schedule
-			</a>
+			<div class={['grid gap-3', currentDogs.length > 0 && 'grid-cols-2']}>
+				<a
+					href={`${resolve('/(app)/plan/new')}?exercise=${encodeURIComponent(exercise.id)}`}
+					class={buttonVariants({
+						variant: currentDogs.length > 0 ? 'outline' : 'default',
+						class: 'w-full'
+					})}
+				>
+					<Icon name="schedule" />
+					Schedule
+				</a>
+				{#if currentDogs.length > 0}
+					<Button class="w-full" aria-haspopup="dialog" onclick={openLog}>
+						<Icon name="log" />
+						Log practice
+					</Button>
+				{/if}
+			</div>
 			<!-- eslint-enable svelte/no-navigation-without-resolve -->
 		</div>
 	{/if}
 </div>
+
+{#if data.exercise && data.dogs && currentDogs.length > 0}
+	{#key logRound}
+		<QuickLogSheet
+			bind:open={logOpen}
+			target={{
+				kind: 'exercise',
+				exercise: {
+					id: data.exercise.id,
+					title: data.exercise.title,
+					minutes: data.exercise.suggestedDurationMin
+				}
+			}}
+			dogs={data.dogs}
+			dogId={active.among(currentDogs)?.id}
+			timeZone={data.household.timeZone}
+			onfinished={(log) => {
+				logged = log;
+			}}
+		/>
+	{/key}
+{/if}
