@@ -1,8 +1,9 @@
 <script lang="ts">
-	// The exercise library (ui.md §4.6, FR-03): skill-area chips, then a card per exercise with
+	// The exercise library (ui.md §4.6, FR-03): a skill-area filter, then a card per exercise with
 	// its title, goal and duration. Read-only: there's no "create exercise" in Phase 1.
 	import { resolve } from '$app/paths';
 	import type { ExerciseSummary, SkillArea } from '@toe-beans/contracts';
+	import FilterSheet from '#lib/components/filter/FilterSheet.svelte';
 	import Icon from '#lib/components/icon/Icon.svelte';
 	import PageHeader from '#lib/components/shell/PageHeader.svelte';
 	import { skillAreaLabels, skillAreas } from '#lib/exercises/skill-areas.js';
@@ -10,38 +11,26 @@
 
 	let { data }: PageProps = $props();
 
-	/** The filter lives in the URL, so a chip is a plain link and a reload keeps it. */
+	const ALL = 'all';
+
+	/** The filter lives in the URL, so a choice is a plain link and a reload keeps it. */
 	const libraryHref = (area: SkillArea | null) =>
 		`${resolve('/(app)/library')}${area ? `?area=${area}` : ''}`;
+
+	const areaOptions = [
+		{ id: ALL, label: 'All areas', href: libraryHref(null) },
+		...skillAreas.map((area) => ({
+			id: area,
+			label: skillAreaLabels[area],
+			href: libraryHref(area)
+		}))
+	];
 
 	const shown = $derived(data.area ? skillAreas.filter((a) => a === data.area) : skillAreas);
 	const inArea = (area: SkillArea) => data.exercises?.filter((e) => e.skillArea === area) ?? [];
 </script>
 
 <svelte:head><title>Exercise library · Toe Beans</title></svelte:head>
-
-{#snippet chip(label: string, area: SkillArea | null)}
-	{@const current = data.area === area}
-	<li class="shrink-0">
-		<!-- libraryHref resolves the route; the rule can't see through the query string. -->
-		<!-- eslint-disable svelte/no-navigation-without-resolve -->
-		<a
-			href={libraryHref(area)}
-			aria-current={current ? 'page' : undefined}
-			data-sveltekit-noscroll
-			data-sveltekit-replacestate
-			class={[
-				'flex min-h-12 items-center rounded-full border px-4 font-bold',
-				current
-					? 'border-primary bg-primary text-primary-foreground'
-					: 'border-border bg-card text-foreground'
-			]}
-		>
-			{label}
-		</a>
-		<!-- eslint-enable svelte/no-navigation-without-resolve -->
-	</li>
-{/snippet}
 
 {#snippet card(exercise: ExerciseSummary)}
 	<li>
@@ -74,14 +63,9 @@
 </PageHeader>
 
 <div class="flex flex-col gap-6 pt-2">
-	<nav aria-label="Skill areas">
-		<ul class="flex gap-2 overflow-x-auto px-4 pb-1">
-			{@render chip('All', null)}
-			{#each skillAreas as area (area)}
-				{@render chip(skillAreaLabels[area], area)}
-			{/each}
-		</ul>
-	</nav>
+	<div class="flex px-4">
+		<FilterSheet title="Skill area" options={areaOptions} selected={data.area ?? ALL} />
+	</div>
 
 	<div class="flex flex-col gap-6 px-4">
 		{#if data.exercises === null}

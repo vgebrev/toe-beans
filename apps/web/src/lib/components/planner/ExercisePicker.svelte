@@ -1,7 +1,9 @@
 <script lang="ts">
-	// Picking an exercise in its own sheet (ui.md J3, §5.1): a search box and skill-area chips over
-	// the library. Choosing one closes the sheet and returns to the form, whose button saves.
-	import type { ExerciseSummary, SkillArea } from '@toe-beans/contracts';
+	// Picking an exercise in its own sheet (ui.md J3, §5.1): a search box over the whole library,
+	// grouped under skill-area headings like the library page. No area filter: it would be a sheet
+	// on a sheet, and search covers it. Choosing one closes the sheet and returns to the form,
+	// whose button saves.
+	import type { ExerciseSummary } from '@toe-beans/contracts';
 	import Icon from '#lib/components/icon/Icon.svelte';
 	import { Input } from '#lib/components/ui/input/index.js';
 	import { Label } from '#lib/components/ui/label/index.js';
@@ -18,23 +20,23 @@
 	let { open = $bindable(), exercises, selected, onpick }: Props = $props();
 
 	let query = $state('');
-	let area = $state<SkillArea | null>(null);
 
 	const fold = (s: string) => s.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase();
 	const shown = $derived(
 		exercises.filter(
-			(e) =>
-				(area === null || e.skillArea === area) &&
-				(query.trim() === '' || fold(`${e.title} ${e.goal}`).includes(fold(query.trim())))
+			(e) => query.trim() === '' || fold(`${e.title} ${e.goal}`).includes(fold(query.trim()))
 		)
+	);
+	const groups = $derived(
+		skillAreas
+			.map((area) => ({ area, exercises: shown.filter((e) => e.skillArea === area) }))
+			.filter((g) => g.exercises.length > 0)
 	);
 
 	function pick(exercise: ExerciseSummary) {
 		open = false;
 		onpick(exercise);
 	}
-
-	const chip = 'flex min-h-12 shrink-0 items-center rounded-full border px-4 font-bold';
 </script>
 
 <Sheet.Root bind:open>
@@ -65,62 +67,45 @@
 				/>
 			</div>
 		</div>
-		<div
-			role="group"
-			aria-label="Skill area"
-			class="-mx-4 flex shrink-0 gap-2 overflow-x-auto px-4 pb-1"
-		>
-			<button
-				type="button"
-				aria-pressed={area === null}
-				class={[
-					chip,
-					area === null ? 'border-primary bg-primary text-primary-foreground' : 'border-border'
-				]}
-				onclick={() => (area = null)}>All</button
-			>
-			{#each skillAreas as a (a)}
-				<button
-					type="button"
-					aria-pressed={area === a}
-					class={[
-						chip,
-						area === a ? 'border-primary bg-primary text-primary-foreground' : 'border-border'
-					]}
-					onclick={() => (area = a)}>{skillAreaLabels[a]}</button
-				>
+		<div class="-mx-4 flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto px-4 pb-4">
+			{#each groups as { area, exercises: inArea } (area)}
+				<section aria-labelledby="pick-{area}" class="flex flex-col gap-2">
+					<h3
+						id="pick-{area}"
+						class="text-sm font-extrabold tracking-wide text-muted-foreground uppercase"
+					>
+						{skillAreaLabels[area]}
+					</h3>
+					<ul class="flex flex-col gap-2">
+						{#each inArea as exercise (exercise.id)}
+							<li>
+								<button
+									type="button"
+									aria-current={exercise.id === selected ? 'true' : undefined}
+									class={[
+										'flex min-h-16 w-full items-center gap-3 rounded-2xl border px-4 py-3 text-left',
+										exercise.id === selected ? 'border-primary bg-soft' : 'border-border bg-card'
+									]}
+									onclick={() => pick(exercise)}
+								>
+									<span class="flex min-w-0 flex-1 flex-col gap-1">
+										<span class="font-bold">{exercise.title}</span>
+										<span class="line-clamp-2 text-sm text-muted-foreground">{exercise.goal}</span>
+									</span>
+									<span class="shrink-0 rounded-full bg-soft px-3 py-0.5 text-sm font-bold"
+										>{exercise.suggestedDurationMin} min</span
+									>
+									{#if exercise.id === selected}
+										<Icon name="done" class="shrink-0 text-primary" label="Chosen" />
+									{/if}
+								</button>
+							</li>
+						{/each}
+					</ul>
+				</section>
+			{:else}
+				<p class="py-6 text-center text-muted-foreground">No exercises match.</p>
 			{/each}
 		</div>
-		<ul
-			class="-mx-4 flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto px-4 pb-4"
-			aria-label="Exercises"
-		>
-			{#each shown as exercise (exercise.id)}
-				<li>
-					<button
-						type="button"
-						aria-current={exercise.id === selected ? 'true' : undefined}
-						class={[
-							'flex min-h-16 w-full items-center gap-3 rounded-2xl border px-4 py-3 text-left',
-							exercise.id === selected ? 'border-primary bg-soft' : 'border-border bg-card'
-						]}
-						onclick={() => pick(exercise)}
-					>
-						<span class="flex min-w-0 flex-1 flex-col gap-1">
-							<span class="font-bold">{exercise.title}</span>
-							<span class="line-clamp-2 text-sm text-muted-foreground">{exercise.goal}</span>
-						</span>
-						<span class="shrink-0 rounded-full bg-soft px-3 py-0.5 text-sm font-bold"
-							>{exercise.suggestedDurationMin} min</span
-						>
-						{#if exercise.id === selected}
-							<Icon name="done" class="shrink-0 text-primary" label="Chosen" />
-						{/if}
-					</button>
-				</li>
-			{:else}
-				<li class="py-6 text-center text-muted-foreground">No exercises match.</li>
-			{/each}
-		</ul>
 	</Sheet.Content>
 </Sheet.Root>

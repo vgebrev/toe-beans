@@ -1,8 +1,8 @@
 # Toe Beans — Backlog
 
-**Version:** 0.29 (draft for iteration)
+**Version:** 0.30 (draft for iteration)
 **Date:** 11 November 2026
-**Inputs:** `docs/requirements.md` v1.0, `docs/architecture.md` v1.13, `docs/ui.md` v0.18
+**Inputs:** `docs/requirements.md` v1.0, `docs/architecture.md` v1.13, `docs/ui.md` v0.19
 
 **Changes in 0.3:** spike results S-1.0 to S-1.4 and S0.1–S0.2 recorded as they landed (see Current progress). S-1.4b dropped as not needed, S-1.5 parked, S-1.4a retargeted to `toebeans.co.za`.
 
@@ -41,6 +41,8 @@
 **Changes in 0.28:** S7.4 done, so S7 is done; S8 is next.
 
 **Changes in 0.29:** S8.1–S8.2 built (architecture 1.13 D26, ui 0.18 §4.1). S8.1's upcoming care moves to S11, which brings care tasks. S8.3 added, trying it on the phones, as for earlier slices, and done, so S8 is done: the first usable checkpoint. Inputs moved to architecture 1.13 and ui 0.18.
+
+**Changes in 0.30:** Filters reworked before S12 (ui 0.19 §5.1): the dog switcher and the library's skill areas are a button opening a sheet, *All* first, instead of a sideways-scrolling chip row, and the exercise picker drops its area chips. S10.1's filters follow the same convention. Inputs moved to ui 0.19.
 
 **Changes in 0.21:** S2 and S3 done: the owner tested both on the phones in Chrome, including S3.5's photo flow and the Android share sheet. The installed PWA wasn't part of it; that's S13.
 
@@ -121,6 +123,7 @@ Work is organised as **vertical slices**: each delivers a usable end-to-end incr
 | 2026-11-11 | S7 done. The owner tried the quick log on a phone. *Not assessed* had wrapped onto two lines on the Samsung, squashing its option and misaligning its icon; each outcome option now takes the width of its label, so all four sit on one line with their icons in a row. |
 | 2026-11-11 | S8.1–S8.2 built. `GET /api/v1/today` gives the household's day on its clocks (D26): *Overdue* (still planned and past their time, today's or yesterday's, the owner's call), *Planned*, *Done* (every practice logged today, ad hoc included, so an ad-hoc log is no longer reached only from the notice after saving) and *Skipped* (without sessions cancelled with an archived dog). Reading it extends running series, so today's sessions exist without opening Plan. The Today screen: sections in that order with *Skipped* collapsed, each card naming its dog, **Log** beside planned and overdue cards opening the quick log, *Done* cards with the outcome and who practised, the switcher filtering, an empty day suggesting *Schedule*, and a failed load saying so. The day is fetched again when the app comes back to the front. e2e: FR-06 with two dogs, logging an overdue session from its card in well under FR-07's 30 s, the switcher, the empty day and a failed load. 564 unit, 113 integration and 161 e2e tests. Not yet tried: any of it on a phone (S8.3). |
 | 2026-11-11 | S8 done. The owner tried Today on a phone (S8.3). Nothing to change. With S8 the first usable checkpoint is reached: the household can train with it, without push or care. |
+| 2026-11-11 | Filters reworked on the owner's call, before S12 (ui 0.19 §5.1): chip rows scrolled sideways on the phones, and *All dogs* came last where the library's *All* came first. A shared `FilterSheet` is one button showing the current choice that opens a bottom sheet listing the choices one per row, *All* first; the dog switcher (one dog: still just its avatar) and the library's skill areas (still links to `?area=`) use it. The exercise picker, itself a sheet, drops its area chips and lists the library under skill-area headings, with search. 564 unit and 161 e2e tests. |
 
 **Next up:** S12 push reminders on the critical path; S9, S10 and S11 can go alongside.
 
@@ -267,7 +270,7 @@ Work is organised as **vertical slices**: each delivers a usable end-to-end incr
 
 | # | Task | Status |
 |---|---|---|
-| S10.1 | Combined timeline query with filters (dog, type, exercise, dates) and cursor pagination | ⬜ |
+| S10.1 | Combined timeline query with filters (dog, type, exercise, dates; each a filter button, ui §5.1) and cursor pagination | ⬜ |
 | S10.2 | Soft delete with confirmation and undo. Purge job. | ⬜ |
 
 ### S11 Care calendar ⬜

@@ -14,7 +14,9 @@ const areas = [
 	'Around cats'
 ];
 
-test('the library covers all nine skill areas, and a chip filters it', async ({ page }) => {
+test('the library covers all nine skill areas, and the skill-area filter narrows it', async ({
+	page
+}) => {
 	await page.goto('/more');
 	await page.getByRole('link', { name: /Exercise library/ }).click();
 	await expect(page).toHaveURL('/library');
@@ -23,21 +25,23 @@ test('the library covers all nine skill areas, and a chip filters it', async ({ 
 		await expect(page.getByRole('heading', { level: 2, name: area, exact: true })).toBeVisible();
 	}
 
-	const chips = page.getByRole('navigation', { name: 'Skill areas' });
-	await expect(chips.getByRole('link', { name: 'All', exact: true })).toHaveAttribute(
+	const filter = page.getByRole('button', { name: /^Skill area:/ });
+	await expect(filter).toHaveAccessibleName('Skill area: All areas');
+	expect((await filter.boundingBox())!.height).toBeGreaterThanOrEqual(48);
+	await filter.click();
+	const sheet = page.getByRole('dialog', { name: 'Skill area' });
+	await expect(sheet.getByRole('link').first()).toHaveText('All areas');
+	await expect(sheet.getByRole('link', { name: 'All areas' })).toHaveAttribute(
 		'aria-current',
-		'page'
+		'true'
 	);
-	for (const chip of await chips.getByRole('link').all()) {
-		const box = (await chip.boundingBox())!;
-		expect(box.height).toBeGreaterThanOrEqual(48);
+	for (const choice of await sheet.getByRole('link').all()) {
+		expect((await choice.boundingBox())!.height).toBeGreaterThanOrEqual(48);
 	}
-	await chips.getByRole('link', { name: 'Recall', exact: true }).click();
+	await sheet.getByRole('link', { name: 'Recall', exact: true }).click();
 	await expect(page).toHaveURL('/library?area=recall');
-	await expect(chips.getByRole('link', { name: 'Recall', exact: true })).toHaveAttribute(
-		'aria-current',
-		'page'
-	);
+	await expect(sheet).toBeHidden();
+	await expect(filter).toHaveAccessibleName('Skill area: Recall');
 	await expect(page.getByRole('heading', { level: 2 })).toHaveText(['Recall']);
 
 	// The filter is in the URL, so it survives a reload.

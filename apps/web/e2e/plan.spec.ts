@@ -75,9 +75,10 @@ test('scheduling a session from Plan, then skipping, cancelling and putting it b
 	await page.getByRole('radio', { name: 'Miso' }).check({ force: true });
 	await page.getByRole('button', { name: /Exercise/ }).click();
 	const picker = page.getByRole('dialog', { name: 'Choose an exercise' });
-	await picker.getByRole('button', { name: 'Settling', exact: true }).click();
-	await expect(picker.getByRole('button', { name: /Recall basics/ })).toBeHidden();
+	// No area filter in the picker: the whole library under skill-area headings, and search.
+	await expect(picker.getByRole('heading', { name: 'Settling', exact: true })).toBeVisible();
 	await picker.getByLabel('Search exercises').fill('mat');
+	await expect(picker.getByRole('button', { name: /Recall basics/ })).toBeHidden();
 	await picker.getByRole('button', { name: /Settle on a mat/ }).click();
 	await expect(picker).toBeHidden();
 	await expect(page.getByRole('button', { name: /Exercise Settle on a mat/ })).toBeVisible();

@@ -175,25 +175,32 @@ test('scenario 2: two dogs, switched between, the choice kept on this phone', as
 	await addDog(page, baseURL!, { name: 'Milo' });
 
 	await page.goto('/');
-	const switcher = page.getByRole('group', { name: 'Show dog' });
-	await expect(switcher.getByRole('button')).toHaveText(['Rosie', 'Milo', 'All dogs']);
-	await expect(switcher.getByRole('button', { name: 'All dogs' })).toHaveAttribute(
-		'aria-pressed',
+	// One button shows the dog chosen; its sheet lists All dogs first, one per row (ui.md §2.2).
+	const switcher = page.getByRole('button', { name: /^Show dog:/ });
+	await expect(switcher).toHaveAccessibleName('Show dog: All dogs');
+	await switcher.click();
+	const sheet = page.getByRole('dialog', { name: 'Show dog' });
+	await expect(sheet.getByRole('button', { name: /^(All dogs|Rosie|Milo)$/ })).toHaveText([
+		'All dogs',
+		'Rosie',
+		'Milo'
+	]);
+	await expect(sheet.getByRole('button', { name: 'All dogs' })).toHaveAttribute(
+		'aria-current',
 		'true'
 	);
-	await switcher.getByRole('button', { name: 'Milo' }).click();
-	await expect(switcher.getByRole('button', { name: 'Milo' })).toHaveAttribute(
-		'aria-pressed',
-		'true'
-	);
+	await sheet.getByRole('button', { name: 'Milo' }).click();
+	await expect(sheet).toBeHidden();
+	await expect(switcher).toHaveAccessibleName('Show dog: Milo');
 	await page.reload();
-	await expect(
-		page.getByRole('group', { name: 'Show dog' }).getByRole('button', { name: 'Milo' })
-	).toHaveAttribute('aria-pressed', 'true');
+	await expect(page.getByRole('button', { name: 'Show dog: Milo' })).toBeVisible();
 	await page.goto('/plan');
-	await expect(
-		page.getByRole('group', { name: 'Show dog' }).getByRole('button', { name: 'Milo' })
-	).toHaveAttribute('aria-pressed', 'true');
+	await expect(page.getByRole('button', { name: 'Show dog: Milo' })).toBeVisible();
+
+	// The page never scrolls sideways.
+	expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(
+		await page.evaluate(() => window.innerWidth)
+	);
 
 	await page.goto('/more');
 	await expect(page.getByRole('link', { name: /Dogs/ })).toContainText('Rosie and Milo');

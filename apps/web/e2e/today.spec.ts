@@ -91,7 +91,11 @@ test('FR-06: overdue, planned, done and skipped, each dog named, logged from its
 	await expect(logged).toContainText('Partially successful');
 
 	// The switcher keeps each dog's day apart.
-	await page.getByRole('button', { name: 'Miso', exact: true }).click();
+	await page.getByRole('button', { name: /^Show dog:/ }).click();
+	await page
+		.getByRole('dialog', { name: 'Show dog' })
+		.getByRole('button', { name: 'Miso' })
+		.click();
 	await expect(done.getByRole('link')).toHaveCount(1);
 	await expect(done.getByRole('link', { name: /name game/i })).toBeVisible();
 	await expect(planned.getByRole('link', { name: /Recall basics/ })).toContainText('Miso');

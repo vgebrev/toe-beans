@@ -1,6 +1,6 @@
 # Toe Beans — UI and Interaction Design
 
-**Version:** 0.18 (draft for iteration)
+**Version:** 0.19 (draft for iteration)
 **Date:** 11 November 2026
 **Status:** Proposed. Review-round decisions in §8 are accepted.
 **Inputs:** `docs/requirements.md` v1.0, `docs/architecture.md` v1.13
@@ -18,6 +18,8 @@
 **Changes in 0.17:** S7 built: §4.2 records the quick log sheet as built, from a planned session's page and as *Log practice* on the exercise page (J4's FAB waits for S8), and the log page `/logs/:id` with *Edit* (J8). The *When* control follows J5's chips (*Now / 15 min ago / 1 h ago / Earlier*). The stressed tip's link opens in a new tab so the sheet's choices survive. Plan's session cards show the outcome once logged (J3 step 5). Inputs moved to architecture 1.12 (D25).
 
 **Changes in 0.18:** S8 built: §4.1 records Today as built. *Overdue* includes yesterday's still-planned sessions (architecture D26), *Done* every practice logged today, ad hoc too, and *Log* sits beside the card rather than inside it. A card opens the session page, as on Plan, rather than the instructions (J3 step 3), and the overflow menu waits: *Change*, *Skip* and *Cancel* are on that page. *Coming up* waits for care (S11).
+
+**Changes in 0.19:** Filters never scroll sideways. §5.1 gains the filter convention: one button showing the current choice, opening a sheet that lists the choices one per row with *All* first. §2.2's dog switcher and §4.6's skill-area chips follow it (*All dogs* moves from last to first; the library's *All* becomes *All areas*), and §4.4's History filters will. The exercise picker (J3, §4.3) drops its skill-area chips, since a filter sheet would open on top of the picker's own: it lists the whole library under skill-area headings, with search.
 
 **Changes in 0.12:** S3 built. J1 step 4 as built: *Take photo* or *Gallery*, then a framing square with the circle overlay (drag, pinch, a zoom slider and arrow keys), and birth date as *I know the date* or *Approximate* with months old. J2 names the dogs. §2.2: the switcher shows on Today, Plan, History and Care, with name chips. §5.1 gains two rules from using it: one confirm button per context (a sheet is its own context), and a control is never disabled without the reason on screen; the photo moved into its own sheet in J1 to follow the first, and the household, name and email-invite buttons stopped greying out for missing input to follow the second. §4.5: editing is its own page and the overflow sheet holds *Edit details* and *Archive*; the Recent sections wait for their slices. The dog accent palette is defined (§6.4), and More gains *Dogs* (§2.1). The custom dog icon read as a monkey, so it's replaced by Phosphor's *Dog*, the documented fallback library (§6.4).
 
@@ -75,11 +77,12 @@ A **floating "+" button** on Today, Plan and History opens a chooser: *Log train
 
 ### 2.2 Dog context
 
-- The top app bar shows a **dog switcher**: avatar chips for each dog, plus **All dogs** when there's more than one.
+- The top app bar shows a **dog switcher** when there's more than one dog: a filter button (§5.1) showing the chosen dog, or **All dogs**.
 - The selection filters Today, Plan, History and Care, and pre-fills new records. It persists per device in `localStorage`, a convenience only.
 - With a single dog, the switcher collapses to that dog's avatar (it opens the dog profile).
 - In **All dogs** mode every list item carries an avatar and name. Multi-dog items are never merged into one card (FR-06).
 - *As built (S3):* the switcher sits under the title on Today, Plan, History and Care, not on the pages under More. Each chip is the avatar and the dog's name (`aria-pressed`), and the selected one gets the dog's accent ring; the row scrolls sideways if it's wider than the screen. Archived dogs aren't in it. With no dogs, Today asks to add one.
+- *Changed in 0.19:* the chip row is one button, the chosen dog's avatar and name (or the paw and *All dogs*) with a ▾, named "Show dog: Miso" for screen readers. It opens the *Show dog* sheet: *All dogs* first, then each dog with its avatar, the current one marked with a tick. Choosing closes the sheet. With one dog it's still just that dog's avatar, opening its profile.
 
 ### 2.3 Routes (indicative)
 
@@ -138,7 +141,7 @@ A dead invitation (expired, revoked, used) doesn't name its household. Accepting
 
 ### J3 — Plan and practise (scenario 3)
 
-1. Plan → **+ Schedule**. Pick the dog (pre-filled), the exercise (library picker with search and skill-area chips), the date and time (5-minute steps, matching the reminder tick in `architecture.md` §6.3; care tasks too), and repeat (*Never / Daily / Weekdays / Custom days*, with an end date).
+1. Plan → **+ Schedule**. Pick the dog (pre-filled), the exercise (library picker with search, grouped by skill area), the date and time (5-minute steps, matching the reminder tick in `architecture.md` §6.3; care tasks too), and repeat (*Never / Daily / Weekdays / Custom days*, with an end date).
 2. The session appears on Plan and on Today on the day.
 3. Caregiver B opens Today → taps the session card → **exercise instructions** (goal, setup, steps, duration, success criteria, *If your puppy struggles*). A sticky bottom button reads **Log practice**.
 4. **Quick log sheet** (§5.2) → choose *Partially successful* → *Add details* → *Relaxed/confident*, *Garden* → **Save**.
@@ -207,7 +210,7 @@ Layout sketches are indicative and assume a ~400 dp width.
 
 ```
 ┌──────────────────────────────────────┐
-│ Today · Sat 25 Oct     (🐶R)(🐶M)(All)│  ← dog switcher
+│ Today · Sat 25 Oct         (🐶 All ▾)│  ← dog switcher
 ├──────────────────────────────────────┤
 │ ⚠ Overdue (1)                         │
 │ ┌──────────────────────────────────┐ │
@@ -265,11 +268,11 @@ Layout sketches are indicative and assume a ~400 dp width.
 
 The header shows a week strip (Mon–Sun) with dots for days that have sessions, and swipes or arrows to change week. Below it is the list for the selected day, grouped by time, plus a **Schedule** action. A recurring item shows ↻. Editing asks *This session only* or *This and following*.
 
-- *As built (S6):* `/plan?week=2026-W46&day=…`, the dog switcher on top filtering the list. Arrows (no swipe yet) change week, with *Back to this week* when elsewhere, and no arrow past a year ahead. Each day in the strip is a link with a dot when it has planned or done sessions; the chosen day's cards show time, avatar, exercise, the dog's name and *↻ Repeats*, *Missed* for a planned one whose time has passed, and a *Skipped*, *Cancelled* or *Done* chip (struck through for the first two). *Schedule* (`/plan/new`, prefilled with the chosen day if it isn't past) asks for the dog (chips, or just the name with one dog), the exercise from a picker sheet (search and skill-area chips; choosing one returns to the form), the date, the time (native picker, rounded to 5 minutes as it's left) and *Repeat*: *Never*, *Daily*, *Weekdays* or *Custom days* (seven day toggles), with an optional *End date*. Saved, Plan opens on that day and says "Planned Recall basics for Rosie, tomorrow at 17:30." The session page (`/sessions/:id`, the reminder's future target) shows the dog, when, how it repeats, who changed it last and *See the instructions*; a planned one offers *Change*, *Skip this session* and *Cancel…*, and a repeating one asks which in a sheet. Skipped and cancelled say they don't count as done and offer *Put it back in the plan*. *Change* is its own page with the same form (no dog; *This and following* also edits the repeat and has no *Never*). A change made elsewhere meanwhile saves nothing and offers *See their version*, never an overwrite (§5.2); a skip or cancel against a stale session reloads it and says who changed it.
+- *As built (S6):* `/plan?week=2026-W46&day=…`, the dog switcher on top filtering the list. Arrows (no swipe yet) change week, with *Back to this week* when elsewhere, and no arrow past a year ahead. Each day in the strip is a link with a dot when it has planned or done sessions; the chosen day's cards show time, avatar, exercise, the dog's name and *↻ Repeats*, *Missed* for a planned one whose time has passed, and a *Skipped*, *Cancelled* or *Done* chip (struck through for the first two). *Schedule* (`/plan/new`, prefilled with the chosen day if it isn't past) asks for the dog (chips, or just the name with one dog), the exercise from a picker sheet (search and skill-area chips, which went in 0.19 for the whole library under skill-area headings; choosing one returns to the form), the date, the time (native picker, rounded to 5 minutes as it's left) and *Repeat*: *Never*, *Daily*, *Weekdays* or *Custom days* (seven day toggles), with an optional *End date*. Saved, Plan opens on that day and says "Planned Recall basics for Rosie, tomorrow at 17:30." The session page (`/sessions/:id`, the reminder's future target) shows the dog, when, how it repeats, who changed it last and *See the instructions*; a planned one offers *Change*, *Skip this session* and *Cancel…*, and a repeating one asks which in a sheet. Skipped and cancelled say they don't count as done and offer *Put it back in the plan*. *Change* is its own page with the same form (no dog; *This and following* also edits the repeat and has no *Never*). A change made elsewhere meanwhile saves nothing and offers *See their version*, never an overwrite (§5.2); a skip or cancel against a stale session reloads it and says who changed it.
 
 ### 4.4 History
 
-- Filter chips at the top: dog, type (*Training / Events*), exercise, date range.
+- Filters at the top: dog, type (*Training / Events*), exercise, date range. Each is a filter button (§5.1); the row wraps onto a second line rather than scrolling.
 - Below that, a reverse-chronological timeline grouped by day. Training rows show the outcome badge (neutral for *Not assessed*). Event rows show the category icon.
 - Loading uses cursor pagination with a "Load more" button, not infinite scroll, to keep it accessible.
 
@@ -282,8 +285,8 @@ The header shows a week strip (Mon–Sun) with dots for days that have sessions,
 
 ### 4.6 Library and cues
 
-- **Library:** skill-area chips, then exercise cards (title, goal, duration). The detail page holds the full instructions and a **Schedule** / **Log practice** pair at the bottom. It's read-only, and no "create exercise" is offered in Phase 1.
-- *As built (S4):* More → *Exercise library* (`/library`). The chips (*All*, *Name*, *Recall*, *Toilet training*, *Calm greetings*, *Settling*, *Doorbell*, *Barking*, *Loose-lead walking*, *Around cats*) scroll sideways and are links to `?area=…`, so a filter survives a reload and Back; under *All* the cards are grouped under skill-area headings. A card shows the title, two lines of goal and the minutes. The detail page (`/library/:id`) shows the skill area and minutes as chips, then *Goal*, *Setup*, numbered *Steps*, *You're ready to move on when* (the success criteria), *If your puppy struggles* in a soft panel (anchored `#if-struggling` for §4.3's tip), *Safety* when there are notes, and *Further reading*, whose links open in a new tab with the site's name under each title. A *Draft* badge marks unreviewed exercises, which only a local server shows (architecture D22). The sticky *Schedule* arrived with S6 (it opens Schedule with the exercise chosen); *Log practice* joined it with S7 (§4.2), as the primary of the pair once the household has a dog.
+- **Library:** a skill-area filter (§5.1), then exercise cards (title, goal, duration). The detail page holds the full instructions and a **Schedule** / **Log practice** pair at the bottom. It's read-only, and no "create exercise" is offered in Phase 1.
+- *As built (S4):* More → *Exercise library* (`/library`). The skill areas (*All*, *Name*, *Recall*, *Toilet training*, *Calm greetings*, *Settling*, *Doorbell*, *Barking*, *Loose-lead walking*, *Around cats*) are links to `?area=…`, so a filter survives a reload and Back; under *All* the cards are grouped under skill-area headings. *Changed in 0.19:* they're a filter button (§5.1), *Skill area: All areas*, whose sheet lists *All areas* first, then the nine areas; each is still a link. A card shows the title, two lines of goal and the minutes. The detail page (`/library/:id`) shows the skill area and minutes as chips, then *Goal*, *Setup*, numbered *Steps*, *You're ready to move on when* (the success criteria), *If your puppy struggles* in a soft panel (anchored `#if-struggling` for §4.3's tip), *Safety* when there are notes, and *Further reading*, whose links open in a new tab with the site's name under each title. A *Draft* badge marks unreviewed exercises, which only a local server shows (architecture D22). The sticky *Schedule* arrived with S6 (it opens Schedule with the exercise chosen); *Log practice* joined it with S7 (§4.2), as the primary of the pair once the household has a dog.
 - **Cues:** a simple editable list (cue word, meaning, hand signal, reward convention), with tap-to-edit in a sheet. It shows "Last edited by Sam, 2 days ago" for shared awareness.
 - *As built (S5):* More → *Cue dictionary* (`/cues`), in alphabetical order. Each cue is a card (one button) with the word as its heading, the meaning, *Hand signal:* and *Reward:* when set, notes, and "Last edited by Sam, 2 days ago" (§5.4 wording, worded on the device; a week on it names the date). Empty, it says "No cues yet" with an example. *Add a cue* and tapping a card open the same sheet: *Cue word* (with "What you say, like Sit or Leave it."), *What it means*, then *Hand signal*, *Reward* and *Notes*, all optional; the one button is *Add cue* or *Save cue*. Opening a cue doesn't focus a field, so the keyboard stays down until the person taps one. Saving an unchanged cue says there's nothing to save; a cue word the household already has, in any case, is a field error naming the existing one (architecture D23). A conflict names who saved last: *See their version* loads theirs into the form, *Overwrite with mine* saves over it. If the cue was deleted meanwhile, *Add it again* saves what was typed as a new cue. *Delete this cue* turns the sheet into the confirmation naming the cue (§5.3); a change made meanwhile stops the delete and offers *See their version*. After a save or delete the sheet closes and the page says "Saved “Sit”." or "Deleted “Sit”." politely.
 
@@ -314,6 +317,7 @@ On More as **Household & invites**, showing the household's name; the page keeps
 - Labels sit above fields and are always visible, never placeholder-only. Optional fields are marked "(optional)". Required fields are not marked with asterisks.
 - Use native inputs where Android does them well (`type=date`, `type=time`, `inputmode`, `capture` for camera).
 - Prefer chips and segmented controls over dropdowns for short option sets. Use dropdowns or searchable pickers for exercises.
+- **Filters never scroll sideways.** A filter is one button showing the current choice and a ▾ (the dog switcher, the library's skill area, History's filters). It opens a bottom sheet titled with what's filtered, listing the choices one per row, 48 px each, **All first**, the current one ticked; choosing closes it. Several filters sit in a row of these buttons that wraps. Inside a sheet, where a second sheet would stack, a list is searched or grouped under headings instead.
 - Validate on blur and on submit. Errors appear inline under the field with `aria-describedby`.
 - The primary action is a full-width button at the bottom of sheets and forms, kept above the keyboard.
 - **One confirm button per context.** A screen or sheet has a single primary button, which does the whole step. A sub-step that needs its own confirmation (choosing and framing a photo, picking from a long list) goes in its own sheet with its own one button, and returns to the form, whose button saves.
