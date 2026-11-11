@@ -1,6 +1,6 @@
 # Toe Beans — Backlog
 
-**Version:** 0.27 (draft for iteration)
+**Version:** 0.28 (draft for iteration)
 **Date:** 11 November 2026
 **Inputs:** `docs/requirements.md` v1.0, `docs/architecture.md` v1.12, `docs/ui.md` v0.17
 
@@ -37,6 +37,8 @@
 **Changes in 0.26:** S6.4's open question settled: archiving a dog cancels its planned sessions and pauses its series, and bringing it back restores them (architecture 1.11 D24, ui 0.16 §4.5). Inputs moved to architecture 1.11 and ui 0.16.
 
 **Changes in 0.27:** S7.1–S7.3 built (architecture 1.12 D25, ui 0.17 §4.2). S7.4 added, trying it on the phones, as for earlier slices. Inputs moved to architecture 1.12 and ui 0.17.
+
+**Changes in 0.28:** S7.4 done, so S7 is done; S8 is next.
 
 **Changes in 0.21:** S2 and S3 done: the owner tested both on the phones in Chrome, including S3.5's photo flow and the Android share sheet. The installed PWA wasn't part of it; that's S13.
 
@@ -114,8 +116,9 @@ Work is organised as **vertical slices**: each delivers a usable end-to-end incr
 | 2026-11-10 | S6.1–S6.3 built. One-off sessions and weekly series (*Daily*, *Weekdays*, *Custom days*, optional end), materialised 21 days ahead and to any week listed, idempotent through the unique `(planId, occurrenceKey)` (D24). Move, skip, cancel and put back one session; change or cancel *this and following*, which ends the series and starts a new one, keeping logged sessions. All with If-Match and the conflict handling of §5.2 (no overwrite). Household-clock arithmetic in `domain/calendar.ts` with `Intl`, daylight saving tested on London's changes. Plan week view, Schedule with an exercise picker sheet, the session page and its change page; the exercise page's *Schedule*. Mongo adapters with both isolation suites (migration 0006) and an e2e scenario 9 check by ID. Found on the way: the picker sheet's chip row collapsed to nothing in a flex column, and the sheet's own `h-auto` beat a plain height class. 524 unit, 102 integration and 143 e2e tests. Reminders for sessions arrive with S12.3. Not yet tried: any of it on a phone (S6.4). |
 | 2026-11-11 | S6 done. The owner tried scheduling on the phones. Then, on the owner's call, archiving a dog cancels its planned sessions (still shown as *Cancelled*) and pauses its series, in the archive's transaction; bringing it back plans again those still ahead and resumes the series from today (D24). The archive sheet says so. 527 unit, 104 integration and 145 e2e tests. |
 | 2026-11-11 | S7.1–S7.3 built. `SessionLog` with the outcome defaulting to *Not assessed* and every detail optional; logging a planned session completes it in the same transaction, refused (409) once it's logged, skipped or cancelled, with a unique index for the race (D25, migration 0007). The quick log sheet on the session page and the exercise page, the log page with *Edit*, and the outcome on Plan's cards. The e2e scenario 3 test times the planned path from opening the session to saved, with an outcome and two details, in under 2 s against FR-07's 30 s (scripted taps, not a person's), and the ad-hoc path likewise. Also e2e: a failed save keeps every choice and retries, a conflicting edit offers *See their version*, and scenario 9 by ID. Until Today (S8) and History (S10) land, an ad-hoc log is reached only from the notice after saving. 552 unit, 111 integration and 155 e2e tests. Not yet tried: any of it on a phone (S7.4). |
+| 2026-11-11 | S7 done. The owner tried the quick log on a phone. *Not assessed* had wrapped onto two lines on the Samsung, squashing its option and misaligning its icon; each outcome option now takes the width of its label, so all four sit on one line with their icons in a row. |
 
-**Next up:** S7.4, trying the quick log on the phones; then S8 Today, whose cards open the quick log directly.
+**Next up:** S8 Today, whose cards open the quick log directly.
 
 ---
 
@@ -229,7 +232,7 @@ Work is organised as **vertical slices**: each delivers a usable end-to-end incr
 | S6.3 | Plan week view | ✅ |
 | S6.4 | On a phone: schedule once and repeating, the time picker's 5-minute rounding, skip, cancel and put back, *this and following*, and a conflict from a second device. Archiving a dog now cancels its planned sessions and pauses its series; bringing it back restores those still ahead (D24). | ✅ |
 
-### S7 Quick training log ⬜
+### S7 Quick training log ✅
 *FR-07, scenario 3.*
 
 | # | Task | Status |
@@ -237,7 +240,7 @@ Work is organised as **vertical slices**: each delivers a usable end-to-end incr
 | S7.1 | SessionLog aggregate: outcome default `not_assessed`, optional context, links to a planned session in one transaction | ✅ |
 | S7.2 | Quick log sheet: scheduled and ad-hoc paths. Measure the < 30 s target in a Playwright scenario. | ✅ |
 | S7.3 | Edit a log | ✅ |
-| S7.4 | On a phone: log a planned session and an ad-hoc one, the details and *When*, edit, and a conflict from a second device | ⬜ |
+| S7.4 | On a phone: log a planned session and an ad-hoc one, the details and *When*, edit, and a conflict from a second device | ✅ |
 
 ### S8 Today dashboard ⬜
 *FR-06.*
