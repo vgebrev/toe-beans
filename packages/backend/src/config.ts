@@ -1,6 +1,7 @@
 // Configuration comes from env vars only, validated once at startup (architecture §7). The backend
 // owns the schema, not the SvelteKit app, so another host (Fastify, the worker process) reuses it.
 import { z } from 'zod';
+import { PUSH_SERVICES } from './domain/reminders.js';
 
 /** Atlas Local on its default port, a single-node replica set; transactions need one. */
 const LOCAL_MONGODB_URI = 'mongodb://localhost:27017/?directConnection=true';
@@ -29,6 +30,13 @@ const senderOf = (e: { APP_ENV: string; EMAIL_SENDER?: Sender | undefined }): Se
 /** Local runs keep photos in a directory unless told otherwise; prod uses a bucket. */
 const storeOf = (e: { APP_ENV: string; PHOTO_STORE?: 'filesystem' | 's3' | undefined }) =>
 	e.PHOTO_STORE ?? (e.APP_ENV === 'prod' ? 's3' : 'filesystem');
+
+/** Prod waits for Cloud Scheduler's call; anywhere else the server ticks itself (architecture §6.3). */
+const workerModeOf = (e: { APP_ENV: string; WORKER_MODE?: 'inline' | 'http' | undefined }) =>
+	e.WORKER_MODE ?? (e.APP_ENV === 'prod' ? 'http' : 'inline');
+
+const base64url = (length: number) =>
+	z.string().regex(new RegExp(`^[A-Za-z0-9_-]{${length}}$`), 'must be a base64url VAPID key');
 
 /** Relative to where the server starts: apps/web for `pnpm dev`. Gitignored. */
 const LOCAL_PHOTO_DIR = '.data/photos';
@@ -83,7 +91,24 @@ const Env = z
 			.optional(),
 		S3_REGION: z.string().max(50).default('auto'),
 		S3_ACCESS_KEY_ID: z.string().max(200).optional(),
-		S3_SECRET_ACCESS_KEY: z.string().max(200).optional()
+		S3_SECRET_ACCESS_KEY: z.string().max(200).optional(),
+		// Web Push (architecture §6.2). Keep the same pair for good: changing it breaks every
+		// device's subscription until the app next opens. `pnpm vapid` makes one.
+		VAPID_PUBLIC_KEY: base64url(87).optional(),
+		VAPID_PRIVATE_KEY: base64url(43).optional(),
+		VAPID_SUBJECT: z
+			.string()
+			.regex(/^(mailto:\S+@\S+|https:\/\/\S+)$/, 'must be a mailto: or https URL')
+			.optional(),
+		// Origins push may go to besides the browsers' push services, for tests only.
+		PUSH_SERVICE_ORIGINS: z.string().max(500).optional(),
+		// How the reminder tick runs (architecture §6.3): its own loop, or a scheduler's POST.
+		WORKER_MODE: z.enum(['inline', 'http']).optional(),
+		TICK_INTERVAL_MINUTES: z.coerce.number().int().min(1).max(60).default(5),
+		// Who may POST the tick: a shared secret, or Cloud Scheduler's OIDC token.
+		TICK_SECRET: z.string().min(32).max(200).optional(),
+		TICK_AUDIENCE: httpUrl.optional(),
+		TICK_INVOKER: z.email().optional()
 	})
 	.superRefine((e, ctx) => {
 		// Prod must never fall back to a local database.
@@ -125,6 +150,25 @@ const Env = z
 		if (senderOf(e) === 'resend' && !e.RESEND_API_KEY) {
 			required('RESEND_API_KEY', 'required to send through Resend');
 		}
+		if (Boolean(e.VAPID_PUBLIC_KEY) !== Boolean(e.VAPID_PRIVATE_KEY)) {
+			required('VAPID_PRIVATE_KEY', 'set both VAPID keys, or neither');
+		}
+		if (Boolean(e.TICK_AUDIENCE) !== Boolean(e.TICK_INVOKER)) {
+			required('TICK_INVOKER', 'set TICK_AUDIENCE and TICK_INVOKER together');
+		}
+		if (e.APP_ENV === 'prod') {
+			// A fresh key pair each start would break every subscription on each deploy.
+			if (!e.VAPID_PUBLIC_KEY) required('VAPID_PUBLIC_KEY', 'required in prod');
+			if (e.PUSH_SERVICE_ORIGINS) required('PUSH_SERVICE_ORIGINS', 'not allowed in prod');
+			if (workerModeOf(e) === 'http' && !e.TICK_SECRET && !e.TICK_AUDIENCE) {
+				required('TICK_AUDIENCE', 'required with WORKER_MODE=http (or TICK_SECRET)');
+			}
+		}
+		for (const origin of (e.PUSH_SERVICE_ORIGINS ?? '').split(',').filter(Boolean)) {
+			if (!/^https?:\/\/[^/\s]+$/.test(origin.trim())) {
+				required('PUSH_SERVICE_ORIGINS', 'must be origins, comma-separated');
+			}
+		}
 	});
 
 export interface Config {
@@ -146,6 +190,24 @@ export interface Config {
 	photos: PhotoConfig;
 	/** Where the exercise YAML files are; unset finds the nearest `content/exercises`. */
 	contentDir?: string;
+	push: PushConfig;
+	worker: WorkerConfig;
+}
+
+export interface PushConfig {
+	/** Unset only off prod: the backend makes a pair for the run, and says so. */
+	vapid?: { publicKey: string; privateKey: string };
+	/** Who push services can contact about our sends. */
+	subject: string;
+	/** Origins (or `https://*.host` wildcards) devices may subscribe with. */
+	allowedEndpoints: string[];
+}
+
+export interface WorkerConfig {
+	/** `inline`: the server runs the tick on a timer. `http`: a scheduler POSTs to it. */
+	mode: 'inline' | 'http';
+	intervalMs: number;
+	auth: { secret?: string; google?: { audience: string; invoker: string } };
 }
 
 /** Which PhotoStore runs (`infrastructure/photos`). */
@@ -222,6 +284,33 @@ export function loadConfig(env: Record<string, string | undefined>): Config {
 		email: emailConfig(e),
 		photos: photoConfig(e),
 		...(e.CONTENT_DIR && { contentDir: e.CONTENT_DIR }),
+		push: {
+			...(e.VAPID_PUBLIC_KEY &&
+				e.VAPID_PRIVATE_KEY && {
+					vapid: { publicKey: e.VAPID_PUBLIC_KEY, privateKey: e.VAPID_PRIVATE_KEY }
+				}),
+			subject:
+				e.VAPID_SUBJECT ??
+				(e.PUBLIC_BASE_URL?.startsWith('https:')
+					? new URL(e.PUBLIC_BASE_URL).origin
+					: 'mailto:hello@toebeans.co.za'),
+			allowedEndpoints: [
+				...PUSH_SERVICES,
+				...(e.PUSH_SERVICE_ORIGINS ?? '')
+					.split(',')
+					.map((o) => o.trim())
+					.filter(Boolean)
+			]
+		},
+		worker: {
+			mode: workerModeOf(e),
+			intervalMs: e.TICK_INTERVAL_MINUTES * 60_000,
+			auth: {
+				...(e.TICK_SECRET && { secret: e.TICK_SECRET }),
+				...(e.TICK_AUDIENCE &&
+					e.TICK_INVOKER && { google: { audience: e.TICK_AUDIENCE, invoker: e.TICK_INVOKER } })
+			}
+		},
 		...(e.SENTRY_DSN && { sentry: { dsn: e.SENTRY_DSN } }),
 		...((e.APP_RELEASE ?? e.K_REVISION) && { release: e.APP_RELEASE ?? e.K_REVISION })
 	};

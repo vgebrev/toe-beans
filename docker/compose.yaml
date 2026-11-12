@@ -76,6 +76,10 @@ services:
       S3_REGION: us-east-1
       S3_ACCESS_KEY_ID: toe-beans-local
       S3_SECRET_ACCESS_KEY: toe-beans-local-secret
+      # Reminders (architecture §6): the pair from .env, or one for this run. The container ticks
+      # itself every TICK_INTERVAL_MINUTES.
+      VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY:-}
+      VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY:-}
     ports:
       - '127.0.0.1:${APP_PORT:-3000}:8080'
     depends_on:

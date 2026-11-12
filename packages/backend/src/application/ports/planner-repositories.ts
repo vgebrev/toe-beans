@@ -36,6 +36,11 @@ export interface TrainingPlanRepository {
 	): Promise<Result<TrainingPlan, NotFoundError | StaleVersionError>>;
 	/** Moves the horizon forward from `from` to `to`, leaving the version alone. False if it had moved. */
 	advanceHorizon(householdId: Id, id: Id, from: PlainDate, to: PlainDate): Promise<boolean>;
+	/**
+	 * Households with a series that's running and not paused but whose sessions stop before
+	 * `through`. For the reminder tick only, which works across households (D27).
+	 */
+	householdsBehind(through: PlainDate): Promise<Id[]>;
 }
 
 export interface PlannedSessionRepository {
@@ -63,4 +68,9 @@ export interface PlannedSessionRepository {
 	restoreFor(householdId: Id, dogId: Id, from: Date, updatedBy: Id): Promise<number>;
 	/** Deletes the plan's sessions from that occurrence date on that haven't been logged. */
 	deleteUnloggedFrom(householdId: Id, planId: Id, from: PlainDate): Promise<number>;
+	/**
+	 * Every household's sessions still planned and scheduled at or after `from` and before `to`.
+	 * For the reminder tick only, which works across households (D27).
+	 */
+	listPlannedAcrossHouseholds(from: Date, to: Date): Promise<PlannedSession[]>;
 }

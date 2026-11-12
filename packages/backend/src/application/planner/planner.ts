@@ -4,7 +4,7 @@
 // version it was based on, so a change made elsewhere is never silently overwritten (NFR-13).
 //
 // A series materialises its sessions over a rolling horizon. Reading a week extends it, so the
-// weeks people look at always exist; S12's tick will extend it too, so reminders do.
+// weeks people look at always exist; the reminder tick extends it too, so reminders do.
 import {
 	addDays,
 	daysBetween,
@@ -48,6 +48,9 @@ import type { NewPlannedSession, Ports } from '../ports/index.js';
 
 /** Planning happens on the household's clocks, so the use cases need its time zone. */
 export type PlannerContext = MemberContext & { timeZone: string };
+
+/** A household and its clocks, for work nobody in particular asked for (the reminder tick). */
+export type HouseholdClock = Pick<PlannerContext, 'householdId' | 'timeZone'>;
 
 /** A session with its series, its exercise and who changed it last. */
 export interface SessionView {
@@ -113,7 +116,7 @@ export function createPlanner({
 	| 'logger'
 >) {
 	const log = logger.child({ component: 'planner' });
-	const today = (ctx: PlannerContext) => todayIn(clock.now(), ctx.timeZone);
+	const today = (ctx: HouseholdClock) => todayIn(clock.now(), ctx.timeZone);
 	const invalid = (fields: Record<string, string[]>, message = 'The session is not valid.') =>
 		err(validationError(message, fields));
 
@@ -191,7 +194,7 @@ export function createPlanner({
 	 * transaction that re-reads it, so one changed meanwhile (and a concurrent extension, which
 	 * moves the same horizon) makes it retry rather than add sessions to a series that has ended.
 	 */
-	async function extend(ctx: PlannerContext, through: PlainDate) {
+	async function extend(ctx: HouseholdClock, through: PlainDate) {
 		const running = await plans.listRunning(ctx.householdId, today(ctx));
 		for (const stale of running.filter((p) => p.horizon < through && !p.paused)) {
 			await uow.run(async () => {
@@ -479,7 +482,7 @@ export function createPlanner({
 			return ok(undefined);
 		},
 
-		/** For S12's tick: every running series' sessions up to the horizon. */
-		extendHorizon: (ctx: PlannerContext) => extend(ctx, addDays(today(ctx), HORIZON_DAYS))
+		/** For the reminder tick: every running series' sessions up to the horizon. */
+		extendHorizon: (ctx: HouseholdClock) => extend(ctx, addDays(today(ctx), HORIZON_DAYS))
 	};
 }

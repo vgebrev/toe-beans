@@ -68,7 +68,17 @@ export function memoryTrainingPlans(
 			if (!plan || plan.horizon !== from) return false;
 			plan.horizon = to;
 			return true;
-		}
+		},
+		householdsBehind: async (through) => [
+			...new Set(
+				[...store.items.values()]
+					.filter(
+						(p) =>
+							p.horizon < through && !p.paused && (p.until === undefined || p.until > p.horizon)
+					)
+					.map((p) => p.householdId)
+			)
+		]
 	};
 }
 
@@ -144,6 +154,12 @@ export function memoryPlannedSessions(
 			);
 			for (const s of doomed) store.items.delete(s.id);
 			return doomed.length;
-		}
+		},
+		listPlannedAcrossHouseholds: async (from, to) =>
+			structuredClone(
+				[...store.items.values()]
+					.filter((s) => s.status === 'planned' && s.scheduledAt >= from && s.scheduledAt < to)
+					.sort((a, b) => a.scheduledAt.getTime() - b.scheduledAt.getTime())
+			)
 	};
 }

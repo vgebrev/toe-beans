@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { ConfigError, loadConfig } from './config.js';
+import { PUSH_SERVICES } from './domain/reminders.js';
 
 const localMongo = { uri: 'mongodb://localhost:27017/?directConnection=true', db: 'toe-beans' };
 const atlas = 'mongodb+srv://app:pw@cluster.example.net/?retryWrites=true';
@@ -16,7 +17,14 @@ const local = {
 	authRateLimit: { limit: 30, windowMs: 600_000 },
 	inviteRateLimit: { limit: 30, windowMs: 600_000 },
 	email: { kind: 'console' },
-	photos: { kind: 'filesystem', directory: '.data/photos' }
+	photos: { kind: 'filesystem', directory: '.data/photos' },
+	push: { subject: 'mailto:hello@toebeans.co.za', allowedEndpoints: [...PUSH_SERVICES] },
+	worker: { mode: 'inline', intervalMs: 300_000, auth: {} }
+};
+const vapid = { VAPID_PUBLIC_KEY: 'B'.repeat(87), VAPID_PRIVATE_KEY: 'p'.repeat(43) };
+const scheduler = {
+	TICK_AUDIENCE: 'https://toebeans.co.za/internal/tick',
+	TICK_INVOKER: 'toe-beans-tick@toe-beans-co-za.iam.gserviceaccount.com'
 };
 const auth0 = {
 	OIDC_ISSUER: 'https://auth.toebeans.co.za/',
@@ -35,7 +43,9 @@ const prod = {
 	PUBLIC_BASE_URL: 'https://toebeans.co.za',
 	RESEND_API_KEY: 're_key',
 	...auth0,
-	...r2
+	...r2,
+	...vapid,
+	...scheduler
 };
 
 describe('loadConfig', () => {
@@ -73,7 +83,56 @@ describe('loadConfig', () => {
 				region: 'auto',
 				accessKeyId: 'key-id',
 				secretAccessKey: 'key-secret'
+			},
+			push: {
+				vapid: { publicKey: vapid.VAPID_PUBLIC_KEY, privateKey: vapid.VAPID_PRIVATE_KEY },
+				subject: 'https://toebeans.co.za',
+				allowedEndpoints: [...PUSH_SERVICES]
+			},
+			worker: {
+				mode: 'http',
+				intervalMs: 300_000,
+				auth: { google: { audience: scheduler.TICK_AUDIENCE, invoker: scheduler.TICK_INVOKER } }
 			}
+		});
+	});
+
+	describe('reminders', () => {
+		it('need lasting VAPID keys and a way to run the tick in prod', () => {
+			const noKeys = { ...prod, VAPID_PUBLIC_KEY: '', VAPID_PRIVATE_KEY: '' };
+			expect(() => loadConfig(noKeys)).toThrow(/VAPID_PUBLIC_KEY: required in prod/);
+			const noTick = { ...prod, TICK_AUDIENCE: '', TICK_INVOKER: '' };
+			expect(() => loadConfig(noTick)).toThrow(/TICK_AUDIENCE: required with WORKER_MODE=http/);
+			const secret = 's'.repeat(32);
+			expect(loadConfig({ ...noTick, TICK_SECRET: secret }).worker.auth).toEqual({ secret });
+			expect(loadConfig({ ...noTick, WORKER_MODE: 'inline' }).worker.mode).toBe('inline');
+		});
+
+		it('take both VAPID keys or neither, and both scheduler settings or neither', () => {
+			expect(() => loadConfig({ VAPID_PUBLIC_KEY: vapid.VAPID_PUBLIC_KEY })).toThrow(
+				/VAPID_PRIVATE_KEY: set both/
+			);
+			expect(() => loadConfig({ TICK_AUDIENCE: scheduler.TICK_AUDIENCE })).toThrow(/TICK_INVOKER/);
+			expect(() => loadConfig({ VAPID_PUBLIC_KEY: 'short', VAPID_PRIVATE_KEY: 'x' })).toThrow(
+				ConfigError
+			);
+		});
+
+		it('allow an extra push service origin for tests, never in prod', () => {
+			expect(
+				loadConfig({ PUSH_SERVICE_ORIGINS: 'http://localhost:4174' }).push.allowedEndpoints
+			).toEqual([...PUSH_SERVICES, 'http://localhost:4174']);
+			expect(() => loadConfig({ PUSH_SERVICE_ORIGINS: 'http://localhost:4174/push' })).toThrow(
+				/must be origins/
+			);
+			expect(() => loadConfig({ ...prod, PUSH_SERVICE_ORIGINS: 'http://x:1' })).toThrow(
+				/not allowed in prod/
+			);
+		});
+
+		it('take the tick interval in minutes', () => {
+			expect(loadConfig({ TICK_INTERVAL_MINUTES: '1' }).worker.intervalMs).toBe(60_000);
+			expect(() => loadConfig({ TICK_INTERVAL_MINUTES: '0' })).toThrow(ConfigError);
 		});
 	});
 

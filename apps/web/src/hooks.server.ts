@@ -30,6 +30,10 @@ const resolveOptions = {
 // Probes and the uptime monitor hit these every few minutes; their lines would drown the rest.
 const quietRoutes = new Set(['/healthz', '/readyz']);
 
+// Called by a scheduler, not a browser (architecture §6.3): no Origin header and no session. The
+// route checks its own bearer token, so the origin check and session lookup don't apply.
+const machineRoutes = new Set(['/internal/tick']);
+
 // The join page says what an invitation is for before asking anyone to sign in (ui.md J2). The
 // token is what allows it; accepting is a separate route and needs a session.
 const publicApiRoutes = new Set(['/api/v1/invitations/[token]']);
@@ -75,6 +79,9 @@ async function authenticated(
 ): Promise<Response> {
 	const { auth } = backend().http;
 	const headers = event.request.headers;
+	event.locals.viewer = null;
+	if (machineRoutes.has(event.route.id ?? '')) return resolve(event, resolveOptions);
+
 	const refused = auth.checkOrigin({
 		method: event.request.method,
 		origin: headers.get('origin'),
@@ -82,7 +89,6 @@ async function authenticated(
 	});
 	if (refused) return toResponse(refused);
 
-	event.locals.viewer = null;
 	// Probes don't need a viewer, so they never touch the sessions.
 	if (quietRoutes.has(event.route.id ?? '')) return resolve(event, resolveOptions);
 

@@ -59,7 +59,16 @@ export function mongoTrainingPlans(db: Db, clock: Clock): TrainingPlanRepository
 			return updated.ok ? ok(toPlan(updated.value)) : updated;
 		},
 		advanceHorizon: (householdId, id, from, to) =>
-			plans.setQuietly(householdId, id, { horizon: from }, { horizon: to })
+			plans.setQuietly(householdId, id, { horizon: from }, { horizon: to }),
+		// Across households, for the reminder tick (D27): the raw collection, read only.
+		async householdsBehind(through) {
+			const ids = await db.collection<PlanDoc>(TRAINING_PLANS).distinct('householdId', {
+				horizon: { $lt: through },
+				paused: { $exists: false },
+				$or: [{ until: { $exists: false } }, { $expr: { $gt: ['$until', '$horizon'] } }]
+			});
+			return ids;
+		}
 	};
 }
 
@@ -123,6 +132,17 @@ export function mongoPlannedSessions(db: Db, clock: Clock): PlannedSessionReposi
 				planId,
 				occurrenceKey: { $gte: from },
 				status: { $ne: 'completed' }
-			})
+			}),
+		// Across households, for the reminder tick (D27): the raw collection, read only. Uses the
+		// (status, scheduledAt) index from migration 0008.
+		async listPlannedAcrossHouseholds(from, to) {
+			const docs = await db
+				.collection<SessionDoc>(PLANNED_SESSIONS)
+				.find({ status: 'planned', scheduledAt: { $gte: from, $lt: to } })
+				.sort({ scheduledAt: 1, _id: 1 })
+				.limit(5000)
+				.toArray();
+			return docs.map(toSession);
+		}
 	};
 }

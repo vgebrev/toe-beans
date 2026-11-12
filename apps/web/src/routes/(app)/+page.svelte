@@ -9,6 +9,7 @@
 	import { resolve } from '$app/paths';
 	import type { Dog, PlannedSession } from '@toe-beans/contracts';
 	import Icon from '#lib/components/icon/Icon.svelte';
+	import RemindersBanner from '#lib/components/push/RemindersBanner.svelte';
 	import SessionCard from '#lib/components/planner/SessionCard.svelte';
 	import EmptyState from '#lib/components/shell/EmptyState.svelte';
 	import PageHeader from '#lib/components/shell/PageHeader.svelte';
@@ -101,6 +102,7 @@
 {:else}
 	<div class="flex flex-col gap-6 px-4 pt-2 pb-8">
 		<p aria-live="polite" class="rounded-2xl bg-soft px-4 py-3 empty:hidden">{notice ?? ''}</p>
+		<RemindersBanner />
 
 		{#if !day}
 			<p role="alert" class="rounded-2xl border border-border bg-soft px-4 py-3">

@@ -25,6 +25,8 @@ export function memoryHouseholds(): HouseholdRepository & { all(): Household[] }
 			return ok(undefined);
 		},
 		find: async (id) => structuredClone(households.get(id) ?? null),
+		findByIds: async (ids) =>
+			structuredClone([...households.values()].filter((h) => ids.includes(h.id))),
 		findForMember: async (userId) =>
 			structuredClone([...households.values()].find((h) => hasMember(h, userId)) ?? null),
 		findDeactivatedBy: async (userId) =>

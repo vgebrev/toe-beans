@@ -1,8 +1,8 @@
 # Toe Beans — Backlog
 
-**Version:** 0.30 (draft for iteration)
+**Version:** 0.31 (draft for iteration)
 **Date:** 11 November 2026
-**Inputs:** `docs/requirements.md` v1.0, `docs/architecture.md` v1.13, `docs/ui.md` v0.19
+**Inputs:** `docs/requirements.md` v1.0, `docs/architecture.md` v1.14, `docs/ui.md` v0.20
 
 **Changes in 0.3:** spike results S-1.0 to S-1.4 and S0.1–S0.2 recorded as they landed (see Current progress). S-1.4b dropped as not needed, S-1.5 parked, S-1.4a retargeted to `toebeans.co.za`.
 
@@ -43,6 +43,8 @@
 **Changes in 0.29:** S8.1–S8.2 built (architecture 1.13 D26, ui 0.18 §4.1). S8.1's upcoming care moves to S11, which brings care tasks. S8.3 added, trying it on the phones, as for earlier slices, and done, so S8 is done: the first usable checkpoint. Inputs moved to architecture 1.13 and ui 0.18.
 
 **Changes in 0.30:** Filters reworked before S12 (ui 0.19 §5.1): the dog switcher and the library's skill areas are a button opening a sheet, *All* first, instead of a sideways-scrolling chip row, and the exercise picker drops its area chips. S10.1's filters follow the same convention. Inputs moved to ui 0.19.
+
+**Changes in 0.31:** S12.1–S12.7 built (architecture 1.14 D27, ui 0.20 J7). S12.3 is now the tick working out due reminders from the sessions, with a send ledger, instead of jobs replanned in every session change (D27), and covers training only: care reminders move to a new S11.3, where they become a second source in the tick. S12 also brings the manifest, icons and a service worker forward from S13.1 (installing is part of testing reminders, NFR-16), so S13.1 keeps shortcuts, the install prompt and caching. S12.8 added, trying it on the phones with the app installed and closed, as for earlier slices. S14.1 gains the VAPID keys and the Cloud Scheduler tick job. Inputs moved to architecture 1.14 and ui 0.20.
 
 **Changes in 0.21:** S2 and S3 done: the owner tested both on the phones in Chrome, including S3.5's photo flow and the Android share sheet. The installed PWA wasn't part of it; that's S13.
 
@@ -125,7 +127,9 @@ Work is organised as **vertical slices**: each delivers a usable end-to-end incr
 | 2026-11-11 | S8 done. The owner tried Today on a phone (S8.3). Nothing to change. With S8 the first usable checkpoint is reached: the household can train with it, without push or care. |
 | 2026-11-11 | Filters reworked on the owner's call, before S12 (ui 0.19 §5.1): chip rows scrolled sideways on the phones, and *All dogs* came last where the library's *All* came first. A shared `FilterSheet` is one button showing the current choice that opens a bottom sheet listing the choices one per row, *All* first; the dog switcher (one dog: still just its avatar) and the library's skill areas (still links to `?area=`) use it. The exercise picker, itself a sheet, drops its area chips and lists the library under skill-area headings, with search. 564 unit and 161 e2e tests. |
 
-**Next up:** S12 push reminders on the critical path; S9, S10 and S11 can go alongside.
+| 2026-11-11 | S12.1–S12.7 built, on the owner's call that the tick works out reminders rather than replanning jobs (D27). Devices, preferences and the send ledger (migration 0008); the tick claims each training reminder by its unique key (session, time, person), reads the session again before sending, retries 1 and 4 minutes later, disables a device on 404/410 and takes over a dead tick's claims after 60 s; it also extends series nobody has opened. `POST /internal/tick` takes Cloud Scheduler's OIDC token or `TICK_SECRET`; elsewhere the server ticks itself. Device endpoints must be on a browser's push service, so the server can't be made to post anywhere (SSRF). The service worker shows reminders, reports their arrival and opens the session; the manifest and icons came forward from S13.1. Notifications (J7) with the delayed test, the reliability steps per maker and other devices; a Today banner; sign-out unsubscribes the browser; a cancelled session's page says so. The e2e suite fakes only the browser's PushManager: the real service worker, server and encryption send to a stand-in push service, and the tests decrypt what a phone would get. 643 unit, 122 integration and 181 e2e tests. Not yet tried: any of it on a phone (S12.8). |
+
+**Next up:** S12.8 on the phones, installed and closed. S9, S10 and S11 can go alongside.
 
 ---
 
@@ -280,26 +284,28 @@ Work is organised as **vertical slices**: each delivers a usable end-to-end incr
 |---|---|---|
 | S11.1 | CareTask with status history. Create, edit, complete, cancel. | ⬜ |
 | S11.2 | Care tab, and Today's *Coming up* integration | ⬜ |
+| S11.3 | Care reminders: care tasks as a second source in the reminder tick (D27), `careLeadDays` and `careTimeOfDay` (08:00 for a task with a date and no time) in the preference and on Notifications, a 12 h TTL, the `care/:id` deep link and its cancelled landing | ⬜ |
 
-### S12 Push reminders ⬜
+### S12 Push reminders 🟨
 *FR-12, NFR-16, scenarios 4 and 5. Builds on the S-1 findings.*
 
 | # | Task | Status |
 |---|---|---|
-| S12.1 | PushSubscription lifecycle: subscribe, unsubscribe, list devices, disable on 404/410 | ⬜ |
-| S12.2 | ReminderPreference per member | ⬜ |
-| S12.3 | NotificationJob + `ReminderPlanner.replan` wired transactionally into session and care use cases | ⬜ |
-| S12.4 | `worker.tick`: atomic claim, stale-subject guard, retries/backoff, recovery of stuck `sending` jobs. Both trigger modes (HTTP endpoint and inline loop). | ⬜ |
-| S12.5 | Service worker `push` + `notificationclick` deep links, including the cancelled-item landing state | ⬜ |
-| S12.6 | Notifications settings state-machine screen, *Make reminders reliable* card (per-manufacturer steps) and the **delayed** test reminder (`ui.md` J7) | ⬜ |
-| S12.7 | Tests: reschedule/cancel produces no stale sends, concurrent ticks produce no duplicates, denied/revoked permission | ⬜ |
+| S12.1 | PushSubscription lifecycle: subscribe, unsubscribe, list devices, disable on 404/410 | ✅ |
+| S12.2 | ReminderPreference per member | ✅ |
+| S12.3 | Training reminders worked out at tick time from planned sessions, with the send ledger's unique key as the claim (D27). Care reminders are S11.3. | ✅ |
+| S12.4 | `worker.tick`: atomic claim, stale-subject guard, retries/backoff, recovery of stuck `sending` jobs. Both trigger modes (HTTP endpoint and inline loop). | ✅ |
+| S12.5 | Service worker `push` + `notificationclick` deep links, including the cancelled-item landing state. The manifest and icons, brought forward from S13.1. | ✅ |
+| S12.6 | Notifications settings state-machine screen, *Make reminders reliable* card (per-manufacturer steps) and the **delayed** test reminder (`ui.md` J7) | ✅ |
+| S12.7 | Tests: reschedule/cancel produces no stale sends, concurrent ticks produce no duplicates, denied/revoked permission | ✅ |
+| S12.8 | On both phones, installed and closed (NFR-16): turn reminders on, the delayed test, a session's reminder arriving and its tap opening the session, a moved and a cancelled session sending nothing, blocking notifications in Android settings, and the battery steps for each maker. Note the delivery times (`receivedAt` against `dueAt`). | ⬜ |
 
 ### S13 PWA polish and connectivity ⬜
 *NFR-03, 04, 09.*
 
 | # | Task | Status |
 |---|---|---|
-| S13.1 | Manifest, icons (export the PNG sizes from `src/lib/assets/brand/`), shortcuts, install prompt handling. The service worker precaches only the Latin font files. | ⬜ |
+| S13.1 | Shortcuts and install prompt handling (the manifest, icons and a push-only service worker came with S12). The service worker precaches only the Latin font files. | ⬜ |
 | S13.2 | Offline banner, offline shell, failed-save retention and retry (scenario 8) | ⬜ |
 | S13.3 | Cold-start skeletons and the "Waking up" message. Measure view timings on both phones. | ⬜ |
 | S13.4 | Accessibility pass (TalkBack, 200% font scaling) | ⬜ |
@@ -309,7 +315,7 @@ Work is organised as **vertical slices**: each delivers a usable end-to-end incr
 
 | # | Task | Status |
 |---|---|---|
-| S14.1 | Production environment provisioned (the platform chosen in S-1). Secrets in the platform store, including `RESEND_API_KEY`, which prod won't start without. Budget alert. Deploy workflow per architecture D15: Workload Identity Federation with an attribute condition pinning this repo and the `production` environment, a least-privilege deploy service account, a `production` environment (main only, owner approval), images in Artifact Registry deployed by digest. The client address for rate limits (architecture §7): the Worker forwards `CF-Connecting-IP`, `ADDRESS_HEADER`/`XFF_DEPTH` are set to match, and a sign-in from a phone confirms the app sees the phone's address. | ⬜ |
+| S14.1 | Production environment provisioned (the platform chosen in S-1). Secrets in the platform store, including `RESEND_API_KEY` and `VAPID_PRIVATE_KEY`, which prod won't start without (generate the pair once with `pnpm vapid`). The Cloud Scheduler job `toe-beans-tick` POSTs `/internal/tick` every 5 minutes with an OIDC token for its service account (`TICK_AUDIENCE`, `TICK_INVOKER`), as the spike's did. Budget alert. Deploy workflow per architecture D15: Workload Identity Federation with an attribute condition pinning this repo and the `production` environment, a least-privilege deploy service account, a `production` environment (main only, owner approval), images in Artifact Registry deployed by digest. The client address for rate limits (architecture §7): the Worker forwards `CF-Connecting-IP`, `ADDRESS_HEADER`/`XFF_DEPTH` are set to match, and a sign-in from a phone confirms the app sees the phone's address. | ⬜ |
 | S14.2 | Nightly encrypted `mongodump` to R2, photo bucket copy, retention | ⬜ |
 | S14.3 | Restore runbook written **and tested** (`docs/runbooks/restore.md`) | ⬜ |
 | S14.4 | Uptime monitor. Sentry alerts. Accounts inventory (`docs/runbooks/accounts.md`). | ⬜ |
@@ -335,7 +341,7 @@ Work is organised as **vertical slices**: each delivers a usable end-to-end incr
 
 | Item | Notes |
 |---|---|
-| Delivery diagnostics screen | Owner view of recent notification jobs and device failures. Deferred in review round 1; the data already exists in `NotificationJob`. |
+| Delivery diagnostics screen | Owner view of recent reminders and device failures. Deferred in review round 1; the data already exists in the `reminders` ledger (D27), for 30 days. |
 
 ## P2 — Deferred (not planned)
 

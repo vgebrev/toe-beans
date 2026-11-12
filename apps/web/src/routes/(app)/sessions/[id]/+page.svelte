@@ -131,6 +131,15 @@
 			Couldn't load this session — check your connection, then reload.
 		</p>
 	{:else}
+		{#if session.status === 'cancelled' || session.status === 'skipped'}
+			<!-- Where a reminder tapped after the session was called off lands (ui.md J7). -->
+			<div class="flex flex-col gap-3 rounded-2xl border border-border bg-soft px-4 py-4">
+				<p class="font-bold">
+					This session was {session.status === 'cancelled' ? 'cancelled' : 'skipped'}.
+				</p>
+				<Button href={resolve('/(app)')} variant="outline">Go to Today</Button>
+			</div>
+		{/if}
 		<dl class="flex flex-col gap-4 rounded-2xl border border-border bg-card px-4 py-4">
 			<div class="flex items-center gap-3">
 				<dt class="sr-only">Dog</dt>

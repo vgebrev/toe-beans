@@ -1,12 +1,15 @@
 // End-to-end tests (architecture §10) on the two acceptance phones (requirements, CLAUDE.md),
 // emulated in Chromium: the target is Chrome on Android. The tests run against the production
 // build, so they exercise what ships, and need MongoDB like `pnpm dev` does.
+import { createECDH } from 'node:crypto';
 import { existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { defineConfig, devices } from '@playwright/test';
 import { SIGNED_IN } from './e2e/mock-sign-in.js';
+import { PUSH_SERVICE_ORIGIN } from './e2e/push-service.js';
+import { TICK_SECRET } from './e2e/tick.js';
 
 // MONGODB_URI and friends from the repo root's .env, as for `pnpm dev`. The shell's own
 // variables win.
@@ -14,6 +17,11 @@ const rootEnv = fileURLToPath(new URL('../../.env', import.meta.url));
 if (existsSync(rootEnv)) process.loadEnvFile(rootEnv);
 
 const port = 4173;
+
+// A VAPID pair for the run. Tests read the public key from the API, so a reused server with an
+// older pair still works.
+const vapid = createECDH('prime256v1');
+vapid.generateKeys();
 
 // Built from Playwright's Pixel 7 profile (Chrome for Android), resized to each phone. The
 // viewports are the visible area above the phone's own navigation buttons. The Samsung's is
@@ -37,6 +45,8 @@ const android = (
 
 export default defineConfig({
 	testDir: 'e2e',
+	// The stand-in push service reminders are sent to (e2e/push-service.ts).
+	globalSetup: './e2e/push-service.ts',
 	forbidOnly: !!process.env.CI,
 	retries: process.env.CI ? 1 : 0,
 	reporter: process.env.CI ? [['list'], ['html', { open: 'never' }]] : 'list',
@@ -86,7 +96,13 @@ export default defineConfig({
 			// Test photos in their own directory, never dev's photos or a real bucket.
 			PHOTO_STORE: 'filesystem',
 			PHOTO_DIR: join(tmpdir(), 'toe-beans-e2e-photos'),
-			BODY_SIZE_LIMIT: '11M'
+			BODY_SIZE_LIMIT: '11M',
+			// Reminders go to the stand-in push service, and only when a test runs the tick.
+			VAPID_PUBLIC_KEY: vapid.getPublicKey().toString('base64url'),
+			VAPID_PRIVATE_KEY: vapid.getPrivateKey().toString('base64url'),
+			PUSH_SERVICE_ORIGINS: PUSH_SERVICE_ORIGIN,
+			WORKER_MODE: 'http',
+			TICK_SECRET
 		}
 	}
 });

@@ -7,9 +7,27 @@
 	import PageHeader from '#lib/components/shell/PageHeader.svelte';
 	import ThemeSwitch from '#lib/components/shell/ThemeSwitch.svelte';
 	import { Button } from '#lib/components/ui/button/index.js';
+	import { unsubscribe } from '#lib/push/browser.js';
 	import type { PageProps } from './$types';
 
 	let { data }: PageProps = $props();
+
+	/**
+	 * Signing out stops this browser's reminders first: on a shared phone the next person
+	 * shouldn't get them. The push service then refuses sends, and the server drops the device.
+	 */
+	let signingOut = false;
+	async function signOut(event: SubmitEvent) {
+		if (signingOut) return;
+		event.preventDefault();
+		signingOut = true;
+		const form = event.currentTarget as HTMLFormElement;
+		await Promise.race([
+			unsubscribe().catch(() => undefined),
+			new Promise((resolve) => setTimeout(resolve, 3000))
+		]);
+		form.submit();
+	}
 
 	const listFormat = new Intl.ListFormat('en', { type: 'conjunction' });
 	const dogsLine = $derived.by(() => {
@@ -23,7 +41,6 @@
 
 <PageHeader title="More" />
 <div class="flex flex-col gap-8 px-4 pt-2">
-	<!-- Notifications join this page with their slice (ui.md §2.1). -->
 	<div class="flex flex-col gap-3">
 		<a
 			href={resolve('/(app)/dogs')}
@@ -69,6 +86,17 @@
 			</span>
 			<Icon name="forward" class="text-muted-foreground" />
 		</a>
+		<a
+			href={resolve('/(app)/settings/notifications')}
+			class="flex min-h-12 items-center gap-3 rounded-2xl border border-border px-4 py-3"
+		>
+			<Icon name="notifications" class="text-primary" />
+			<span class="flex min-w-0 flex-1 flex-col">
+				<span class="font-bold">Notifications</span>
+				<span class="truncate text-sm text-muted-foreground">Training reminders on this phone</span>
+			</span>
+			<Icon name="forward" class="text-muted-foreground" />
+		</a>
 	</div>
 
 	<section aria-labelledby="appearance" class="flex flex-col gap-3">
@@ -102,7 +130,7 @@
 			</p>
 		{/if}
 		<!-- A plain form POST: the server ends the session and sends the browser to the provider. -->
-		<form method="POST" action={resolve('/auth/sign-out')}>
+		<form method="POST" action={resolve('/auth/sign-out')} onsubmit={signOut}>
 			<Button type="submit" variant="outline" class="w-full">Sign out</Button>
 		</form>
 	</section>

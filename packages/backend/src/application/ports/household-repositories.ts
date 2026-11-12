@@ -18,6 +18,8 @@ export interface HouseholdRepository {
 	insert(household: Household): Promise<Result<void, ConflictError>>;
 	/** The household's own ID comes from the AuthContext, so this can't reach another one. */
 	find(id: Id): Promise<Household | null>;
+	/** For the reminder tick, which works across households (D27). */
+	findByIds(ids: readonly Id[]): Promise<Household[]>;
 	/** The household this person belongs to, if any. */
 	findForMember(userId: Id): Promise<Household | null>;
 	/** The household this person was the last to leave, most recent first (D18). */

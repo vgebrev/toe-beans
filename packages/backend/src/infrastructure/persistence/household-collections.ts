@@ -53,6 +53,13 @@ export function mongoHouseholds(db: Db): HouseholdRepository {
 			}
 		},
 		find: (id) => one({ _id: id }),
+		async findByIds(ids) {
+			if (ids.length === 0) return [];
+			const docs = await households
+				.find({ _id: { $in: [...ids] } }, { session: currentSession() })
+				.toArray();
+			return docs.map(toHousehold);
+		},
 		findForMember: (userId) => one({ 'memberships.userId': userId }),
 		async findDeactivatedBy(userId) {
 			const [doc] = await households

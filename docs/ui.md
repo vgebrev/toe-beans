@@ -1,9 +1,9 @@
 # Toe Beans — UI and Interaction Design
 
-**Version:** 0.19 (draft for iteration)
+**Version:** 0.20 (draft for iteration)
 **Date:** 11 November 2026
 **Status:** Proposed. Review-round decisions in §8 are accepted.
-**Inputs:** `docs/requirements.md` v1.0, `docs/architecture.md` v1.13
+**Inputs:** `docs/requirements.md` v1.0, `docs/architecture.md` v1.14
 
 **Changes in 0.7:** the logo landed (S0.9). The mark is now a **TB monogram** with four toe beans above it and a heart-shaped bean in the B, from the AI-assisted design board (Monogram Iteration B), replacing the placeholder paw. It was traced from the board and cleaned up rather than redrawn by hand; the variants are the brown-on-cream mark, a cream-on-brown app-icon tile (favicon and maskable) and a white badge. The wordmark uses Fredoka Bold to match the board (§6.4 Logo).
 
@@ -20,6 +20,8 @@
 **Changes in 0.18:** S8 built: §4.1 records Today as built. *Overdue* includes yesterday's still-planned sessions (architecture D26), *Done* every practice logged today, ad hoc too, and *Log* sits beside the card rather than inside it. A card opens the session page, as on Plan, rather than the instructions (J3 step 3), and the overflow menu waits: *Change*, *Skip* and *Cancel* are on that page. *Coming up* waits for care (S11).
 
 **Changes in 0.19:** Filters never scroll sideways. §5.1 gains the filter convention: one button showing the current choice, opening a sheet that lists the choices one per row with *All* first. §2.2's dog switcher and §4.6's skill-area chips follow it (*All dogs* moves from last to first; the library's *All* becomes *All areas*), and §4.4's History filters will. The exercise picker (J3, §4.3) drops its skill-area chips, since a filter sheet would open on top of the picker's own: it lists the whole library under skill-area headings, with search.
+
+**Changes in 0.20:** J7 as built in S12 (architecture 1.14 D27). Not being installed is a note above the state rather than a state of its own, since reminders work from a Chrome tab too; the battery steps are text without screenshots; the test reports when it arrived. More gains *Notifications*, Today a dismissible *Turn on training reminders* banner, and signing out stops reminders on that browser. A session tapped after it was cancelled or skipped says so with *Go to Today*. Care reminder settings wait for S11.
 
 **Changes in 0.12:** S3 built. J1 step 4 as built: *Take photo* or *Gallery*, then a framing square with the circle overlay (drag, pinch, a zoom slider and arrow keys), and birth date as *I know the date* or *Approximate* with months old. J2 names the dogs. §2.2: the switcher shows on Today, Plan, History and Care, with name chips. §5.1 gains two rules from using it: one confirm button per context (a sheet is its own context), and a control is never disabled without the reason on screen; the photo moved into its own sheet in J1 to follow the first, and the household, name and email-invite buttons stopped greying out for missing input to follow the second. §4.5: editing is its own page and the overflow sheet holds *Edit details* and *Archive*; the Recent sections wait for their slices. The dog accent palette is defined (§6.4), and More gains *Dogs* (§2.1). The custom dog icon read as a monkey, so it's replaced by Phosphor's *Dog*, the documented fallback library (§6.4).
 
@@ -191,6 +193,15 @@ The manufacturer is preselected where Chrome reports the phone model (`navigator
 The screen also lists **other devices** of the current user, so they can be removed. A note always says: "Reminders can be delayed by your phone's battery or network settings. Today always shows what's due."
 
 **Tapping a notification** opens `/sessions/:id` or `/care/:id`. If that item was cancelled meanwhile, the app shows "This session was cancelled" with a link to Today, never a blank page.
+
+- *As built (S12):* More → *Notifications* (`/settings/notifications`), one state at a time: checking, *unsupported*, *Turn on reminders* (the only place permission is asked for), *blocked* with Chrome's and Android's steps and *Check again*, *Couldn't register this device* with *Retry*, and on. Not being installed shows as a note above whichever state, with Chrome's *Add to Home screen* / *Install app* steps (the install prompt is S13.1), rather than as a state: reminders work from a Chrome tab too, and the steps on a phone need the app open anyway. Opening the screen with reminders on saves this browser's subscription again, which repairs a device the server had dropped or one now used by someone else.
+  - *On:* "Reminders are on for this device ({label})", the label from Chrome's model hint and the browser ("SM-S711B · Chrome", or "Android phone · Chrome" without the hint). *Training sessions* (a switch) and *Remind me* (at the session time, 5, 10, 15 or 30 minutes, or 1 hour before), each saved on change with *Saving… / Saved. / Couldn't save*, a failed save putting the choice back. A line says care tasks will remind on the day once they arrive (S11.3).
+  - *Make reminders reliable* shows until *Done* (kept per device), then *Reminder tips* brings it back. The maker is preselected from the model (SM-… Samsung; Redmi, POCO, Xiaomi or a long number such as 22101316G for Xiaomi) with a picker; steps are text, no screenshots yet.
+  - *Test reminders*: "On its way. Lock your phone and put it down: the test arrives between {due} and {due + 5 min}." Tapping again while one is on its way doesn't start another. Back on the screen (or when the app comes to the front) it says when the last test arrived, or after 10 minutes without it, "Didn't get the test? Check the battery setting in Reminder tips". The test's tap opens Notifications with "Reminders are working on this phone."
+  - *Turn off on this device* and each of *Your other devices* (label, last reminder, or "Stopped: reminders no longer reach it" once the push service dropped it) go through a bottom-sheet confirmation.
+  - The note about delays is always at the bottom.
+- *As built (S12):* Today shows *Turn on training reminders* (a link to Notifications, with *Not now*) while this browser hasn't been asked and the banner hasn't been dismissed. Signing out unsubscribes this browser first, so a shared phone stops getting the last person's reminders. A session opened after it was cancelled or skipped starts with "This session was cancelled." (or skipped) and *Go to Today*; one that's gone is the Not found page, which also offers Today.
+- Notifications show the exercise as the title ("Training time: Recall basics") and "Ripley · 17:30" as the body (§6.2), with the brand badge and icon, tagged per session.
 
 ### J8 — Correct or delete (FR-09)
 

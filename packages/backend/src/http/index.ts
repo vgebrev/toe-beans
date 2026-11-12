@@ -9,6 +9,8 @@ import { createHouseholds } from '../application/household/household.js';
 import { createInvitations } from '../application/household/invitations.js';
 import { createPlanner } from '../application/planner/planner.js';
 import type { Ports } from '../application/ports/index.js';
+import type { ReminderTick, TickAuthenticator } from '../application/ports/tick.js';
+import { createReminderSettings } from '../application/reminders/reminders.js';
 import { createToday } from '../application/today/today.js';
 import { createSessionLogs } from '../application/training-log/session-logs.js';
 import { createAccountHttp, type AccountHttp } from './account.js';
@@ -19,8 +21,10 @@ import { createExercisesHttp, type ExercisesHttp } from './exercises.js';
 import { createHealthHttp, type HealthHttp } from './health.js';
 import { createHouseholdHttp, type HouseholdHttp } from './household.js';
 import { createPlannerHttp, type PlannerHttp } from './planner.js';
+import { createRemindersHttp, type RemindersHttp } from './reminders.js';
 import { createSessionLogsHttp, type SessionLogsHttp } from './session-logs.js';
 import { createTodayHttp, type TodayHttp } from './today.js';
+import { createWorkerHttp, type WorkerHttp } from './tick.js';
 
 export interface Http {
 	health: HealthHttp;
@@ -33,14 +37,24 @@ export interface Http {
 	planner: PlannerHttp;
 	sessionLogs: SessionLogsHttp;
 	today: TodayHttp;
+	reminders: RemindersHttp;
+	worker: WorkerHttp;
 }
 
 export interface HttpOptions {
 	/** The origin users reach the app on, e.g. `https://toebeans.co.za`. */
 	publicOrigin: string;
+	/** Push services devices may subscribe with. */
+	allowedPushEndpoints: readonly string[];
+	/** The reminder tick, and who may run it over HTTP (architecture §6.3). */
+	worker: ReminderTick;
+	tickAuth: TickAuthenticator;
 }
 
-export function createHttp(ports: Ports, { publicOrigin }: HttpOptions): Http {
+export function createHttp(
+	ports: Ports,
+	{ publicOrigin, allowedPushEndpoints, worker, tickAuth }: HttpOptions
+): Http {
 	const auth = createAuth(ports, {
 		callbackUri: publicOrigin + CALLBACK_PATH,
 		postSignOutUri: publicOrigin + '/'
@@ -65,7 +79,11 @@ export function createHttp(ports: Ports, { publicOrigin }: HttpOptions): Http {
 		cues: createCuesHttp(createCues(ports)),
 		planner: createPlannerHttp(planner),
 		sessionLogs: createSessionLogsHttp(sessionLogs),
-		today: createTodayHttp(createToday(ports, { planner, sessionLogs }))
+		today: createTodayHttp(createToday(ports, { planner, sessionLogs })),
+		reminders: createRemindersHttp(
+			createReminderSettings(ports, { allowedEndpoints: allowedPushEndpoints })
+		),
+		worker: createWorkerHttp(worker, { auth: tickAuth, logger: ports.logger })
 	};
 }
 
