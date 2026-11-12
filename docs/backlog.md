@@ -1,8 +1,8 @@
 # Toe Beans — Backlog
 
-**Version:** 0.31 (draft for iteration)
-**Date:** 11 November 2026
-**Inputs:** `docs/requirements.md` v1.0, `docs/architecture.md` v1.14, `docs/ui.md` v0.20
+**Version:** 0.32 (draft for iteration)
+**Date:** 12 November 2026
+**Inputs:** `docs/requirements.md` v1.0, `docs/architecture.md` v1.14, `docs/ui.md` v0.21
 
 **Changes in 0.3:** spike results S-1.0 to S-1.4 and S0.1–S0.2 recorded as they landed (see Current progress). S-1.4b dropped as not needed, S-1.5 parked, S-1.4a retargeted to `toebeans.co.za`.
 
@@ -45,6 +45,8 @@
 **Changes in 0.30:** Filters reworked before S12 (ui 0.19 §5.1): the dog switcher and the library's skill areas are a button opening a sheet, *All* first, instead of a sideways-scrolling chip row, and the exercise picker drops its area chips. S10.1's filters follow the same convention. Inputs moved to ui 0.19.
 
 **Changes in 0.31:** S12.1–S12.7 built (architecture 1.14 D27, ui 0.20 J7). S12.3 is now the tick working out due reminders from the sessions, with a send ledger, instead of jobs replanned in every session change (D27), and covers training only: care reminders move to a new S11.3, where they become a second source in the tick. S12 also brings the manifest, icons and a service worker forward from S13.1 (installing is part of testing reminders, NFR-16), so S13.1 keeps shortcuts, the install prompt and caching. S12.8 added, trying it on the phones with the app installed and closed, as for earlier slices. S14.1 gains the VAPID keys and the Cloud Scheduler tick job. Inputs moved to architecture 1.14 and ui 0.20.
+
+**Changes in 0.32:** the S12 Notifications screen simplified (ui 0.21 J7): one *Push notifications* switch, folded *Reminder tips* holding the test, and wording that names no browser or device. Inputs moved to ui 0.21.
 
 **Changes in 0.21:** S2 and S3 done: the owner tested both on the phones in Chrome, including S3.5's photo flow and the Android share sheet. The installed PWA wasn't part of it; that's S13.
 

@@ -93,7 +93,8 @@
 			<Icon name="notifications" class="text-primary" />
 			<span class="flex min-w-0 flex-1 flex-col">
 				<span class="font-bold">Notifications</span>
-				<span class="truncate text-sm text-muted-foreground">Training reminders on this phone</span>
+				<span class="truncate text-sm text-muted-foreground">Training reminders on this device</span
+				>
 			</span>
 			<Icon name="forward" class="text-muted-foreground" />
 		</a>

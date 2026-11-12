@@ -66,8 +66,9 @@ async function schedule(page: Page, baseURL: string, dogId: string, at: Date) {
 /** Turns reminders on through the Notifications screen, as a person would. */
 async function turnOn(page: Page) {
 	await page.goto('/settings/notifications');
-	await page.getByRole('button', { name: 'Turn on reminders' }).click();
-	await expect(page.getByText(/Reminders are on for this device \(.+ · Chrome\)/)).toBeVisible();
+	await page.getByRole('switch', { name: /Push notifications/ }).click();
+	await expect(page.getByRole('switch', { name: /Push notifications/ })).toBeChecked();
+	await expect(page.getByText(/On for this device \(.+ · Chrome\)/)).toBeVisible();
 	const settings = await (await page.request.get('/api/v1/reminders')).json();
 	expect(settings.devices).toHaveLength(1);
 	return settings.devices[0].id as string;
@@ -162,7 +163,7 @@ test('lead time and turning training reminders off are saved, and say so', async
 
 	await page.getByLabel('Remind me').selectOption({ label: '15 minutes before' });
 	await expect(page.getByText('Saved.')).toBeVisible();
-	await page.getByLabel('Training sessions').uncheck();
+	await page.getByRole('switch', { name: 'Training sessions' }).click();
 	await expect(page.getByText('Saved.')).toBeVisible();
 	const settings = await (await page.request.get('/api/v1/reminders')).json();
 	expect(settings.preference).toEqual({ training: false, trainingLeadMin: 15 });
@@ -178,9 +179,12 @@ test('the delayed test: due in 3 minutes, and the service worker reports its arr
 	await fakePushInBrowser(page, sub);
 	await turnOn(page);
 
+	// The test lives under the folded tips.
+	await expect(page.getByRole('button', { name: 'Test reminders' })).toBeHidden();
+	await page.getByText('Reminder tips').click();
 	const asked = Date.now();
 	await page.getByRole('button', { name: 'Test reminders' }).click();
-	await expect(page.getByText(/On its way\. Lock your phone and put it down/)).toBeVisible();
+	await expect(page.getByText(/On its way\. Lock the screen and leave the device/)).toBeVisible();
 	const { test: started } = await (await page.request.get('/api/v1/reminders')).json();
 	expect(Date.parse(started.dueAt) - asked).toBeGreaterThanOrEqual(3 * 60_000 - 2_000);
 	// Not sent early: it has to find the phone locked.
@@ -213,7 +217,7 @@ test('the delayed test: due in 3 minutes, and the service worker reports its arr
 		.toBeTruthy();
 
 	await page.goto('/settings/notifications?test=arrived');
-	await expect(page.getByText('Reminders are working on this phone.')).toBeVisible();
+	await expect(page.getByText('Reminders are working on this device.')).toBeVisible();
 	await expect(page.getByText(/The last test arrived at/)).toBeVisible();
 });
 
@@ -243,7 +247,7 @@ test('blocked, unsupported and failed states say what to do', async ({ page, bas
 	const failing = await page.context().newPage();
 	await fakePushInBrowser(failing, null);
 	await failing.goto('/settings/notifications');
-	await failing.getByRole('button', { name: 'Turn on reminders' }).click();
+	await failing.getByRole('switch', { name: /Push notifications/ }).click();
 	await expect(failing.getByText("Couldn't register this device")).toBeVisible();
 	await expect(failing.getByRole('button', { name: 'Retry' })).toBeVisible();
 
@@ -252,12 +256,11 @@ test('blocked, unsupported and failed states say what to do', async ({ page, bas
 		delete (window as { PushManager?: unknown }).PushManager;
 	});
 	await old.goto('/settings/notifications');
-	await expect(
-		old.getByText("This browser can't show reminders. Use Chrome on Android.")
-	).toBeVisible();
+	await expect(old.getByText(/This browser can't show notifications\./)).toBeVisible();
+	await expect(old.getByRole('switch', { name: /Push notifications/ })).toBeDisabled();
 });
 
-test('turning off this device asks first, and other devices can be removed', async ({
+test('the switch turns this device off, and other devices can be removed', async ({
 	page,
 	baseURL
 }) => {
@@ -275,16 +278,18 @@ test('turning off this device asks first, and other devices can be removed', asy
 	const sub = fakeSubscription();
 	await fakePushInBrowser(page, sub);
 	await page.goto('/settings/notifications');
-	await page.getByRole('button', { name: 'Turn on reminders' }).click();
+	await page.getByRole('switch', { name: /Push notifications/ }).click();
+	await expect(page.getByText(/On for this device/)).toBeVisible();
 
 	await page.getByRole('button', { name: 'Remove Old tablet · Chrome' }).click();
 	await expect(page.getByRole('heading', { name: 'Remove Old tablet · Chrome?' })).toBeVisible();
 	await page.getByRole('button', { name: 'Remove device' }).click();
 	await expect(page.getByText('Your other devices')).toHaveCount(0);
 
-	await page.getByRole('button', { name: 'Turn off on this device' }).click();
-	await page.getByRole('button', { name: 'Turn off', exact: true }).click();
-	await expect(page.getByRole('button', { name: 'Turn on reminders' })).toBeVisible();
+	await page.getByRole('switch', { name: /Push notifications/ }).click();
+	await expect(page.getByText('Off on this device')).toBeVisible();
+	await expect(page.getByRole('switch', { name: /Push notifications/ })).not.toBeChecked();
+	await expect(page.getByText('What to remind you of')).toHaveCount(0);
 	const { devices } = await (await page.request.get('/api/v1/reminders')).json();
 	expect(devices).toEqual([]);
 });
@@ -298,6 +303,7 @@ test('scenario 9: devices and reminders are only ever the person’s own', async
 	const sub = fakeSubscription();
 	await fakePushInBrowser(page, sub);
 	const deviceId = await turnOn(page);
+	await page.getByText('Reminder tips').click();
 	await page.getByRole('button', { name: 'Test reminders' }).click();
 	await expect(page.getByText(/On its way/)).toBeVisible();
 	const { test: started } = await (await page.request.get('/api/v1/reminders')).json();

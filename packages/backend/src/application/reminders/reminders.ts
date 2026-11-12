@@ -87,7 +87,7 @@ export function createReminderSettings(
 				log.warn('push endpoint refused', { userId: ctx.userId });
 				return err(
 					validationError("This browser's push service isn't supported.", {
-						endpoint: ['Use Chrome on Android.']
+						endpoint: ['Try a different browser.']
 					})
 				);
 			}
