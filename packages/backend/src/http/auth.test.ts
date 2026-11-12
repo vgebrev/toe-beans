@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, onTestFinished, vi } from 'vitest';
 import type { Auth } from '../application/auth/auth.js';
 import type { RateLimiter } from '../application/ports/index.js';
 import { err, ok } from '../domain/result.js';
@@ -127,6 +127,9 @@ describe('auth http', () => {
 	});
 
 	it('the callback validates against the public origin and sets the session cookie', async () => {
+		// Frozen, so a millisecond between the fake's expiry and the cookie's can't make it 3599.
+		vi.useFakeTimers({ toFake: ['Date'] });
+		onTestFinished(() => void vi.useRealTimers());
 		const auth = fakeAuth();
 		const res = await createAuthHttp(auth, options(origin)).callback({
 			search: '?code=c&state=s',
