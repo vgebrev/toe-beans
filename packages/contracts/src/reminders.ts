@@ -25,9 +25,23 @@ export const TrainingLead = z.union([
 ]);
 export type TrainingLead = z.infer<typeof TrainingLead>;
 
+/** Days before a care task; 0 is on the day. */
+export const CareLead = z.union([
+	z.literal(0),
+	z.literal(1),
+	z.literal(2),
+	z.literal(3),
+	z.literal(7)
+]);
+export type CareLead = z.infer<typeof CareLead>;
+
 export const ReminderPreference = z.object({
 	training: z.boolean(),
-	trainingLeadMin: TrainingLead
+	trainingLeadMin: TrainingLead,
+	care: z.boolean(),
+	careLeadDays: CareLead,
+	/** `HH:MM` on the household's clocks: when a care reminder comes on its day. */
+	careTimeOfDay: z.string()
 });
 export type ReminderPreference = z.infer<typeof ReminderPreference>;
 
@@ -67,7 +81,10 @@ export type SavePushDevice = z.infer<typeof SavePushDevice>;
 /** A field left out stays as it was. */
 export const UpdateReminderPreference = z.strictObject({
 	training: z.boolean().optional(),
-	trainingLeadMin: z.number().int().optional()
+	trainingLeadMin: z.number().int().optional(),
+	care: z.boolean().optional(),
+	careLeadDays: z.number().int().optional(),
+	careTimeOfDay: z.string().max(10).optional()
 });
 export type UpdateReminderPreference = z.infer<typeof UpdateReminderPreference>;
 

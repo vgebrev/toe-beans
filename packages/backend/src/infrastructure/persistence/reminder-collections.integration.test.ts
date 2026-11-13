@@ -1,6 +1,7 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import { useTestDatabase } from '../../../test/mongo.js';
 import type { NewReminder } from '../../application/ports/index.js';
+import type { PlainTime } from '../../domain/calendar.js';
 import { createIdGenerator, type Id } from '../../domain/id.js';
 import { manualClock } from '../../testing/clock.js';
 import { migrate, migrations } from './migrations/index.js';
@@ -8,7 +9,8 @@ import { mongoPlannedSessions, mongoTrainingPlans } from './planner-collections.
 import {
 	mongoPushDevices,
 	mongoReminderPreferences,
-	mongoReminders
+	mongoReminders,
+	REMINDER_PREFERENCES
 } from './reminder-collections.js';
 
 const db = useTestDatabase();
@@ -100,14 +102,33 @@ describe('mongoReminderPreferences', () => {
 	it('saves and reads back, by person', async () => {
 		const sam = ids.next();
 		expect(await prefs().find(sam)).toBeNull();
-		const saved = await prefs().save({
+		const pref = {
 			userId: sam,
 			training: false,
-			trainingLeadMin: 15,
+			trainingLeadMin: 15 as const,
+			care: true,
+			careLeadDays: 1 as const,
+			careTimeOfDay: '07:30' as PlainTime,
 			updatedAt: at
-		});
-		expect(saved).toEqual({ userId: sam, training: false, trainingLeadMin: 15, updatedAt: at });
+		};
+		const saved = await prefs().save(pref);
+		expect(saved).toEqual(pref);
 		expect(await prefs().findMany([sam, ids.next()])).toEqual([saved]);
+	});
+
+	it('reads a schema 1 preference, from before care reminders, with the care defaults', async () => {
+		const sam = ids.next();
+		await db.mongo.db
+			.collection(REMINDER_PREFERENCES)
+			.insertOne({ _id: sam as never, training: true, trainingLeadMin: 5, schemaVersion: 1 });
+		expect(await prefs().find(sam)).toEqual({
+			userId: sam,
+			training: true,
+			trainingLeadMin: 5,
+			care: true,
+			careLeadDays: 0,
+			careTimeOfDay: '08:00'
+		});
 	});
 });
 

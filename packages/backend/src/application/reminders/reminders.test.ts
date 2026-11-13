@@ -136,12 +136,15 @@ describe('devices', () => {
 });
 
 describe('preferences', () => {
-	it('default to training reminders at the session time', async () => {
+	it('default to training reminders at the session time, and care at 08:00 on the day', async () => {
 		const { settings } = setup();
 		expect(await settings.preference(sam)).toEqual({
 			userId: 'sam',
 			training: true,
-			trainingLeadMin: 0
+			trainingLeadMin: 0,
+			care: true,
+			careLeadDays: 0,
+			careTimeOfDay: '08:00'
 		});
 	});
 
@@ -160,6 +163,22 @@ describe('preferences', () => {
 			error: { fields: { trainingLeadMin: expect.any(Array) } }
 		});
 		expect(await settings.preference(alex)).toMatchObject({ trainingLeadMin: 0 });
+	});
+
+	it('take care lead days and a time of day in 5-minute steps', async () => {
+		const { settings } = setup();
+		expect(
+			await settings.savePreference(sam, { care: false, careLeadDays: 7, careTimeOfDay: '18:30' })
+		).toMatchObject({ ok: true, value: { care: false, careLeadDays: 7, careTimeOfDay: '18:30' } });
+		expect(
+			await settings.savePreference(sam, { careLeadDays: 4, careTimeOfDay: '18:31' })
+		).toMatchObject({
+			ok: false,
+			error: {
+				fields: { careLeadDays: expect.any(Array), careTimeOfDay: expect.any(Array) }
+			}
+		});
+		expect(await settings.preference(sam)).toMatchObject({ careLeadDays: 7 });
 	});
 });
 

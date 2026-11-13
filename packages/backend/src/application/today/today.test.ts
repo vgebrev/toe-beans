@@ -3,10 +3,12 @@ import type { Exercise } from '../../domain/exercise.js';
 import { createIdGenerator, type Id } from '../../domain/id.js';
 import type { User } from '../../domain/user.js';
 import { directUnitOfWork, memoryUsers } from '../../testing/auth.js';
+import { memoryCareTasks } from '../../testing/care-tasks.js';
 import { manualClock } from '../../testing/clock.js';
 import { memoryDogs } from '../../testing/dogs.js';
 import { memoryPlannedSessions, memoryTrainingPlans } from '../../testing/planner.js';
 import { memorySessionLogs } from '../../testing/session-logs.js';
+import { createCareTasks } from '../care/care-tasks.js';
 import { createPlanner, type PlannerContext } from '../planner/planner.js';
 import { createSessionLogs } from '../training-log/session-logs.js';
 import { createToday } from './today.js';
@@ -77,6 +79,7 @@ async function setup() {
 		plans: memoryTrainingPlans(now),
 		plannedSessions: memoryPlannedSessions(now),
 		sessionLogs: memorySessionLogs(now),
+		careTasks: memoryCareTasks(now),
 		dogs,
 		exercises: {
 			all: () => [recall, settle],
@@ -90,7 +93,7 @@ async function setup() {
 	};
 	const planner = createPlanner(ports);
 	const sessionLogs = createSessionLogs(ports);
-	const today = createToday(ports, { planner, sessionLogs });
+	const today = createToday(ports, { planner, sessionLogs, careTasks: createCareTasks(ports) });
 	const plan = async (
 		dogId: Id,
 		date: string,

@@ -251,7 +251,7 @@ test('archiving a dog cancels its sessions, not the other dog’s, and bringing 
 	await page.getByRole('button', { name: 'More for Rosie' }).click();
 	await page.getByRole('button', { name: 'Archive Rosie' }).click();
 	await expect(page.getByRole('dialog', { name: 'Archive Rosie?' })).toContainText(
-		'Their planned sessions are cancelled.'
+		'Their planned sessions are cancelled, and their care tasks set aside with no reminders.'
 	);
 	await page.getByRole('button', { name: 'Archive Rosie' }).click();
 	await expect(page.getByText(/is archived: their history stays/)).toBeVisible();

@@ -11,6 +11,7 @@
 		ReminderPreference,
 		ReminderSettings,
 		ReminderTest,
+		type CareLead,
 		type TrainingLead
 	} from '@toe-beans/contracts';
 	import Icon from '#lib/components/icon/Icon.svelte';
@@ -19,6 +20,7 @@
 	import * as Sheet from '#lib/components/ui/sheet/index.js';
 	import { Switch } from '#lib/components/ui/switch/index.js';
 	import { createApiClient } from '#lib/api-client/index.js';
+	import { roundTime } from '#lib/planner/dates.js';
 	import {
 		currentSubscription,
 		deviceLabel,
@@ -60,6 +62,13 @@
 		{ value: 15, label: '15 minutes before' },
 		{ value: 30, label: '30 minutes before' },
 		{ value: 60, label: '1 hour before' }
+	];
+	const careLeads: { value: CareLead; label: string }[] = [
+		{ value: 0, label: 'On the day' },
+		{ value: 1, label: 'The day before' },
+		{ value: 2, label: '2 days before' },
+		{ value: 3, label: '3 days before' },
+		{ value: 7, label: 'A week before' }
 	];
 	// The two acceptance makers have known paths; anything else gets the general advice.
 	const steps: Record<Maker, { name: string; path: string[]; setting: string }> = {
@@ -286,9 +295,9 @@
 				</p>
 			{:else if phase === 'ask' || phase === 'working'}
 				<p class="text-muted-foreground">
-					Get a notification on this device when a training session is due, even with Toe Beans
-					closed. Reminders are a nudge: they can arrive a few minutes early, or late if the device
-					is asleep.
+					Get a notification on this device when a training session or care task is due, even with
+					Toe Beans closed. Reminders are a nudge: they can arrive a few minutes early, or late if
+					the device is asleep.
 				</p>
 			{:else if phase === 'denied'}
 				<div class="flex flex-col gap-3 rounded-2xl border border-border bg-soft px-4 py-4">
@@ -350,6 +359,7 @@
 					<span class="text-sm text-muted-foreground">Remind me</span>
 					<select
 						class="min-h-12 rounded-2xl border border-border bg-card px-3"
+						aria-label="Remind me of training sessions"
 						value={settings.preference.trainingLeadMin}
 						disabled={!settings.preference.training}
 						onchange={(e) =>
@@ -360,8 +370,54 @@
 						{/each}
 					</select>
 				</label>
+				<div class="flex min-h-12 items-center justify-between gap-4 pt-2">
+					<label for="care" class="flex-1 font-bold">Care tasks</label>
+					<Switch
+						id="care"
+						bind:checked={
+							() => settings?.preference.care ?? false, (on) => void savePreference({ care: on })
+						}
+					/>
+				</div>
+				<div class="grid grid-cols-2 gap-3">
+					<label class="flex flex-col gap-1">
+						<span class="text-sm text-muted-foreground">Remind me</span>
+						<select
+							class="min-h-12 rounded-2xl border border-border bg-card px-3"
+							aria-label="Remind me of care tasks"
+							value={settings.preference.careLeadDays}
+							disabled={!settings.preference.care}
+							onchange={(e) =>
+								savePreference({ careLeadDays: Number(e.currentTarget.value) as CareLead })}
+						>
+							{#each careLeads as lead (lead.value)}
+								<option value={lead.value}>{lead.label}</option>
+							{/each}
+						</select>
+					</label>
+					<label class="flex flex-col gap-1">
+						<span class="text-sm text-muted-foreground">At</span>
+						<input
+							type="time"
+							step={300}
+							class="min-h-12 rounded-2xl border border-border bg-card px-3"
+							aria-label="Care reminder time"
+							value={settings.preference.careTimeOfDay}
+							disabled={!settings.preference.care}
+							onchange={(e) => {
+								const time = roundTime(e.currentTarget.value);
+								if (!time) {
+									e.currentTarget.value = settings?.preference.careTimeOfDay ?? '';
+									return;
+								}
+								e.currentTarget.value = time;
+								void savePreference({ careTimeOfDay: time });
+							}}
+						/>
+					</label>
+				</div>
 				<p class="text-sm text-muted-foreground">
-					Care tasks will remind you on the day, once they arrive in Toe Beans.
+					A task with a time that's earlier than this on the day reminds you an hour before it.
 				</p>
 				<p aria-live="polite" class="text-sm empty:hidden">
 					{#if saving === 'saving'}Saving…{:else if saving === 'saved'}Saved.{:else if saving === 'failed'}<span

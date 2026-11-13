@@ -1,11 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import type { MemberViewer, Viewer } from '../application/auth/auth.js';
 import { createPlanner } from '../application/planner/planner.js';
+import { createCareTasks } from '../application/care/care-tasks.js';
 import { createToday } from '../application/today/today.js';
 import { createSessionLogs } from '../application/training-log/session-logs.js';
 import type { Exercise } from '../domain/exercise.js';
 import { createIdGenerator, type Id } from '../domain/id.js';
 import { directUnitOfWork, memoryUsers } from '../testing/auth.js';
+import { memoryCareTasks } from '../testing/care-tasks.js';
 import { manualClock } from '../testing/clock.js';
 import { memoryDogs } from '../testing/dogs.js';
 import { memoryPlannedSessions, memoryTrainingPlans } from '../testing/planner.js';
@@ -78,6 +80,7 @@ async function setup() {
 		plans: memoryTrainingPlans(now),
 		plannedSessions: memoryPlannedSessions(now),
 		sessionLogs: memorySessionLogs(now),
+		careTasks: memoryCareTasks(now),
 		dogs,
 		exercises: {
 			all: () => [recall],
@@ -92,7 +95,9 @@ async function setup() {
 	const planner = createPlanner(ports);
 	const sessionLogs = createSessionLogs(ports);
 	return {
-		http: createTodayHttp(createToday(ports, { planner, sessionLogs })),
+		http: createTodayHttp(
+			createToday(ports, { planner, sessionLogs, careTasks: createCareTasks(ports) })
+		),
 		logs: createSessionLogsHttp(sessionLogs),
 		planner: createPlannerHttp(planner),
 		dog
@@ -145,6 +150,7 @@ describe('today http', () => {
 			date: '2026-11-10',
 			overdue: [],
 			planned: [],
+			comingUp: [],
 			done: [],
 			skipped: []
 		});

@@ -11,8 +11,8 @@
 
 <script lang="ts">
 	// The floating "+" on Today, Plan and History (ui.md §2.1): a chooser sheet with *Log
-	// training* (J4: pick an exercise, then the quick log), *Record event* (J5) and *Schedule
-	// session* (J3). *Add care task* joins it with S11. New records start with the switcher's dog.
+	// training* (J4: pick an exercise, then the quick log), *Record event* (J5), *Add care task*
+	// (J6, its own page) and *Schedule session* (J3). New records start with the switcher's dog.
 	// Once one is saved, a snackbar says so with a link to it (§5.2), and the page reloads its
 	// data so it shows up. The page can put its own message in the same snackbar, such as
 	// History's *Undo* after a delete (J8).
@@ -198,6 +198,17 @@
 					() => next(() => (eventOpen = true)),
 					'Barking, a visitor, an accident…'
 				)}
+				<li>
+					<a href={resolve('/(app)/care/new')} class={row}>
+						<Icon name="vaccination" size={24} class="text-primary" />
+						<span class="flex flex-1 flex-col">
+							Add care task
+							<span class="text-sm font-normal text-muted-foreground"
+								>A vaccination, deworming, a vet visit…</span
+							>
+						</span>
+					</a>
+				</li>
 				<li>
 					<!-- scheduleHref, when given, is resolved by the page. -->
 					<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -->

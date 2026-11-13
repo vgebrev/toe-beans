@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+	addMonths,
 	addDays,
 	daysBetween,
 	instantAt,
@@ -77,5 +78,18 @@ describe('household clocks', () => {
 		expect(instantAt(d('2026-03-30'), t('07:00'), 'Europe/London')).toEqual(
 			new Date('2026-03-30T06:00:00Z')
 		);
+	});
+});
+
+describe('addMonths', () => {
+	it.each([
+		['2026-11-09', 1, '2026-12-09'],
+		['2026-11-09', 3, '2027-02-09'],
+		['2026-01-31', 1, '2026-02-28'],
+		['2028-01-31', 1, '2028-02-29'],
+		['2026-03-31', -1, '2026-02-28'],
+		['2026-11-09', 12, '2027-11-09']
+	])('%s plus %i months is %s', (date, months, expected) => {
+		expect(addMonths(date as PlainDate, months)).toBe(expected);
 	});
 });

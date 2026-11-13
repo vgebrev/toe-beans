@@ -4,6 +4,7 @@ import type { Today as TodayDto } from '@toe-beans/contracts';
 import type { Viewer } from '../application/auth/auth.js';
 import { notFound } from '../application/errors.js';
 import type { Today } from '../application/today/today.js';
+import { careTaskDto } from './care-tasks.js';
 import { sessionDto } from './planner.js';
 import { errorResponse, json, respond, type HttpResponse } from './response.js';
 import { sessionLogDto } from './session-logs.js';
@@ -23,7 +24,8 @@ export function createTodayHttp(today: Today): TodayHttp {
 					overdue: view.overdue.map((v) => sessionDto(v, timeZone)),
 					planned: view.planned.map((v) => sessionDto(v, timeZone)),
 					done: view.done.map((v) => sessionLogDto(v, timeZone)),
-					skipped: view.skipped.map((v) => sessionDto(v, timeZone))
+					skipped: view.skipped.map((v) => sessionDto(v, timeZone)),
+					comingUp: view.comingUp.map((v) => careTaskDto(v, view.date))
 				} satisfies TodayDto)
 			);
 		}

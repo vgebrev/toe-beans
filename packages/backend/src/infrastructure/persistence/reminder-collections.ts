@@ -11,18 +11,31 @@ import type {
 	ReminderRepository
 } from '../../application/ports/index.js';
 import type { Id } from '../../domain/id.js';
-import type { PushDevice, Reminder, ReminderPreference } from '../../domain/reminders.js';
+import {
+	defaultPreference,
+	type PushDevice,
+	type Reminder,
+	type ReminderPreference
+} from '../../domain/reminders.js';
 
 export const PUSH_DEVICES = 'pushDevices';
 export const REMINDER_PREFERENCES = 'reminderPreferences';
 export const REMINDERS = 'reminders';
 
 const DEVICE_SCHEMA = 1;
-const PREFERENCE_SCHEMA = 1;
+// 2 adds care reminders (D30); a schema 1 document reads with the care defaults.
+const PREFERENCE_SCHEMA = 2;
 const REMINDER_SCHEMA = 1;
 
 type DeviceDoc = Omit<PushDevice, 'id'> & { _id: Id; schemaVersion: number };
-type PreferenceDoc = Omit<ReminderPreference, 'userId'> & { _id: Id; schemaVersion: number };
+type PreferenceDoc = Omit<
+	ReminderPreference,
+	'userId' | 'care' | 'careLeadDays' | 'careTimeOfDay'
+> &
+	Partial<Pick<ReminderPreference, 'care' | 'careLeadDays' | 'careTimeOfDay'>> & {
+		_id: Id;
+		schemaVersion: number;
+	};
 type ReminderDoc = Omit<Reminder, 'id'> & { _id: Id; schemaVersion: number };
 
 const toDevice = ({ _id, schemaVersion: _, ...rest }: DeviceDoc): PushDevice => ({
@@ -30,7 +43,7 @@ const toDevice = ({ _id, schemaVersion: _, ...rest }: DeviceDoc): PushDevice => 
 	...rest
 });
 const toPreference = ({ _id, schemaVersion: _, ...rest }: PreferenceDoc): ReminderPreference => ({
-	userId: _id,
+	...defaultPreference(_id),
 	...rest
 });
 const toReminder = ({ _id, schemaVersion: _, ...rest }: ReminderDoc): Reminder => ({

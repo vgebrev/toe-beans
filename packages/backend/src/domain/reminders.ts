@@ -1,7 +1,16 @@
 // Push reminders (architecture §6, D27, FR-12): the devices a person has turned reminders on for,
 // what they want reminding of, and the ledger of reminders sent. Nothing here sends anything; the
-// worker's tick works out from the subjects themselves (planned sessions now, care tasks with S11)
-// which reminders are due, and the ledger makes each one go out once.
+// worker's tick works out from the subjects themselves (planned sessions and care tasks) which
+// reminders are due, and the ledger makes each one go out once.
+import {
+	addDays,
+	daysBetween,
+	instantAt,
+	isPlainTime,
+	type PlainDate,
+	type PlainTime
+} from './calendar.js';
+import type { CareTask } from './care-task.js';
 import type { Id } from './id.js';
 
 /** A browser's push subscription for one person (architecture §5.2 PushSubscription). */
@@ -37,6 +46,12 @@ export interface ReminderPreference {
 	training: boolean;
 	/** Minutes before the session; 0 is at the session time (ui.md §8 decision 3). */
 	trainingLeadMin: TrainingLead;
+	/** Reminders of upcoming care tasks (D30). */
+	care: boolean;
+	/** Days before the task: 0 is on the day. */
+	careLeadDays: CareLead;
+	/** When on that day, on the household's clocks. */
+	careTimeOfDay: PlainTime;
 	updatedAt?: Date;
 }
 
@@ -44,19 +59,38 @@ export interface ReminderPreference {
 export const TRAINING_LEADS = [0, 5, 10, 15, 30, 60] as const;
 export type TrainingLead = (typeof TRAINING_LEADS)[number];
 
+/** Days before a care task (D30). */
+export const CARE_LEADS = [0, 1, 2, 3, 7] as const;
+export type CareLead = (typeof CARE_LEADS)[number];
+
+export const DEFAULT_CARE_TIME = '08:00' as PlainTime;
+
+/** A timed care task earlier on the day than the care time reminds this long before it (D30). */
+export const CARE_EARLY_MS = 60 * 60_000;
+
 export const defaultPreference = (userId: Id): ReminderPreference => ({
 	userId,
 	training: true,
-	trainingLeadMin: 0
+	trainingLeadMin: 0,
+	care: true,
+	careLeadDays: 0,
+	careTimeOfDay: DEFAULT_CARE_TIME
 });
+
+export const isCareLead = (value: number): value is CareLead =>
+	(CARE_LEADS as readonly number[]).includes(value);
+
+/** A care time of day, in the tick's 5-minute steps. */
+export const isCareTime = (value: string): value is PlainTime =>
+	isPlainTime(value) && Number(value.slice(3)) % 5 === 0;
 
 export const isTrainingLead = (value: number): value is TrainingLead =>
 	(TRAINING_LEADS as readonly number[]).includes(value);
 
-/** What a reminder is about. Care tasks join with S11. */
-export type ReminderSubject = { type: 'plannedSession'; id: Id };
+/** What a reminder is about. */
+export type ReminderSubject = { type: 'plannedSession'; id: Id } | { type: 'careTask'; id: Id };
 
-export type ReminderKind = 'training' | 'test';
+export type ReminderKind = 'training' | 'care' | 'test';
 
 export type ReminderStatus = 'pending' | 'sending' | 'sent' | 'failed' | 'skipped';
 
@@ -113,7 +147,11 @@ export const TEST_DELAY_MS = 3 * 60_000;
 /** After this the settings screen asks whether the battery setting is on (ui.md J7). */
 export const TEST_OVERDUE_MS = 10 * 60_000;
 /** Push service time-to-live (architecture §6.2): a stale reminder is worse than none. */
-export const TTL_SECONDS: Record<ReminderKind, number> = { training: 60 * 60, test: 60 * 60 };
+export const TTL_SECONDS: Record<ReminderKind, number> = {
+	training: 60 * 60,
+	care: 12 * 60 * 60,
+	test: 60 * 60
+};
 /** Devices one person can register; old phones are removed on the settings screen. */
 export const DEVICES_MAX = 10;
 export const DEVICE_LABEL_MAX = 60;
@@ -127,6 +165,44 @@ export const testKey = (id: Id): string => `test:${id}`;
 /** When a training reminder is due for someone with this lead time. */
 export const trainingDueAt = (scheduledAt: Date, leadMin: number): Date =>
 	new Date(scheduledAt.getTime() - leadMin * 60_000);
+
+/**
+ * The instant a care task stands for in the ledger's key: its date and time on the household's
+ * clocks, midnight for one with no time. Moving the task makes a new key, as for a session.
+ */
+export const careSubjectAt = (
+	task: Pick<CareTask, 'dueDate' | 'dueTime'>,
+	timeZone: string
+): Date => instantAt(task.dueDate, task.dueTime ?? ('00:00' as PlainTime), timeZone);
+
+/**
+ * When a care reminder is due for someone (D30): at their care time, `careLeadDays` before the
+ * task's date. On the day itself, a timed task reminds an hour before its time instead if that's
+ * earlier, so there's always an hour's notice: a 07:30 vet visit at 06:30, an 08:30 one at 07:30.
+ *
+ * A task added or moved after that time still gets one: the care time on the day, or an hour
+ * before a timed task, whichever is the first still to come after `changedAt`. Each falls under
+ * the task's one ledger key, so a person is reminded once.
+ */
+export function careDueAt(
+	task: Pick<CareTask, 'dueDate' | 'dueTime'>,
+	pref: Pick<ReminderPreference, 'careLeadDays' | 'careTimeOfDay'>,
+	timeZone: string,
+	changedAt?: Date
+): Date {
+	const onDay = (lead: number) =>
+		instantAt(addDays(task.dueDate, -lead), pref.careTimeOfDay, timeZone).getTime();
+	const taskAt = task.dueTime ? instantAt(task.dueDate, task.dueTime, timeZone).getTime() : null;
+	const times = [onDay(pref.careLeadDays), onDay(0)];
+	if (taskAt !== null) times.push(taskAt - CARE_EARLY_MS);
+	// Nothing after a timed task has begun; the first time is the one planned.
+	const candidates = [...new Set(times)]
+		.filter((t) => taskAt === null || t < taskAt)
+		.sort((a, b) => a - b);
+	const planned = candidates[0] ?? taskAt! - CARE_EARLY_MS;
+	if (!changedAt) return new Date(planned);
+	return new Date(candidates.find((t) => t >= changedAt.getTime()) ?? planned);
+}
 
 /**
  * Whether a reminder due at `dueAt` should go out on a tick at `now`. Each tick sends what falls
@@ -221,6 +297,38 @@ export function trainingPayload(input: {
 		body: `${input.dogName} · ${input.time}`,
 		path: `sessions/${input.sessionId}`,
 		tag: `session-${input.sessionId}`
+	};
+}
+
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const WEEKDAY_NAMES = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+
+/** "today", "tomorrow" or "Tue 17 Nov", with " at 14:30" for a timed task. */
+export function careWhen(dueDate: PlainDate, dueTime: PlainTime | undefined, today: PlainDate) {
+	const days = daysBetween(today, dueDate);
+	const [, m, d] = dueDate.split('-').map(Number) as [number, number, number];
+	const weekday = WEEKDAY_NAMES[(new Date(`${dueDate}T00:00:00Z`).getUTCDay() + 6) % 7];
+	const day = days === 0 ? 'today' : days === 1 ? 'tomorrow' : `${weekday} ${d} ${MONTHS[m - 1]}`;
+	return dueTime ? `${day} at ${dueTime}` : day;
+}
+
+export function carePayload(input: {
+	reminderId: Id;
+	taskId: Id;
+	title: string;
+	dogName: string;
+	dueDate: PlainDate;
+	dueTime?: PlainTime | undefined;
+	/** Today on the household's clocks. */
+	today: PlainDate;
+}): PushPayload {
+	return {
+		reminderId: input.reminderId,
+		kind: 'care',
+		title: `Coming up: ${input.title}`,
+		body: `${input.dogName} · ${careWhen(input.dueDate, input.dueTime, input.today)}`,
+		path: `care/${input.taskId}`,
+		tag: `care-${input.taskId}`
 	};
 }
 

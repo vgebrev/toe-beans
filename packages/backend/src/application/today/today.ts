@@ -8,9 +8,10 @@
 // - Skipped: today's skipped and cancelled sessions, which never count as done. Those cancelled
 //   by archiving their dog (D24) are left out: the dog isn't in the household's day any more.
 //
-// Care (S11) adds what's coming up.
+// - Coming up: care tasks still upcoming, overdue or due within a week (D30).
 import { addDays, todayIn, zonedDateTime, type PlainDate } from '../../domain/calendar.js';
 import { ok, type Result } from '../../domain/result.js';
+import type { CareTasks, CareView } from '../care/care-tasks.js';
 import type { ValidationError } from '../errors.js';
 import type { Planner, PlannerContext, SessionView } from '../planner/planner.js';
 import type { Ports } from '../ports/index.js';
@@ -22,26 +23,39 @@ export interface TodayView {
 	planned: SessionView[];
 	done: LogView[];
 	skipped: SessionView[];
+	comingUp: CareView[];
 }
 
 export type Today = ReturnType<typeof createToday>;
 
 export function createToday(
 	{ clock }: Pick<Ports, 'clock'>,
-	{ planner, sessionLogs }: { planner: Planner; sessionLogs: SessionLogs }
+	{
+		planner,
+		sessionLogs,
+		careTasks
+	}: { planner: Planner; sessionLogs: SessionLogs; careTasks: Pick<CareTasks, 'comingUp'> }
 ) {
 	return {
 		async read(ctx: PlannerContext): Promise<Result<TodayView, ValidationError>> {
 			const now = clock.now();
 			const date = todayIn(now, ctx.timeZone);
 			// The planner's list also extends running series, so today's sessions exist.
-			const [sessions, done] = await Promise.all([
+			const [sessions, done, comingUp] = await Promise.all([
 				planner.list(ctx, { from: addDays(date, -1), to: date }),
-				sessionLogs.listOn(ctx, date)
+				sessionLogs.listOn(ctx, date),
+				careTasks.comingUp(ctx, date)
 			]);
 			if (!sessions.ok) return sessions;
 
-			const view: TodayView = { date, overdue: [], planned: [], done, skipped: [] };
+			const view: TodayView = {
+				date,
+				overdue: [],
+				planned: [],
+				done,
+				skipped: [],
+				comingUp
+			};
 			for (const entry of sessions.value) {
 				const { session } = entry;
 				const past = session.scheduledAt < now;

@@ -1,21 +1,27 @@
 // The reminder tick (architecture §6, D27, NFR-16). Each run:
 //
 // 1. extends recurring series whose sessions are running out, so tomorrow's exist to remind of;
-// 2. works out from the planned sessions which training reminders fall due before the next tick,
-//    for every member who wants them and has a device, and claims each by inserting it into the
-//    ledger under a unique key, so concurrent ticks never send one twice;
+// 2. works out from the planned sessions and the care tasks which reminders fall due before the
+//    next tick, for every member who wants them and has a device, and claims each by inserting it
+//    into the ledger under a unique key, so concurrent ticks never send one twice;
 // 3. takes up what's left: retries, tests that are due, and claims a dead tick left behind.
 //
-// Before sending, the subject is read again: a session moved, done, skipped or cancelled since
-// isn't reminded of (scenario 5). Safe to run at any time and at the same time as itself, so the
+// Before sending, the subject is read again: a session or care task moved, done, skipped or
+// cancelled since isn't reminded of (scenario 5). Safe to run at any time and at the same time as itself, so the
 // trigger can be Cloud Scheduler's POST, an in-process loop, or both (§6.3).
 import type { Planner } from '../application/planner/planner.js';
 import type { Ports } from '../application/ports/index.js';
 import type { ReminderTick, TickReport } from '../application/ports/tick.js';
 import { addDays, todayIn, zonedDateTime } from '../domain/calendar.js';
 import type { Id } from '../domain/id.js';
+import type { CareTask } from '../domain/care-task.js';
+import type { Household } from '../domain/household.js';
 import { HORIZON_DAYS } from '../domain/planner.js';
 import {
+	CARE_LEADS,
+	careDueAt,
+	carePayload,
+	careSubjectAt,
 	CLAIM_MS,
 	defaultPreference,
 	isDue,
@@ -31,7 +37,8 @@ import {
 	type PushDevice,
 	type PushPayload,
 	type Reminder,
-	type ReminderPreference
+	type ReminderPreference,
+	type ReminderSubject
 } from '../domain/reminders.js';
 
 export type { TickReport } from '../application/ports/tick.js';
@@ -44,6 +51,8 @@ export interface WorkerOptions {
 /** The most a tick takes up again in step 3, so one run stays short. */
 const BACKLOG_PER_TICK = 200;
 const MAX_LEAD_MS = Math.max(...TRAINING_LEADS) * 60_000;
+/** Care tasks are read by date: the longest lead, and a day either side for every time zone. */
+const CARE_WINDOW_DAYS = Math.max(...CARE_LEADS) + 2;
 
 type Outcome = 'sent' | 'retrying' | 'skipped' | 'failed';
 
@@ -52,6 +61,7 @@ export function createWorker(
 		households,
 		plans,
 		plannedSessions,
+		careTasks,
 		dogs,
 		exercises,
 		pushDevices,
@@ -67,6 +77,7 @@ export function createWorker(
 		| 'households'
 		| 'plans'
 		| 'plannedSessions'
+		| 'careTasks'
 		| 'dogs'
 		| 'exercises'
 		| 'pushDevices'
@@ -109,18 +120,12 @@ export function createWorker(
 	const preferenceOf = (prefs: Map<Id, ReminderPreference>, userId: Id) =>
 		prefs.get(userId) ?? defaultPreference(userId);
 
-	/** Step 2: the training reminders falling due before the next tick, claimed. */
-	async function claimTraining(now: Date): Promise<{ reminder: Reminder; claim: string }[]> {
-		const due = await plannedSessions.listPlannedAcrossHouseholds(
-			new Date(now.getTime() - LOOKBACK_MS),
-			new Date(now.getTime() + intervalMs + MAX_LEAD_MS)
-		);
-		if (due.length === 0) return [];
+	type Candidate = Omit<Reminder, 'createdAt' | 'updatedAt'>;
+
+	/** The households of these subjects, and what their members want and can receive. */
+	async function audience(householdIds: readonly Id[]) {
 		const homes = new Map(
-			(await households.findByIds([...new Set(due.map((s) => s.householdId))])).map((h) => [
-				h.id,
-				h
-			])
+			(await households.findByIds([...new Set(householdIds)])).map((h) => [h.id, h])
 		);
 		const members = [...homes.values()].flatMap((h) => h.memberships.map((m) => m.userId));
 		const [prefList, deviceList] = await Promise.all([
@@ -129,40 +134,108 @@ export function createWorker(
 		]);
 		const prefs = new Map(prefList.map((p) => [p.userId, p]));
 		const withDevices = new Set(deviceList.map((d) => d.userId));
+		/** Each member of the household with a device, and their preference. */
+		const recipients = (home: Household | undefined) =>
+			(home?.memberships ?? [])
+				.filter((m) => withDevices.has(m.userId))
+				.map((m) => preferenceOf(prefs, m.userId));
+		return { homes, recipients };
+	}
 
-		const candidates: { key: string; reminder: Omit<Reminder, 'createdAt' | 'updatedAt'> }[] = [];
+	const candidate = (
+		householdId: Id,
+		userId: Id,
+		kind: 'training' | 'care',
+		subject: ReminderSubject,
+		subjectAt: Date,
+		dueAt: Date
+	): Candidate => {
+		const key = reminderKey(subject, subjectAt, userId);
+		return {
+			id: ids.next(),
+			householdId,
+			userId,
+			kind,
+			subject,
+			subjectAt,
+			key,
+			dueAt,
+			status: 'sending',
+			attempts: 0,
+			delivered: []
+		};
+	};
+
+	/** Step 2a: training reminders falling due before the next tick. */
+	async function trainingCandidates(now: Date): Promise<Candidate[]> {
+		const due = await plannedSessions.listPlannedAcrossHouseholds(
+			new Date(now.getTime() - LOOKBACK_MS),
+			new Date(now.getTime() + intervalMs + MAX_LEAD_MS)
+		);
+		if (due.length === 0) return [];
+		const { homes, recipients } = await audience(due.map((s) => s.householdId));
+		const found: Candidate[] = [];
 		for (const session of due) {
-			const home = homes.get(session.householdId);
-			for (const { userId } of home?.memberships ?? []) {
-				const pref = preferenceOf(prefs, userId);
-				if (!pref.training || !withDevices.has(userId)) continue;
+			for (const pref of recipients(homes.get(session.householdId))) {
+				if (!pref.training) continue;
 				const dueAt = trainingDueAt(session.scheduledAt, pref.trainingLeadMin);
 				if (!isDue(dueAt, { now, intervalMs, changedAt: session.updatedAt })) continue;
 				const subject = { type: 'plannedSession' as const, id: session.id };
-				const key = reminderKey(subject, session.scheduledAt, userId);
-				candidates.push({
-					key,
-					reminder: {
-						id: ids.next(),
-						householdId: session.householdId,
-						userId,
-						kind: 'training',
+				found.push(
+					candidate(
+						session.householdId,
+						pref.userId,
+						'training',
 						subject,
-						subjectAt: session.scheduledAt,
-						key,
-						dueAt,
-						status: 'sending',
-						attempts: 0,
-						delivered: []
-					}
-				});
+						session.scheduledAt,
+						dueAt
+					)
+				);
+			}
+		}
+		return found;
+	}
+
+	/** Step 2b: care reminders falling due before the next tick (D30). */
+	async function careCandidates(now: Date): Promise<Candidate[]> {
+		const today = todayIn(now, 'UTC');
+		const due = await careTasks.listUpcomingAcrossHouseholds(
+			addDays(today, -2),
+			addDays(today, CARE_WINDOW_DAYS)
+		);
+		if (due.length === 0) return [];
+		const { homes, recipients } = await audience(due.map((t) => t.householdId));
+		const found: Candidate[] = [];
+		for (const task of due) {
+			const home = homes.get(task.householdId);
+			if (!home) continue;
+			for (const pref of recipients(home)) {
+				if (!pref.care) continue;
+				const dueAt = careDueAt(task, pref, home.timeZone, task.updatedAt);
+				if (!isDue(dueAt, { now, intervalMs, changedAt: task.updatedAt })) continue;
+				const subject = { type: 'careTask' as const, id: task.id };
+				const subjectAt = careSubjectAt(task, home.timeZone);
+				found.push(candidate(task.householdId, pref.userId, 'care', subject, subjectAt, dueAt));
+			}
+		}
+		return found;
+	}
+
+	/** Step 2: claims each reminder due, unless its key is already in the ledger. */
+	async function claimDue(now: Date): Promise<{ reminder: Reminder; claim: string }[]> {
+		const candidates: Candidate[] = [];
+		for (const source of [trainingCandidates, careCandidates]) {
+			try {
+				candidates.push(...(await source(now)));
+			} catch (err) {
+				failed('could not plan reminders', err, { source: source.name });
 			}
 		}
 		if (candidates.length === 0) return [];
 		const taken = await reminders.existingKeys(candidates.map((c) => c.key));
 		const claimed: { reminder: Reminder; claim: string }[] = [];
-		for (const { key, reminder } of candidates) {
-			if (taken.has(key)) continue;
+		for (const reminder of candidates) {
+			if (taken.has(reminder.key)) continue;
 			const claim = ids.next();
 			const lockedUntil = new Date(now.getTime() + CLAIM_MS);
 			if (await reminders.claimNew({ ...reminder, claim, lockedUntil })) {
@@ -182,6 +255,21 @@ export function createWorker(
 		if (r.kind === 'test') return testPayload(r.id);
 
 		if (!r.subject || !r.subjectAt) return { skip: 'no subject' };
+		const pref = (await reminderPreferences.find(r.userId)) ?? defaultPreference(r.userId);
+
+		if (r.subject.type === 'careTask') {
+			const task = await careTasks.findById(r.householdId, r.subject.id);
+			if (
+				!task ||
+				task.status !== 'upcoming' ||
+				careSubjectAt(task, home.timeZone).getTime() !== r.subjectAt.getTime()
+			) {
+				return { skip: 'subject changed' };
+			}
+			if (!pref.care) return { skip: 'turned off' };
+			return careReminder(r, task, home);
+		}
+
 		const session = await plannedSessions.findById(r.householdId, r.subject.id);
 		if (
 			!session ||
@@ -190,7 +278,6 @@ export function createWorker(
 		) {
 			return { skip: 'subject changed' };
 		}
-		const pref = (await reminderPreferences.find(r.userId)) ?? defaultPreference(r.userId);
 		if (!pref.training) return { skip: 'turned off' };
 		const dog = await dogs.findById(r.householdId, session.dogId);
 		if (!dog || dog.archivedAt) return { skip: 'subject changed' };
@@ -200,6 +287,25 @@ export function createWorker(
 			exerciseTitle: exercises.get(session.exerciseId)?.title ?? 'Training',
 			dogName: dog.name,
 			time: zonedDateTime(session.scheduledAt, home.timeZone).time
+		});
+	}
+
+	/** A care task's reminder, unless its dog is archived: its tasks wait for it (D30). */
+	async function careReminder(
+		r: Reminder,
+		task: CareTask,
+		home: Household
+	): Promise<PushPayload | { skip: string }> {
+		const dog = await dogs.findById(r.householdId, task.dogId);
+		if (!dog || dog.archivedAt) return { skip: 'subject changed' };
+		return carePayload({
+			reminderId: r.id,
+			taskId: task.id,
+			title: task.title,
+			dogName: dog.name,
+			dueDate: task.dueDate,
+			dueTime: task.dueTime,
+			today: todayIn(clock.now(), home.timeZone)
 		});
 	}
 
@@ -330,10 +436,10 @@ export function createWorker(
 			failed('could not extend series', err);
 		}
 		try {
-			const fresh = await claimTraining(now);
+			const fresh = await claimDue(now);
 			await Promise.all(fresh.map(({ reminder, claim }) => attempt(reminder, claim)));
 		} catch (err) {
-			failed('could not plan training reminders', err);
+			failed('could not plan reminders', err);
 		}
 		for (let i = 0; i < BACKLOG_PER_TICK; i++) {
 			const claim = ids.next();

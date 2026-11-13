@@ -106,10 +106,23 @@ describe('reminders http', () => {
 		const { http } = setup();
 		expect(await http.savePreference(viewer, { body: { trainingLeadMin: 30 } })).toMatchObject({
 			status: 200,
-			body: { training: true, trainingLeadMin: 30 }
+			body: {
+				training: true,
+				trainingLeadMin: 30,
+				care: true,
+				careLeadDays: 0,
+				careTimeOfDay: '08:00'
+			}
 		});
+		expect(
+			await http.savePreference(viewer, { body: { careLeadDays: 1, careTimeOfDay: '19:30' } })
+		).toMatchObject({ status: 200, body: { careLeadDays: 1, careTimeOfDay: '19:30' } });
 		expect((await http.savePreference(viewer, { body: { trainingLeadMin: 20 } })).status).toBe(400);
-		expect((await http.savePreference(viewer, { body: { careLeadDays: 1 } })).status).toBe(400);
+		expect((await http.savePreference(viewer, { body: { careLeadDays: 5 } })).status).toBe(400);
+		expect((await http.savePreference(viewer, { body: { careTimeOfDay: '8am' } })).status).toBe(
+			400
+		);
+		expect((await http.savePreference(viewer, { body: { quietHours: true } })).status).toBe(400);
 	});
 
 	it('starts a test and reports its arrival', async () => {

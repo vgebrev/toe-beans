@@ -161,13 +161,59 @@ test('lead time and turning training reminders off are saved, and say so', async
 	await fakePushInBrowser(page, sub);
 	await turnOn(page);
 
-	await page.getByLabel('Remind me').selectOption({ label: '15 minutes before' });
+	await page
+		.getByLabel('Remind me of training sessions')
+		.selectOption({ label: '15 minutes before' });
 	await expect(page.getByText('Saved.')).toBeVisible();
 	await page.getByRole('switch', { name: 'Training sessions' }).click();
 	await expect(page.getByText('Saved.')).toBeVisible();
 	const settings = await (await page.request.get('/api/v1/reminders')).json();
-	expect(settings.preference).toEqual({ training: false, trainingLeadMin: 15 });
-	await expect(page.getByLabel('Remind me')).toBeDisabled();
+	expect(settings.preference).toMatchObject({ training: false, trainingLeadMin: 15 });
+	await expect(page.getByLabel('Remind me of training sessions')).toBeDisabled();
+});
+
+test('care reminders: days before and the time of day are saved, and one arrives (D30)', async ({
+	page,
+	baseURL
+}) => {
+	const dog = await household(page, baseURL!);
+	const sub = fakeSubscription();
+	await fakePushInBrowser(page, sub);
+	await turnOn(page);
+
+	await page.getByLabel('Remind me of care tasks').selectOption({ label: 'The day before' });
+	await expect(page.getByText('Saved.')).toBeVisible();
+	const mark = await nextMark();
+	await page.getByLabel('Care reminder time').fill(onClock(mark).time);
+	await page.getByLabel('Care reminder time').blur();
+	await expect
+		.poll(async () => (await (await page.request.get('/api/v1/reminders')).json()).preference)
+		.toMatchObject({ care: true, careLeadDays: 1, careTimeOfDay: onClock(mark).time });
+
+	// Due tomorrow with no time: reminded today at the care time, the day before.
+	const tomorrow = onClock(new Date(mark.getTime() + 24 * 60 * 60_000)).date;
+	const created = await page.request.post('/api/v1/care-tasks', {
+		headers: json(baseURL!),
+		data: JSON.stringify({ dogId: dog.id, category: 'vaccination', dueDate: tomorrow })
+	});
+	expect(created.status()).toBe(201);
+	const task = (await created.json()) as { id: string };
+	await page.goto('about:blank');
+	await runTick(page);
+
+	const [push, ...more] = await pushesFor(sub);
+	expect(more).toEqual([]);
+	expect(push!.headers).toMatchObject({ ttl: '43200', urgency: 'high' });
+	expect(push!.payload).toEqual({
+		reminderId: expect.any(String),
+		kind: 'care',
+		title: 'Coming up: Vaccination',
+		body: 'Ripley · tomorrow',
+		path: `care/${task.id}`,
+		tag: `care-${task.id}`
+	});
+	await runTick(page);
+	expect(await pushesFor(sub)).toHaveLength(1);
 });
 
 test('the delayed test: due in 3 minutes, and the service worker reports its arrival', async ({

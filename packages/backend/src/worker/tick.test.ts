@@ -1,10 +1,12 @@
 import { describe, expect, it } from 'vitest';
+import { createCareTasks } from '../application/care/care-tasks.js';
 import { createPlanner, type PlannerContext } from '../application/planner/planner.js';
 import type { Exercise } from '../domain/exercise.js';
 import type { Household } from '../domain/household.js';
 import { createIdGenerator, type Id } from '../domain/id.js';
-import { CLAIM_MS, testKey } from '../domain/reminders.js';
+import { CLAIM_MS, defaultPreference, testKey } from '../domain/reminders.js';
 import { directUnitOfWork, memoryUsers } from '../testing/auth.js';
+import { memoryCareTasks } from '../testing/care-tasks.js';
 import { manualClock } from '../testing/clock.js';
 import { memoryDogs } from '../testing/dogs.js';
 import { memoryHouseholds } from '../testing/household.js';
@@ -82,6 +84,7 @@ async function setup() {
 		plans: memoryTrainingPlans(now),
 		plannedSessions: memoryPlannedSessions(now),
 		sessionLogs: memorySessionLogs(now),
+		careTasks: memoryCareTasks(now),
 		dogs,
 		exercises: {
 			all: () => [exercise],
@@ -119,8 +122,19 @@ async function setup() {
 		if (!made.ok) throw new Error(JSON.stringify(made.error));
 		return made.value.session;
 	};
+	const care = createCareTasks(ports);
+	const addCare = async (dueDate: string, dueTime?: string) => {
+		const made = await care.create(ctx, {
+			dogId: dog.id,
+			category: 'vaccination',
+			dueDate,
+			...(dueTime && { dueTime })
+		});
+		if (!made.ok) throw new Error(JSON.stringify(made.error));
+		return made.value.task;
+	};
 	const sentTo = () => ports.push.sent.map((s) => s.endpoint.split('/').at(-1));
-	return { clock, ports, planner, worker, dog, device, schedule, sentTo, ids };
+	return { clock, ports, planner, worker, dog, device, schedule, sentTo, ids, care, addCare };
 }
 
 describe('training reminders', () => {
@@ -168,8 +182,11 @@ describe('training reminders', () => {
 		const { worker, device, schedule, ports, sentTo, clock } = await setup();
 		await device(sam, 'sam');
 		await device(alex, 'alex');
-		await ports.reminderPreferences.save({ userId: sam, training: true, trainingLeadMin: 30 });
-		await ports.reminderPreferences.save({ userId: alex, training: false, trainingLeadMin: 0 });
+		await ports.reminderPreferences.save({
+			...defaultPreference(sam),
+			trainingLeadMin: 30
+		});
+		await ports.reminderPreferences.save({ ...defaultPreference(alex), training: false });
 		await schedule('2026-11-10', '18:00');
 
 		clock.set('2026-11-10T15:30:00Z');
@@ -389,6 +406,131 @@ describe('training reminders', () => {
 		expect(last()).toBe('2026-12-16');
 		clock.set('2026-11-25T15:30:00Z');
 		expect(await worker.tick()).toMatchObject({ extended: 0, sent: 1 });
+	});
+});
+
+describe('care reminders (D30)', () => {
+	it('come at 08:00 on the day by default, with what, which dog and when', async () => {
+		const { worker, device, addCare, ports, clock } = await setup();
+		await device(sam, 'phone');
+		const task = await addCare('2026-11-12');
+
+		clock.set('2026-11-12T05:55:00Z'); // 07:55: the next tick is due at 08:00
+		expect((await worker.tick()).sent).toBe(0);
+		clock.set('2026-11-12T06:00:00Z');
+		expect((await worker.tick()).sent).toBe(1);
+		expect(ports.push.sent[0]!.payload).toEqual({
+			reminderId: expect.any(String),
+			kind: 'care',
+			title: 'Coming up: Vaccination',
+			body: 'Ripley · today',
+			path: `care/${task.id}`,
+			tag: `care-${task.id}`
+		});
+		expect(ports.push.sent[0]!.ttlSeconds).toBe(12 * 3600);
+		clock.set('2026-11-12T06:05:00Z');
+		await worker.tick();
+		expect(ports.push.sent).toHaveLength(1);
+	});
+
+	it('follow each person’s lead days and time of day', async () => {
+		const { worker, device, addCare, ports, sentTo, clock } = await setup();
+		await device(sam, 'sam');
+		await device(alex, 'alex');
+		await ports.reminderPreferences.save({
+			...defaultPreference(sam),
+			careLeadDays: 1,
+			careTimeOfDay: '19:00' as never
+		});
+		await ports.reminderPreferences.save({ ...defaultPreference(alex), care: false });
+		await addCare('2026-11-13', '10:30');
+
+		clock.set('2026-11-12T17:00:00Z'); // Thursday 19:00
+		await worker.tick();
+		expect(sentTo()).toEqual(['sam']);
+		expect(ports.push.sent[0]!.payload.body).toBe('Ripley · tomorrow at 10:30');
+		clock.set('2026-11-13T06:00:00Z');
+		await worker.tick();
+		expect(sentTo()).toEqual(['sam']);
+	});
+
+	it('come an hour before a timed task that’s earlier than the care time', async () => {
+		const { worker, device, addCare, sentTo, clock } = await setup();
+		await device(sam, 'phone');
+		await addCare('2026-11-12', '07:30');
+
+		clock.set('2026-11-12T04:30:00Z'); // 06:30
+		await worker.tick();
+		expect(sentTo()).toEqual(['phone']);
+	});
+
+	it('still come on the day for a task added after its lead time', async () => {
+		const { worker, device, addCare, ports, sentTo, clock } = await setup();
+		await device(sam, 'phone');
+		await ports.reminderPreferences.save({ ...defaultPreference(sam), careLeadDays: 7 });
+		// Added on Tuesday for Friday afternoon: last Friday's 08:00 has gone.
+		await addCare('2026-11-13', '15:00');
+
+		clock.set('2026-11-13T06:00:00Z'); // Friday 08:00
+		await worker.tick();
+		expect(sentTo()).toEqual(['phone']);
+	});
+
+	it('follow a task moved to another day, and stop for one completed or cancelled (scenario 5)', async () => {
+		const { worker, device, addCare, care, sentTo, clock } = await setup();
+		await device(sam, 'phone');
+		const moved = await addCare('2026-11-12');
+		const done = await addCare('2026-11-12');
+		const cancelled = await addCare('2026-11-12');
+		await care.update(ctx, {
+			id: moved.id,
+			expectedVersion: 1,
+			changes: { dueDate: '2026-11-14' }
+		});
+		await care.complete(ctx, { id: done.id, expectedVersion: 1 });
+		await care.update(ctx, {
+			id: cancelled.id,
+			expectedVersion: 1,
+			changes: { status: 'cancelled' }
+		});
+
+		clock.set('2026-11-12T06:00:00Z');
+		await worker.tick();
+		expect(sentTo()).toEqual([]);
+		clock.set('2026-11-14T06:00:00Z');
+		await worker.tick();
+		expect(sentTo()).toEqual(['phone']);
+	});
+
+	it("aren't sent if the task moves between the claim and the send", async () => {
+		const { worker, device, addCare, care, ports, clock } = await setup();
+		await device(sam, 'phone');
+		const task = await addCare('2026-11-12');
+		ports.push.answers.set('https://fcm.googleapis.com/fcm/send/phone', {
+			kind: 'failed',
+			reason: 'push 503'
+		});
+		clock.set('2026-11-12T06:00:00Z');
+		expect(await worker.tick()).toMatchObject({ retrying: 1 });
+		ports.push.answers.clear();
+		await care.update(ctx, { id: task.id, expectedVersion: 1, changes: { dueDate: '2026-11-20' } });
+		clock.set('2026-11-12T06:01:00Z');
+		await worker.tick();
+
+		expect(ports.reminders.all()).toMatchObject([
+			{ status: 'skipped', lastError: 'subject changed' }
+		]);
+	});
+
+	it('wait while the dog is archived', async () => {
+		const { worker, device, addCare, ports, dog, clock } = await setup();
+		await device(sam, 'phone');
+		await addCare('2026-11-12');
+		await ports.dogs.update(h1, dog.id, 1, { archivedAt: start });
+
+		clock.set('2026-11-12T06:00:00Z');
+		await worker.tick();
+		expect(ports.push.sent).toHaveLength(0);
 	});
 });
 

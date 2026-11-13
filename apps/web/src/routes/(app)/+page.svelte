@@ -1,13 +1,15 @@
 <script lang="ts">
 	// Today (ui.md §4.1, FR-06): what to do today, for the switcher's dog or all of them. Overdue
 	// (today's and yesterday's still planned), Planned by time, Done (every practice logged today,
-	// with how it went and who practised), and Skipped collapsed. A planned card opens the session;
+	// with how it went and who practised), Skipped collapsed, and Coming up: care tasks overdue or
+	// due within a week (architecture D30). A planned card opens the session;
 	// *Log* opens the quick log (§4.2) straight away. There are no live updates (NFR-13): the day
 	// is fetched again whenever the app comes back to the front, so it's never a morning stale.
 	import { onMount } from 'svelte';
 	import { invalidateAll } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import type { Dog, PlannedSession } from '@toe-beans/contracts';
+	import CareCard from '#lib/components/care/CareCard.svelte';
 	import Icon from '#lib/components/icon/Icon.svelte';
 	import RemindersBanner from '#lib/components/push/RemindersBanner.svelte';
 	import SessionCard from '#lib/components/planner/SessionCard.svelte';
@@ -37,7 +39,8 @@
 	const planned = $derived(mine(day?.planned ?? []));
 	const done = $derived(mine(day?.done ?? []));
 	const skipped = $derived(mine(day?.skipped ?? []));
-	const nothing = $derived(overdue.length + planned.length + done.length + skipped.length === 0);
+	const comingUp = $derived(mine(day?.comingUp ?? []));
+	const training = $derived(overdue.length + planned.length + done.length + skipped.length);
 
 	// In the device's locale (ui.md §5.4), which the server can't know, so it's formatted here.
 	let date = $state('');
@@ -109,25 +112,26 @@
 			<p role="alert" class="rounded-2xl border border-border bg-soft px-4 py-3">
 				Couldn't load today — check your connection, then reload.
 			</p>
-		{:else if nothing}
-			<EmptyState
-				icon="paw"
-				title="Nothing planned today"
-				text="Plan a short session with one of the library’s exercises, and it shows up here on the day."
-			/>
-			<div class="flex flex-col gap-3">
-				<!-- scheduleHref resolves the route; the query picks the date. -->
-				<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -->
-				<a href={scheduleHref} class={buttonVariants()}>
-					<Icon name="schedule" />
-					Schedule
-				</a>
-				<a href={resolve('/(app)/library')} class={buttonVariants({ variant: 'outline' })}>
-					<Icon name="library" />
-					Browse the library
-				</a>
-			</div>
 		{:else}
+			{#if training === 0}
+				<EmptyState
+					icon="paw"
+					title="Nothing planned today"
+					text="Plan a short session with one of the library’s exercises, and it shows up here on the day."
+				/>
+				<div class="flex flex-col gap-3">
+					<!-- scheduleHref resolves the route; the query picks the date. -->
+					<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -->
+					<a href={scheduleHref} class={buttonVariants()}>
+						<Icon name="schedule" />
+						Schedule
+					</a>
+					<a href={resolve('/(app)/library')} class={buttonVariants({ variant: 'outline' })}>
+						<Icon name="library" />
+						Browse the library
+					</a>
+				</div>
+			{/if}
 			{#if overdue.length > 0}
 				<section aria-labelledby="overdue-heading" class="flex flex-col gap-3">
 					<h2
@@ -190,6 +194,17 @@
 						{/each}
 					</ul>
 				</details>
+			{/if}
+
+			{#if comingUp.length > 0}
+				<section aria-labelledby="coming-up-heading" class="flex flex-col gap-3">
+					<h2 id="coming-up-heading" class="font-display text-lg font-semibold">Coming up</h2>
+					<ul class="flex flex-col gap-3">
+						{#each comingUp as task (task.id)}
+							<li><CareCard {task} dog={dogOf(task.dogId)} today={day.date} /></li>
+						{/each}
+					</ul>
+				</section>
 			{/if}
 		{/if}
 	</div>

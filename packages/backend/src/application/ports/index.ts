@@ -6,6 +6,7 @@ import type {
 	UserRepository
 } from './auth-repositories.js';
 import type { BehaviourEventRepository } from './behaviour-event-repository.js';
+import type { CareTaskRepository } from './care-task-repository.js';
 import type { Clock } from './clock.js';
 import type { CueRepository } from './cue-repository.js';
 import type { DogRepository, PhotoProcessor, PhotoStore } from './dog-ports.js';
@@ -40,6 +41,7 @@ export type {
 	BehaviourEventRepository,
 	NewBehaviourEvent
 } from './behaviour-event-repository.js';
+export type { CareTaskChanges, CareTaskRepository, NewCareTask } from './care-task-repository.js';
 export type { Clock } from './clock.js';
 export type { CueChanges, CueRepository, NewCue } from './cue-repository.js';
 export type {
@@ -131,6 +133,8 @@ export interface Ports {
 	sessionLogs: SessionLogRepository;
 	/** Notable moments with a dog, outside training (FR-08). */
 	behaviourEvents: BehaviourEventRepository;
+	/** Dog-specific care tasks: vaccinations, vet visits and the like (FR-10). */
+	careTasks: CareTaskRepository;
 	/** Browsers people turned reminders on in (FR-12). */
 	pushDevices: PushDeviceRepository;
 	/** What each person wants reminding of. */

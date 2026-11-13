@@ -9,6 +9,8 @@ import {
 	defaultPreference,
 	DEVICES_MAX,
 	isAllowedEndpoint,
+	isCareLead,
+	isCareTime,
 	isTrainingLead,
 	TEST_DELAY_MS,
 	TEST_OVERDUE_MS,
@@ -32,6 +34,9 @@ export interface DeviceInput {
 export interface PreferenceInput {
 	training?: boolean | undefined;
 	trainingLeadMin?: number | undefined;
+	care?: boolean | undefined;
+	careLeadDays?: number | undefined;
+	careTimeOfDay?: string | undefined;
 }
 
 /** The latest test, as the settings screen shows it. */
@@ -142,18 +147,23 @@ export function createReminderSettings(
 		): Promise<Result<ReminderPreference, ValidationError>> {
 			const current = (await reminderPreferences.find(ctx.userId)) ?? defaultPreference(ctx.userId);
 			const lead = input.trainingLeadMin ?? current.trainingLeadMin;
-			if (!isTrainingLead(lead)) {
-				return err(
-					validationError('The reminder time is not valid.', {
-						trainingLeadMin: ['Choose one of the times offered.']
-					})
-				);
+			const careLead = input.careLeadDays ?? current.careLeadDays;
+			const careTime = input.careTimeOfDay ?? current.careTimeOfDay;
+			const fields: Record<string, string[]> = {};
+			if (!isTrainingLead(lead)) fields.trainingLeadMin = ['Choose one of the times offered.'];
+			if (!isCareLead(careLead)) fields.careLeadDays = ['Choose one of the days offered.'];
+			if (!isCareTime(careTime)) fields.careTimeOfDay = ['Choose a time in 5-minute steps.'];
+			if (!isTrainingLead(lead) || !isCareLead(careLead) || !isCareTime(careTime)) {
+				return err(validationError('The reminder time is not valid.', fields));
 			}
 			return ok(
 				await reminderPreferences.save({
 					userId: ctx.userId,
 					training: input.training ?? current.training,
 					trainingLeadMin: lead,
+					care: input.care ?? current.care,
+					careLeadDays: careLead,
+					careTimeOfDay: careTime,
 					updatedAt: clock.now()
 				})
 			);

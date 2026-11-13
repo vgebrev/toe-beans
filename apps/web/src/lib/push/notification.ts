@@ -4,7 +4,7 @@
 
 export interface PushPayload {
 	reminderId: string;
-	kind: 'training' | 'test';
+	kind: 'training' | 'care' | 'test';
 	title: string;
 	body: string;
 	/** In the app, no leading slash, e.g. `sessions/…`. */

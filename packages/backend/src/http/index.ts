@@ -6,6 +6,7 @@ import { createCues } from '../application/cues/cues.js';
 import { createDogs } from '../application/dogs/dogs.js';
 import { createExercises } from '../application/exercises/exercises.js';
 import { createBehaviourEvents } from '../application/journal/behaviour-events.js';
+import { createCareTasks } from '../application/care/care-tasks.js';
 import { createHistory } from '../application/history/history.js';
 import { createHouseholds } from '../application/household/household.js';
 import { createInvitations } from '../application/household/invitations.js';
@@ -18,6 +19,7 @@ import { createSessionLogs } from '../application/training-log/session-logs.js';
 import { createAccountHttp, type AccountHttp } from './account.js';
 import { createBehaviourEventsHttp, type BehaviourEventsHttp } from './behaviour-events.js';
 import { CALLBACK_PATH, createAuthHttp, type AuthHttp } from './auth.js';
+import { createCareTasksHttp, type CareTasksHttp } from './care-tasks.js';
 import { createCuesHttp, type CuesHttp } from './cues.js';
 import { createDogsHttp, type DogsHttp } from './dogs.js';
 import { createExercisesHttp, type ExercisesHttp } from './exercises.js';
@@ -41,6 +43,7 @@ export interface Http {
 	planner: PlannerHttp;
 	sessionLogs: SessionLogsHttp;
 	behaviourEvents: BehaviourEventsHttp;
+	careTasks: CareTasksHttp;
 	today: TodayHttp;
 	history: HistoryHttp;
 	reminders: RemindersHttp;
@@ -68,6 +71,7 @@ export function createHttp(
 	const planner = createPlanner(ports);
 	const sessionLogs = createSessionLogs(ports);
 	const behaviourEvents = createBehaviourEvents(ports);
+	const careTasks = createCareTasks(ports);
 	return {
 		health: createHealthHttp(ports),
 		auth: createAuthHttp(auth, {
@@ -87,7 +91,8 @@ export function createHttp(
 		planner: createPlannerHttp(planner),
 		sessionLogs: createSessionLogsHttp(sessionLogs),
 		behaviourEvents: createBehaviourEventsHttp(behaviourEvents),
-		today: createTodayHttp(createToday(ports, { planner, sessionLogs })),
+		careTasks: createCareTasksHttp(careTasks, ports.clock),
+		today: createTodayHttp(createToday(ports, { planner, sessionLogs, careTasks })),
 		history: createHistoryHttp(createHistory(ports, { sessionLogs, behaviourEvents })),
 		reminders: createRemindersHttp(
 			createReminderSettings(ports, { allowedEndpoints: allowedPushEndpoints })

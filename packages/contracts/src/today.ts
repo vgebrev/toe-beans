@@ -1,5 +1,6 @@
 // The Today read model: /api/v1/today (architecture §5.1, D26, FR-06).
 import { z } from 'zod';
+import { CareTask } from './care-tasks.js';
 import { PlannedSession } from './planner.js';
 import { SessionLog } from './session-logs.js';
 
@@ -14,6 +15,8 @@ export const Today = z.object({
 	/** Every practice logged today, planned or ad hoc. */
 	done: z.array(SessionLog),
 	/** Today's skipped and cancelled sessions, which never count as done. */
-	skipped: z.array(PlannedSession)
+	skipped: z.array(PlannedSession),
+	/** Care tasks still upcoming: overdue ones, and those due within 7 days (D30). */
+	comingUp: z.array(CareTask)
 });
 export type Today = z.infer<typeof Today>;

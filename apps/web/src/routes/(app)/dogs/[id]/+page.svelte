@@ -188,8 +188,9 @@
 						>
 						<Sheet.Description class="text-base">
 							{dog.name}'s training, events and care stay in History. Their planned sessions are
-							cancelled. They leave the dog switcher and can't be picked for new records. You can
-							bring them back from their profile, and their sessions still ahead with them.
+							cancelled, and their care tasks set aside with no reminders. They leave the dog
+							switcher and can't be picked for new records. You can bring them back from their
+							profile, with their sessions still ahead and their care tasks.
 						</Sheet.Description>
 					</Sheet.Header>
 					{#if archiveStatus === 'failed'}

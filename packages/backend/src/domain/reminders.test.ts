@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
+import type { PlainDate, PlainTime } from './calendar.js';
 import {
 	arePushKeys,
+	careDueAt,
+	careWhen,
 	cleanDeviceLabel,
 	isAllowedEndpoint,
 	isDue,
@@ -89,5 +92,67 @@ describe('the rest', () => {
 		expect(cleanDeviceLabel('')).toBe('This device');
 		expect(cleanDeviceLabel(undefined)).toBe('This device');
 		expect(cleanDeviceLabel('x'.repeat(100))).toHaveLength(60);
+	});
+});
+
+describe('careDueAt (D30)', () => {
+	const tz = 'Africa/Johannesburg';
+	const task = (dueDate: string, dueTime?: string) => ({
+		dueDate: dueDate as PlainDate,
+		...(dueTime && { dueTime: dueTime as PlainTime })
+	});
+	const pref = (careLeadDays: 0 | 1 | 7, careTimeOfDay = '08:00') => ({
+		careLeadDays,
+		careTimeOfDay: careTimeOfDay as PlainTime
+	});
+	const iso = (d: Date) => d.toISOString();
+
+	it('is the care time on the day, or the lead days before', () => {
+		expect(iso(careDueAt(task('2026-11-12'), pref(0), tz))).toBe('2026-11-12T06:00:00.000Z');
+		expect(iso(careDueAt(task('2026-11-12', '14:30'), pref(0), tz))).toBe(
+			'2026-11-12T06:00:00.000Z'
+		);
+		expect(iso(careDueAt(task('2026-11-12', '14:30'), pref(1, '19:00'), tz))).toBe(
+			'2026-11-11T17:00:00.000Z'
+		);
+	});
+
+	it('is an hour before a timed task when that’s earlier than the care time', () => {
+		expect(iso(careDueAt(task('2026-11-12', '07:30'), pref(0), tz))).toBe(
+			'2026-11-12T04:30:00.000Z'
+		);
+		expect(iso(careDueAt(task('2026-11-12', '08:30'), pref(0), tz))).toBe(
+			'2026-11-12T05:30:00.000Z'
+		);
+		expect(iso(careDueAt(task('2026-11-12', '09:00'), pref(0), tz))).toBe(
+			'2026-11-12T06:00:00.000Z'
+		);
+	});
+
+	it('falls back to the day, then an hour before, for a task changed after its time', () => {
+		const t = task('2026-11-13', '15:00');
+		expect(iso(careDueAt(t, pref(7), tz, new Date('2026-11-10T15:00:00Z')))).toBe(
+			'2026-11-13T06:00:00.000Z'
+		);
+		expect(iso(careDueAt(t, pref(7), tz, new Date('2026-11-13T07:00:00Z')))).toBe(
+			'2026-11-13T12:00:00.000Z'
+		);
+		// Nothing left to come: the planned time, which isDue then refuses as before the change.
+		expect(iso(careDueAt(task('2026-11-13'), pref(0), tz, new Date('2026-11-13T07:00:00Z')))).toBe(
+			'2026-11-13T06:00:00.000Z'
+		);
+	});
+});
+
+describe('careWhen', () => {
+	const today = '2026-11-10' as PlainDate;
+	it.each([
+		['2026-11-10', undefined, 'today'],
+		['2026-11-10', '14:30', 'today at 14:30'],
+		['2026-11-11', undefined, 'tomorrow'],
+		['2026-11-17', '09:00', 'Tue 17 Nov at 09:00'],
+		['2026-11-08', undefined, 'Sun 8 Nov']
+	])('%s %s is "%s"', (date, time, expected) => {
+		expect(careWhen(date as PlainDate, time as PlainTime | undefined, today)).toBe(expected);
 	});
 });

@@ -37,7 +37,10 @@ export const deviceDto = (d: PushDevice): DeviceDto => ({
 
 const preferenceDto = (p: ReminderPreference): PreferenceDto => ({
 	training: p.training,
-	trainingLeadMin: p.trainingLeadMin
+	trainingLeadMin: p.trainingLeadMin,
+	care: p.care,
+	careLeadDays: p.careLeadDays,
+	careTimeOfDay: p.careTimeOfDay
 });
 
 const testDto = ({ reminder: r, overdue }: TestView): TestDto => ({

@@ -31,6 +31,20 @@ const fromUtc = (ms: number): PlainDate => new Date(ms).toISOString().slice(0, 1
 export const addDays = (date: PlainDate, days: number): PlainDate =>
 	fromUtc(utcMidnight(date) + days * DAY_MS);
 
+/**
+ * The same day of the month `months` later (or earlier), or the month's last day when it's
+ * shorter: 31 January plus a month is 28 or 29 February.
+ */
+export function addMonths(date: PlainDate, months: number): PlainDate {
+	const [y, m, d] = date.split('-').map(Number) as [number, number, number];
+	const first = new Date(Date.UTC(y, m - 1 + months, 1));
+	const lastDay = new Date(
+		Date.UTC(first.getUTCFullYear(), first.getUTCMonth() + 1, 0)
+	).getUTCDate();
+	first.setUTCDate(Math.min(d, lastDay));
+	return fromUtc(first.getTime());
+}
+
 /** Whole days from `from` to `to`: negative when `to` is earlier. */
 export const daysBetween = (from: PlainDate, to: PlainDate): number =>
 	Math.round((utcMidnight(to) - utcMidnight(from)) / DAY_MS);

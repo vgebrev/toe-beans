@@ -1,8 +1,8 @@
 # Toe Beans — Backlog
 
-**Version:** 0.36 (draft for iteration)
+**Version:** 0.37 (draft for iteration)
 **Date:** 13 November 2026
-**Inputs:** `docs/requirements.md` v1.0, `docs/architecture.md` v1.17, `docs/ui.md` v0.25
+**Inputs:** `docs/requirements.md` v1.0, `docs/architecture.md` v1.18, `docs/ui.md` v0.26
 
 **Changes in 0.3:** spike results S-1.0 to S-1.4 and S0.1–S0.2 recorded as they landed (see Current progress). S-1.4b dropped as not needed, S-1.5 parked, S-1.4a retargeted to `toebeans.co.za`.
 
@@ -55,6 +55,8 @@
 **Changes in 0.35:** S10.1 and S10.2 built (architecture 1.17 D29, ui 0.24 §4.4, J8). S10.1's dog filter is the switcher, and its type filter offers each kind of event too (FR-09's "event type"); S10.2's purge job is a TTL index rather than a job. S10.3 added, trying it on a phone, as for earlier slices. Inputs moved to architecture 1.17 and ui 0.24.
 
 **Changes in 0.36:** S10 done: the owner tried it on a phone (S10.3), which prompted relabelling History's *Show* filter (*All types*, *Any event*; ui 0.25 §4.4). Inputs moved to ui 0.25.
+
+**Changes in 0.37:** S11.1–S11.3 built (architecture 1.18 D30, ui 0.26 J6, J7). S11.1 gains planning the next task on completion, the owner's answer to repeating care. S11.4 added, trying it on a phone, as for earlier slices. Inputs moved to architecture 1.18 and ui 0.26.
 
 **Changes in 0.21:** S2 and S3 done: the owner tested both on the phones in Chrome, including S3.5's photo flow and the Android share sheet. The installed PWA wasn't part of it; that's S13.
 
@@ -143,8 +145,9 @@ Work is organised as **vertical slices**: each delivers a usable end-to-end incr
 | 2026-11-13 | S9 done. The owner tried it on a phone (S9.2): everything worked. Bottom sheets touched the phone's button bar in the installed app: each sheet's own padding replaced the shared sheet's safe-area padding, so their last 1 rem sat under the bar. The shared sheet now clears it with a bottom border in its own colour (ui 0.23). |
 | 2026-11-13 | S10.1–S10.2 built. `GET /api/v1/history` merges logs and events newest first, 30 a page with a cursor of the last entry's time and ID, filtered by dog, type (training, events or one kind of event, the owner's call for FR-09's "event type"), exercise and dates on the household's clocks (D29). History: the switcher as the dog filter, *Show*, *Exercise* and *Dates* filter buttons kept in the URL, cards under day headings, *Load more*, a failed load with *Try again*. Soft delete (D29, §5.3): `DELETE` with If-Match answers the deleted version, `POST …/restore` is *Undo*. Deleting a planned session's log puts the session back in the plan (cancelled with an archived dog) and *Undo* completes it again unless it was logged, skipped or cancelled meanwhile, both the owner's call. *Delete this log* / *Delete this event* on the detail pages confirm by name, then History's snackbar offers *Undo*. The purge is a 30-day TTL index on `deletedAt` (migration 0010, which also indexes logs by dog). e2e: FR-09's timeline and each filter, *Load more*, a planned log deleted and undone, an event deleted after a conflict and a failed delete, a failed load, and scenario 9 for listing, delete and restore. 683 unit, 140 integration and 205 e2e tests; a household join test timed out once under the full parallel run and passed alone (not this slice's code). Not yet tried on a phone (S10.3). |
 | 2026-11-13 | S10 done. The owner tried it on a phone (S10.3): everything worked. The *Show* filter's *Everything* and *All events* read as the same thing, so they became *All types* (the other filters' *All …*) and *Any event* (ui 0.25 §4.4). |
+| 2026-11-13 | S11.1–S11.3 built, on the owner's calls (D30): no care series, but *Mark done* can plan the next one (1, 3 or 12 months on, or a date) in the same transaction; overdue tasks stay on Care and Today's *Coming up*; an archived dog's tasks are set aside untouched rather than cancelled; reminders are day-based. `/api/v1/care-tasks` with If-Match and an append-only history (migration 0011, household-isolation suite). Care (*Overdue*, *Coming up*, *Done and cancelled*), the add and change pages, the task page with *Mark done*, *Cancel…*, *Put it back* and the cancelled landing; *Add care task* in the "+"; *Coming up* on Today. Care tasks are the tick's second source: at the person's care time (08:00) on the day or 1, 2, 3 or 7 days before, an hour before a timed task when that's earlier, a fallback on the day for a task added after its lead time, 12 h TTL. Notifications gains *Care tasks*, *Remind me* and *At*. 730 unit, 147 integration and 217 e2e tests. |
 
-**Next up:** S11 (care reminders, S11.3, plug into the tick), then S13.
+**Next up:** S11.4 on a phone, then S13.
 
 ---
 
@@ -294,14 +297,15 @@ Work is organised as **vertical slices**: each delivers a usable end-to-end incr
 | S10.2 | Soft delete with confirmation and undo. Purge job. | ✅ |
 | S10.3 | On a phone: History with logs and events from both dogs, each filter and *Load more*; deleting a log and an event from their pages with *Undo*, and a planned session's log (the session back on Today, then *Done* again after *Undo*). | ✅ |
 
-### S11 Care calendar ⬜
+### S11 Care calendar 🟨
 *FR-10, scenario 7.*
 
 | # | Task | Status |
 |---|---|---|
-| S11.1 | CareTask with status history. Create, edit, complete, cancel. | ⬜ |
-| S11.2 | Care tab, and Today's *Coming up* integration | ⬜ |
-| S11.3 | Care reminders: care tasks as a second source in the reminder tick (D27), `careLeadDays` and `careTimeOfDay` (08:00 for a task with a date and no time) in the preference and on Notifications, a 12 h TTL, the `care/:id` deep link and its cancelled landing | ⬜ |
+| S11.1 | CareTask with status history. Create, edit, complete (with the next one planned if wanted), cancel, put back. | ✅ |
+| S11.2 | Care tab, and Today's *Coming up* integration | ✅ |
+| S11.3 | Care reminders: care tasks as a second source in the reminder tick (D27), `careLeadDays` and `careTimeOfDay` (08:00 for a task with a date and no time) in the preference and on Notifications, a 12 h TTL, the `care/:id` deep link and its cancelled landing | ✅ |
+| S11.4 | On a phone, installed: add a vaccination for one dog from the "+" (scenario 7), see it on Care and in Today's *Coming up*, mark it done planning the next one; move and cancel one; a care reminder arriving the day before at a chosen time and its tap opening the task, and one cancelled before its time sending nothing (scenario 5). | ⬜ |
 
 ### S12 Push reminders ✅
 *FR-12, NFR-16, scenarios 4 and 5. Builds on the S-1 findings.*
