@@ -5,6 +5,7 @@ import { createAuth } from '../application/auth/auth.js';
 import { createCues } from '../application/cues/cues.js';
 import { createDogs } from '../application/dogs/dogs.js';
 import { createExercises } from '../application/exercises/exercises.js';
+import { createBehaviourEvents } from '../application/journal/behaviour-events.js';
 import { createHouseholds } from '../application/household/household.js';
 import { createInvitations } from '../application/household/invitations.js';
 import { createPlanner } from '../application/planner/planner.js';
@@ -14,6 +15,7 @@ import { createReminderSettings } from '../application/reminders/reminders.js';
 import { createToday } from '../application/today/today.js';
 import { createSessionLogs } from '../application/training-log/session-logs.js';
 import { createAccountHttp, type AccountHttp } from './account.js';
+import { createBehaviourEventsHttp, type BehaviourEventsHttp } from './behaviour-events.js';
 import { CALLBACK_PATH, createAuthHttp, type AuthHttp } from './auth.js';
 import { createCuesHttp, type CuesHttp } from './cues.js';
 import { createDogsHttp, type DogsHttp } from './dogs.js';
@@ -36,6 +38,7 @@ export interface Http {
 	cues: CuesHttp;
 	planner: PlannerHttp;
 	sessionLogs: SessionLogsHttp;
+	behaviourEvents: BehaviourEventsHttp;
 	today: TodayHttp;
 	reminders: RemindersHttp;
 	worker: WorkerHttp;
@@ -79,6 +82,7 @@ export function createHttp(
 		cues: createCuesHttp(createCues(ports)),
 		planner: createPlannerHttp(planner),
 		sessionLogs: createSessionLogsHttp(sessionLogs),
+		behaviourEvents: createBehaviourEventsHttp(createBehaviourEvents(ports)),
 		today: createTodayHttp(createToday(ports, { planner, sessionLogs })),
 		reminders: createRemindersHttp(
 			createReminderSettings(ports, { allowedEndpoints: allowedPushEndpoints })

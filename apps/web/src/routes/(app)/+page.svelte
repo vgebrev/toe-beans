@@ -11,6 +11,7 @@
 	import Icon from '#lib/components/icon/Icon.svelte';
 	import RemindersBanner from '#lib/components/push/RemindersBanner.svelte';
 	import SessionCard from '#lib/components/planner/SessionCard.svelte';
+	import AddMenu from '#lib/components/shell/AddMenu.svelte';
 	import EmptyState from '#lib/components/shell/EmptyState.svelte';
 	import PageHeader from '#lib/components/shell/PageHeader.svelte';
 	import LogCard from '#lib/components/training-log/LogCard.svelte';
@@ -193,6 +194,8 @@
 		{/if}
 	</div>
 {/if}
+
+<AddMenu dogs={data.dogs} timeZone={data.household.timeZone} {scheduleHref} />
 
 {#if logging && data.dogs}
 	{#key logRound}

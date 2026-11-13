@@ -34,6 +34,7 @@ import {
 	mongoTrainingPlans
 } from './infrastructure/persistence/planner-collections.js';
 import { mongoSessionLogs } from './infrastructure/persistence/session-log-collection.js';
+import { mongoBehaviourEvents } from './infrastructure/persistence/behaviour-event-collection.js';
 import {
 	mongoPushDevices,
 	mongoReminderPreferences,
@@ -143,6 +144,7 @@ export async function createBackend(
 		plans: overrides.plans ?? mongoTrainingPlans(mongo.db, clock),
 		plannedSessions: overrides.plannedSessions ?? mongoPlannedSessions(mongo.db, clock),
 		sessionLogs: overrides.sessionLogs ?? mongoSessionLogs(mongo.db, clock),
+		behaviourEvents: overrides.behaviourEvents ?? mongoBehaviourEvents(mongo.db, clock),
 		pushDevices: overrides.pushDevices ?? mongoPushDevices(mongo.db, clock),
 		reminderPreferences: overrides.reminderPreferences ?? mongoReminderPreferences(mongo.db),
 		reminders: overrides.reminders ?? mongoReminders(mongo.db, clock),

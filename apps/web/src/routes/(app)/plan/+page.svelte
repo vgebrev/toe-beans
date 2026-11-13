@@ -7,6 +7,7 @@
 	import type { PlannedSession } from '@toe-beans/contracts';
 	import Icon from '#lib/components/icon/Icon.svelte';
 	import SessionCard from '#lib/components/planner/SessionCard.svelte';
+	import AddMenu from '#lib/components/shell/AddMenu.svelte';
 	import EmptyState from '#lib/components/shell/EmptyState.svelte';
 	import PageHeader from '#lib/components/shell/PageHeader.svelte';
 	import { buttonVariants } from '#lib/components/ui/button/index.js';
@@ -182,3 +183,5 @@
 	</section>
 	<!-- eslint-enable svelte/no-navigation-without-resolve -->
 </div>
+
+<AddMenu dogs={data.dogs} timeZone={data.household.timeZone} {scheduleHref} />

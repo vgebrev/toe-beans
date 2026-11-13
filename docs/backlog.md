@@ -1,8 +1,8 @@
 # Toe Beans — Backlog
 
-**Version:** 0.33 (draft for iteration)
+**Version:** 0.34 (draft for iteration)
 **Date:** 13 November 2026
-**Inputs:** `docs/requirements.md` v1.0, `docs/architecture.md` v1.15, `docs/ui.md` v0.22
+**Inputs:** `docs/requirements.md` v1.0, `docs/architecture.md` v1.16, `docs/ui.md` v0.23
 
 **Changes in 0.3:** spike results S-1.0 to S-1.4 and S0.1–S0.2 recorded as they landed (see Current progress). S-1.4b dropped as not needed, S-1.5 parked, S-1.4a retargeted to `toebeans.co.za`.
 
@@ -49,6 +49,8 @@
 **Changes in 0.32:** the S12 Notifications screen simplified (ui 0.21 J7): one *Push notifications* switch, folded *Reminder tips* holding the test, and wording that names no browser or device. Inputs moved to ui 0.21.
 
 **Changes in 0.33:** S12 done. S12.8 tried on the Samsung, with two fixes it prompted (architecture 1.15, ui 0.22 J7); the owner closed it without the Redmi or the battery steps. Inputs moved to architecture 1.15 and ui 0.22.
+
+**Changes in 0.34:** S9.1 built (architecture 1.16 D28, ui 0.23 J5), with the floating "+" and its chooser (§2.1), which no slice had built: J5 starts from it, and J4's *Log training* came with it. S9.2 added, trying it on a phone, as for earlier slices; the owner tried it, and S9 is done. Bottom sheets clear the phone's button bar again (ui 0.23). Inputs moved to architecture 1.16 and ui 0.23.
 
 **Changes in 0.21:** S2 and S3 done: the owner tested both on the phones in Chrome, including S3.5's photo flow and the Android share sheet. The installed PWA wasn't part of it; that's S13.
 
@@ -133,8 +135,10 @@ Work is organised as **vertical slices**: each delivers a usable end-to-end incr
 
 | 2026-11-11 | S12.1–S12.7 built, on the owner's call that the tick works out reminders rather than replanning jobs (D27). Devices, preferences and the send ledger (migration 0008); the tick claims each training reminder by its unique key (session, time, person), reads the session again before sending, retries 1 and 4 minutes later, disables a device on 404/410 and takes over a dead tick's claims after 60 s; it also extends series nobody has opened. `POST /internal/tick` takes Cloud Scheduler's OIDC token or `TICK_SECRET`; elsewhere the server ticks itself. Device endpoints must be on a browser's push service, so the server can't be made to post anywhere (SSRF). The service worker shows reminders, reports their arrival and opens the session; the manifest and icons came forward from S13.1. Notifications (J7) with the delayed test, the reliability steps per maker and other devices; a Today banner; sign-out unsubscribes the browser; a cancelled session's page says so. The e2e suite fakes only the browser's PushManager: the real service worker, server and encryption send to a stand-in push service, and the tests decrypt what a phone would get. 643 unit, 122 integration and 181 e2e tests. Not yet tried: any of it on a phone (S12.8). |
 | 2026-11-13 | S12.8 on the Galaxy S23 FE, installed and closed (owner). Turning on, the delayed test (tapped 06:19:57 SAST, due 06:22:57, sent and received 06:24:14, about 4 minutes after the tap, inside the promised 3–8) and a session's reminder arriving, its tap opening the session to log it. Received within a second of sending each time; lateness was the 5-minute tick, and the inline tick doesn't run on start. A rescheduled session sent once, at its new time (47 s ahead, by design); skipped and cancelled sessions sent nothing. Blocking Toe Beans' notifications in Android settings cancelled the subscription: the next send got 410, the device was disabled, the screen showed *blocked*. Two fixes: an installed app only notices a change to its notification setting when it starts (allowed again, it stayed *blocked* through *Check again* and a reload; blocked, it showed as on), so the blocked state now says to close and reopen it and re-checks on returning to the front; and the phone, subscribing anew, listed its old stopped record as an "other device", so a new device now replaces the person's stopped ones with the same label. S12.8 and S12 closed by the owner without the Redmi Note 12 Pro or the battery steps. If the Redmi drops reminders once it's in use, its battery step is the first thing to check. |
+| 2026-11-13 | S9.1 built. Behaviour events (D28): `/api/v1/behaviour-events` records, reads and edits one with If-Match; a current dog and a category are required, the trigger, how the puppy responded and notes optional, and when defaults to now with the session log's limits. An edit can move an event to another current dog. Mongo adapter with the household-isolation suite (migration 0009, indexed for S10's History). The *Record event* sheet (J5) and the event page `/events/:id` with *Edit*, a failure keeping everything for *Retry* and a conflict offering *See their version*. The floating "+" arrived with it on Today, Plan and History (ui §2.1): *Log training* (the exercise picker, then the quick log), *Record event* and *Schedule session*, with a snackbar linking to what was saved. e2e: scenario 6 (a barking incident for a chosen dog, nothing planned or logged), the switcher's dog starting the sheet, *Log training* from the "+", a failed save, an edit with a conflict and a dog change, and scenario 9 by ID. 659 unit, 127 integration and 193 e2e tests. Events are listed with History (S10); not yet tried on a phone (S9.2). |
+| 2026-11-13 | S9 done. The owner tried it on a phone (S9.2): everything worked. Bottom sheets touched the phone's button bar in the installed app: each sheet's own padding replaced the shared sheet's safe-area padding, so their last 1 rem sat under the bar. The shared sheet now clears it with a bottom border in its own colour (ui 0.23). |
 
-**Next up:** S9, S10 and S11 (care reminders, S11.3, plug into the tick), then S13.
+**Next up:** S10 and S11 (care reminders, S11.3, plug into the tick), then S13.
 
 ---
 
@@ -267,12 +271,13 @@ Work is organised as **vertical slices**: each delivers a usable end-to-end incr
 | S8.2 | Today screen with per-dog identification and a direct log action | ✅ |
 | S8.3 | On a phone: Today with overdue, planned, done and skipped, logging from a card, the switcher, and coming back to the app later in the day | ✅ |
 
-### S9 Behaviour journal ⬜
+### S9 Behaviour journal ✅
 *FR-08, scenario 6.*
 
 | # | Task | Status |
 |---|---|---|
-| S9.1 | BehaviourEvent CRUD, record-event sheet | ⬜ |
+| S9.1 | BehaviourEvent CRUD, record-event sheet. Delete is S10.2's soft delete. Also the floating "+" and its chooser on Today, Plan and History (ui §2.1): *Log training* (J4), *Record event* (J5), *Schedule session*. | ✅ |
+| S9.2 | On a phone: record an event from the "+" with one and two dogs, *Earlier*, the event page and *Edit* (moving it to the other dog), a conflict from a second device, and *Log training* from the "+". Tried by the owner (13 Nov). | ✅ |
 
 ### S10 History ⬜
 *FR-09.*

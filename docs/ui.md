@@ -1,9 +1,9 @@
 # Toe Beans — UI and Interaction Design
 
-**Version:** 0.22 (draft for iteration)
+**Version:** 0.23 (draft for iteration)
 **Date:** 13 November 2026
 **Status:** Proposed. Review-round decisions in §8 are accepted.
-**Inputs:** `docs/requirements.md` v1.0, `docs/architecture.md` v1.14
+**Inputs:** `docs/requirements.md` v1.0, `docs/architecture.md` v1.16
 
 **Changes in 0.7:** the logo landed (S0.9). The mark is now a **TB monogram** with four toe beans above it and a heart-shaped bean in the B, from the AI-assisted design board (Monogram Iteration B), replacing the placeholder paw. It was traced from the board and cleaned up rather than redrawn by hand; the variants are the brown-on-cream mark, a cream-on-brown app-icon tile (favicon and maskable) and a white badge. The wordmark uses Fredoka Bold to match the board (§6.4 Logo).
 
@@ -26,6 +26,8 @@
 **Changes in 0.21:** J7 simplified after review. One *Push notifications* switch replaces *Turn on reminders*, *Turn off on this device* (no confirmation now: it's undone by switching back on) and the "Reminders are on" panel. *What to remind you of* shows only while it's on, with switches rather than checkboxes. *Reminder tips* is folded by default and holds the battery steps and the test; it opens by itself after the test's tap or when a test didn't arrive. The wording no longer assumes a browser or device (§3, a phone or Chrome), since reminders work wherever push does.
 
 **Changes in 0.22:** J7 after S12.8 on the Samsung. The blocked state adds "Still blocked after allowing them? Close Toe Beans completely and open it again": an installed app picks up a change to its notifications in Android's settings only on restart: allowed again, it stayed *blocked* through *Check again* and a reload, and blocked, it showed as on. The second can't be detected; it's why the test exists. The screen checks again whenever it comes back to the front. A phone that turns reminders back on after being blocked replaces its stopped entry rather than listing itself under *Your other devices* (architecture 1.15 §6.1).
+
+**Changes in 0.23:** S9 built. §2.1: the floating "+" is in on Today, Plan and History, its chooser offering *Log training* (J4), *Record event* (J5) and *Schedule session*; *Add care task* joins with S11. J4 as built: no *Recent* or *Planned today* groups yet, the picker is the library as on Schedule. J5 as built, with *Earlier* instead of *Pick* as in the quick log, a snackbar after saving, and the event page `/events/:id` with *Edit* (J8), where the dog can be corrected (architecture 1.16 D28). Bottom sheets now clear the phone's gesture or button bar in the installed app: the shared sheet's safe-area padding was replaced by each sheet's own padding, so their last 1 rem sat under the bar; it's a bottom border in the sheet's colour now, which no sheet overrides. Inputs moved to architecture 1.16.
 
 **Changes in 0.12:** S3 built. J1 step 4 as built: *Take photo* or *Gallery*, then a framing square with the circle overlay (drag, pinch, a zoom slider and arrow keys), and birth date as *I know the date* or *Approximate* with months old. J2 names the dogs. §2.2: the switcher shows on Today, Plan, History and Care, with name chips. §5.1 gains two rules from using it: one confirm button per context (a sheet is its own context), and a control is never disabled without the reason on screen; the photo moved into its own sheet in J1 to follow the first, and the household, name and email-invite buttons stopped greying out for missing input to follow the second. §4.5: editing is its own page and the overflow sheet holds *Edit details* and *Archive*; the Recent sections wait for their slices. The dog accent palette is defined (§6.4), and More gains *Dogs* (§2.1). The custom dog icon read as a monkey, so it's replaced by Phosphor's *Dog*, the documented fallback library (§6.4).
 
@@ -80,6 +82,8 @@ This document covers user journeys, information architecture, screen layouts and
 | **More** | Dogs, Exercise library, Cue dictionary, Household & invites, Notifications, Account | FR-01–04, FR-12 |
 
 A **floating "+" button** on Today, Plan and History opens a chooser: *Log training*, *Record event*, *Add care task*, *Schedule session*.
+
+- *As built (S9):* a 56 px round button above the bottom bar at the right of the column, named "Add", shown once there's a current dog; the page leaves room at its end so it never covers the last card. It opens the *Add* sheet, one row each with an icon and a line under the label: *Log training* ("A practice, planned or not"), *Record event* ("Barking, a visitor, an accident…") and *Schedule session* ("Plan one or a repeat", to Schedule with the day Today or Plan shows). *Add care task* joins with S11. New records start with the switcher's dog. Once saved, a snackbar above the button says what was saved ("Recorded Miso's barking.", "Logged Recall basics for Rosie.") with *See the event* or *See the log* and a dismiss button, and the page reloads its data, so Today's *Done* shows a practice straight away.
 
 ### 2.2 Dog context
 
@@ -157,9 +161,13 @@ A dead invitation (expired, revoked, used) doesn't name its household. Accepting
 
 FAB → **Log training** → exercise picker (*Recent* first, then *Planned today*, then the full library) → Quick log sheet with **Not assessed** pre-selected → **Save**. That's three taps after choosing the exercise.
 
+- *As built (S9):* the picker is the one Schedule uses (search, the library under skill-area headings), without *Recent* or *Planned today* yet; a planned session is logged from its card on Today. Choosing an exercise opens the quick log for it, ad hoc (§4.2).
+
 ### J5 — Record an unscheduled event (scenario 6)
 
 FAB → **Record event**. Dog (pre-filled), category chips (*Barking, Cat interaction, Fear, Toileting accident, Visitor, Other*), when (defaults to now; quick chips *Now / 15 min ago / 1 h ago / Pick*), then optional *Trigger*, *How your puppy responded*, *Notes* → Save.
+
+- *As built (S9):* the *Record event* sheet: *Dog* chips with avatars when there's more than one current dog, starting from the switcher's (one dog: its avatar and name in the header), *What happened* as six chips each with its icon, *When* as the quick log's chips (*Now*, *15 min ago*, *1 h ago*, *Earlier* with date and time on the household's clocks), then *Trigger* (one line), *How your puppy responded* and *Notes*, each marked optional with a hint under its label. The keyboard stays down on open. Save without a dog or a category says which ("Choose which dog it was.", "Choose what happened."); there's no default category (architecture D28). A failure keeps everything and turns Save into *Retry* (§5.2). The event page (`/events/:id`, titled with the category) shows the dog, what happened with its icon, when, the text given, who recorded it and who changed it last, with *Edit*: the same sheet with date and time instead of the chips, where the dog can be corrected to another current one. A change made elsewhere meanwhile saves nothing and offers *See their version* (no overwrite). Its back link goes to History, which lists events with S10; delete comes with S10.2.
 
 ### J6 — Care admin (scenarios 5, 7)
 

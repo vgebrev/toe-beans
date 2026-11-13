@@ -32,6 +32,13 @@ import {
 	BubbleChatIcon,
 	Calendar03Icon,
 	Camera01Icon,
+	CatIcon,
+	DoorOpenIcon,
+	DropletIcon,
+	NoteAddIcon,
+	NoteIcon,
+	Sad01Icon,
+	VolumeHighIcon,
 	Cancel01Icon,
 	Clock01Icon,
 	CookieIcon,
@@ -142,7 +149,15 @@ export const icons = {
 	'outcome-successful': CheckmarkCircle02Icon,
 	'outcome-partial': Progress02Icon,
 	'outcome-not-yet': HourglassIcon,
-	'outcome-not-assessed': CircleIcon
+	'outcome-not-assessed': CircleIcon,
+	// The behaviour journal (ui.md J5): recording, and each category
+	event: NoteAddIcon,
+	'event-barking': VolumeHighIcon,
+	'event-cat-interaction': CatIcon,
+	'event-fear': Sad01Icon,
+	'event-toileting-accident': DropletIcon,
+	'event-visitor': DoorOpenIcon,
+	'event-other': NoteIcon
 } satisfies Record<string, IconSvgElement>;
 
 export type IconName = keyof typeof icons;
