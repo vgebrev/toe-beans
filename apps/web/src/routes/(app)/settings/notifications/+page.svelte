@@ -214,9 +214,12 @@
 			maker = makerOf(m);
 			void check();
 		});
-		// Back from locking the screen for the test: show whether it arrived.
+		// Back from locking the screen for the test: show whether it arrived. Back from the device's
+		// settings: notice notifications allowed or blocked there, where the browser lets us.
 		const onVisible = () => {
-			if (document.visibilityState === 'visible') void refresh();
+			if (document.visibilityState !== 'visible') return;
+			if (phase === 'denied' || phase === 'ask' || phase === 'on') void check();
+			else void refresh();
 		};
 		document.addEventListener('visibilitychange', onVisible);
 		return () => document.removeEventListener('visibilitychange', onVisible);
@@ -300,6 +303,10 @@
 							for Toe Beans if you installed it.
 						</li>
 					</ol>
+					<p class="text-sm text-muted-foreground">
+						Still blocked after allowing them? Close Toe Beans completely and open it again: an
+						installed app may only notice the change when it starts.
+					</p>
 					<Button variant="outline" onclick={check}>Check again</Button>
 				</div>
 			{:else if phase === 'failed'}

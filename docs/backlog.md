@@ -1,8 +1,8 @@
 # Toe Beans — Backlog
 
-**Version:** 0.32 (draft for iteration)
-**Date:** 12 November 2026
-**Inputs:** `docs/requirements.md` v1.0, `docs/architecture.md` v1.14, `docs/ui.md` v0.21
+**Version:** 0.33 (draft for iteration)
+**Date:** 13 November 2026
+**Inputs:** `docs/requirements.md` v1.0, `docs/architecture.md` v1.15, `docs/ui.md` v0.22
 
 **Changes in 0.3:** spike results S-1.0 to S-1.4 and S0.1–S0.2 recorded as they landed (see Current progress). S-1.4b dropped as not needed, S-1.5 parked, S-1.4a retargeted to `toebeans.co.za`.
 
@@ -47,6 +47,8 @@
 **Changes in 0.31:** S12.1–S12.7 built (architecture 1.14 D27, ui 0.20 J7). S12.3 is now the tick working out due reminders from the sessions, with a send ledger, instead of jobs replanned in every session change (D27), and covers training only: care reminders move to a new S11.3, where they become a second source in the tick. S12 also brings the manifest, icons and a service worker forward from S13.1 (installing is part of testing reminders, NFR-16), so S13.1 keeps shortcuts, the install prompt and caching. S12.8 added, trying it on the phones with the app installed and closed, as for earlier slices. S14.1 gains the VAPID keys and the Cloud Scheduler tick job. Inputs moved to architecture 1.14 and ui 0.20.
 
 **Changes in 0.32:** the S12 Notifications screen simplified (ui 0.21 J7): one *Push notifications* switch, folded *Reminder tips* holding the test, and wording that names no browser or device. Inputs moved to ui 0.21.
+
+**Changes in 0.33:** S12 done. S12.8 tried on the Samsung, with two fixes it prompted (architecture 1.15, ui 0.22 J7); the owner closed it without the Redmi or the battery steps. Inputs moved to architecture 1.15 and ui 0.22.
 
 **Changes in 0.21:** S2 and S3 done: the owner tested both on the phones in Chrome, including S3.5's photo flow and the Android share sheet. The installed PWA wasn't part of it; that's S13.
 
@@ -130,8 +132,9 @@ Work is organised as **vertical slices**: each delivers a usable end-to-end incr
 | 2026-11-11 | Filters reworked on the owner's call, before S12 (ui 0.19 §5.1): chip rows scrolled sideways on the phones, and *All dogs* came last where the library's *All* came first. A shared `FilterSheet` is one button showing the current choice that opens a bottom sheet listing the choices one per row, *All* first; the dog switcher (one dog: still just its avatar) and the library's skill areas (still links to `?area=`) use it. The exercise picker, itself a sheet, drops its area chips and lists the library under skill-area headings, with search. 564 unit and 161 e2e tests. |
 
 | 2026-11-11 | S12.1–S12.7 built, on the owner's call that the tick works out reminders rather than replanning jobs (D27). Devices, preferences and the send ledger (migration 0008); the tick claims each training reminder by its unique key (session, time, person), reads the session again before sending, retries 1 and 4 minutes later, disables a device on 404/410 and takes over a dead tick's claims after 60 s; it also extends series nobody has opened. `POST /internal/tick` takes Cloud Scheduler's OIDC token or `TICK_SECRET`; elsewhere the server ticks itself. Device endpoints must be on a browser's push service, so the server can't be made to post anywhere (SSRF). The service worker shows reminders, reports their arrival and opens the session; the manifest and icons came forward from S13.1. Notifications (J7) with the delayed test, the reliability steps per maker and other devices; a Today banner; sign-out unsubscribes the browser; a cancelled session's page says so. The e2e suite fakes only the browser's PushManager: the real service worker, server and encryption send to a stand-in push service, and the tests decrypt what a phone would get. 643 unit, 122 integration and 181 e2e tests. Not yet tried: any of it on a phone (S12.8). |
+| 2026-11-13 | S12.8 on the Galaxy S23 FE, installed and closed (owner). Turning on, the delayed test (tapped 06:19:57 SAST, due 06:22:57, sent and received 06:24:14, about 4 minutes after the tap, inside the promised 3–8) and a session's reminder arriving, its tap opening the session to log it. Received within a second of sending each time; lateness was the 5-minute tick, and the inline tick doesn't run on start. A rescheduled session sent once, at its new time (47 s ahead, by design); skipped and cancelled sessions sent nothing. Blocking Toe Beans' notifications in Android settings cancelled the subscription: the next send got 410, the device was disabled, the screen showed *blocked*. Two fixes: an installed app only notices a change to its notification setting when it starts (allowed again, it stayed *blocked* through *Check again* and a reload; blocked, it showed as on), so the blocked state now says to close and reopen it and re-checks on returning to the front; and the phone, subscribing anew, listed its old stopped record as an "other device", so a new device now replaces the person's stopped ones with the same label. S12.8 and S12 closed by the owner without the Redmi Note 12 Pro or the battery steps. If the Redmi drops reminders once it's in use, its battery step is the first thing to check. |
 
-**Next up:** S12.8 on the phones, installed and closed. S9, S10 and S11 can go alongside.
+**Next up:** S9, S10 and S11 (care reminders, S11.3, plug into the tick), then S13.
 
 ---
 
@@ -288,7 +291,7 @@ Work is organised as **vertical slices**: each delivers a usable end-to-end incr
 | S11.2 | Care tab, and Today's *Coming up* integration | ⬜ |
 | S11.3 | Care reminders: care tasks as a second source in the reminder tick (D27), `careLeadDays` and `careTimeOfDay` (08:00 for a task with a date and no time) in the preference and on Notifications, a 12 h TTL, the `care/:id` deep link and its cancelled landing | ⬜ |
 
-### S12 Push reminders 🟨
+### S12 Push reminders ✅
 *FR-12, NFR-16, scenarios 4 and 5. Builds on the S-1 findings.*
 
 | # | Task | Status |
@@ -300,7 +303,7 @@ Work is organised as **vertical slices**: each delivers a usable end-to-end incr
 | S12.5 | Service worker `push` + `notificationclick` deep links, including the cancelled-item landing state. The manifest and icons, brought forward from S13.1. | ✅ |
 | S12.6 | Notifications settings state-machine screen, *Make reminders reliable* card (per-manufacturer steps) and the **delayed** test reminder (`ui.md` J7) | ✅ |
 | S12.7 | Tests: reschedule/cancel produces no stale sends, concurrent ticks produce no duplicates, denied/revoked permission | ✅ |
-| S12.8 | On both phones, installed and closed (NFR-16): turn reminders on, the delayed test, a session's reminder arriving and its tap opening the session, a moved and a cancelled session sending nothing, blocking notifications in Android settings, and the battery steps for each maker. Note the delivery times (`receivedAt` against `dueAt`). | ⬜ |
+| S12.8 | On both phones, installed and closed (NFR-16): turn reminders on, the delayed test, a session's reminder arriving and its tap opening the session, a moved and a cancelled session sending nothing, blocking notifications in Android settings, and the battery steps for each maker. Note the delivery times (`receivedAt` against `dueAt`). Done on the Galaxy S23 FE (13 Nov); the owner closed it without the Redmi or the battery steps. | ✅ |
 
 ### S13 PWA polish and connectivity ⬜
 *NFR-03, 04, 09.*

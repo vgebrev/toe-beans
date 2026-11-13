@@ -94,9 +94,14 @@ export function createReminderSettings(
 			if (!arePushKeys(input.keys)) {
 				return err(validationError('The subscription is not valid.', { keys: ['Not valid.'] }));
 			}
+			const label = cleanDeviceLabel(input.label);
 			const mine = await pushDevices.listForUser(ctx.userId);
 			const known = mine.some((d) => d.endpoint === input.endpoint);
-			if (!known && mine.length >= DEVICES_MAX) {
+			// The same device subscribing again after its old subscription was cancelled (on Android,
+			// blocking the app's notifications does that) would otherwise list itself as a stopped
+			// "other device". A stopped device with another label stays, so its owner sees it stopped.
+			const replaced = known ? [] : mine.filter((d) => d.disabledAt && d.label === label);
+			if (!known && mine.length - replaced.length >= DEVICES_MAX) {
 				return err(
 					validationError(
 						`You can have reminders on up to ${DEVICES_MAX} devices. Remove one to add this one.`
@@ -108,9 +113,16 @@ export function createReminderSettings(
 				userId: ctx.userId,
 				endpoint: input.endpoint,
 				keys: input.keys,
-				label: cleanDeviceLabel(input.label)
+				label
 			});
-			if (!known) log.info('push device added', { userId: ctx.userId, deviceId: device.id });
+			for (const old of replaced) await pushDevices.remove(ctx.userId, old.id);
+			if (!known) {
+				log.info('push device added', {
+					userId: ctx.userId,
+					deviceId: device.id,
+					replaced: replaced.length
+				});
+			}
 			return ok(device);
 		},
 

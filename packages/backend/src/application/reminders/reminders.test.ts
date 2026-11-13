@@ -62,6 +62,30 @@ describe('devices', () => {
 		expect((await settings.devices(sam))[0]!.disabledAt).toBeUndefined();
 	});
 
+	it('replace their own stopped record when the same device subscribes anew', async () => {
+		const { settings, save, ports } = setup();
+		const phone = await save(sam, 'phone');
+		const tablet = await save(sam, 'tablet');
+		await ports.pushDevices.disable(phone.id, start);
+		await ports.pushDevices.disable(tablet.id, start);
+		const alexs = await save(alex, 'phone-old');
+		await ports.pushDevices.disable(alexs.id, start);
+
+		// A new subscription (new endpoint) with the same label: the stopped phone goes.
+		const renewed = await settings.saveDevice(sam, {
+			endpoint: endpoint('phone-renewed'),
+			keys,
+			label: 'phone'
+		});
+		expect(renewed.ok).toBe(true);
+		expect((await settings.devices(sam)).map((d) => d.label).sort()).toEqual(['phone', 'tablet']);
+		expect(
+			(await settings.devices(sam)).find((d) => d.label === 'phone')!.disabledAt
+		).toBeUndefined();
+		// Someone else's stopped device is never touched.
+		expect(await settings.devices(alex)).toHaveLength(1);
+	});
+
 	it('must use a known push service, so the server never posts where a client says', async () => {
 		const { settings } = setup();
 		const saved = await settings.saveDevice(sam, {
@@ -81,11 +105,21 @@ describe('devices', () => {
 	});
 
 	it('are limited to ten a person', async () => {
-		const { settings, save } = setup();
-		for (let i = 0; i < 10; i++) await save(sam, `d${i}`);
+		const { settings, save, ports } = setup();
+		const devices = [];
+		for (let i = 0; i < 10; i++) devices.push(await save(sam, `d${i}`));
 		const eleventh = await settings.saveDevice(sam, { endpoint: endpoint('d10'), keys });
 		expect(eleventh).toMatchObject({ ok: false, error: { kind: 'validation' } });
 		expect((await settings.saveDevice(sam, { endpoint: endpoint('d3'), keys })).ok).toBe(true);
+		// A stopped device coming back on a new subscription replaces itself, so it still fits.
+		await ports.pushDevices.disable(devices[4]!.id, start);
+		const back = await settings.saveDevice(sam, {
+			endpoint: endpoint('d4-new'),
+			keys,
+			label: 'd4'
+		});
+		expect(back.ok).toBe(true);
+		expect(await settings.devices(sam)).toHaveLength(10);
 	});
 
 	it("can be removed by their owner only; someone else's is not found", async () => {
