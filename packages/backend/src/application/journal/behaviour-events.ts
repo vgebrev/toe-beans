@@ -2,7 +2,8 @@
 // notable that happened with one of the household's dogs, without a training session: what
 // happened and when, with the trigger, how the puppy responded and notes if they like. Editing
 // carries the version it was based on (NFR-13), and can move the event to another dog when it was
-// recorded against the wrong one.
+// recorded against the wrong one. Deleting is a soft delete that can be undone until the purge
+// (§5.3, FR-09).
 import {
 	cleanEventDetails,
 	type BehaviourEvent,
@@ -47,15 +48,20 @@ export function createBehaviourEvents({
 	const log = logger.child({ component: 'behaviour-events' });
 	const chooseDog = { dogId: ['Choose one of your dogs.'] };
 
-	async function view(event: BehaviourEvent): Promise<EventView> {
-		const people = await users.findByIds([...new Set([event.recordedBy, event.updatedBy])]);
+	/** One lookup for every name the events need. */
+	async function views(entries: readonly BehaviourEvent[]): Promise<EventView[]> {
+		if (entries.length === 0) return [];
+		const people = await users.findByIds([
+			...new Set(entries.flatMap((e) => [e.recordedBy, e.updatedBy]))
+		]);
 		const names = new Map(people.map((u) => [u.id, u.displayName]));
-		return {
+		return entries.map((event) => ({
 			event,
 			recordedByName: names.get(event.recordedBy) ?? FORMER_MEMBER,
 			updatedByName: names.get(event.updatedBy) ?? FORMER_MEMBER
-		};
+		}));
 	}
+	const view = async (event: BehaviourEvent) => (await views([event]))[0]!;
 
 	/** One of the household's current dogs, so nothing is recorded against an archived one. */
 	async function currentDog(ctx: PlannerContext, dogId: string | undefined): Promise<Id | null> {
@@ -68,6 +74,9 @@ export function createBehaviourEvents({
 		isId(id) ? events.findById(ctx.householdId, id) : null;
 
 	return {
+		/** Events with their names, in one lookup (History, architecture §5.1). */
+		views,
+
 		async get(ctx: PlannerContext, id: string): Promise<Result<EventView, NotFoundError>> {
 			const event = await find(ctx, id);
 			return event ? ok(await view(event)) : err(notFound('event'));
@@ -132,6 +141,40 @@ export function createBehaviourEvents({
 			if (!updated.ok) return updated;
 			log.info('event changed', { householdId: ctx.householdId, eventId: event.id });
 			return ok(await view(updated.value));
+		},
+
+		/** Soft-deletes the event (§5.3). The result carries the version `restore` needs. */
+		async remove(
+			ctx: PlannerContext,
+			input: { id: string; expectedVersion: number }
+		): Promise<Result<BehaviourEvent, NotFoundError | StaleVersionError>> {
+			if (!isId(input.id)) return err(notFound('event'));
+			const removed = await events.softDelete(
+				ctx.householdId,
+				input.id,
+				input.expectedVersion,
+				ctx.userId
+			);
+			if (removed.ok)
+				log.info('event deleted', { householdId: ctx.householdId, eventId: input.id });
+			return removed;
+		},
+
+		/** Brings a deleted event back: the snackbar's *Undo* (ui.md J8). */
+		async restore(
+			ctx: PlannerContext,
+			input: { id: string; expectedVersion: number }
+		): Promise<Result<EventView, NotFoundError | StaleVersionError>> {
+			if (!isId(input.id)) return err(notFound('event'));
+			const restored = await events.restore(
+				ctx.householdId,
+				input.id,
+				input.expectedVersion,
+				ctx.userId
+			);
+			if (!restored.ok) return restored;
+			log.info('event restored', { householdId: ctx.householdId, eventId: input.id });
+			return ok(await view(restored.value));
 		}
 	};
 }

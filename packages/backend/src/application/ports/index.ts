@@ -93,6 +93,7 @@ export type {
 	SessionLogChanges,
 	SessionLogRepository
 } from './session-log-repository.js';
+export type { TimelineCursor, TimelineQuery } from './timeline.js';
 export type { UnitOfWork } from './unit-of-work.js';
 
 export interface Ports {

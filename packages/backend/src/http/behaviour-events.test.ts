@@ -129,6 +129,27 @@ describe('behaviour events http', () => {
 		).toMatchObject({ status: 412 });
 	});
 
+	it('deletes with If-Match, answering the deleted version for Undo, and restores', async () => {
+		const { http, dog } = await setup();
+		const { id } = (await http.create(viewer, { body: { dogId: dog.id, category: 'fear' } }))
+			.body as { id: string };
+		expect(await http.remove(viewer, { id, ifMatch: null })).toMatchObject({ status: 428 });
+		expect(await http.remove(viewer, { id, ifMatch: '"2"' })).toMatchObject({ status: 412 });
+		expect(await http.remove(outsider, { id, ifMatch: '"1"' })).toMatchObject({ status: 404 });
+		expect(await http.remove(viewer, { id, ifMatch: '"1"' })).toEqual({
+			status: 204,
+			headers: { 'cache-control': 'no-store', etag: '"2"' }
+		});
+		expect(await http.get(viewer, { id })).toMatchObject({ status: 404 });
+		expect(await http.restore(outsider, { id, ifMatch: '"2"' })).toMatchObject({ status: 404 });
+		expect(await http.restore(viewer, { id, ifMatch: '"2"' })).toMatchObject({
+			status: 200,
+			headers: { etag: '"3"' },
+			body: { id, category: 'fear' }
+		});
+		expect(await http.get(viewer, { id })).toMatchObject({ status: 200 });
+	});
+
 	it('answers 404 to another household and to someone with none', async () => {
 		const { http, dog } = await setup();
 		const { id } = (await http.create(viewer, { body: { dogId: dog.id, category: 'fear' } }))

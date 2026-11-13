@@ -2,7 +2,7 @@
 	// Picking an exercise in its own sheet (ui.md J3, §5.1): a search box over the whole library,
 	// grouped under skill-area headings like the library page. No area filter: it would be a sheet
 	// on a sheet, and search covers it. Choosing one closes the sheet and returns to the form,
-	// whose button saves.
+	// whose button saves. As History's exercise filter it starts with *All exercises* (§5.1).
 	import type { ExerciseSummary } from '@toe-beans/contracts';
 	import Icon from '#lib/components/icon/Icon.svelte';
 	import { Input } from '#lib/components/ui/input/index.js';
@@ -15,9 +15,19 @@
 		exercises: ExerciseSummary[];
 		selected: string | null;
 		onpick: (exercise: ExerciseSummary) => void;
+		/** A filter's first row, such as "All exercises", chosen when `selected` is null. */
+		all?: { label: string; onpick: () => void };
+		title?: string;
 	}
 
-	let { open = $bindable(), exercises, selected, onpick }: Props = $props();
+	let {
+		open = $bindable(),
+		exercises,
+		selected,
+		onpick,
+		all,
+		title = 'Choose an exercise'
+	}: Props = $props();
 
 	let query = $state('');
 
@@ -46,7 +56,7 @@
 		onOpenAutoFocus={(e) => e.preventDefault()}
 	>
 		<Sheet.Header class="p-0 pr-12 text-left">
-			<Sheet.Title class="font-display text-xl font-semibold">Choose an exercise</Sheet.Title>
+			<Sheet.Title class="font-display text-xl font-semibold">{title}</Sheet.Title>
 			<Sheet.Description class="sr-only">From the exercise library.</Sheet.Description>
 		</Sheet.Header>
 		<div class="flex flex-col gap-2">
@@ -68,6 +78,25 @@
 			</div>
 		</div>
 		<div class="-mx-4 flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto px-4 pb-4">
+			{#if all && query.trim() === ''}
+				<button
+					type="button"
+					aria-current={selected === null ? 'true' : undefined}
+					class={[
+						'flex min-h-12 w-full items-center gap-3 rounded-2xl border px-4 py-3 text-left font-bold',
+						selected === null ? 'border-primary bg-soft' : 'border-border bg-card'
+					]}
+					onclick={() => {
+						open = false;
+						all.onpick();
+					}}
+				>
+					<span class="flex-1">{all.label}</span>
+					{#if selected === null}
+						<Icon name="done" class="shrink-0 text-primary" label="Chosen" />
+					{/if}
+				</button>
+			{/if}
 			{#each groups as { area, exercises: inArea } (area)}
 				<section aria-labelledby="pick-{area}" class="flex flex-col gap-2">
 					<h3

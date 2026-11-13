@@ -191,3 +191,46 @@ describe('changing an event', () => {
 		});
 	});
 });
+
+describe('deleting an event', () => {
+	it('soft-deletes against its version, and brings it back', async () => {
+		const { events, behaviourEvents, ripley } = await setup();
+		const created = await events.create(sam, { dogId: ripley.id, category: 'fear' });
+		if (!created.ok) throw new Error(JSON.stringify(created.error));
+		const id = created.value.event.id;
+
+		expect(await events.remove(alex, { id, expectedVersion: 2 })).toEqual({
+			ok: false,
+			error: { kind: 'stale-version' }
+		});
+		expect(await events.remove(alex, { id, expectedVersion: 1 })).toMatchObject({
+			ok: true,
+			value: { id, version: 2, updatedBy: 'alex' }
+		});
+		expect(await events.get(sam, id)).toMatchObject({ ok: false, error: { kind: 'not-found' } });
+		expect(behaviourEvents.all()[0]!.deletedAt).toEqual(at);
+
+		expect(await events.restore(alex, { id, expectedVersion: 1 })).toEqual({
+			ok: false,
+			error: { kind: 'stale-version' }
+		});
+		const restored = await events.restore(alex, { id, expectedVersion: 2 });
+		expect(restored).toMatchObject({
+			ok: true,
+			value: { event: { id, version: 3 }, updatedByName: 'Alex' }
+		});
+		expect((await events.get(sam, id)).ok).toBe(true);
+	});
+
+	it('refuses another household and an unknown ID as not found', async () => {
+		const { events, ripley } = await setup();
+		const created = await events.create(sam, { dogId: ripley.id, category: 'fear' });
+		if (!created.ok) throw new Error(JSON.stringify(created.error));
+		const id = created.value.event.id;
+		const notFound = { ok: false, error: { kind: 'not-found', resource: 'event' } };
+		expect(await events.remove(outsider, { id, expectedVersion: 1 })).toEqual(notFound);
+		expect(await events.remove(sam, { id: 'nope', expectedVersion: 1 })).toEqual(notFound);
+		await events.remove(sam, { id, expectedVersion: 1 });
+		expect(await events.restore(outsider, { id, expectedVersion: 2 })).toEqual(notFound);
+	});
+});

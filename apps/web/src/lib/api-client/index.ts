@@ -63,6 +63,13 @@ export class ContractError extends Error {
 
 const REQUEST_ID_HEADER = 'x-request-id';
 
+let writes = 0;
+/**
+ * How many writes this tab has sent, whether or not they landed. A page that keeps data across
+ * navigations (History on Back) compares it to tell whether anything may have changed meanwhile.
+ */
+export const writeCount = () => writes;
+
 export function createApiClient(fetch: typeof globalThis.fetch, base = '/api/v1'): ApiClient {
 	async function request<T>(
 		method: string,
@@ -74,6 +81,7 @@ export function createApiClient(fetch: typeof globalThis.fetch, base = '/api/v1'
 		if (body !== undefined && !form) headers['content-type'] = 'application/json';
 		if (ifMatch !== undefined) headers['if-match'] = ifMatch;
 
+		if (method !== 'GET') writes++;
 		let response: Response;
 		try {
 			response = await fetch(`${base}${path}`, {

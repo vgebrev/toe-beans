@@ -11,7 +11,7 @@ import type { BehaviourEvents, EventView } from '../application/journal/behaviou
 import type { PlannerContext } from '../application/planner/planner.js';
 import { zonedDateTime } from '../domain/calendar.js';
 import { etag, versionFromIfMatch } from './etag.js';
-import { errorResponse, json, respond, type HttpResponse } from './response.js';
+import { errorResponse, json, noContent, respond, type HttpResponse } from './response.js';
 import { parseInput } from './validation.js';
 
 export interface BehaviourEventsHttp {
@@ -21,6 +21,10 @@ export interface BehaviourEventsHttp {
 		viewer: Viewer,
 		input: { id: string; ifMatch: string | null; body: unknown }
 	): Promise<HttpResponse>;
+	/** Soft delete (§5.3): 204 with the deleted version's ETag, for *Undo*. */
+	remove(viewer: Viewer, input: { id: string; ifMatch: string | null }): Promise<HttpResponse>;
+	/** *Undo*, with If-Match from the delete. */
+	restore(viewer: Viewer, input: { id: string; ifMatch: string | null }): Promise<HttpResponse>;
 }
 
 export const behaviourEventDto = (
@@ -78,6 +82,22 @@ export function createBehaviourEventsHttp(events: BehaviourEvents): BehaviourEve
 				changes: input.value
 			});
 			return respond(updated, eventResponse(viewer.member, 200));
+		},
+
+		async remove(viewer, { id, ifMatch }) {
+			if (!isMember(viewer)) return noHousehold();
+			const version = versionFromIfMatch(ifMatch);
+			if (!version.ok) return errorResponse(version.error);
+			const removed = await events.remove(viewer.member, { id, expectedVersion: version.value });
+			return respond(removed, (deleted) => noContent({ etag: etag(deleted.version) }));
+		},
+
+		async restore(viewer, { id, ifMatch }) {
+			if (!isMember(viewer)) return noHousehold();
+			const version = versionFromIfMatch(ifMatch);
+			if (!version.ok) return errorResponse(version.error);
+			const restored = await events.restore(viewer.member, { id, expectedVersion: version.value });
+			return respond(restored, eventResponse(viewer.member, 200));
 		}
 	};
 }

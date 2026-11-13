@@ -74,6 +74,53 @@ describe('mongoBehaviourEvents', () => {
 			.updateOne({ _id: event.id as never }, { $set: { deletedAt: at } });
 		expect(await events().findById(household, event.id)).toBeNull();
 	});
+	it('lists a page of the timeline, newest first, after a cursor and by dog and category', async () => {
+		const household = ids.next();
+		const dog = ids.next();
+		const minutes = (m: number) => new Date(+at - m * 60_000);
+		const a = await events().insert(newEvent(household, { dogId: dog, occurredAt: minutes(1) }));
+		const b = await events().insert(
+			newEvent(household, { occurredAt: minutes(2), category: 'fear' })
+		);
+		const c = await events().insert(newEvent(household, { dogId: dog, occurredAt: minutes(3) }));
+		const list = async (query: Parameters<ReturnType<typeof events>['listTimeline']>[1]) =>
+			(await events().listTimeline(household, query)).map((e) => e.id);
+		expect(await list({ limit: 10 })).toEqual([a.id, b.id, c.id]);
+		expect(await list({ limit: 1, before: { at: a.occurredAt, id: a.id } })).toEqual([b.id]);
+		expect(await list({ dogId: dog, limit: 10 })).toEqual([a.id, c.id]);
+		expect(await list({ categories: ['fear'], limit: 10 })).toEqual([b.id]);
+		expect(await list({ from: minutes(3), to: minutes(1), limit: 10 })).toEqual([b.id, c.id]);
+	});
+
+	it('soft-deletes and restores at the expected version', async () => {
+		const household = ids.next();
+		const by = ids.next();
+		const event = await events().insert(newEvent(household));
+		expect(await events().softDelete(household, event.id, 2, by)).toEqual(
+			err({ kind: 'stale-version' })
+		);
+		expect(await events().softDelete(household, event.id, 1, by)).toMatchObject({
+			ok: true,
+			value: { deletedAt: at, updatedBy: by, version: 2 }
+		});
+		expect(await events().findById(household, event.id)).toBeNull();
+		expect(await events().listTimeline(household, { limit: 10 })).toEqual([]);
+		expect(await events().findDeleted(ids.next(), event.id)).toBeNull();
+		expect(await events().restore(ids.next(), event.id, 2, by)).toEqual(
+			err({ kind: 'not-found', resource: 'event' })
+		);
+		const restored = await events().restore(household, event.id, 2, by);
+		expect(restored).toMatchObject({ ok: true, value: { version: 3 } });
+		expect(restored.ok && 'deletedAt' in restored.value).toBe(false);
+		expect(await events().findById(household, event.id)).not.toBeNull();
+	});
+
+	it('purges deleted events 30 days after deletion', async () => {
+		const indexes = await db.mongo.db.collection(BEHAVIOUR_EVENTS).indexes();
+		expect(indexes.find((i) => i.key.deletedAt === 1)).toMatchObject({
+			expireAfterSeconds: 30 * 24 * 60 * 60
+		});
+	});
 });
 
 householdIsolationSuite('mongoBehaviourEvents', () => ({
@@ -85,5 +132,16 @@ householdIsolationSuite('mongoBehaviourEvents', () => ({
 			category: 'fear',
 			updatedBy: ids.next()
 		});
+	}
+}));
+
+householdIsolationSuite('mongoBehaviourEvents: timeline and delete', () => ({
+	create: async (householdId) => (await events().insert(newEvent(householdId))).id,
+	read: (householdId, id) => events().findById(householdId, id),
+	list: async (householdId) =>
+		(await events().listTimeline(householdId, { limit: 10 })).map((e) => e.id),
+	remove: async (householdId, id) => {
+		const current = await db.mongo.db.collection(BEHAVIOUR_EVENTS).findOne({ _id: id as never });
+		return events().softDelete(householdId, id, current!.version as number, ids.next());
 	}
 }));

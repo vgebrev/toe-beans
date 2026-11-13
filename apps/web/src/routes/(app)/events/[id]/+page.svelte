@@ -2,17 +2,19 @@
 	// A behaviour event (ui.md §2.3, FR-08): which dog, what happened and when, the trigger, how
 	// the puppy responded and notes, who recorded it and who changed it last. *Edit* opens the
 	// record-event sheet with it (J8); a change made elsewhere meanwhile is never overwritten
-	// (§5.2). History (S10) will list events; until then the page goes back to it as their home.
-	import { invalidateAll } from '$app/navigation';
+	// (§5.2). *Delete…* confirms in a sheet naming it, then goes to History, the events' home,
+	// which offers *Undo* (J8, architecture §5.3).
+	import { goto, invalidateAll } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { page } from '$app/state';
 	import DogAvatar from '#lib/components/dogs/DogAvatar.svelte';
+	import DeleteSheet from '#lib/components/history/DeleteSheet.svelte';
 	import Icon from '#lib/components/icon/Icon.svelte';
 	import EventSheet from '#lib/components/journal/EventSheet.svelte';
 	import PageHeader from '#lib/components/shell/PageHeader.svelte';
 	import { Button } from '#lib/components/ui/button/index.js';
-	import { categoryLabels } from '#lib/journal/labels.js';
-	import { dayName } from '#lib/planner/dates.js';
+	import { categoryLabels, eventPhrase } from '#lib/journal/labels.js';
+	import { dayName, dayPhrase } from '#lib/planner/dates.js';
 	import type { PageProps } from './$types';
 
 	let { data }: PageProps = $props();
@@ -31,6 +33,27 @@
 
 	async function saved() {
 		notice = 'Saved.';
+		await invalidateAll();
+	}
+
+	let deleteOpen = $state(false);
+	const what = $derived(event ? eventPhrase(event.category, dog?.name) : 'this event');
+
+	async function deleted(etag: string) {
+		if (!event) return;
+		await goto(resolve('/(app)/history'), {
+			state: { deleted: { kind: 'event', id: event.id, etag, text: `Deleted ${what}.` } }
+		});
+	}
+
+	async function gone() {
+		await goto(resolve('/(app)/history'), {
+			state: { notice: 'That event was already deleted.' }
+		});
+	}
+
+	async function changed() {
+		notice = 'Someone changed this event a moment ago. This is their version.';
 		await invalidateAll();
 	}
 </script>
@@ -107,8 +130,31 @@
 				Edit
 			</Button>
 		{/if}
+		<Button
+			variant="ghost"
+			class="self-start text-destructive"
+			aria-haspopup="dialog"
+			onclick={() => (deleteOpen = true)}
+		>
+			<Icon name="delete" />
+			Delete this event
+		</Button>
 	{/if}
 </div>
+
+{#if event}
+	<DeleteSheet
+		bind:open={deleteOpen}
+		kind="event"
+		id={event.id}
+		etag={event.etag}
+		question="Delete {what} from {dayPhrase(event.date, data.today)} at {event.time}?"
+		confirm="Delete event"
+		ondeleted={deleted}
+		ongone={gone}
+		onchanged={changed}
+	/>
+{/if}
 
 {#if event && data.dogs}
 	{#key round}

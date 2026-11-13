@@ -1,17 +1,19 @@
 <script lang="ts">
 	// A session log (ui.md §2.3, FR-07): which dog, which exercise, when, how it went and the
 	// optional context, who practised and who changed it last. *Edit* opens the quick log with it
-	// (J8); a change made elsewhere meanwhile is never overwritten (§5.2).
-	import { invalidateAll } from '$app/navigation';
+	// (J8); a change made elsewhere meanwhile is never overwritten (§5.2). *Delete…* confirms in
+	// a sheet naming it, then goes to History, which offers *Undo* (J8, architecture §5.3).
+	import { goto, invalidateAll } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { page } from '$app/state';
 	import DogAvatar from '#lib/components/dogs/DogAvatar.svelte';
+	import DeleteSheet from '#lib/components/history/DeleteSheet.svelte';
 	import Icon from '#lib/components/icon/Icon.svelte';
 	import PageHeader from '#lib/components/shell/PageHeader.svelte';
 	import OutcomeBadge from '#lib/components/training-log/OutcomeBadge.svelte';
 	import QuickLogSheet from '#lib/components/training-log/QuickLogSheet.svelte';
 	import { Button } from '#lib/components/ui/button/index.js';
-	import { dayName } from '#lib/planner/dates.js';
+	import { dayName, dayPhrase } from '#lib/planner/dates.js';
 	import { moodLabels, placeLabels } from '#lib/training-log/labels.js';
 	import type { PageProps } from './$types';
 
@@ -30,6 +32,28 @@
 
 	async function saved() {
 		notice = 'Saved.';
+		await invalidateAll();
+	}
+
+	let deleteOpen = $state(false);
+	const what = $derived(
+		log ? `${dog?.name ?? 'your dog'}'s ${log.exercise.title} log` : 'this log'
+	);
+
+	async function deleted(etag: string) {
+		if (!log) return;
+		const text = `Deleted ${what}.`;
+		await goto(resolve('/(app)/history'), {
+			state: { deleted: { kind: 'log', id: log.id, etag, text } }
+		});
+	}
+
+	async function gone() {
+		await goto(resolve('/(app)/history'), { state: { notice: 'That log was already deleted.' } });
+	}
+
+	async function changed() {
+		notice = 'Someone changed this log a moment ago. This is their version.';
 		await invalidateAll();
 	}
 </script>
@@ -136,8 +160,31 @@
 				Edit
 			</Button>
 		{/if}
+		<Button
+			variant="ghost"
+			class="self-start text-destructive"
+			aria-haspopup="dialog"
+			onclick={() => (deleteOpen = true)}
+		>
+			<Icon name="delete" />
+			Delete this log
+		</Button>
 	{/if}
 </div>
+
+{#if log}
+	<DeleteSheet
+		bind:open={deleteOpen}
+		kind="log"
+		id={log.id}
+		etag={log.etag}
+		question="Delete {what} from {dayPhrase(log.date, data.today)} at {log.time}?"
+		confirm="Delete log"
+		ondeleted={deleted}
+		ongone={gone}
+		onchanged={changed}
+	/>
+{/if}
 
 {#if log && data.dogs}
 	{#key round}

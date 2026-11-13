@@ -8,6 +8,7 @@ import { plannerIndexes } from './0006-planner.js';
 import { sessionLogIndexes } from './0007-session-logs.js';
 import { reminderIndexes } from './0008-reminders.js';
 import { behaviourEventIndexes } from './0009-behaviour-events.js';
+import { historyIndexes } from './0010-history.js';
 import type { Migration } from './runner.js';
 
 export const migrations: readonly Migration[] = [
@@ -19,7 +20,8 @@ export const migrations: readonly Migration[] = [
 	plannerIndexes,
 	sessionLogIndexes,
 	reminderIndexes,
-	behaviourEventIndexes
+	behaviourEventIndexes,
+	historyIndexes
 ];
 
 export { migrate, type Migration } from './runner.js';

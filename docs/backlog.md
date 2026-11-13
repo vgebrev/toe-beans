@@ -1,8 +1,8 @@
 # Toe Beans — Backlog
 
-**Version:** 0.34 (draft for iteration)
+**Version:** 0.35 (draft for iteration)
 **Date:** 13 November 2026
-**Inputs:** `docs/requirements.md` v1.0, `docs/architecture.md` v1.16, `docs/ui.md` v0.23
+**Inputs:** `docs/requirements.md` v1.0, `docs/architecture.md` v1.17, `docs/ui.md` v0.24
 
 **Changes in 0.3:** spike results S-1.0 to S-1.4 and S0.1–S0.2 recorded as they landed (see Current progress). S-1.4b dropped as not needed, S-1.5 parked, S-1.4a retargeted to `toebeans.co.za`.
 
@@ -51,6 +51,8 @@
 **Changes in 0.33:** S12 done. S12.8 tried on the Samsung, with two fixes it prompted (architecture 1.15, ui 0.22 J7); the owner closed it without the Redmi or the battery steps. Inputs moved to architecture 1.15 and ui 0.22.
 
 **Changes in 0.34:** S9.1 built (architecture 1.16 D28, ui 0.23 J5), with the floating "+" and its chooser (§2.1), which no slice had built: J5 starts from it, and J4's *Log training* came with it. S9.2 added, trying it on a phone, as for earlier slices; the owner tried it, and S9 is done. Bottom sheets clear the phone's button bar again (ui 0.23). Inputs moved to architecture 1.16 and ui 0.23.
+
+**Changes in 0.35:** S10.1 and S10.2 built (architecture 1.17 D29, ui 0.24 §4.4, J8). S10.1's dog filter is the switcher, and its type filter offers each kind of event too (FR-09's "event type"); S10.2's purge job is a TTL index rather than a job. S10.3 added, trying it on a phone, as for earlier slices. Inputs moved to architecture 1.17 and ui 0.24.
 
 **Changes in 0.21:** S2 and S3 done: the owner tested both on the phones in Chrome, including S3.5's photo flow and the Android share sheet. The installed PWA wasn't part of it; that's S13.
 
@@ -137,8 +139,9 @@ Work is organised as **vertical slices**: each delivers a usable end-to-end incr
 | 2026-11-13 | S12.8 on the Galaxy S23 FE, installed and closed (owner). Turning on, the delayed test (tapped 06:19:57 SAST, due 06:22:57, sent and received 06:24:14, about 4 minutes after the tap, inside the promised 3–8) and a session's reminder arriving, its tap opening the session to log it. Received within a second of sending each time; lateness was the 5-minute tick, and the inline tick doesn't run on start. A rescheduled session sent once, at its new time (47 s ahead, by design); skipped and cancelled sessions sent nothing. Blocking Toe Beans' notifications in Android settings cancelled the subscription: the next send got 410, the device was disabled, the screen showed *blocked*. Two fixes: an installed app only notices a change to its notification setting when it starts (allowed again, it stayed *blocked* through *Check again* and a reload; blocked, it showed as on), so the blocked state now says to close and reopen it and re-checks on returning to the front; and the phone, subscribing anew, listed its old stopped record as an "other device", so a new device now replaces the person's stopped ones with the same label. S12.8 and S12 closed by the owner without the Redmi Note 12 Pro or the battery steps. If the Redmi drops reminders once it's in use, its battery step is the first thing to check. |
 | 2026-11-13 | S9.1 built. Behaviour events (D28): `/api/v1/behaviour-events` records, reads and edits one with If-Match; a current dog and a category are required, the trigger, how the puppy responded and notes optional, and when defaults to now with the session log's limits. An edit can move an event to another current dog. Mongo adapter with the household-isolation suite (migration 0009, indexed for S10's History). The *Record event* sheet (J5) and the event page `/events/:id` with *Edit*, a failure keeping everything for *Retry* and a conflict offering *See their version*. The floating "+" arrived with it on Today, Plan and History (ui §2.1): *Log training* (the exercise picker, then the quick log), *Record event* and *Schedule session*, with a snackbar linking to what was saved. e2e: scenario 6 (a barking incident for a chosen dog, nothing planned or logged), the switcher's dog starting the sheet, *Log training* from the "+", a failed save, an edit with a conflict and a dog change, and scenario 9 by ID. 659 unit, 127 integration and 193 e2e tests. Events are listed with History (S10); not yet tried on a phone (S9.2). |
 | 2026-11-13 | S9 done. The owner tried it on a phone (S9.2): everything worked. Bottom sheets touched the phone's button bar in the installed app: each sheet's own padding replaced the shared sheet's safe-area padding, so their last 1 rem sat under the bar. The shared sheet now clears it with a bottom border in its own colour (ui 0.23). |
+| 2026-11-13 | S10.1–S10.2 built. `GET /api/v1/history` merges logs and events newest first, 30 a page with a cursor of the last entry's time and ID, filtered by dog, type (training, events or one kind of event, the owner's call for FR-09's "event type"), exercise and dates on the household's clocks (D29). History: the switcher as the dog filter, *Show*, *Exercise* and *Dates* filter buttons kept in the URL, cards under day headings, *Load more*, a failed load with *Try again*. Soft delete (D29, §5.3): `DELETE` with If-Match answers the deleted version, `POST …/restore` is *Undo*. Deleting a planned session's log puts the session back in the plan (cancelled with an archived dog) and *Undo* completes it again unless it was logged, skipped or cancelled meanwhile, both the owner's call. *Delete this log* / *Delete this event* on the detail pages confirm by name, then History's snackbar offers *Undo*. The purge is a 30-day TTL index on `deletedAt` (migration 0010, which also indexes logs by dog). e2e: FR-09's timeline and each filter, *Load more*, a planned log deleted and undone, an event deleted after a conflict and a failed delete, a failed load, and scenario 9 for listing, delete and restore. 683 unit, 140 integration and 205 e2e tests; a household join test timed out once under the full parallel run and passed alone (not this slice's code). Not yet tried on a phone (S10.3). |
 
-**Next up:** S10 and S11 (care reminders, S11.3, plug into the tick), then S13.
+**Next up:** S10.3 on a phone, S11 (care reminders, S11.3, plug into the tick), then S13.
 
 ---
 
@@ -279,13 +282,14 @@ Work is organised as **vertical slices**: each delivers a usable end-to-end incr
 | S9.1 | BehaviourEvent CRUD, record-event sheet. Delete is S10.2's soft delete. Also the floating "+" and its chooser on Today, Plan and History (ui §2.1): *Log training* (J4), *Record event* (J5), *Schedule session*. | ✅ |
 | S9.2 | On a phone: record an event from the "+" with one and two dogs, *Earlier*, the event page and *Edit* (moving it to the other dog), a conflict from a second device, and *Log training* from the "+". Tried by the owner (13 Nov). | ✅ |
 
-### S10 History ⬜
+### S10 History 🟨
 *FR-09.*
 
 | # | Task | Status |
 |---|---|---|
-| S10.1 | Combined timeline query with filters (dog, type, exercise, dates; each a filter button, ui §5.1) and cursor pagination | ⬜ |
-| S10.2 | Soft delete with confirmation and undo. Purge job. | ⬜ |
+| S10.1 | Combined timeline query with filters (dog, type, exercise, dates; each a filter button, ui §5.1) and cursor pagination | ✅ |
+| S10.2 | Soft delete with confirmation and undo. Purge job. | ✅ |
+| S10.3 | On a phone: History with logs and events from both dogs, each filter and *Load more*; deleting a log and an event from their pages with *Undo*, and a planned session's log (the session back on Today, then *Done* again after *Undo*). | ⬜ |
 
 ### S11 Care calendar ⬜
 *FR-10, scenario 7.*

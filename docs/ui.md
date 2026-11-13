@@ -1,9 +1,9 @@
 # Toe Beans — UI and Interaction Design
 
-**Version:** 0.23 (draft for iteration)
+**Version:** 0.24 (draft for iteration)
 **Date:** 13 November 2026
 **Status:** Proposed. Review-round decisions in §8 are accepted.
-**Inputs:** `docs/requirements.md` v1.0, `docs/architecture.md` v1.16
+**Inputs:** `docs/requirements.md` v1.0, `docs/architecture.md` v1.17
 
 **Changes in 0.7:** the logo landed (S0.9). The mark is now a **TB monogram** with four toe beans above it and a heart-shaped bean in the B, from the AI-assisted design board (Monogram Iteration B), replacing the placeholder paw. It was traced from the board and cleaned up rather than redrawn by hand; the variants are the brown-on-cream mark, a cream-on-brown app-icon tile (favicon and maskable) and a white badge. The wordmark uses Fredoka Bold to match the board (§6.4 Logo).
 
@@ -28,6 +28,8 @@
 **Changes in 0.22:** J7 after S12.8 on the Samsung. The blocked state adds "Still blocked after allowing them? Close Toe Beans completely and open it again": an installed app picks up a change to its notifications in Android's settings only on restart: allowed again, it stayed *blocked* through *Check again* and a reload, and blocked, it showed as on. The second can't be detected; it's why the test exists. The screen checks again whenever it comes back to the front. A phone that turns reminders back on after being blocked replaces its stopped entry rather than listing itself under *Your other devices* (architecture 1.15 §6.1).
 
 **Changes in 0.23:** S9 built. §2.1: the floating "+" is in on Today, Plan and History, its chooser offering *Log training* (J4), *Record event* (J5) and *Schedule session*; *Add care task* joins with S11. J4 as built: no *Recent* or *Planned today* groups yet, the picker is the library as on Schedule. J5 as built, with *Earlier* instead of *Pick* as in the quick log, a snackbar after saving, and the event page `/events/:id` with *Edit* (J8), where the dog can be corrected (architecture 1.16 D28). Bottom sheets now clear the phone's gesture or button bar in the installed app: the shared sheet's safe-area padding was replaced by each sheet's own padding, so their last 1 rem sat under the bar; it's a bottom border in the sheet's colour now, which no sheet overrides. Inputs moved to architecture 1.16.
+
+**Changes in 0.24:** S10 built (architecture 1.17 D29). §4.4 as built: the switcher is the dog filter, then *Show* (*Everything*, *Training*, *All events* and each kind of event), *Exercise* (the picker with *All exercises* first) and *Dates* (presets or *Choose dates*), cards grouped under day headings, *Load more* (30 a page); Back from an entry keeps the list and its scroll without loading again, unless this device saved something meanwhile, and *Undo* puts the entry back in place. J8 as built: *Delete this log* / *Delete this event* on the detail page rather than an overflow menu (it's the only other action), confirmed in a sheet naming it, then History with *Undo* in the "+"'s snackbar. §2.3's History route drops `dog=`: the dog is the switcher's.
 
 **Changes in 0.12:** S3 built. J1 step 4 as built: *Take photo* or *Gallery*, then a framing square with the circle overlay (drag, pinch, a zoom slider and arrow keys), and birth date as *I know the date* or *Approximate* with months old. J2 names the dogs. §2.2: the switcher shows on Today, Plan, History and Care, with name chips. §5.1 gains two rules from using it: one confirm button per context (a sheet is its own context), and a control is never disabled without the reason on screen; the photo moved into its own sheet in J1 to follow the first, and the household, name and email-invite buttons stopped greying out for missing input to follow the second. §4.5: editing is its own page and the overflow sheet holds *Edit details* and *Archive*; the Recent sections wait for their slices. The dog accent palette is defined (§6.4), and More gains *Dogs* (§2.1). The custom dog icon read as a monkey, so it's replaced by Phosphor's *Dog*, the documented fallback library (§6.4).
 
@@ -99,7 +101,7 @@ A **floating "+" button** on Today, Plan and History opens a chooser: *Log train
 ```
 /                       → Today
 /plan?week=2026-W44
-/history?dog=&type=&exercise=&from=&to=
+/history?type=&exercise=&from=&to=   (the dog is the switcher's)
 /care
 /sessions/:id           planned session detail (notification deep link target)
 /logs/:id               session log detail / edit
@@ -218,6 +220,8 @@ The screen also lists **other devices** of the current user, so they can be remo
 
 From any detail view: **Edit** (the same form as create), or overflow menu → **Delete** → bottom-sheet confirmation naming the item ("Delete Ripley's recall log from Tue 14:05?"). After deletion a snackbar offers **Undo** (soft delete, see architecture §5.3).
 
+- *As built (S10):* the log and event pages have *Delete this log* / *Delete this event* under *Edit*, a quiet red text button rather than an overflow menu, since it's the only other action. It opens a sheet titled with the item ("Delete Rosie's Recall basics log from today at 14:05?", "Delete Miso's barking from Tue 10 Nov at 08:15?"), saying it goes from History for everyone and can be undone straight after, with one button, *Delete log* / *Delete event*. A failure keeps the sheet open with *Retry*; a change made elsewhere meanwhile deletes nothing ("Someone changed this a moment ago, so nothing was deleted.") and *See the changes* reloads the page; one already deleted goes to History saying so. Deleted, the app goes to History, whose snackbar (the "+"'s, §2.1) says "Deleted Rosie's Recall basics log." with **Undo**; *Undo* says "The log is back." with *See the log*, or why it can't come back (its session was logged again, skipped or cancelled meanwhile, architecture D29), or offers *Retry* when offline. Back to History later doesn't offer it again. Deleting a planned session's log puts the session back on Today and Plan (*Overdue* or *Planned*), and *Undo* makes it *Done* again.
+
 ### J9 — Network failure (scenario 8)
 
 See §6.1. The form keeps all input. The save button becomes **Retry**, and an inline banner explains the failure.
@@ -296,7 +300,9 @@ The header shows a week strip (Mon–Sun) with dots for days that have sessions,
 
 - Filters at the top: dog, type (*Training / Events*), exercise, date range. Each is a filter button (§5.1); the row wraps onto a second line rather than scrolling.
 - Below that, a reverse-chronological timeline grouped by day. Training rows show the outcome badge (neutral for *Not assessed*). Event rows show the category icon.
-- Loading uses cursor pagination with a "Load more" button, not infinite scroll, to keep it accessible.
+- Loading uses cursor pagination with a "Load more" button, not infinite scroll, to keep it accessible. A page is 30 entries, about four phone screens.
+- *As built (S10):* Back from a log or event shows the list as it was (every page loaded, scrolled where it was) without asking the server again, unless this device saved something meanwhile. Coming by the tab or a reload loads afresh. *Undo* puts the entry back in its place in the list rather than loading it again.
+- *As built (S10):* the dog switcher under the title is the dog filter (§2.2); with one current dog there's nothing to choose and every dog's history shows, an archived dog's too. Below it a wrapping row of three filter buttons (§5.1), kept in the URL (`?type=&exercise=&from=&to=`): **Show** (*Everything*, *Training*, *All events*, then each kind of event, FR-09's "event type"), **Exercise** (the exercise picker, titled *Exercise*, with *All exercises* first; choosing one shows only training) and **Dates** (*All time*, *Last 7 days*, *Last 30 days*, *Last 3 months*, then *Choose dates…*, a sheet with optional *From* and *To* dates, both included, whose button is *Show these dates*; a chosen range then labels the button, e.g. "1 Nov – 5 Nov"). Entries are grouped under day headings (*Today*, *Yesterday*, "Tue 10 Nov", with the year once it isn't this one). A training card is the one Today's *Done* uses: time, avatar, exercise, the dog's name, the outcome badge and "by Sam"; an event card has the time, avatar, the kind of event with its icon, the trigger on its own line, the dog's name and who recorded it. Each opens its page. 30 at a time, then *Load more* ("Loading…", or *Try again* after a failure). Loading shows grey placeholder cards; a failed load says "Couldn't load your history — check your connection." with *Try again*, never an empty history. Empty, it says "No history yet"; with filters, "Nothing matches these filters" (naming the dog when one's chosen) and *Clear filters*.
 
 ### 4.5 Dog profile
 

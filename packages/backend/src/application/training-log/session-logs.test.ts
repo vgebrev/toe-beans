@@ -362,3 +362,126 @@ describe('editing a log', () => {
 		expect(created.ok && created.value.caregiverName).toBe('A former member');
 	});
 });
+
+describe('deleting a log', () => {
+	it('soft-deletes an ad-hoc log against its version, and brings it back', async () => {
+		const { logs, sessionLogs, dog } = await setup();
+		const created = await logs.create(sam, { dogId: dog.id, exerciseId: recall.id });
+		if (!created.ok) throw new Error(JSON.stringify(created.error));
+		const id = created.value.log.id;
+
+		expect(await logs.remove(alex, { id, expectedVersion: 2 })).toEqual({
+			ok: false,
+			error: { kind: 'stale-version' }
+		});
+		const removed = await logs.remove(alex, { id, expectedVersion: 1 });
+		expect(removed).toMatchObject({ ok: true, value: { id, version: 2, updatedBy: 'alex' } });
+		expect(await logs.get(sam, id)).toMatchObject({ ok: false, error: { kind: 'not-found' } });
+		expect(sessionLogs.all()[0]!.deletedAt).toEqual(at);
+
+		const restored = await logs.restore(alex, { id, expectedVersion: 2 });
+		expect(restored).toMatchObject({ ok: true, value: { log: { id, version: 3 } } });
+		expect(restored.ok && restored.value.log.deletedAt).toBeUndefined();
+		expect((await logs.get(sam, id)).ok).toBe(true);
+	});
+
+	it('puts a planned session back in the plan, and Undo completes it again', async () => {
+		const { logs, plan, plannedSessions } = await setup();
+		const session = await plan();
+		const created = await logs.create(sam, { plannedSessionId: session.id });
+		if (!created.ok) throw new Error(JSON.stringify(created.error));
+		const id = created.value.log.id;
+
+		const removed = await logs.remove(alex, { id, expectedVersion: 1 });
+		expect(removed.ok).toBe(true);
+		const reopened = await plannedSessions.findById('h1' as Id, session.id);
+		expect(reopened).toMatchObject({ status: 'planned', updatedBy: 'alex' });
+		expect(reopened?.sessionLogId).toBeUndefined();
+
+		expect((await logs.restore(alex, { id, expectedVersion: 2 })).ok).toBe(true);
+		expect(await plannedSessions.findById('h1' as Id, session.id)).toMatchObject({
+			status: 'completed',
+			sessionLogId: id
+		});
+	});
+
+	it('lets the session be logged again, and then refuses Undo', async () => {
+		const { logs, plan, plannedSessions } = await setup();
+		const session = await plan();
+		const first = await logs.create(sam, { plannedSessionId: session.id });
+		if (!first.ok) throw new Error(JSON.stringify(first.error));
+		await logs.remove(sam, { id: first.value.log.id, expectedVersion: 1 });
+
+		const again = await logs.create(alex, { plannedSessionId: session.id, outcome: 'successful' });
+		expect(again.ok).toBe(true);
+		expect(await logs.restore(sam, { id: first.value.log.id, expectedVersion: 2 })).toEqual({
+			ok: false,
+			error: {
+				kind: 'conflict',
+				message: "Its session has been logged again, so this log can't come back."
+			}
+		});
+		expect(await plannedSessions.findById('h1' as Id, session.id)).toMatchObject({
+			status: 'completed',
+			sessionLogId: again.ok && again.value.log.id
+		});
+	});
+
+	it('refuses Undo once the session was skipped meanwhile', async () => {
+		const { logs, plan, planner } = await setup();
+		const session = await plan('17:30');
+		const created = await logs.create(sam, { plannedSessionId: session.id });
+		if (!created.ok) throw new Error(JSON.stringify(created.error));
+		await logs.remove(sam, { id: created.value.log.id, expectedVersion: 1 });
+		const reopened = await planner.get(sam, session.id);
+		await planner.update(sam, {
+			id: session.id,
+			expectedVersion: reopened.ok ? reopened.value.session.version : 0,
+			changes: { status: 'skipped' }
+		});
+		expect(await logs.restore(sam, { id: created.value.log.id, expectedVersion: 2 })).toEqual({
+			ok: false,
+			error: {
+				kind: 'conflict',
+				message: "Its session was skipped meanwhile, so the log can't come back."
+			}
+		});
+	});
+
+	it('cancels the session with its dog when the dog has been archived', async () => {
+		const { logs, plan, plannedSessions, dog, ports } = await setup();
+		const session = await plan();
+		const created = await logs.create(sam, { plannedSessionId: session.id });
+		if (!created.ok) throw new Error(JSON.stringify(created.error));
+		await ports.dogs.update('h1' as Id, dog.id, dog.version, {
+			archivedAt: at,
+			updatedBy: sam.userId
+		} as never);
+
+		await logs.remove(sam, { id: created.value.log.id, expectedVersion: 1 });
+		expect(await plannedSessions.findById('h1' as Id, session.id)).toMatchObject({
+			status: 'cancelled',
+			cancelledWithDog: true
+		});
+		expect((await logs.restore(sam, { id: created.value.log.id, expectedVersion: 2 })).ok).toBe(
+			true
+		);
+		const done = await plannedSessions.findById('h1' as Id, session.id);
+		expect(done).toMatchObject({ status: 'completed', sessionLogId: created.value.log.id });
+		expect(done?.cancelledWithDog).toBeUndefined();
+	});
+
+	it('refuses another household, a deleted log and an unknown ID as not found', async () => {
+		const { logs, dog } = await setup();
+		const created = await logs.create(sam, { dogId: dog.id, exerciseId: recall.id });
+		if (!created.ok) throw new Error(JSON.stringify(created.error));
+		const id = created.value.log.id;
+		const notFound = { ok: false, error: { kind: 'not-found', resource: 'log' } };
+		expect(await logs.remove(outsider, { id, expectedVersion: 1 })).toEqual(notFound);
+		expect(await logs.remove(sam, { id: 'nope', expectedVersion: 1 })).toEqual(notFound);
+		await logs.remove(sam, { id, expectedVersion: 1 });
+		expect(await logs.remove(sam, { id, expectedVersion: 2 })).toEqual(notFound);
+		expect(await logs.restore(outsider, { id, expectedVersion: 2 })).toEqual(notFound);
+		expect(await logs.restore(sam, { id: 'nope', expectedVersion: 2 })).toEqual(notFound);
+	});
+});

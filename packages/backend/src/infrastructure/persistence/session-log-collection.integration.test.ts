@@ -139,6 +139,103 @@ describe('mongoSessionLogs', () => {
 			sessionLogId: log.id
 		});
 	});
+	it('lists a page of the timeline, newest first, after a cursor and by dog and exercise', async () => {
+		const household = ids.next();
+		const dog = ids.next();
+		const minutes = (m: number) => new Date(+at - m * 60_000);
+		const a = await logs().insert(newLog(household, { dogId: dog, practisedAt: minutes(1) }));
+		const b = await logs().insert(newLog(household, { dogId: dog, practisedAt: minutes(2) }));
+		const c = await logs().insert(newLog(household, { dogId: dog, practisedAt: minutes(2) }));
+		const d = await logs().insert(
+			newLog(household, { practisedAt: minutes(3), exerciseId: 'sit' })
+		);
+		const ids_ = (list: { id: Id }[]) => list.map((l) => l.id);
+		expect(ids_(await logs().listTimeline(household, { limit: 10 }))).toEqual([
+			a.id,
+			c.id,
+			b.id,
+			d.id
+		]);
+		expect(
+			ids_(
+				await logs().listTimeline(household, { limit: 2, before: { at: c.practisedAt, id: c.id } })
+			)
+		).toEqual([b.id, d.id]);
+		expect(ids_(await logs().listTimeline(household, { dogId: dog, limit: 10 }))).toEqual([
+			a.id,
+			c.id,
+			b.id
+		]);
+		expect(ids_(await logs().listTimeline(household, { exerciseId: 'sit', limit: 10 }))).toEqual([
+			d.id
+		]);
+		expect(
+			ids_(await logs().listTimeline(household, { from: minutes(2), to: minutes(1), limit: 10 }))
+		).toEqual([c.id, b.id]);
+	});
+
+	it('soft-deletes and restores at the expected version, freeing the planned session meanwhile', async () => {
+		const household = ids.next();
+		const sessionId = ids.next();
+		const deleter = ids.next();
+		const log = await logs().insert(newLog(household, { plannedSessionId: sessionId }));
+
+		expect(await logs().softDelete(household, log.id, 2, deleter)).toEqual(
+			err({ kind: 'stale-version' })
+		);
+		const deleted = await logs().softDelete(household, log.id, 1, deleter);
+		expect(deleted).toMatchObject({
+			ok: true,
+			value: { deletedAt: at, plannedSessionId: sessionId, updatedBy: deleter, version: 2 }
+		});
+		expect(await logs().findById(household, log.id)).toBeNull();
+		expect(await logs().listTimeline(household, { limit: 10 })).toEqual([]);
+		expect(await logs().findDeleted(household, log.id)).toMatchObject({
+			plannedSessionId: sessionId
+		});
+		expect(await logs().update(household, log.id, 2, { updatedBy: deleter })).toEqual(
+			err({ kind: 'stale-version' })
+		);
+
+		// The session can be logged again while this one is deleted.
+		const again = await logs().insert(newLog(household, { plannedSessionId: sessionId }));
+		await logs().softDelete(household, again.id, 1, deleter);
+
+		expect(await logs().restore(household, log.id, 1, deleter)).toEqual(
+			err({ kind: 'stale-version' })
+		);
+		const restored = await logs().restore(household, log.id, 2, deleter);
+		expect(restored).toMatchObject({
+			ok: true,
+			value: { plannedSessionId: sessionId, version: 3 }
+		});
+		expect(restored.ok && 'deletedAt' in restored.value).toBe(false);
+		expect(await logs().findById(household, log.id)).toMatchObject({ plannedSessionId: sessionId });
+		expect(await logs().findDeleted(household, log.id)).toBeNull();
+		expect(await logs().restore(household, log.id, 3, deleter)).toEqual(
+			err({ kind: 'not-found', resource: 'log' })
+		);
+	});
+
+	it("can't delete or restore another household's log", async () => {
+		const household = ids.next();
+		const log = await logs().insert(newLog(household));
+		expect(await logs().softDelete(ids.next(), log.id, 1, ids.next())).toEqual(
+			err({ kind: 'not-found', resource: 'log' })
+		);
+		await logs().softDelete(household, log.id, 1, ids.next());
+		expect(await logs().findDeleted(ids.next(), log.id)).toBeNull();
+		expect(await logs().restore(ids.next(), log.id, 2, ids.next())).toEqual(
+			err({ kind: 'not-found', resource: 'log' })
+		);
+	});
+
+	it('purges deleted logs 30 days after deletion', async () => {
+		const indexes = await db.mongo.db.collection(SESSION_LOGS).indexes();
+		expect(indexes.find((i) => i.key.deletedAt === 1)).toMatchObject({
+			expireAfterSeconds: 30 * 24 * 60 * 60
+		});
+	});
 });
 
 householdIsolationSuite('mongoSessionLogs', () => ({
@@ -154,5 +251,16 @@ householdIsolationSuite('mongoSessionLogs', () => ({
 			outcome: 'successful',
 			updatedBy: ids.next()
 		});
+	}
+}));
+
+householdIsolationSuite('mongoSessionLogs: timeline and delete', () => ({
+	create: async (householdId) => (await logs().insert(newLog(householdId))).id,
+	read: (householdId, id) => logs().findById(householdId, id),
+	list: async (householdId) =>
+		(await logs().listTimeline(householdId, { limit: 10 })).map((l) => l.id),
+	remove: async (householdId, id) => {
+		const current = await db.mongo.db.collection(SESSION_LOGS).findOne({ _id: id as never });
+		return logs().softDelete(householdId, id, current!.version as number, ids.next());
 	}
 }));

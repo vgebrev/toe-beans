@@ -6,6 +6,7 @@ import { createCues } from '../application/cues/cues.js';
 import { createDogs } from '../application/dogs/dogs.js';
 import { createExercises } from '../application/exercises/exercises.js';
 import { createBehaviourEvents } from '../application/journal/behaviour-events.js';
+import { createHistory } from '../application/history/history.js';
 import { createHouseholds } from '../application/household/household.js';
 import { createInvitations } from '../application/household/invitations.js';
 import { createPlanner } from '../application/planner/planner.js';
@@ -21,6 +22,7 @@ import { createCuesHttp, type CuesHttp } from './cues.js';
 import { createDogsHttp, type DogsHttp } from './dogs.js';
 import { createExercisesHttp, type ExercisesHttp } from './exercises.js';
 import { createHealthHttp, type HealthHttp } from './health.js';
+import { createHistoryHttp, type HistoryHttp } from './history.js';
 import { createHouseholdHttp, type HouseholdHttp } from './household.js';
 import { createPlannerHttp, type PlannerHttp } from './planner.js';
 import { createRemindersHttp, type RemindersHttp } from './reminders.js';
@@ -40,6 +42,7 @@ export interface Http {
 	sessionLogs: SessionLogsHttp;
 	behaviourEvents: BehaviourEventsHttp;
 	today: TodayHttp;
+	history: HistoryHttp;
 	reminders: RemindersHttp;
 	worker: WorkerHttp;
 }
@@ -64,6 +67,7 @@ export function createHttp(
 	});
 	const planner = createPlanner(ports);
 	const sessionLogs = createSessionLogs(ports);
+	const behaviourEvents = createBehaviourEvents(ports);
 	return {
 		health: createHealthHttp(ports),
 		auth: createAuthHttp(auth, {
@@ -82,8 +86,9 @@ export function createHttp(
 		cues: createCuesHttp(createCues(ports)),
 		planner: createPlannerHttp(planner),
 		sessionLogs: createSessionLogsHttp(sessionLogs),
-		behaviourEvents: createBehaviourEventsHttp(createBehaviourEvents(ports)),
+		behaviourEvents: createBehaviourEventsHttp(behaviourEvents),
 		today: createTodayHttp(createToday(ports, { planner, sessionLogs })),
+		history: createHistoryHttp(createHistory(ports, { sessionLogs, behaviourEvents })),
 		reminders: createRemindersHttp(
 			createReminderSettings(ports, { allowedEndpoints: allowedPushEndpoints })
 		),

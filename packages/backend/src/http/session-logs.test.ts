@@ -184,4 +184,23 @@ describe('session logs http', () => {
 			await http.create(noHousehold, { body: { dogId: dog.id, exerciseId: 'recall-basics' } })
 		).toMatchObject({ status: 404 });
 	});
+	it('deletes with If-Match, answering the deleted version for Undo, and restores', async () => {
+		const { http, dog } = await setup();
+		const { id } = (
+			await http.create(viewer, { body: { dogId: dog.id, exerciseId: 'recall-basics' } })
+		).body as { id: string };
+		expect(await http.remove(viewer, { id, ifMatch: null })).toMatchObject({ status: 428 });
+		expect(await http.remove(outsider, { id, ifMatch: '"1"' })).toMatchObject({ status: 404 });
+		expect(await http.remove(viewer, { id, ifMatch: '"1"' })).toMatchObject({
+			status: 204,
+			headers: { etag: '"2"' }
+		});
+		expect(await http.get(viewer, { id })).toMatchObject({ status: 404 });
+		expect(await http.restore(viewer, { id, ifMatch: '"1"' })).toMatchObject({ status: 412 });
+		expect(await http.restore(viewer, { id, ifMatch: '"2"' })).toMatchObject({
+			status: 200,
+			headers: { etag: '"3"' },
+			body: { id }
+		});
+	});
 });

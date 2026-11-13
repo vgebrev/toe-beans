@@ -15,6 +15,8 @@ declare global {
 		/** Survives a `goto`, so a page can say what just happened on the one before. */
 		interface PageState {
 			notice?: string;
+			/** A log or event just deleted, for History's *Undo* (ui.md J8). */
+			deleted?: import('#lib/history/deleted.js').Deleted;
 		}
 		// interface Platform {}
 	}

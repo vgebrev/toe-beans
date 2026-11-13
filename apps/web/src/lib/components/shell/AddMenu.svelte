@@ -1,9 +1,21 @@
+<script lang="ts" module>
+	export interface Snack {
+		text: string;
+		/** A link to what it's about, already resolved. */
+		href?: string;
+		link?: string;
+		/** A button instead, such as *Undo*. */
+		action?: { label: string; run: () => void };
+	}
+</script>
+
 <script lang="ts">
 	// The floating "+" on Today, Plan and History (ui.md §2.1): a chooser sheet with *Log
 	// training* (J4: pick an exercise, then the quick log), *Record event* (J5) and *Schedule
 	// session* (J3). *Add care task* joins it with S11. New records start with the switcher's dog.
 	// Once one is saved, a snackbar says so with a link to it (§5.2), and the page reloads its
-	// data so it shows up.
+	// data so it shows up. The page can put its own message in the same snackbar, such as
+	// History's *Undo* after a delete (J8).
 	import { tick } from 'svelte';
 	import { invalidateAll } from '$app/navigation';
 	import { resolve } from '$app/paths';
@@ -31,9 +43,11 @@
 		timeZone: string;
 		/** Where *Schedule session* goes, such as Plan's chosen day. */
 		scheduleHref?: string | undefined;
+		/** What the snackbar says, if anything; the page can set it too. */
+		snack?: Snack | null;
 	}
 
-	let { dogs, timeZone, scheduleHref }: Props = $props();
+	let { dogs, timeZone, scheduleHref, snack = $bindable(null) }: Props = $props();
 
 	const api = createApiClient((input, init) => fetch(input, init));
 	const active = getActiveDog();
@@ -51,7 +65,6 @@
 	let loading = $state(false);
 	let loadFailed = $state(false);
 	let picked = $state<ExerciseSummary | null>(null);
-	let saved = $state<{ text: string; href: string; link: string } | null>(null);
 
 	/** One sheet at a time: the chooser closes before the next opens, so focus moves cleanly. */
 	async function next(open: () => void) {
@@ -84,7 +97,7 @@
 	}
 
 	async function recorded(event: BehaviourEvent) {
-		saved = {
+		snack = {
 			text: `Recorded ${eventPhrase(event.category, nameOf(event.dogId))}.`,
 			href: resolve('/(app)/events/[id]', { id: event.id }),
 			link: 'See the event'
@@ -93,7 +106,7 @@
 	}
 
 	async function logged(log: SessionLog) {
-		saved = {
+		snack = {
 			text: `Logged ${log.exercise.title} for ${nameOf(log.dogId) ?? 'your dog'}.`,
 			href: resolve('/(app)/logs/[id]', { id: log.id }),
 			link: 'See the log'
@@ -117,45 +130,55 @@
 	</li>
 {/snippet}
 
-{#if dogs && current.length > 0}
+{#if (dogs && current.length > 0) || snack}
 	<!-- Room at the end of the page, so the button never covers its last card. -->
 	<div class="h-20" aria-hidden="true"></div>
 	<!-- Above the bottom bar, at the right edge of the app's column on a wide screen. -->
 	<div
 		class="pointer-events-none fixed inset-x-0 bottom-[calc(5rem+env(safe-area-inset-bottom))] z-30 mx-auto flex max-w-xl flex-col items-end gap-3 px-4"
 	>
-		{#if saved}
+		{#if snack}
 			<div
 				role="status"
 				class="pointer-events-auto flex w-full items-center gap-2 rounded-2xl border border-border bg-card py-1 pr-1 pl-4 shadow-lg"
 			>
-				<span class="flex-1 py-2">{saved.text}</span>
-				<!-- saved.href was resolved when it was saved. -->
-				<!-- eslint-disable svelte/no-navigation-without-resolve -->
-				<a
-					href={saved.href}
-					class="flex min-h-12 items-center px-2 font-bold text-primary underline">{saved.link}</a
-				>
-				<!-- eslint-enable svelte/no-navigation-without-resolve -->
-				<Button variant="ghost" size="icon" aria-label="Dismiss" onclick={() => (saved = null)}>
+				<span class="flex-1 py-2">{snack.text}</span>
+				{#if snack.action}
+					<Button variant="ghost" class="px-2 font-bold text-primary" onclick={snack.action.run}
+						>{snack.action.label}</Button
+					>
+				{:else if snack.href}
+					<!-- snack.href was resolved when it was set. -->
+					<!-- eslint-disable svelte/no-navigation-without-resolve -->
+					<a
+						href={snack.href}
+						class="flex min-h-12 items-center px-2 font-bold text-primary underline">{snack.link}</a
+					>
+					<!-- eslint-enable svelte/no-navigation-without-resolve -->
+				{/if}
+				<Button variant="ghost" size="icon" aria-label="Dismiss" onclick={() => (snack = null)}>
 					<Icon name="close" />
 				</Button>
 			</div>
 		{/if}
-		<Button
-			size="icon"
-			class="pointer-events-auto size-14 shadow-lg [&_svg:not([class*='size-'])]:size-7"
-			aria-label="Add"
-			aria-haspopup="dialog"
-			onclick={() => {
-				loadFailed = false;
-				chooserOpen = true;
-			}}
-		>
-			<Icon name="add" />
-		</Button>
+		{#if dogs && current.length > 0}
+			<Button
+				size="icon"
+				class="pointer-events-auto size-14 shadow-lg [&_svg:not([class*='size-'])]:size-7"
+				aria-label="Add"
+				aria-haspopup="dialog"
+				onclick={() => {
+					loadFailed = false;
+					chooserOpen = true;
+				}}
+			>
+				<Icon name="add" />
+			</Button>
+		{/if}
 	</div>
+{/if}
 
+{#if dogs && current.length > 0}
 	<Sheet.Root bind:open={chooserOpen}>
 		<Sheet.Content side="bottom" class="mx-auto flex max-w-xl flex-col gap-4 px-4 pt-6 pb-6">
 			<Sheet.Header class="p-0 pr-12 text-left">

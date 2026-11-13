@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { describe, expect, it, vi } from 'vitest';
-import { ContractError, createApiClient } from './index.js';
+import { ContractError, createApiClient, writeCount } from './index.js';
 
 const Dog = z.object({ id: z.string(), name: z.string() });
 
@@ -15,6 +15,19 @@ function respond(status: number, body?: unknown, headers: Record<string, string>
 }
 
 describe('createApiClient', () => {
+	it('counts the writes it sends, landed or not, but not reads', async () => {
+		const api = createApiClient(respond(500));
+		const before = writeCount();
+		await api.get('/dogs', Dog);
+		expect(writeCount()).toBe(before);
+		await api.send('DELETE', '/dogs/d1');
+		await createApiClient(vi.fn(async () => Promise.reject(new Error('offline')))).send(
+			'POST',
+			'/dogs'
+		);
+		expect(writeCount()).toBe(before + 2);
+	});
+
 	it('gets and validates a resource, with its ETag', async () => {
 		const fetchMock = respond(200, { id: 'd1', name: 'Ripley' }, { etag: '"3"' });
 		const result = await createApiClient(fetchMock).get('/dogs/d1', Dog);

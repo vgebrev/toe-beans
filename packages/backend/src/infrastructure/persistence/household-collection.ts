@@ -90,13 +90,16 @@ export class HouseholdCollection<T extends HouseholdDocument> {
 	/**
 	 * Applies `changes` only if the document is still at `expectedVersion` (optimistic concurrency,
 	 * NFR-13), and returns the updated document. `schemaVersion` stays as it was: a partial update
-	 * doesn't bring the rest of an older document up to the current shape.
+	 * doesn't bring the rest of an older document up to the current shape. `filter` narrows the
+	 * match further, e.g. to a document that isn't soft-deleted; a document it rules out reads as
+	 * changed since (a stale version).
 	 */
 	async update(
 		householdId: Id,
 		id: Id,
 		expectedVersion: number,
-		changes: Changes<T>
+		changes: Changes<T>,
+		filter: Filter<Fields<T>> = {}
 	): Promise<Result<T, WriteError>> {
 		const $set: Record<string, unknown> = { updatedAt: this.#options.clock.now() };
 		const $unset: Record<string, ''> = {};
@@ -105,7 +108,7 @@ export class HouseholdCollection<T extends HouseholdDocument> {
 			else $set[key] = value;
 		}
 		const updated = await this.#collection.findOneAndUpdate(
-			this.#scope(householdId, { _id: id, version: expectedVersion }),
+			this.#scope(householdId, { ...filter, _id: id, version: expectedVersion }),
 			{ $set, $unset, $inc: { version: 1 } } as never,
 			{ returnDocument: 'after', session: currentSession() }
 		);

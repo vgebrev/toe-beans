@@ -7,5 +7,6 @@ export * from './cues.js';
 export * from './planner.js';
 export * from './session-logs.js';
 export * from './behaviour-events.js';
+export * from './history.js';
 export * from './today.js';
 export * from './reminders.js';

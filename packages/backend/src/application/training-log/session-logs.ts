@@ -2,6 +2,8 @@
 // the household's dogs: against a planned session, which it completes in the same transaction,
 // or ad hoc. The outcome defaults to not assessed and every other detail is optional, so a log
 // never asks anyone to claim success. Editing carries the version it was based on (NFR-13).
+// Deleting is a soft delete that can be undone until the purge (§5.3, FR-09); deleting a planned
+// session's log puts the session back in the plan, and undoing it completes the session again.
 import { addDays, instantAt, type PlainDate, type PlainTime } from '../../domain/calendar.js';
 import { conflictError, validationError } from '../../domain/errors.js';
 import type { Exercise } from '../../domain/exercise.js';
@@ -119,6 +121,9 @@ export function createSessionLogs({
 	}
 
 	return {
+		/** Logs with their exercises and names, in one lookup (History, architecture §5.1). */
+		views,
+
 		/** Every dog's logs practised on `date` (the household's clocks), in time order. */
 		async listOn(ctx: PlannerContext, date: PlainDate): Promise<LogView[]> {
 			const found = await logs.listPractisedBetween(
@@ -230,6 +235,93 @@ export function createSessionLogs({
 			if (!updated.ok) return updated;
 			log.info('log changed', { householdId: ctx.householdId, logId: entry.id });
 			return ok(await view(updated.value));
+		},
+
+		/**
+		 * Soft-deletes the log (§5.3). A planned session it completed goes back to planned, so it
+		 * can be logged again, or to cancelled with its dog if the dog has been archived (D24). The
+		 * result carries the version `restore` needs.
+		 */
+		async remove(
+			ctx: PlannerContext,
+			input: { id: string; expectedVersion: number }
+		): Promise<Result<SessionLog, WriteFailure>> {
+			const removed = await uow.run(async (): Promise<Result<SessionLog, WriteFailure>> => {
+				const entry = await find(ctx, input.id);
+				if (!entry) return err(notFound('log'));
+				if (entry.version !== input.expectedVersion) return err(staleVersion);
+				if (entry.plannedSessionId) {
+					const session = await sessions.findById(ctx.householdId, entry.plannedSessionId);
+					if (session?.status === 'completed' && session.sessionLogId === entry.id) {
+						const dog = await dogs.findById(ctx.householdId, session.dogId);
+						const reopened = await sessions.update(ctx.householdId, session.id, session.version, {
+							...(dog?.archivedAt
+								? { status: 'cancelled', cancelledWithDog: true }
+								: { status: 'planned' }),
+							sessionLogId: undefined,
+							updatedBy: ctx.userId
+						});
+						if (!reopened.ok) return reopened;
+					}
+				}
+				return logs.softDelete(ctx.householdId, entry.id, entry.version, ctx.userId);
+			});
+			if (removed.ok) {
+				log.info('log deleted', {
+					householdId: ctx.householdId,
+					logId: removed.value.id,
+					planned: removed.value.plannedSessionId !== undefined
+				});
+			}
+			return removed;
+		},
+
+		/**
+		 * Brings a deleted log back: the snackbar's *Undo* (ui.md J8). Its planned session is
+		 * completed again; if the session has been logged, skipped or cancelled meanwhile, or has
+		 * gone from the plan, nothing comes back (409).
+		 */
+		async restore(
+			ctx: PlannerContext,
+			input: { id: string; expectedVersion: number }
+		): Promise<Result<LogView, ConflictError | WriteFailure>> {
+			if (!isId(input.id)) return err(notFound('log'));
+			const id = input.id;
+			const restored = await uow.run(
+				async (): Promise<Result<SessionLog, ConflictError | WriteFailure>> => {
+					const entry = await logs.findDeleted(ctx.householdId, id);
+					if (!entry) return err(notFound('log'));
+					if (entry.version !== input.expectedVersion) return err(staleVersion);
+					if (entry.plannedSessionId) {
+						const session = await sessions.findById(ctx.householdId, entry.plannedSessionId);
+						const reopened =
+							session?.status === 'planned' ||
+							(session?.status === 'cancelled' && session.cancelledWithDog);
+						if (!session || !reopened) {
+							return err(
+								conflictError(
+									!session
+										? "Its session is no longer in the plan, so the log can't come back."
+										: session.status === 'completed'
+											? "Its session has been logged again, so this log can't come back."
+											: `Its session was ${session.status} meanwhile, so the log can't come back.`
+								)
+							);
+						}
+						const done = await sessions.update(ctx.householdId, session.id, session.version, {
+							status: 'completed',
+							cancelledWithDog: undefined,
+							sessionLogId: entry.id,
+							updatedBy: ctx.userId
+						});
+						if (!done.ok) return done;
+					}
+					return logs.restore(ctx.householdId, entry.id, entry.version, ctx.userId);
+				}
+			);
+			if (!restored.ok) return restored;
+			log.info('log restored', { householdId: ctx.householdId, logId: id });
+			return ok(await view(restored.value));
 		}
 	};
 }
