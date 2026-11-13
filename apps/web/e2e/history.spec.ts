@@ -76,7 +76,7 @@ test('FR-09: logs and events in one timeline, newest first by day, with filters'
 	await expect(cards(page).nth(3)).toContainText('Fear');
 
 	// One kind of event (FR-09's event type), kept in the URL.
-	await page.getByRole('button', { name: 'Show: Everything' }).click();
+	await page.getByRole('button', { name: 'Show: All types' }).click();
 	await page.getByRole('dialog', { name: 'Show' }).getByRole('link', { name: 'Fear' }).click();
 	await expect(page).toHaveURL(/type=fear/);
 	await expect(cards(page)).toHaveCount(1);

@@ -50,9 +50,9 @@ export function withFilters(filters: HistoryFilters, change: Partial<HistoryFilt
 }
 
 export const typeOptions: readonly { id: HistoryType | 'all'; label: string }[] = [
-	{ id: 'all', label: 'Everything' },
+	{ id: 'all', label: 'All types' },
 	{ id: 'training', label: 'Training' },
-	{ id: 'events', label: 'All events' },
+	{ id: 'events', label: 'Any event' },
 	...CATEGORIES.map((c) => ({ id: c, label: categoryLabels[c].label }))
 ];
 
