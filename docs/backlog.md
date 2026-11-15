@@ -1,6 +1,6 @@
 # Toe Beans — Backlog
 
-**Version:** 0.38 (draft for iteration)
+**Version:** 0.39 (draft for iteration)
 **Date:** 15 November 2026
 **Inputs:** `docs/requirements.md` v1.0, `docs/architecture.md` v1.19, `docs/ui.md` v0.27
 
@@ -59,6 +59,8 @@
 **Changes in 0.37:** S11.1–S11.3 built (architecture 1.18 D30, ui 0.26 J6, J7). S11.1 gains planning the next task on completion, the owner's answer to repeating care. S11.4 added, trying it on a phone, as for earlier slices. Inputs moved to architecture 1.18 and ui 0.26.
 
 **Changes in 0.38:** S11 done: the owner closed S11.4. S13.1–S13.4 built (architecture 1.19 D31, ui 0.27 §5.2, §6.1, §6.3, §7), with offline as the shell only, the owner's call. S13.3's timings on the phones and S13.4's TalkBack pass move to a new S13.5, trying S13 on the phones, as for earlier slices, which also measures the Redmi's viewport. Inputs moved to architecture 1.19 and ui 0.27.
+
+**Changes in 0.39:** S13 done: the owner tried S13.5 on the Galaxy S23 FE and closed it without the Redmi Note 12 Pro. Added S15, a pre-release review (the owner's snag list, a security audit, and a code review with refactoring), which comes before S14 despite its number, so S14 starts from reviewed code.
 
 **Changes in 0.21:** S2 and S3 done: the owner tested both on the phones in Chrome, including S3.5's photo flow and the Android share sheet. The installed PWA wasn't part of it; that's S13.
 
@@ -153,7 +155,9 @@ Work is organised as **vertical slices**: each delivers a usable end-to-end incr
 | 2026-11-15 | S13.1–S13.4 built (D31). The service worker precaches the build (Latin fonts only), icons and three fallback pages it fetches on install: *You're offline*, *Can't reach Toe Beans* and the waking skeleton, which stands in for a page load slower than 1 s after a quiet minute, says "Waking up Toe Beans…" 3 s from the tap and loads the page once `/healthz` answers. In the app a navigation over 0.4 s shows the same skeleton. The offline banner follows the phone's online flag and failed requests; offline saves fail at once with the form's *Retry*. Install: Chrome's offer kept from the first moment, *Install Toe Beans* on Today (once), Notifications, More (with the installed state) and a new onboarding step; the manifest's *Log training* and *Record event* shortcuts open Today's "+" sheets. A 200% text e2e check found the bottom bar, one-word titles, the theme choices, labels and the email on More scrolling sideways; all fixed. e2e: the banner, scenario 8 offline, the offline page through the service worker, the precache, the skeleton, installing and the shortcuts. 737 unit, 147 integration and 243 e2e tests. Not yet on a phone (S13.5). |
 | 2026-11-15 | The owner's first look at S13 on a phone, and fixes: install wording now says *device* and names no browser; *Try again* on the offline page checks the server answers first and says when it still can't, and is a plain link too (most likely it reloaded straight into the offline page while the connection was still coming back, or the app's code wasn't cached; to recheck in S13.5); at One UI's 6 and 9 of 9 font steps Today's cards squeezed their titles (time and status now move under the title and *Log* drops below in a card under 18 rem) and Notifications' care reminder time overflowed (the fields stack). The 200% e2e check now covers both. 249 e2e tests. |
 
-**Next up:** S13.5 on the phones, then S14.
+| 2026-11-15 | S13 done. The owner tried S13.5 on the Galaxy S23 FE and closed it without the Redmi Note 12 Pro, whose e2e viewport stays an estimate. S15 added before S14: the owner's snag list, a security audit, and a code review and refactor, each in its own session. |
+
+**Next up:** S15, then S14.
 
 ---
 
@@ -327,7 +331,7 @@ Work is organised as **vertical slices**: each delivers a usable end-to-end incr
 | S12.7 | Tests: reschedule/cancel produces no stale sends, concurrent ticks produce no duplicates, denied/revoked permission | ✅ |
 | S12.8 | On both phones, installed and closed (NFR-16): turn reminders on, the delayed test, a session's reminder arriving and its tap opening the session, a moved and a cancelled session sending nothing, blocking notifications in Android settings, and the battery steps for each maker. Note the delivery times (`receivedAt` against `dueAt`). Done on the Galaxy S23 FE (13 Nov); the owner closed it without the Redmi or the battery steps. | ✅ |
 
-### S13 PWA polish and connectivity 🟨
+### S13 PWA polish and connectivity ✅
 *NFR-03, 04, 09.*
 
 | # | Task | Status |
@@ -336,7 +340,16 @@ Work is organised as **vertical slices**: each delivers a usable end-to-end incr
 | S13.2 | Offline banner, offline shell, failed-save retention and retry (scenario 8). The shell only: the library isn't readable offline (D31). | ✅ |
 | S13.3 | Cold-start skeletons and the "Waking up" message. The timings on the phones are S13.5. | ✅ |
 | S13.4 | Accessibility pass: an e2e check at 200% text size, and fixes for what it found. TalkBack is S13.5. | ✅ |
-| S13.5 | On both phones, installed: the install offer from Today and the onboarding step, the shortcuts on a long press, airplane mode (the banner, a failed save kept and retried, the offline page on opening the app), a cold start (the waking skeleton; note the time to Today from cold and warm on each phone, NFR-09), 200% font size and TalkBack on one phone through Today, logging a session and recording an event. Measure the Redmi's viewport for its e2e profile. | ⬜ |
+| S13.5 | On both phones, installed: the install offer from Today and the onboarding step, the shortcuts on a long press, airplane mode (the banner, a failed save kept and retried, the offline page on opening the app), a cold start (the waking skeleton; note the time to Today from cold and warm on each phone, NFR-09), 200% font size and TalkBack on one phone through Today, logging a session and recording an event. Measure the Redmi's viewport for its e2e profile. Done on the Galaxy S23 FE (15 Nov); the owner closed it without the Redmi. | ✅ |
+
+### S15 Pre-release review ⬜
+*Before S14: go-live prep starts from reviewed code. Numbered after S14 only because it was added later.*
+
+| # | Task | Status |
+|---|---|---|
+| S15.1 | The owner's snag list: small fixes and polish found while using the app. The items are listed here when the session starts. | ⬜ |
+| S15.2 | Security audit of the whole app against architecture §7 and NFR-01/02: household isolation on every read and write (scenario 9), sign-in and sessions, invitations, uploads, push endpoints and the tick, headers and CSP, secrets and logging. Findings fixed or recorded with a decision. | ⬜ |
+| S15.3 | Code review and refactor: duplication, dead code, layer boundaries (architecture §4.2) and test gaps, without changing behaviour. Notable changes recorded in the architecture decision log. | ⬜ |
 
 ### S14 Operations and release ⬜
 *NFR-05, 07, 10, 12, scenario 10.*
@@ -381,7 +394,7 @@ See `requirements.md` §3 "Explicitly deferred". Highlights: AI recommendations,
 
 ```
 S-1 spikes ─┐
-S0 ─────────┴─► S1 ─► S2 ─► S3 ─► S4 ─► S6 ─► S7 ─► S8 ─► S12 ─► S13 ─► S14
+S0 ─────────┴─► S1 ─► S2 ─► S3 ─► S4 ─► S6 ─► S7 ─► S8 ─► S12 ─► S13 ─► S15 ─► S14
                                    └─► S5      └─► S9 ─► S10
                                                └─► S11 ──────┘
 ```
