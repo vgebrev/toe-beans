@@ -6,6 +6,8 @@ declare global {
 			message: string;
 			/** Shown with unexpected errors, so a report can be matched to the logs (NFR-12). */
 			requestId?: string;
+			/** In the browser, the page's data couldn't be fetched: offline, not a bug. */
+			offline?: boolean;
 		}
 		// `viewer` is added in lib/server/locals.d.ts, which may import backend types.
 		interface Locals {

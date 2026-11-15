@@ -15,6 +15,7 @@
 	import SessionCard from '#lib/components/planner/SessionCard.svelte';
 	import AddMenu from '#lib/components/shell/AddMenu.svelte';
 	import EmptyState from '#lib/components/shell/EmptyState.svelte';
+	import InstallBanner from '#lib/components/shell/InstallBanner.svelte';
 	import PageHeader from '#lib/components/shell/PageHeader.svelte';
 	import LogCard from '#lib/components/training-log/LogCard.svelte';
 	import QuickLogSheet from '#lib/components/training-log/QuickLogSheet.svelte';
@@ -107,6 +108,7 @@
 	<div class="flex flex-col gap-6 px-4 pt-2 pb-8">
 		<p aria-live="polite" class="rounded-2xl bg-soft px-4 py-3 empty:hidden">{notice ?? ''}</p>
 		<RemindersBanner />
+		<InstallBanner />
 
 		{#if !day}
 			<p role="alert" class="rounded-2xl border border-border bg-soft px-4 py-3">

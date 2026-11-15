@@ -2,8 +2,10 @@
 	import { version } from '$app/env';
 	import { resolve } from '$app/paths';
 	import DisplayNameForm from '#lib/components/account/DisplayNameForm.svelte';
+	import { install } from '#lib/client/install.svelte.js';
 	import Icon from '#lib/components/icon/Icon.svelte';
 	import Logo from '#lib/components/Logo.svelte';
+	import InstallOffer from '#lib/components/shell/InstallOffer.svelte';
 	import PageHeader from '#lib/components/shell/PageHeader.svelte';
 	import ThemeSwitch from '#lib/components/shell/ThemeSwitch.svelte';
 	import { Button } from '#lib/components/ui/button/index.js';
@@ -110,6 +112,23 @@
 		<ThemeSwitch />
 	</section>
 
+	<!-- Installed or not, on this device (ui.md §6.3). -->
+	<section aria-labelledby="app" class="flex flex-col gap-3">
+		<h2 id="app" class="text-sm font-extrabold tracking-wide text-muted-foreground uppercase">
+			App
+		</h2>
+		{#if install.state === 'app'}
+			<p class="flex items-center gap-3">
+				<Icon name="done" class="text-primary" />
+				Installed: you're using the Toe Beans app.
+			</p>
+		{:else}
+			<InstallOffer
+				reason="Toe Beans isn't installed in this browser. Installed, it opens like an app, and reminders are more reliable."
+			/>
+		{/if}
+	</section>
+
 	<section aria-labelledby="account" class="flex flex-col gap-3">
 		<h2 id="account" class="text-sm font-extrabold tracking-wide text-muted-foreground uppercase">
 			Account
@@ -118,13 +137,13 @@
 			<DisplayNameForm displayName={data.me.profile.displayName} etag={data.me.etag} />
 			<p class="flex flex-col">
 				<span class="font-bold">Email</span>
-				<span class="text-muted-foreground">{data.me.profile.email}</span>
+				<span class="break-all text-muted-foreground">{data.me.profile.email}</span>
 			</p>
 		{:else}
 			<!-- The API didn't answer: show who's signed in, without an edit that can't save. -->
 			<p class="flex flex-col">
 				<span class="font-bold">{data.viewer.displayName}</span>
-				<span class="text-muted-foreground">{data.viewer.email}</span>
+				<span class="break-all text-muted-foreground">{data.viewer.email}</span>
 			</p>
 			<p class="text-sm text-muted-foreground">
 				Couldn't load your account details. Reload the page to change your name.

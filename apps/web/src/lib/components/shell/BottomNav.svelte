@@ -8,6 +8,8 @@
 	import { isActive, tabs } from './nav.js';
 </script>
 
+<!-- Sized to cap at large text (ui.md §7): at 200% the five tabs still fit across, with
+     labels up to 18 px and the bar no taller than 88 px. -->
 <nav
 	aria-label="Main"
 	class="fixed inset-x-0 bottom-0 z-40 border-t bg-surface pb-[env(safe-area-inset-bottom)]"
@@ -20,13 +22,13 @@
 					href={resolve(tab.route)}
 					aria-current={active ? 'page' : undefined}
 					class={[
-						'flex h-16 flex-col items-center justify-center gap-0.5 text-sm transition-colors',
+						'flex h-[min(4rem,88px)] flex-col items-center justify-center gap-0.5 px-0.5 text-[min(0.875rem,18px)] transition-colors',
 						active ? 'font-extrabold text-primary' : 'font-semibold text-muted-foreground'
 					]}
 				>
 					<span
 						class={[
-							'flex h-8 w-14 items-center justify-center rounded-full transition-colors',
+							'flex h-8 w-full max-w-14 items-center justify-center rounded-full transition-colors',
 							active && 'bg-soft'
 						]}
 					>

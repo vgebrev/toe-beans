@@ -15,10 +15,12 @@
 	// (J6, its own page) and *Schedule session* (J3). New records start with the switcher's dog.
 	// Once one is saved, a snackbar says so with a link to it (§5.2), and the page reloads its
 	// data so it shows up. The page can put its own message in the same snackbar, such as
-	// History's *Undo* after a delete (J8).
-	import { tick } from 'svelte';
-	import { invalidateAll } from '$app/navigation';
+	// History's *Undo* after a delete (J8). The home screen icon's shortcuts (ui.md §6.3) open
+	// Today with `?add=log` or `?add=event`, which start *Log training* or *Record event*.
+	import { onMount, tick } from 'svelte';
+	import { invalidateAll, replaceState } from '$app/navigation';
 	import { resolve } from '$app/paths';
+	import { page } from '$app/state';
 	import {
 		Exercises,
 		type BehaviourEvent,
@@ -88,6 +90,27 @@
 		}
 		await next(() => (pickerOpen = true));
 	}
+
+	/** A shortcut's request, taken once: Back or a reload doesn't open it again. */
+	onMount(() => {
+		const add = page.url.searchParams.get('add');
+		if (add === null) return;
+		const url = new URL(page.url);
+		url.searchParams.delete('add');
+		// The same page, so there's no route to resolve.
+		// eslint-disable-next-line svelte/no-navigation-without-resolve
+		replaceState(url, page.state);
+		if (!dogs || current.length === 0) return;
+		if (add === 'event') {
+			round++;
+			eventOpen = true;
+		} else if (add === 'log') {
+			// Opened from the home screen, a failure shows in the chooser, with the other choices.
+			void logTraining().then(() => {
+				if (loadFailed) chooserOpen = true;
+			});
+		}
+	});
 
 	async function pick(exercise: ExerciseSummary) {
 		picked = exercise;

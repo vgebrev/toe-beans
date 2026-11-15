@@ -27,8 +27,21 @@
 	const href = $derived(resolve('/(app)/sessions/[id]', { id: session.id }));
 </script>
 
+<!-- At large text (ui.md §7) the card is narrow in rem: its time and status move under the title
+     and an action drops below, so the title keeps its width. 18rem is 288 px at the default size. -->
+{#snippet status(placement: string)}
+	{#if session.status !== 'planned'}
+		<span
+			class="{placement} shrink-0 rounded-full border border-border px-3 py-0.5 text-sm font-bold"
+			>{statusLabels[session.status]}</span
+		>
+	{:else if overdue}
+		<span class="{placement} shrink-0 text-sm font-bold text-warn">Missed</span>
+	{/if}
+{/snippet}
+
 {#snippet body()}
-	<span class="w-12 shrink-0 font-bold tabular-nums">{session.time}</span>
+	<span class="w-12 shrink-0 font-bold tabular-nums @max-[18rem]:hidden">{session.time}</span>
 	{#if dog}
 		<DogAvatar {dog} size={36} />
 	{/if}
@@ -37,6 +50,9 @@
 			{session.exercise.title}
 		</span>
 		<span class="flex flex-wrap items-center gap-x-2 text-sm text-muted-foreground">
+			<span class="hidden font-bold text-foreground tabular-nums @max-[18rem]:inline"
+				>{session.time}</span
+			>
 			<span>{dog?.name ?? 'A dog no longer here'}</span>
 			{#if day}<span class="font-bold text-warn">{day}</span>{/if}
 			{#if session.plan}
@@ -48,29 +64,30 @@
 			{#if session.log}
 				<OutcomeBadge outcome={session.log.outcome} short />
 			{/if}
+			{@render status('hidden @max-[18rem]:inline')}
 		</span>
 	</span>
-	{#if session.status !== 'planned'}
-		<span class="shrink-0 rounded-full border border-border px-3 py-0.5 text-sm font-bold"
-			>{statusLabels[session.status]}</span
-		>
-	{:else if overdue}
-		<span class="shrink-0 text-sm font-bold text-warn">Missed</span>
-	{/if}
+	{@render status('@max-[18rem]:hidden')}
 {/snippet}
 
 {#if action}
-	<div class="flex items-center gap-2 rounded-2xl border border-border bg-card pr-3">
-		<a {href} class="flex min-h-16 min-w-0 flex-1 items-center gap-3 py-3 pl-4">
-			{@render body()}
-		</a>
-		{@render action(session)}
+	<div class="@container rounded-2xl border border-border bg-card">
+		<div
+			class="flex items-center gap-2 pr-3 @max-[18rem]:flex-col @max-[18rem]:items-stretch @max-[18rem]:pr-0"
+		>
+			<a {href} class="flex min-h-16 min-w-0 flex-1 items-center gap-3 py-3 pl-4 @max-[18rem]:pr-4">
+				{@render body()}
+			</a>
+			<div class="shrink-0 @max-[18rem]:self-end @max-[18rem]:px-4 @max-[18rem]:pb-3">
+				{@render action(session)}
+			</div>
+		</div>
 	</div>
 {:else}
 	<a
 		{href}
 		class={[
-			'flex min-h-16 items-center gap-3 rounded-2xl border border-border bg-card px-4 py-3',
+			'@container flex min-h-16 items-center gap-3 rounded-2xl border border-border bg-card px-4 py-3',
 			inactive && 'text-muted-foreground'
 		]}
 	>

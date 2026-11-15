@@ -85,6 +85,10 @@ test('first run: your name, your household, then an invite you can skip', async 
 
 	await expect(page).toHaveURL('/onboarding/invite');
 	await page.getByRole('link', { name: 'Done for now' }).click();
+	// A browser tab that isn't offered an install gets the browser's menu (ui.md §6.3).
+	await expect(page).toHaveURL('/onboarding/install');
+	await expect(page.getByText(/Install.+or.+Add to Home screen.+option/)).toBeVisible();
+	await page.getByRole('link', { name: 'Not now' }).click();
 	await expect(page.getByRole('heading', { level: 1 })).toHaveText('Today');
 
 	await page.goto('/more');

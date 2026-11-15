@@ -1,9 +1,9 @@
 # Toe Beans — UI and Interaction Design
 
-**Version:** 0.26 (draft for iteration)
-**Date:** 13 November 2026
+**Version:** 0.27 (draft for iteration)
+**Date:** 15 November 2026
 **Status:** Proposed. Review-round decisions in §8 are accepted.
-**Inputs:** `docs/requirements.md` v1.0, `docs/architecture.md` v1.18
+**Inputs:** `docs/requirements.md` v1.0, `docs/architecture.md` v1.19
 
 **Changes in 0.7:** the logo landed (S0.9). The mark is now a **TB monogram** with four toe beans above it and a heart-shaped bean in the B, from the AI-assisted design board (Monogram Iteration B), replacing the placeholder paw. It was traced from the board and cleaned up rather than redrawn by hand; the variants are the brown-on-cream mark, a cream-on-brown app-icon tile (favicon and maskable) and a white badge. The wordmark uses Fredoka Bold to match the board (§6.4 Logo).
 
@@ -34,6 +34,8 @@
 **Changes in 0.25:** §4.4's *Show* filter relabelled from S10.3 on the phone: *Everything* is now *All types*, following the *All …* convention of the other filters (*All exercises*, *All time*), and *All events* is now *Any event*, so the two no longer read as the same thing.
 
 **Changes in 0.26:** S11 built (architecture 1.18 D30). §2.1: *Add care task* joins the "+" chooser. J6 as built: Care lists *Overdue*, *Coming up* and folded *Done and cancelled*; the add and change form; the task page with its history, *Mark done* asking for the day and offering to plan the next one, *Cancel…* and putting back. §4.1: Today's *Coming up* holds overdue care and the next 7 days. J7: care reminders on Notifications (*Care tasks*, how many days before, and at what time), replacing the line promising them; the selects are named for screen readers by what they remind of. §6.2: care notifications as built.
+
+**Changes in 0.27:** S13 built (architecture 1.19 D31). J1 step 7: *Put Toe Beans on your phone* after the invite step. §5.2: the offline banner, and the skeleton with *Waking up Toe Beans…* as built, for a slow first load (the service worker's waking page) and a slow navigation in the app. §6.1: offline is the shell only, on the owner's call: the library isn't readable offline, so no page with data is cached. §6.3: the install offer on Today, Notifications, More and in onboarding, and the two shortcuts. §7: what large text changed (the bottom bar caps its size, page titles hyphenate, labels and the theme choices wrap, cards move their time and status under the title, the care reminder fields stack). After the owner's first look: install wording names neither a phone nor a browser, and *Try again* checks the connection first.
 
 **Changes in 0.12:** S3 built. J1 step 4 as built: *Take photo* or *Gallery*, then a framing square with the circle overlay (drag, pinch, a zoom slider and arrow keys), and birth date as *I know the date* or *Approximate* with months old. J2 names the dogs. §2.2: the switcher shows on Today, Plan, History and Care, with name chips. §5.1 gains two rules from using it: one confirm button per context (a sheet is its own context), and a control is never disabled without the reason on screen; the photo moved into its own sheet in J1 to follow the first, and the household, name and email-invite buttons stopped greying out for missing input to follow the second. §4.5: editing is its own page and the overflow sheet holds *Edit details* and *Archive*; the Recent sections wait for their slices. The dog accent palette is defined (§6.4), and More gains *Dogs* (§2.1). The custom dog icon read as a monkey, so it's replaced by Phosphor's *Dog*, the documented fallback library (§6.4).
 
@@ -138,6 +140,7 @@ Each journey maps to a requirements acceptance scenario (§5 there).
    - Shows the link's expiry (7 days), and that it works once. Inviting two people takes two links (architecture D17).
 6. **Turn on reminders** (skippable). See J7.
 7. **Install prompt** if not yet installed (§6.3). Then land on **Today**, with an empty state that suggests scheduling a first exercise from the library.
+   - *As built (S13):* *Done for now* on the invite step leads to *Install Toe Beans* (`/onboarding/install`): *Install Toe Beans* when the browser offers it, otherwise where to find *Install* or *Add to Home screen* in its menu, and *Not now* (*Go to Today* once installed). Opened in the installed app, it goes straight to Today. Turning on reminders (step 6) stays on More → Notifications and Today's banner.
 
 ### J2 — Accepting an invitation (scenario 1)
 
@@ -369,6 +372,11 @@ On More as **Household & invites**, showing the household's name; the page keeps
 | Offline | Persistent top banner "You're offline. Changes can't be saved right now." Save buttons stay enabled but fail fast with the offline message. |
 | Cold start (slow first load) | Skeleton screens immediately. After 3 s: "Waking up Toe Beans…" (NFR-09). |
 
+*As built (S13):*
+- **Offline banner:** at the top of every screen, over the page as it scrolls, light text on the dark text colour. "You're offline. Changes can't be saved right now." while the phone says it's offline; "Can't reach Toe Beans. Changes can't be saved right now." after a request got no answer although the phone says it's online, until one does (it checks every 15 s). A save while offline fails at once, without a request, so the form shows its usual "Couldn't save — check your connection." with **Retry** and everything kept (scenario 8).
+- **Skeleton:** a header and grey card shapes, pulsing unless reduced motion is on, with "Loading…" for screen readers, then "Waking up Toe Beans…" 3 s from the tap. In the app it replaces the page when a navigation takes over 0.4 s. On a first load the service worker shows it when the server hasn't answered within a second after a quiet minute (architecture D31); it loads the page itself once the server answers, says when the phone is offline, and after 20 s that it's taking longer than usual.
+- **Fallback pages** (no bottom bar, the logo and one button, *Try again*): *You're offline* ("…It opens again as soon as you're back online", which it does once the server answers, checking for half a minute after the phone says it's back) for a page load with no answer, and *Can't reach Toe Beans* for a gateway error. *Try again* first checks the server answers ("Checking…"); if not, "Still can't reach Toe Beans. Try again in a moment." rather than the same page again, since the connection takes a few seconds to come back after airplane mode. It's a plain link to the page too, so it works before the app's code has loaded. A page opened in the app while offline still opens, from the cached code, with its own "Couldn't load …" line.
+
 **Draft retention:** open log, event and care forms keep their state in memory across failures. P1 decision: also persist unsent drafts to `sessionStorage` so that an accidental app kill doesn't lose them.
 
 ### 5.3 Destructive actions
@@ -394,6 +402,7 @@ All deletes, archives, invite revocations and "turn off reminders" go through a 
 
 - Detect connectivity with `navigator.onLine` plus failed-fetch heuristics.
 - The service worker serves an offline shell and static exercise content when feasible (exercise text is non-sensitive). Household data is never cached.
+- *As built (S13):* the shell only, on the owner's call: the app's code, fonts and icons, and the fallback pages (§5.2). The library isn't readable offline, since its pages sit behind sign-in with household data around them (architecture D31).
 
 ### 6.2 Push notifications
 
@@ -408,6 +417,7 @@ All deletes, archives, invite revocations and "turn off reminders" go through a 
 - Capture `beforeinstallprompt` and offer *Install* in onboarding, in Notifications settings, and once as a dismissible Today banner.
 - Show installed state in Settings.
 - The manifest uses `display: standalone`, theme colours, maskable icons, `start_url: /`, and `shortcuts` for *Log training* and *Record event* (Android long-press on the icon).
+- *As built (S13):* Chrome's offer is kept from the first moment (it can come before the app's code loads) and stops Chrome's own install bar. Where it's offered, *Install Toe Beans* shows the browser's dialog; where it isn't (already installed, or not yet offered), the text points at the browser's *Install* or *Add to Home screen*. Today shows "Install Toe Beans on this device" with *Not now* while the browser offers it, until dismissed there or in the browser's dialog. Notifications keeps its install note, now with the button. More has an **App** section: "Installed: you're using the Toe Beans app." in the app, the offer otherwise, and "Installed. Open Toe Beans from your home screen or apps list from now on." No install wording names a phone or a browser right after installing from a tab. The shortcuts open Today with *Record event* or *Log training*'s exercise picker already open, once (the address loses `?add=`), with the "+" chooser's icons in cream on brown.
 
 ### 6.4 Visual design
 
@@ -502,6 +512,7 @@ Target **WCAG 2.2 AA**:
 - Status messages use `role="status"` / `aria-live="polite"`.
 - Works at 200% font scaling (Android font size settings) without horizontal scrolling.
 - Test with TalkBack on at least one target phone before release.
+- *As built (S13):* an e2e check sets the root text to 200% (what Android's font size gives the installed app with the `text-scale` meta) and fails if any main page scrolls sideways. It found and fixed: the bottom bar (labels up to 18 px, the bar up to 88 px tall, the pills narrowing to fit), one-word page titles (*Notifications* hyphenates), the theme choices and form labels (they wrap), and the email on More (it breaks anywhere). After the owner's try at One UI's 6 and 9 of 9 font steps: Today's cards squeezed their titles beside *Log* and *Overdue*, so a card narrower than 18 rem (288 px at the default size, so only at large text) moves its time and status under the title, drops *Log* below, and a care card drops its category icon; Notifications' *Remind me* and *At* for care stack instead of overflowing. The e2e check covers both, with reminders on. TalkBack is tried by hand on a phone (backlog S13.5).
 
 ---
 

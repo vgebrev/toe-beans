@@ -1,0 +1,29 @@
+// What the service worker caches and when it falls back (architecture §7, ui.md §6.1), kept here
+// as plain functions so it's tested without a service worker. Only the build's own files and
+// the fallback pages are cached: never API responses, photos or pages with household data
+// (NFR-04).
+
+/** Each font comes in subsets; phones only ever load the Latin one (ui.md §6.4). */
+const font = /\.woff2?$/;
+const latinFont = /-latin-wght-normal\.[\w-]+\.woff2$/;
+
+/** The files to precache, from Kit's manifest: everything but the non-Latin font subsets. */
+export function precachePaths(paths: readonly string[]): string[] {
+	return paths.filter((path) => !font.test(path) || latinFont.test(path));
+}
+
+/** Errors from a proxy or the platform (Cloudflare, Cloud Run), not from the app. */
+export const isGatewayError = (status: number): boolean =>
+	status === 502 || status === 503 || status === 504;
+
+/**
+ * How long a page load may take before the waking page stands in for it, and only after the
+ * server has been quiet this long: then it's likely a cold start (architecture §8.4). Warm page
+ * loads take a few hundred milliseconds on the phones (S-1.4), so a second is clearly slow.
+ */
+export const WAKING_AFTER_MS = 1000;
+export const QUIET_FOR_MS = 60_000;
+
+/** Whether a page load should race the waking page, given when the server last answered. */
+export const mayBeCold = (now: number, lastAnswered: number | null): boolean =>
+	lastAnswered === null || now - lastAnswered >= QUIET_FOR_MS;

@@ -15,6 +15,7 @@
 		type TrainingLead
 	} from '@toe-beans/contracts';
 	import Icon from '#lib/components/icon/Icon.svelte';
+	import InstallOffer from '#lib/components/shell/InstallOffer.svelte';
 	import PageHeader from '#lib/components/shell/PageHeader.svelte';
 	import { Button } from '#lib/components/ui/button/index.js';
 	import * as Sheet from '#lib/components/ui/sheet/index.js';
@@ -332,10 +333,7 @@
 			{#if !installed && phase !== 'unsupported' && phase !== 'checking'}
 				<div class="flex flex-col gap-1 rounded-2xl border border-border bg-card px-4 py-3">
 					<p class="font-bold">Install Toe Beans for the most reliable reminders</p>
-					<p class="text-sm text-muted-foreground">
-						Use your browser's <strong>Install</strong> or <strong>Add to Home screen</strong> option,
-						then open Toe Beans from there.
-					</p>
+					<InstallOffer reason="Installed, it opens like an app and reminders open in it." />
 				</div>
 			{/if}
 		</section>
@@ -358,7 +356,7 @@
 				<label class="flex flex-col gap-1">
 					<span class="text-sm text-muted-foreground">Remind me</span>
 					<select
-						class="min-h-12 rounded-2xl border border-border bg-card px-3"
+						class="min-h-12 max-w-full rounded-2xl border border-border bg-card px-3"
 						aria-label="Remind me of training sessions"
 						value={settings.preference.trainingLeadMin}
 						disabled={!settings.preference.training}
@@ -379,11 +377,12 @@
 						}
 					/>
 				</div>
-				<div class="grid grid-cols-2 gap-3">
-					<label class="flex flex-col gap-1">
+				<!-- Side by side, or stacked when large text leaves no room (ui.md §7). -->
+				<div class="grid grid-cols-[repeat(auto-fit,minmax(min(100%,9rem),1fr))] gap-3">
+					<label class="flex min-w-0 flex-col gap-1">
 						<span class="text-sm text-muted-foreground">Remind me</span>
 						<select
-							class="min-h-12 rounded-2xl border border-border bg-card px-3"
+							class="min-h-12 w-full min-w-0 rounded-2xl border border-border bg-card px-3"
 							aria-label="Remind me of care tasks"
 							value={settings.preference.careLeadDays}
 							disabled={!settings.preference.care}
@@ -395,12 +394,12 @@
 							{/each}
 						</select>
 					</label>
-					<label class="flex flex-col gap-1">
+					<label class="flex min-w-0 flex-col gap-1">
 						<span class="text-sm text-muted-foreground">At</span>
 						<input
 							type="time"
 							step={300}
-							class="min-h-12 rounded-2xl border border-border bg-card px-3"
+							class="min-h-12 w-full min-w-0 rounded-2xl border border-border bg-card px-3"
 							aria-label="Care reminder time"
 							value={settings.preference.careTimeOfDay}
 							disabled={!settings.preference.care}
@@ -448,7 +447,7 @@
 						<label class="flex flex-col gap-1">
 							<span class="text-sm text-muted-foreground">Your device</span>
 							<select
-								class="min-h-12 rounded-2xl border border-border bg-card px-3"
+								class="min-h-12 max-w-full rounded-2xl border border-border bg-card px-3"
 								bind:value={maker}
 							>
 								{#each Object.entries(steps) as [value, step] (value)}

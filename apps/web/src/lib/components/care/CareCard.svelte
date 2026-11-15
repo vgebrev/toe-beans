@@ -25,14 +25,36 @@
 	);
 </script>
 
+<!-- At large text (ui.md §7) the card is narrow in rem: its status moves under the title and the
+     category icon goes (the title names it), so the title keeps its width. 18rem is 288 px at the default size. -->
+{#snippet status(placement: string)}
+	{#if task.overdue}
+		<span class="{placement} shrink-0 text-sm font-bold text-warn">Overdue</span>
+	{:else if task.status === 'completed'}
+		<span
+			class="{placement} shrink-0 rounded-full border border-border px-3 py-0.5 text-sm font-bold"
+			>Done</span
+		>
+	{:else if task.status === 'cancelled'}
+		<span
+			class="{placement} shrink-0 rounded-full border border-border px-3 py-0.5 text-sm font-bold"
+			>Cancelled</span
+		>
+	{/if}
+{/snippet}
+
 <a
 	href={resolve('/(app)/care/[id]', { id: task.id })}
 	class={[
-		'flex min-h-16 items-center gap-3 rounded-2xl border border-border bg-card px-4 py-3',
+		'@container flex min-h-16 items-center gap-3 rounded-2xl border border-border bg-card px-4 py-3',
 		closed && 'text-muted-foreground'
 	]}
 >
-	<Icon name={careLabels[task.category].icon} size={24} class="shrink-0 text-primary" />
+	<Icon
+		name={careLabels[task.category].icon}
+		size={24}
+		class="shrink-0 text-primary @max-[18rem]:hidden"
+	/>
 	{#if dog}
 		<DogAvatar {dog} size={36} />
 	{/if}
@@ -43,17 +65,8 @@
 		<span class="flex flex-wrap items-center gap-x-2 text-sm text-muted-foreground">
 			<span>{dog?.name ?? 'A dog no longer here'}</span>
 			<span class={['tabular-nums', task.overdue && 'font-bold text-warn']}>{when}</span>
+			{@render status('hidden @max-[18rem]:inline')}
 		</span>
 	</span>
-	{#if task.overdue}
-		<span class="shrink-0 text-sm font-bold text-warn">Overdue</span>
-	{:else if task.status === 'completed'}
-		<span class="shrink-0 rounded-full border border-border px-3 py-0.5 text-sm font-bold"
-			>Done</span
-		>
-	{:else if task.status === 'cancelled'}
-		<span class="shrink-0 rounded-full border border-border px-3 py-0.5 text-sm font-bold"
-			>Cancelled</span
-		>
-	{/if}
+	{@render status('@max-[18rem]:hidden')}
 </a>

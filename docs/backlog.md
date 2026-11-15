@@ -1,8 +1,8 @@
 # Toe Beans — Backlog
 
-**Version:** 0.37 (draft for iteration)
-**Date:** 13 November 2026
-**Inputs:** `docs/requirements.md` v1.0, `docs/architecture.md` v1.18, `docs/ui.md` v0.26
+**Version:** 0.38 (draft for iteration)
+**Date:** 15 November 2026
+**Inputs:** `docs/requirements.md` v1.0, `docs/architecture.md` v1.19, `docs/ui.md` v0.27
 
 **Changes in 0.3:** spike results S-1.0 to S-1.4 and S0.1–S0.2 recorded as they landed (see Current progress). S-1.4b dropped as not needed, S-1.5 parked, S-1.4a retargeted to `toebeans.co.za`.
 
@@ -57,6 +57,8 @@
 **Changes in 0.36:** S10 done: the owner tried it on a phone (S10.3), which prompted relabelling History's *Show* filter (*All types*, *Any event*; ui 0.25 §4.4). Inputs moved to ui 0.25.
 
 **Changes in 0.37:** S11.1–S11.3 built (architecture 1.18 D30, ui 0.26 J6, J7). S11.1 gains planning the next task on completion, the owner's answer to repeating care. S11.4 added, trying it on a phone, as for earlier slices. Inputs moved to architecture 1.18 and ui 0.26.
+
+**Changes in 0.38:** S11 done: the owner closed S11.4. S13.1–S13.4 built (architecture 1.19 D31, ui 0.27 §5.2, §6.1, §6.3, §7), with offline as the shell only, the owner's call. S13.3's timings on the phones and S13.4's TalkBack pass move to a new S13.5, trying S13 on the phones, as for earlier slices, which also measures the Redmi's viewport. Inputs moved to architecture 1.19 and ui 0.27.
 
 **Changes in 0.21:** S2 and S3 done: the owner tested both on the phones in Chrome, including S3.5's photo flow and the Android share sheet. The installed PWA wasn't part of it; that's S13.
 
@@ -147,7 +149,11 @@ Work is organised as **vertical slices**: each delivers a usable end-to-end incr
 | 2026-11-13 | S10 done. The owner tried it on a phone (S10.3): everything worked. The *Show* filter's *Everything* and *All events* read as the same thing, so they became *All types* (the other filters' *All …*) and *Any event* (ui 0.25 §4.4). |
 | 2026-11-13 | S11.1–S11.3 built, on the owner's calls (D30): no care series, but *Mark done* can plan the next one (1, 3 or 12 months on, or a date) in the same transaction; overdue tasks stay on Care and Today's *Coming up*; an archived dog's tasks are set aside untouched rather than cancelled; reminders are day-based. `/api/v1/care-tasks` with If-Match and an append-only history (migration 0011, household-isolation suite). Care (*Overdue*, *Coming up*, *Done and cancelled*), the add and change pages, the task page with *Mark done*, *Cancel…*, *Put it back* and the cancelled landing; *Add care task* in the "+"; *Coming up* on Today. Care tasks are the tick's second source: at the person's care time (08:00) on the day or 1, 2, 3 or 7 days before, an hour before a timed task when that's earlier, a fallback on the day for a task added after its lead time, 12 h TTL. Notifications gains *Care tasks*, *Remind me* and *At*. 730 unit, 147 integration and 217 e2e tests. |
 
-**Next up:** S11.4 on a phone, then S13.
+| 2026-11-15 | S11 done: the owner closed S11.4. |
+| 2026-11-15 | S13.1–S13.4 built (D31). The service worker precaches the build (Latin fonts only), icons and three fallback pages it fetches on install: *You're offline*, *Can't reach Toe Beans* and the waking skeleton, which stands in for a page load slower than 1 s after a quiet minute, says "Waking up Toe Beans…" 3 s from the tap and loads the page once `/healthz` answers. In the app a navigation over 0.4 s shows the same skeleton. The offline banner follows the phone's online flag and failed requests; offline saves fail at once with the form's *Retry*. Install: Chrome's offer kept from the first moment, *Install Toe Beans* on Today (once), Notifications, More (with the installed state) and a new onboarding step; the manifest's *Log training* and *Record event* shortcuts open Today's "+" sheets. A 200% text e2e check found the bottom bar, one-word titles, the theme choices, labels and the email on More scrolling sideways; all fixed. e2e: the banner, scenario 8 offline, the offline page through the service worker, the precache, the skeleton, installing and the shortcuts. 737 unit, 147 integration and 243 e2e tests. Not yet on a phone (S13.5). |
+| 2026-11-15 | The owner's first look at S13 on a phone, and fixes: install wording now says *device* and names no browser; *Try again* on the offline page checks the server answers first and says when it still can't, and is a plain link too (most likely it reloaded straight into the offline page while the connection was still coming back, or the app's code wasn't cached; to recheck in S13.5); at One UI's 6 and 9 of 9 font steps Today's cards squeezed their titles (time and status now move under the title and *Log* drops below in a card under 18 rem) and Notifications' care reminder time overflowed (the fields stack). The 200% e2e check now covers both. 249 e2e tests. |
+
+**Next up:** S13.5 on the phones, then S14.
 
 ---
 
@@ -297,7 +303,7 @@ Work is organised as **vertical slices**: each delivers a usable end-to-end incr
 | S10.2 | Soft delete with confirmation and undo. Purge job. | ✅ |
 | S10.3 | On a phone: History with logs and events from both dogs, each filter and *Load more*; deleting a log and an event from their pages with *Undo*, and a planned session's log (the session back on Today, then *Done* again after *Undo*). | ✅ |
 
-### S11 Care calendar 🟨
+### S11 Care calendar ✅
 *FR-10, scenario 7.*
 
 | # | Task | Status |
@@ -305,7 +311,7 @@ Work is organised as **vertical slices**: each delivers a usable end-to-end incr
 | S11.1 | CareTask with status history. Create, edit, complete (with the next one planned if wanted), cancel, put back. | ✅ |
 | S11.2 | Care tab, and Today's *Coming up* integration | ✅ |
 | S11.3 | Care reminders: care tasks as a second source in the reminder tick (D27), `careLeadDays` and `careTimeOfDay` (08:00 for a task with a date and no time) in the preference and on Notifications, a 12 h TTL, the `care/:id` deep link and its cancelled landing | ✅ |
-| S11.4 | On a phone, installed: add a vaccination for one dog from the "+" (scenario 7), see it on Care and in Today's *Coming up*, mark it done planning the next one; move and cancel one; a care reminder arriving the day before at a chosen time and its tap opening the task, and one cancelled before its time sending nothing (scenario 5). | ⬜ |
+| S11.4 | On a phone, installed: add a vaccination for one dog from the "+" (scenario 7), see it on Care and in Today's *Coming up*, mark it done planning the next one; move and cancel one; a care reminder arriving the day before at a chosen time and its tap opening the task, and one cancelled before its time sending nothing (scenario 5). Closed by the owner (15 Nov). | ✅ |
 
 ### S12 Push reminders ✅
 *FR-12, NFR-16, scenarios 4 and 5. Builds on the S-1 findings.*
@@ -321,15 +327,16 @@ Work is organised as **vertical slices**: each delivers a usable end-to-end incr
 | S12.7 | Tests: reschedule/cancel produces no stale sends, concurrent ticks produce no duplicates, denied/revoked permission | ✅ |
 | S12.8 | On both phones, installed and closed (NFR-16): turn reminders on, the delayed test, a session's reminder arriving and its tap opening the session, a moved and a cancelled session sending nothing, blocking notifications in Android settings, and the battery steps for each maker. Note the delivery times (`receivedAt` against `dueAt`). Done on the Galaxy S23 FE (13 Nov); the owner closed it without the Redmi or the battery steps. | ✅ |
 
-### S13 PWA polish and connectivity ⬜
+### S13 PWA polish and connectivity 🟨
 *NFR-03, 04, 09.*
 
 | # | Task | Status |
 |---|---|---|
-| S13.1 | Shortcuts and install prompt handling (the manifest, icons and a push-only service worker came with S12). The service worker precaches only the Latin font files. | ⬜ |
-| S13.2 | Offline banner, offline shell, failed-save retention and retry (scenario 8) | ⬜ |
-| S13.3 | Cold-start skeletons and the "Waking up" message. Measure view timings on both phones. | ⬜ |
-| S13.4 | Accessibility pass (TalkBack, 200% font scaling) | ⬜ |
+| S13.1 | Shortcuts and install prompt handling (the manifest, icons and a push-only service worker came with S12). The service worker precaches only the Latin font files. | ✅ |
+| S13.2 | Offline banner, offline shell, failed-save retention and retry (scenario 8). The shell only: the library isn't readable offline (D31). | ✅ |
+| S13.3 | Cold-start skeletons and the "Waking up" message. The timings on the phones are S13.5. | ✅ |
+| S13.4 | Accessibility pass: an e2e check at 200% text size, and fixes for what it found. TalkBack is S13.5. | ✅ |
+| S13.5 | On both phones, installed: the install offer from Today and the onboarding step, the shortcuts on a long press, airplane mode (the banner, a failed save kept and retried, the offline page on opening the app), a cold start (the waking skeleton; note the time to Today from cold and warm on each phone, NFR-09), 200% font size and TalkBack on one phone through Today, logging a session and recording an event. Measure the Redmi's viewport for its e2e profile. | ⬜ |
 
 ### S14 Operations and release ⬜
 *NFR-05, 07, 10, 12, scenario 10.*

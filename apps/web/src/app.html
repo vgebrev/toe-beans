@@ -31,6 +31,12 @@
 			} catch (e) {
 				// Storage blocked: follow the system setting.
 			}
+			// Chrome's install offer can come before the app's code has loaded; keep it for
+			// src/lib/client/install.svelte.ts, which takes over from here.
+			window.addEventListener('beforeinstallprompt', function (event) {
+				event.preventDefault();
+				window.__toeBeansInstall = event;
+			});
 		</script>
 		%sveltekit.head%
 	</head>
