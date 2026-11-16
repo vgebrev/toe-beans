@@ -3,11 +3,11 @@
 // clocks. A task is upcoming until someone completes or cancels it, and its history keeps every
 // change of status and date, so updating it never loses what happened (FR-10). Nothing here
 // assumes a veterinary schedule (NFR-14): people choose every date.
-import { addDays, isPlainDate, isPlainTime, type PlainDate, type PlainTime } from './calendar.js';
+import { addDays, isPlainDate, type PlainDate, type PlainTime } from './calendar.js';
 import { validationError, type ValidationError } from './errors.js';
 import type { Id } from './id.js';
-import { cleanName, cleanText } from './name.js';
-import { TIME_STEP_MIN } from './planner.js';
+import { cleanName, patchText } from './name.js';
+import { timeProblem } from './planner.js';
 import { err, ok, type Result } from './result.js';
 
 export const CARE_CATEGORIES = [
@@ -160,18 +160,14 @@ export function cleanCareDetails(
 
 	if (input.dueTime !== undefined) {
 		if (input.dueTime === null || input.dueTime === '') delete next.dueTime;
-		else if (!isPlainTime(input.dueTime)) fields.dueTime = ['Choose a time.'];
-		else if (Number(input.dueTime.slice(3)) % TIME_STEP_MIN !== 0) {
-			fields.dueTime = [`Choose a time in ${TIME_STEP_MIN}-minute steps.`];
-		} else next.dueTime = input.dueTime;
+		else {
+			const problem = timeProblem(input.dueTime);
+			if (problem) fields.dueTime = [problem];
+			else next.dueTime = input.dueTime as PlainTime;
+		}
 	}
 
-	if (input.notes !== undefined) {
-		const notes = input.notes === null ? undefined : cleanText(input.notes, CARE_NOTES_MAX);
-		if (notes === null) fields.notes = [`Keep this to ${CARE_NOTES_MAX} characters of text.`];
-		else if (notes === undefined) delete next.notes;
-		else next.notes = notes;
-	}
+	patchText(next, fields, 'notes', input.notes, CARE_NOTES_MAX);
 
 	if (Object.keys(fields).length > 0 || !next.category || !next.dueDate || !next.title) {
 		return err(validationError('The care task is not valid.', fields));

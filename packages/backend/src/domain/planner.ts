@@ -138,10 +138,6 @@ export function occurrences(
 	return found;
 }
 
-/** Whether the series can still fall on `date` or later. */
-export const runsOnOrAfter = (plan: Pick<TrainingPlan, 'until'>, date: PlainDate): boolean =>
-	plan.until === undefined || plan.until >= date;
-
 /** What a person picks when scheduling (ui.md J3). */
 export interface ScheduleInput {
 	date: string;
@@ -157,8 +153,8 @@ export interface Schedule {
 	repeat: Repeat | null;
 }
 
-/** Why a time can't be used, if it can't. */
-function timeProblem(time: string): string | null {
+/** Why a time of day can't be used, if it can't: planned sessions, care tasks, care reminders. */
+export function timeProblem(time: string): string | null {
 	if (!isPlainTime(time)) return 'Choose a time.';
 	if (Number(time.slice(3)) % TIME_STEP_MIN !== 0) {
 		return `Choose a time in ${TIME_STEP_MIN}-minute steps.`;

@@ -1,6 +1,6 @@
 # Toe Beans — Backlog
 
-**Version:** 0.44 (draft for iteration)
+**Version:** 0.45 (draft for iteration)
 **Date:** 16 November 2026
 **Inputs:** `docs/requirements.md` v1.0, `docs/architecture.md` v1.22, `docs/ui.md` v0.31
 
@@ -71,6 +71,8 @@
 **Changes in 0.43:** S15.2's audit is done (`docs/security-audit.md`), and every finding is now fixed or decided (architecture 1.21 D32–D34, ui 0.30 §4.7). S15.2 is done, tried by the owner on the phone. S14.1 gains the Worker's header secret (`PROXY_SECRET`) and the audit's checks on the deployed settings (log access and retention, the prod Auth0 connections). Inputs moved to architecture 1.21 and ui 0.30.
 
 **Changes in 0.44:** new S11.5: done care tasks in History, the owner's call before S15.3 (architecture 1.22 D35, ui 0.31 §4.4). It's built and the owner tried it on the phone, so S11 is done again. Inputs moved to architecture 1.22 and ui 0.31.
+
+**Changes in 0.45:** S15.3 started: the code review is tracked in its own `docs/code-review.md`, in eight rounds of one layer or boundary each. Round 1 (domain) is done, with its small fixes.
 
 **Changes in 0.21:** S2 and S3 done: the owner tested both on the phones in Chrome, including S3.5's photo flow and the Android share sheet. The installed PWA wasn't part of it; that's S13.
 
@@ -362,7 +364,7 @@ Work is organised as **vertical slices**: each delivers a usable end-to-end incr
 |---|---|---|
 | S15.1 | The owner's snag list: small fixes and polish found while using the app. **Built (ui 0.28):** (a) Notifications lists *Your devices*, all of them, this one first and marked *This device*; (b) selects and date and time fields show the filter buttons' chevron 16 px in from the edge; (c) the exercise page's *Schedule* / *Log practice* bar sits flush on the bottom bar; (d) the "+" is on Care too and offers the page's own record first; (e) a list page's primary action leads it (Plan's *Schedule*, Dogs, the cue dictionary); (f) a failed submit brings the first message into view and focuses its field. **Open question, answered:** sessions several times a day (puppy school's "before each feeding") became S6.5. The owner closed all but (b) on the Galaxy S23 FE, which came back with two snags: Android still drew its own arrow beside the chevron on date and time fields (now `appearance: none`), and desktop Chrome's dark theme showed options light on grey (now the theme's surface). The owner then closed (b) on the phone, after a third fix: Android's leftover arrow margin clipped the date's last character. | ✅ |
 | S15.2 | Security audit of the whole app against architecture §7 and NFR-01/02: household isolation on every read and write (scenario 9), sign-in and sessions, invitations, uploads, push endpoints and the tick, headers and CSP, secrets and logging. Findings fixed or recorded with a decision. **Audit done (16 Nov):** `docs/security-audit.md` lists the findings with file and line, severity and fix: F1–F7 confirmed, C1–C4 worth checking. **Built (architecture 1.21, ui 0.30; audit v0.2 has each resolution):** F1 the app refuses requests without the Worker's header secret (`PROXY_SECRET`, required in prod; D32); F2 email invitations capped per person, per household and in total from the stored invitations, with a fixed subject (D32); F3 the CSP with nonces and the other security headers (D32); F4 the image defaults to `APP_ENV=prod`; F5 a photo budget per person, one decode at a time, up to 50 dogs (D32); F6 a device moves to someone else only with its keys (D33); F7 *Sign out everywhere* on More (D33); C3 a write budget per person (D32); C1, C2 and C4 accepted (D34), with adapter-node 6.0.1 for a new advisory. The owner tried it on the phone: pages under the CSP and *Sign out everywhere*. F1's address header and C1/C2's checks are S14.1's. | ✅ |
-| S15.3 | Code review and refactor: duplication, dead code, layer boundaries (architecture §4.2) and test gaps, without changing behaviour. Notable changes recorded in the architecture decision log. | ⬜ |
+| S15.3 | Code review and refactor: duplication, dead code, layer boundaries (architecture §4.2) and test gaps, without changing behaviour. Notable changes recorded in the architecture decision log. Tracked round by round in `docs/code-review.md`. | 🟨 |
 
 ### S14 Operations and release ⬜
 *NFR-05, 07, 10, 12, scenario 10.*

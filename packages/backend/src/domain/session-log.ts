@@ -3,7 +3,7 @@
 // to not assessed, so logging never asks anyone to claim success.
 import { validationError, type ValidationError } from './errors.js';
 import type { Id } from './id.js';
-import { cleanText } from './name.js';
+import { patchText } from './name.js';
 import { err, ok, type Result } from './result.js';
 
 export const OUTCOMES = ['successful', 'partial', 'not_yet', 'not_assessed'] as const;
@@ -53,8 +53,18 @@ export const ENVIRONMENT_NOTE_MAX = 100;
 export const LOG_NOTES_MAX = 2000;
 /** A phone's clock can run a little ahead of the server's. */
 export const FUTURE_SLACK_MS = 5 * 60_000;
-/** How far back a practice can be logged or moved to. */
+/** How far back a practice or an event can be recorded or moved to. */
 export const LOG_BACK_DAYS = 366;
+
+/** Why something can't be recorded as happening `at`: ahead of `now`, or more than a year back. */
+export function pastProblem(at: Date, now: Date): string | null {
+	if (at.getTime() > now.getTime() + FUTURE_SLACK_MS)
+		return "Choose a time that's already happened.";
+	if (at.getTime() < now.getTime() - LOG_BACK_DAYS * 24 * 60 * 60_000) {
+		return 'Choose a time within the last year.';
+	}
+	return null;
+}
 
 const isOneOf = <T extends string>(list: readonly T[], value: unknown): value is T =>
 	list.includes(value as T);
@@ -86,12 +96,11 @@ export function cleanLogDetails(
 
 	if (input.practisedAt !== undefined) {
 		const at = new Date(input.practisedAt);
-		if (Number.isNaN(at.getTime())) fields.practisedAt = ['Choose when you practised.'];
-		else if (at.getTime() > now.getTime() + FUTURE_SLACK_MS) {
-			fields.practisedAt = ["Choose a time that's already happened."];
-		} else if (at.getTime() < now.getTime() - LOG_BACK_DAYS * 86_400_000) {
-			fields.practisedAt = ['Choose a time within the last year.'];
-		} else next.practisedAt = at;
+		const problem = Number.isNaN(at.getTime())
+			? 'Choose when you practised.'
+			: pastProblem(at, now);
+		if (problem) fields.practisedAt = [problem];
+		else next.practisedAt = at;
 	}
 
 	if (input.outcome !== undefined) {
@@ -121,17 +130,8 @@ export function cleanLogDetails(
 		else fields.environment = ['Choose one of the places.'];
 	}
 
-	const text = (key: 'environmentNote' | 'notes', max: number) => {
-		const given = input[key];
-		if (given === null) return clear(key);
-		if (given === undefined) return;
-		const cleaned = cleanText(given, max);
-		if (cleaned === null) fields[key] = [`Keep this to ${max} characters of text.`];
-		else if (cleaned === undefined) clear(key);
-		else next[key] = cleaned;
-	};
-	text('environmentNote', ENVIRONMENT_NOTE_MAX);
-	text('notes', LOG_NOTES_MAX);
+	patchText(next, fields, 'environmentNote', input.environmentNote, ENVIRONMENT_NOTE_MAX);
+	patchText(next, fields, 'notes', input.notes, LOG_NOTES_MAX);
 	if (next.environmentNote && !next.environment && !fields.environment) {
 		fields.environmentNote = ['Choose a place first.'];
 	}

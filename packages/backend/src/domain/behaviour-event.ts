@@ -3,9 +3,9 @@
 // Only what happened and the dog are required; the trigger, the response and notes are optional.
 import { validationError, type ValidationError } from './errors.js';
 import type { Id } from './id.js';
-import { cleanText } from './name.js';
+import { patchText } from './name.js';
 import { err, ok, type Result } from './result.js';
-import { FUTURE_SLACK_MS, LOG_BACK_DAYS } from './session-log.js';
+import { pastProblem } from './session-log.js';
 
 export const EVENT_CATEGORIES = [
 	'barking',
@@ -79,25 +79,14 @@ export function cleanEventDetails(
 
 	if (input.occurredAt !== undefined) {
 		const at = new Date(input.occurredAt);
-		if (Number.isNaN(at.getTime())) fields.occurredAt = ['Choose when it happened.'];
-		else if (at.getTime() > now.getTime() + FUTURE_SLACK_MS) {
-			fields.occurredAt = ["Choose a time that's already happened."];
-		} else if (at.getTime() < now.getTime() - LOG_BACK_DAYS * 86_400_000) {
-			fields.occurredAt = ['Choose a time within the last year.'];
-		} else next.occurredAt = at;
+		const problem = Number.isNaN(at.getTime()) ? 'Choose when it happened.' : pastProblem(at, now);
+		if (problem) fields.occurredAt = [problem];
+		else next.occurredAt = at;
 	}
 
-	const text = (key: 'trigger' | 'response' | 'notes', max: number) => {
-		const given = input[key];
-		if (given === undefined) return;
-		const cleaned = given === null ? undefined : cleanText(given, max);
-		if (cleaned === null) fields[key] = [`Keep this to ${max} characters of text.`];
-		else if (cleaned === undefined) delete next[key];
-		else next[key] = cleaned;
-	};
-	text('trigger', TRIGGER_MAX);
-	text('response', RESPONSE_MAX);
-	text('notes', EVENT_NOTES_MAX);
+	patchText(next, fields, 'trigger', input.trigger, TRIGGER_MAX);
+	patchText(next, fields, 'response', input.response, RESPONSE_MAX);
+	patchText(next, fields, 'notes', input.notes, EVENT_NOTES_MAX);
 
 	if (Object.keys(fields).length > 0 || !next.category) {
 		return err(validationError('The event is not valid.', fields));

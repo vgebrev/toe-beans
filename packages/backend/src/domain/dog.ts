@@ -6,8 +6,6 @@ import type { Id } from './id.js';
 import { cleanName, cleanText } from './name.js';
 import { err, ok, type Result } from './result.js';
 
-export { isPlainDate, type PlainDate } from './calendar.js';
-
 /** `day` is a known date; `month` and `year` are estimates ("about 4 months", ui.md §5.4). */
 export type DatePrecision = 'day' | 'month' | 'year';
 

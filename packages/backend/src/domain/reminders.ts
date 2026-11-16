@@ -6,12 +6,13 @@ import {
 	addDays,
 	daysBetween,
 	instantAt,
-	isPlainTime,
+	weekday,
 	type PlainDate,
 	type PlainTime
 } from './calendar.js';
 import type { CareTask } from './care-task.js';
 import type { Id } from './id.js';
+import { timeProblem } from './planner.js';
 
 /** A browser's push subscription for one person (architecture §5.2 PushSubscription). */
 export interface PushDevice {
@@ -81,8 +82,7 @@ export const isCareLead = (value: number): value is CareLead =>
 	(CARE_LEADS as readonly number[]).includes(value);
 
 /** A care time of day, in the tick's 5-minute steps. */
-export const isCareTime = (value: string): value is PlainTime =>
-	isPlainTime(value) && Number(value.slice(3)) % 5 === 0;
+export const isCareTime = (value: string): value is PlainTime => timeProblem(value) === null;
 
 export const isTrainingLead = (value: number): value is TrainingLead =>
 	(TRAINING_LEADS as readonly number[]).includes(value);
@@ -307,8 +307,8 @@ const WEEKDAY_NAMES = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 export function careWhen(dueDate: PlainDate, dueTime: PlainTime | undefined, today: PlainDate) {
 	const days = daysBetween(today, dueDate);
 	const [, m, d] = dueDate.split('-').map(Number) as [number, number, number];
-	const weekday = WEEKDAY_NAMES[(new Date(`${dueDate}T00:00:00Z`).getUTCDay() + 6) % 7];
-	const day = days === 0 ? 'today' : days === 1 ? 'tomorrow' : `${weekday} ${d} ${MONTHS[m - 1]}`;
+	const dayName = WEEKDAY_NAMES[weekday(dueDate) - 1];
+	const day = days === 0 ? 'today' : days === 1 ? 'tomorrow' : `${dayName} ${d} ${MONTHS[m - 1]}`;
 	return dueTime ? `${day} at ${dueTime}` : day;
 }
 

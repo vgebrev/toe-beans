@@ -4,24 +4,12 @@ import {
 	ACCENT_COUNT,
 	cleanDogDetails,
 	cleanNotes,
-	isPlainDate,
 	latestToday,
 	photoKey,
 	pickAccent
 } from './dog.js';
 
 const now = new Date('2026-11-08T08:00:00Z');
-
-describe('isPlainDate', () => {
-	it('takes real calendar dates only', () => {
-		expect(isPlainDate('2026-02-28')).toBe(true);
-		expect(isPlainDate('2024-02-29')).toBe(true);
-		expect(isPlainDate('2026-02-29')).toBe(false);
-		expect(isPlainDate('2026-13-01')).toBe(false);
-		expect(isPlainDate('2026-1-01')).toBe(false);
-		expect(isPlainDate('2026-01-01T00:00:00Z')).toBe(false);
-	});
-});
 
 describe('latestToday', () => {
 	it("is the date somewhere already in tomorrow, so no time zone's today is refused", () => {

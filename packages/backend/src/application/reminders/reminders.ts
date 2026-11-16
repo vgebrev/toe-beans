@@ -3,6 +3,7 @@
 // Devices and preferences are the person's own: nobody sees or changes anyone else's.
 import { validationError } from '../../domain/errors.js';
 import { isId, type Id } from '../../domain/id.js';
+import { TIME_STEP_MIN } from '../../domain/planner.js';
 import {
 	arePushKeys,
 	cleanDeviceLabel,
@@ -159,7 +160,9 @@ export function createReminderSettings(
 			const fields: Record<string, string[]> = {};
 			if (!isTrainingLead(lead)) fields.trainingLeadMin = ['Choose one of the times offered.'];
 			if (!isCareLead(careLead)) fields.careLeadDays = ['Choose one of the days offered.'];
-			if (!isCareTime(careTime)) fields.careTimeOfDay = ['Choose a time in 5-minute steps.'];
+			if (!isCareTime(careTime)) {
+				fields.careTimeOfDay = [`Choose a time in ${TIME_STEP_MIN}-minute steps.`];
+			}
 			if (!isTrainingLead(lead) || !isCareLead(careLead) || !isCareTime(careTime)) {
 				return err(validationError('The reminder time is not valid.', fields));
 			}

@@ -4,6 +4,7 @@ import {
 	addDays,
 	daysBetween,
 	instantAt,
+	isPlainDate,
 	isPlainTime,
 	todayIn,
 	weekday,
@@ -14,6 +15,17 @@ import {
 
 const d = (s: string) => s as PlainDate;
 const t = (s: string) => s as PlainTime;
+
+describe('isPlainDate', () => {
+	it('takes real calendar dates only', () => {
+		expect(isPlainDate('2026-02-28')).toBe(true);
+		expect(isPlainDate('2024-02-29')).toBe(true);
+		expect(isPlainDate('2026-02-29')).toBe(false);
+		expect(isPlainDate('2026-13-01')).toBe(false);
+		expect(isPlainDate('2026-1-01')).toBe(false);
+		expect(isPlainDate('2026-01-01T00:00:00Z')).toBe(false);
+	});
+});
 
 describe('plain dates', () => {
 	it('adds days across months and leap years', () => {
