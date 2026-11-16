@@ -62,4 +62,9 @@ export interface InvitationRepository {
 	revokeOpen(householdId: Id, at: Date, only?: { createdBy: Id; email: string }): Promise<void>;
 	/** Removes one that never reached anyone, such as when its email couldn't be sent. */
 	remove(householdId: Id, id: Id): Promise<void>;
+	/**
+	 * Email invitations made since `since`, in every household, or only those `by` one person or
+	 * household. Removed ones (never sent) don't count; revoked ones do.
+	 */
+	countEmailsSince(since: Date, by?: { createdBy: Id } | { householdId: Id }): Promise<number>;
 }

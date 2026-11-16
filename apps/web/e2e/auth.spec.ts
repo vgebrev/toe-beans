@@ -95,7 +95,7 @@ test('signing out ends the session', async ({ page, context, baseURL }) => {
 	const session = (await context.cookies()).find((c) => c.name === 'tb_session')!;
 	expect(session).toMatchObject({ httpOnly: true, sameSite: 'Lax', path: '/' });
 
-	await page.getByRole('button', { name: 'Sign out' }).click();
+	await page.getByRole('button', { name: 'Sign out', exact: true }).click();
 	await expect(page).toHaveURL('/sign-in');
 	expect((await context.cookies()).map((c) => c.name)).not.toContain('tb_session');
 
@@ -103,6 +103,34 @@ test('signing out ends the session', async ({ page, context, baseURL }) => {
 	await context.addCookies([session]);
 	await page.goto('/more');
 	await expect(page).toHaveURL('/sign-in?returnTo=%2Fmore');
+});
+
+test('signing out everywhere ends the sessions on other devices too', async ({
+	page,
+	browser,
+	baseURL
+}) => {
+	const person = newPerson();
+	await signIn(page, person);
+	await createHousehold(page, baseURL!);
+	// The same person on a second device.
+	const other = await browser.newContext({ storageState: { cookies: [], origins: [] } });
+	const laptop = await other.newPage();
+	await blockMockFonts(laptop);
+	await signIn(laptop, person);
+	await laptop.goto('/more');
+	await expect(laptop).toHaveURL('/more');
+
+	await page.goto('/more');
+	await page.getByRole('button', { name: 'Sign out everywhere' }).click();
+	const sheet = page.getByRole('dialog', { name: 'Sign out on every device?' });
+	await expect(sheet).toContainText('reminders stop on all of them');
+	await sheet.getByRole('button', { name: 'Sign out everywhere' }).click();
+	await expect(page).toHaveURL('/sign-in');
+
+	await laptop.goto('/more');
+	await expect(laptop).toHaveURL('/sign-in?returnTo=%2Fmore');
+	await other.close();
 });
 
 test('a made-up session cookie counts as signed out, and is cleared', async ({

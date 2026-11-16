@@ -61,6 +61,8 @@ services:
       context: ..
       dockerfile: docker/Dockerfile
     environment:
+      # The image defaults to prod (security audit F4); this is a local run.
+      APP_ENV: local
       MONGODB_URI: mongodb://mongo:27017/?directConnection=true
       LOG_LEVEL: ${LOG_LEVEL:-info}
       SENTRY_DSN: ${SENTRY_DSN:-}

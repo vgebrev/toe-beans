@@ -1,6 +1,11 @@
 import type { RequestEvent } from '@sveltejs/kit';
 import type { Handle, HandleServerError, ServerInit } from '@sveltejs/kit/hooks';
-import { errorResponse, REQUEST_ID_HEADER, requestIdFrom } from '@toe-beans/backend';
+import {
+	errorResponse,
+	PROXY_SECRET_HEADER,
+	REQUEST_ID_HEADER,
+	requestIdFrom
+} from '@toe-beans/backend';
 import { backend, startBackend } from '#lib/server/backend.js';
 import { toResponse } from '#lib/server/respond.js';
 
@@ -53,6 +58,10 @@ export const handle: Handle = ({ event, resolve }) => {
 		const response = await authenticated(event, resolve);
 		try {
 			response.headers.set(REQUEST_ID_HEADER, requestId);
+			// HSTS, Referrer-Policy and the like (architecture §7); Kit sets the CSP itself.
+			for (const [name, value] of Object.entries(backend().http.edge.securityHeaders())) {
+				response.headers.set(name, value);
+			}
 		} catch {
 			// Some responses (e.g. from fetch) have immutable headers; the logs still have the ID.
 		}
@@ -69,18 +78,25 @@ export const handle: Handle = ({ event, resolve }) => {
 };
 
 /**
- * Refuses cross-origin writes, then resolves the session cookie to `locals.viewer` (architecture
- * §3.4). Signed-out API calls get a 401 here; signed-out pages are sent to sign-in by the
- * `(app)` layout, so client-side navigation gets a proper redirect too.
+ * Refuses requests that bypassed the proxy and cross-origin writes, then resolves the session
+ * cookie to `locals.viewer` (architecture §3.4). Signed-out API calls get a 401 here; signed-out
+ * pages are sent to sign-in by the `(app)` layout, so client-side navigation gets a proper
+ * redirect too. A signed-in person's API writes count against their budget (D32).
  */
 async function authenticated(
 	event: RequestEvent,
 	resolve: Parameters<Handle>[0]['resolve']
 ): Promise<Response> {
-	const { auth } = backend().http;
+	const { auth, edge } = backend().http;
 	const headers = event.request.headers;
 	event.locals.viewer = null;
-	if (machineRoutes.has(event.route.id ?? '')) return resolve(event, resolveOptions);
+	const route = event.route.id ?? '';
+	// The scheduler and the platform's probes call the service directly, not through the proxy.
+	if (machineRoutes.has(route)) return resolve(event, resolveOptions);
+	if (!quietRoutes.has(route)) {
+		const bypassed = edge.checkProxy(headers.get(PROXY_SECRET_HEADER));
+		if (bypassed) return toResponse(bypassed);
+	}
 
 	const refused = auth.checkOrigin({
 		method: event.request.method,
@@ -90,16 +106,21 @@ async function authenticated(
 	if (refused) return toResponse(refused);
 
 	// Probes don't need a viewer, so they never touch the sessions.
-	if (quietRoutes.has(event.route.id ?? '')) return resolve(event, resolveOptions);
+	if (quietRoutes.has(route)) return resolve(event, resolveOptions);
 
 	const { viewer, cookies } = await auth.authenticate((name) => event.cookies.get(name));
 	event.locals.viewer = viewer;
 	for (const { name, value, maxAge, secure, sameSite } of cookies) {
 		event.cookies.set(name, value, { path: '/', maxAge, httpOnly: true, secure, sameSite });
 	}
-	const isPublic = publicApiRoutes.has(event.route.id ?? '');
-	if (!viewer && !isPublic && event.url.pathname.startsWith('/api/')) {
+	const isApi = event.url.pathname.startsWith('/api/');
+	if (!viewer && !publicApiRoutes.has(route) && isApi) {
 		return toResponse(errorResponse({ kind: 'unauthenticated' }));
+	}
+	if (viewer && isApi) {
+		const userId = viewer.auth.userId;
+		const limited = edge.checkWriteRate({ method: event.request.method, userId });
+		if (limited) return toResponse(limited);
 	}
 	return resolve(event, resolveOptions);
 }

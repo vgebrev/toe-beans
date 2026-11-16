@@ -53,6 +53,20 @@ describe('devices', () => {
 		expect(await settings.devices(alex)).toMatchObject([{ id: first.id, label: 'phone' }]);
 	});
 
+	it("won't move someone else's device without its keys (security audit F6)", async () => {
+		const { settings, save } = setup();
+		const phone = await save(sam, 'phone');
+		const otherKeys = { p256dh: 'C'.repeat(87), auth: 'c'.repeat(22) };
+		const taken = await settings.saveDevice(alex, {
+			endpoint: endpoint('phone'),
+			keys: otherKeys,
+			label: 'phone'
+		});
+		expect(taken).toMatchObject({ ok: false, error: { kind: 'validation' } });
+		expect(await settings.devices(sam)).toMatchObject([{ id: phone.id, keys }]);
+		expect(await settings.devices(alex)).toEqual([]);
+	});
+
 	it('come back to life when saved again after the push service dropped them', async () => {
 		const { settings, save, ports } = setup();
 		const device = await save(sam, 'phone');

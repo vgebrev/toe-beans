@@ -38,6 +38,7 @@ function setup() {
 			dogs: memoryDogs(() => clock.now()),
 			photos: memoryPhotoStore(),
 			photoProcessor: fakePhotoProcessor,
+			photoRateLimit: { take: () => ({ allowed: true }) },
 			uow: directUnitOfWork,
 			clock,
 			ids,

@@ -82,7 +82,8 @@ export interface AuthHttp {
 		clientAddress: string;
 	}): Promise<HttpResponse>;
 	/** `POST /auth/sign-out`. */
-	signOut(input: { cookie: CookieReader }): Promise<HttpResponse>;
+	/** `everywhere` ends all of the person's sessions (*Sign out everywhere*). */
+	signOut(input: { cookie: CookieReader; everywhere?: boolean }): Promise<HttpResponse>;
 	/**
 	 * The viewer for this request, or null. `cookies` renews or clears the session cookie, and the
 	 * host must set them on the response.
@@ -161,8 +162,8 @@ export function createAuthHttp(
 			return redirect(returnTo, [clear(names.signIn), sessionCookie(token, expiresAt)]);
 		},
 
-		async signOut({ cookie: read }) {
-			const { url } = await auth.signOut(read(names.session));
+		async signOut({ cookie: read, everywhere = false }) {
+			const { url } = await auth.signOut(read(names.session), { everywhere });
 			return redirect(url, [clear(names.session)]);
 		},
 

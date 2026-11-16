@@ -49,6 +49,8 @@ export interface SessionRepository {
 	findLive(tokenHash: string, now: Date): Promise<Session | null>;
 	extend(tokenHash: string, expiresAt: Date, at: Date): Promise<void>;
 	delete(tokenHash: string): Promise<void>;
+	/** Ends every session of the person, for *Sign out everywhere*; returns how many. */
+	deleteForUser(userId: Id): Promise<number>;
 }
 
 /** A sign-in between the redirect to the provider and its callback. */

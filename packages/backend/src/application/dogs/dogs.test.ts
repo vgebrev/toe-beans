@@ -1,11 +1,12 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { createIdGenerator, type Id } from '../../domain/id.js';
 import { directUnitOfWork } from '../../testing/auth.js';
 import { manualClock } from '../../testing/clock.js';
 import { fakePhoto, fakePhotoProcessor, memoryDogs, memoryPhotoStore } from '../../testing/dogs.js';
 import { ok } from '../../domain/result.js';
 import type { PlannerContext } from '../planner/planner.js';
-import { createDogs, PHOTO_MAX_BYTES } from './dogs.js';
+import type { RateLimiter } from '../ports/index.js';
+import { createDogs, MAX_DOGS, PHOTO_MAX_BYTES } from './dogs.js';
 
 const at = new Date('2026-11-08T08:00:00Z');
 const silent = { debug() {}, info() {}, warn() {}, error() {}, child: () => silent };
@@ -22,7 +23,9 @@ const outsider: PlannerContext = {
 	timeZone: 'UTC'
 };
 
-function setup() {
+const allowAll: RateLimiter = { take: () => ({ allowed: true }) };
+
+function setup({ photoRateLimit = allowAll } = {}) {
 	const clock = manualClock(at);
 	const dogs = memoryDogs(() => clock.now());
 	const photos = memoryPhotoStore();
@@ -43,6 +46,7 @@ function setup() {
 			dogs,
 			photos,
 			photoProcessor: fakePhotoProcessor,
+			photoRateLimit,
 			uow: directUnitOfWork,
 			clock,
 			ids,
@@ -331,6 +335,53 @@ describe('serving the photo', () => {
 		expect(await service.photo(outsider, { id: rosie.id, size: 'large' })).toEqual({
 			ok: false,
 			error: { kind: 'not-found', resource: 'dog' }
+		});
+	});
+});
+
+describe('limits (architecture D32)', () => {
+	const refuse: RateLimiter = { take: () => ({ allowed: false, retryAfterSeconds: 60 }) };
+
+	it("counts each person's photo uploads, and decodes nothing over the limit", async () => {
+		const take = vi.fn(allowAll.take);
+		const { service, add } = setup({ photoRateLimit: { take } });
+		const dog = await add();
+		await service.changePhoto(ctx, {
+			id: dog.id,
+			expectedVersion: dog.version,
+			photo: fakePhoto()
+		});
+		expect(take.mock.calls).toEqual([[ctx.userId], [ctx.userId]]);
+	});
+
+	it('refuses a photo over the limit, adding or changing', async () => {
+		const limit: RateLimiter = { take: vi.fn(allowAll.take) };
+		const { service, add, photos } = setup({ photoRateLimit: limit });
+		const dog = await add();
+		const stored = photos.keys();
+		vi.mocked(limit.take).mockImplementation(refuse.take);
+		expect(await service.create(ctx, { details: { name: 'Max' }, photo: fakePhoto() })).toEqual({
+			ok: false,
+			error: { kind: 'rate-limited' }
+		});
+		expect(
+			await service.changePhoto(ctx, {
+				id: dog.id,
+				expectedVersion: dog.version,
+				photo: fakePhoto()
+			})
+		).toEqual({ ok: false, error: { kind: 'rate-limited' } });
+		expect(photos.keys()).toEqual(stored);
+	});
+
+	it(`keeps a household to ${MAX_DOGS} dogs, archived ones included`, async () => {
+		const { service, add } = setup();
+		for (let i = 0; i < MAX_DOGS; i++) await add(`Dog ${i}`);
+		expect(
+			await service.create(ctx, { details: { name: 'One more' }, photo: fakePhoto() })
+		).toEqual({
+			ok: false,
+			error: { kind: 'validation', message: `A household can have up to ${MAX_DOGS} dogs.` }
 		});
 	});
 });

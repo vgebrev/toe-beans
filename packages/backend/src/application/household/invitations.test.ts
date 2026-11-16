@@ -9,8 +9,7 @@ import { manualClock } from '../../testing/clock.js';
 import { memoryDogs } from '../../testing/dogs.js';
 import { fakeEmailSender, memoryHouseholds, memoryInvitations } from '../../testing/household.js';
 import type { MemberViewer, Viewer } from '../auth/auth.js';
-import type { RateLimiter } from '../ports/index.js';
-import { createInvitations } from './invitations.js';
+import { createInvitations, EMAIL_INVITES_PER_DAY } from './invitations.js';
 
 const at = new Date('2026-11-06T08:00:00Z');
 const ORIGIN = 'https://toebeans.example';
@@ -31,7 +30,6 @@ const HOUSEHOLD = 'h1' as Id;
 const OTHER_HOUSEHOLD = 'h2' as Id;
 
 const silent = { debug() {}, info() {}, warn: vi.fn(), error() {}, child: () => silent };
-const allowAll: RateLimiter = { take: () => ({ allowed: true }) };
 
 const member = (
 	user: User,
@@ -51,7 +49,7 @@ const member = (
 });
 const signedIn = (user: User): Viewer => ({ ...member(user), member: null });
 
-async function setup({ inviteEmailRateLimit = allowAll } = {}) {
+async function setup() {
 	const users = memoryUsers();
 	for (const user of [sam, alex, outsider]) await users.insert(user);
 	const households = memoryHouseholds();
@@ -66,9 +64,9 @@ async function setup({ inviteEmailRateLimit = allowAll } = {}) {
 	});
 	await households.insert(newHousehold(HOUSEHOLD, sam.id));
 	await households.insert(newHousehold(OTHER_HOUSEHOLD, outsider.id));
-	const invitations = memoryInvitations();
-	const email = fakeEmailSender();
 	const clock = manualClock(at);
+	const invitations = memoryInvitations(() => clock.now());
+	const email = fakeEmailSender();
 	const dogs = memoryDogs(() => clock.now());
 	const service = createInvitations(
 		{
@@ -77,7 +75,6 @@ async function setup({ inviteEmailRateLimit = allowAll } = {}) {
 			dogs,
 			users,
 			email,
-			inviteEmailRateLimit,
 			uow: directUnitOfWork,
 			clock,
 			ids: createIdGenerator(() => clock.now().getTime()),
@@ -125,10 +122,12 @@ describe('email invitations', () => {
 		expect(email.sent).toHaveLength(1);
 		const message = email.sent[0]!;
 		expect(message.to).toBe('jane@example.com');
-		expect(message.subject).toBe('Sam invited you to The Does on Toe Beans');
+		expect(message.subject).toBe("You're invited to Toe Beans");
 		const token = /\/join\/([\w-]{43})/.exec(message.text)![1]!;
 		expect(invitations.all()[0]!.tokenHash).toBe(hashSecretToken(token));
 		expect(message.text).toContain('13 November 2026');
+		// The names people chose are in the body, where the invitee needs them, not the subject.
+		expect(message.text).toContain('Sam has invited you to join The Does');
 	});
 
 	it("leaves nothing behind when the email can't be sent, and says so", async () => {
@@ -150,15 +149,57 @@ describe('email invitations', () => {
 		expect(email.sent).toEqual([]);
 	});
 
-	it('limits how many a household can send', async () => {
-		const take = vi.fn(() => ({ allowed: false, retryAfterSeconds: 60 }) as const);
-		const { service, email } = await setup({ inviteEmailRateLimit: { take } });
-		expect(await service.createEmail(member(sam), { email: 'jane@example.com' })).toEqual({
-			ok: false,
-			error: { kind: 'rate-limited' }
-		});
-		expect(take).toHaveBeenCalledWith(HOUSEHOLD);
-		expect(email.sent).toEqual([]);
+	/** Sends `n` email invitations from `viewer`, each to its own address, and checks they went. */
+	const sendMany = async (
+		service: Awaited<ReturnType<typeof setup>>['service'],
+		viewer: MemberViewer,
+		n: number
+	) => {
+		for (let i = 0; i < n; i++) {
+			const sent = await service.createEmail(viewer, { email: `friend${i}@example.com` });
+			expect(sent.ok).toBe(true);
+		}
+	};
+	const refused = { ok: false, error: { kind: 'rate-limited' } };
+
+	it('limits how many a person sends a day, and gives them back after a day', async () => {
+		const { service, email, clock } = await setup();
+		await sendMany(service, member(sam), EMAIL_INVITES_PER_DAY.person);
+		expect(await service.createEmail(member(sam), { email: 'one@example.com' })).toEqual(refused);
+		expect(email.sent).toHaveLength(EMAIL_INVITES_PER_DAY.person);
+		clock.advance(24 * 60 * 60 * 1000 + 1);
+		expect((await service.createEmail(member(sam), { email: 'one@example.com' })).ok).toBe(true);
+	});
+
+	it("counts a person's invitations from a household they've left", async () => {
+		const { service, invitations } = await setup();
+		await sendMany(service, member(sam), EMAIL_INVITES_PER_DAY.person);
+		// Sam starts again in another household: the budget follows the person.
+		const elsewhere = member(sam, 'owner', OTHER_HOUSEHOLD);
+		expect(await service.createEmail(elsewhere, { email: 'one@example.com' })).toEqual(refused);
+		expect(invitations.all()).toHaveLength(EMAIL_INVITES_PER_DAY.person);
+	});
+
+	it('limits a household, whoever sends', async () => {
+		const { service } = await setup();
+		await sendMany(service, member(sam), EMAIL_INVITES_PER_DAY.person);
+		await sendMany(
+			service,
+			member(alex, 'caregiver'),
+			EMAIL_INVITES_PER_DAY.household - EMAIL_INVITES_PER_DAY.person
+		);
+		const carol = member(person('carol', 'Carol'), 'caregiver');
+		expect(await service.createEmail(carol, { email: 'one@example.com' })).toEqual(refused);
+	});
+
+	it("doesn't count an email that couldn't be sent", async () => {
+		const { service, email } = await setup();
+		email.answer = err({ reason: 'provider down' });
+		for (let i = 0; i < EMAIL_INVITES_PER_DAY.person; i++) {
+			await service.createEmail(member(sam), { email: 'jane@example.com' });
+		}
+		email.answer = ok(undefined);
+		await sendMany(service, member(sam), EMAIL_INVITES_PER_DAY.person);
 	});
 });
 

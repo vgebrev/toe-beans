@@ -22,8 +22,10 @@ export interface PushDeviceRepository {
 	/**
 	 * Saves the browser's subscription. The endpoint identifies it: one already stored becomes this
 	 * person's, live again, with these keys and label, and keeps its ID; otherwise `id` is used.
+	 * One stored for someone else moves only if the keys match, which only the browser holding the
+	 * subscription knows (security audit F6); otherwise nothing changes and it returns null.
 	 */
-	save(device: NewPushDevice): Promise<PushDevice>;
+	save(device: NewPushDevice): Promise<PushDevice | null>;
 	/** Their devices, disabled ones too, newest first. */
 	listForUser(userId: Id): Promise<PushDevice[]>;
 	findForUser(userId: Id, id: Id): Promise<PushDevice | null>;
@@ -31,6 +33,8 @@ export interface PushDeviceRepository {
 	listLive(userIds: readonly Id[]): Promise<PushDevice[]>;
 	/** False if they have no device with that ID. */
 	remove(userId: Id, id: Id): Promise<boolean>;
+	/** Removes all of the person's devices, for *Sign out everywhere*; returns how many. */
+	removeAllForUser(userId: Id): Promise<number>;
 	recordSuccess(id: Id, at: Date): Promise<void>;
 	recordFailure(id: Id, at: Date): Promise<void>;
 	/** The push service said it's gone: nothing more is sent to it. */

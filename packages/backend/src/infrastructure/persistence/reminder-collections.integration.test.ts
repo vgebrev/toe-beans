@@ -50,7 +50,13 @@ describe('mongoPushDevices', () => {
 		const sam = ids.next();
 		const alex = ids.next();
 		const endpoint = `https://fcm.googleapis.com/fcm/send/${ids.next()}`;
-		const first = await devices().save({ id: ids.next(), userId: sam, endpoint, keys, label: 'A' });
+		const first = (await devices().save({
+			id: ids.next(),
+			userId: sam,
+			endpoint,
+			keys,
+			label: 'A'
+		}))!;
 		expect(first).toMatchObject({ userId: sam, label: 'A', failureCount: 0, createdAt: at });
 		await devices().recordFailure(first.id, at);
 		await devices().disable(first.id, at);
@@ -64,7 +70,7 @@ describe('mongoPushDevices', () => {
 			label: 'B'
 		});
 		expect(second).toMatchObject({ id: first.id, userId: alex, label: 'B', failureCount: 0 });
-		expect(second.disabledAt).toBeUndefined();
+		expect(second!.disabledAt).toBeUndefined();
 		expect(await devices().listForUser(sam)).toEqual([]);
 		expect(await devices().listLive([sam, alex])).toHaveLength(1);
 	});
@@ -77,18 +83,49 @@ describe('mongoPushDevices', () => {
 				devices().save({ id: ids.next(), userId: sam, endpoint, keys, label: 'x' })
 			)
 		);
-		expect(new Set(saved.map((d) => d.id)).size).toBe(1);
+		expect(new Set(saved.map((d) => d!.id)).size).toBe(1);
+	});
+
+	it("removes all of one person's devices, and no one else's", async () => {
+		const [sam, alex] = [ids.next(), ids.next()];
+		const save = (userId: typeof sam) =>
+			devices().save({
+				id: ids.next(),
+				userId,
+				endpoint: `https://fcm.googleapis.com/fcm/send/${ids.next()}`,
+				keys,
+				label: 'x'
+			});
+		await save(sam);
+		await save(sam);
+		await save(alex);
+		expect(await devices().removeAllForUser(sam)).toBe(2);
+		expect(await devices().listForUser(sam)).toEqual([]);
+		expect(await devices().listForUser(alex)).toHaveLength(1);
+	});
+
+	it("moves someone else's device only with its keys (security audit F6)", async () => {
+		const [sam, alex] = [ids.next(), ids.next()];
+		const endpoint = `https://fcm.googleapis.com/fcm/send/${ids.next()}`;
+		const mine = await devices().save({ id: ids.next(), userId: sam, endpoint, keys, label: 'A' });
+		const otherKeys = { p256dh: 'C'.repeat(87), auth: 'c'.repeat(22) };
+		const save = (userId: typeof sam, k: typeof keys) =>
+			devices().save({ id: ids.next(), userId, endpoint, keys: k, label: 'B' });
+		expect(await save(alex, otherKeys)).toBeNull();
+		expect(await devices().listForUser(sam)).toMatchObject([{ id: mine!.id, keys }]);
+		// Its own person may renew the keys.
+		expect(await save(sam, otherKeys)).toMatchObject({ id: mine!.id, keys: otherKeys });
 	});
 
 	it("finds and removes only the person's own", async () => {
 		const sam = ids.next();
-		const device = await devices().save({
+		const device = (await devices().save({
 			id: ids.next(),
 			userId: sam,
 			endpoint: `https://fcm.googleapis.com/fcm/send/${ids.next()}`,
 			keys,
 			label: 'x'
-		});
+		}))!;
 		expect(await devices().findForUser(ids.next(), device.id)).toBeNull();
 		expect(await devices().remove(ids.next(), device.id)).toBe(false);
 		expect(await devices().findForUser(sam, device.id)).toMatchObject({ id: device.id });

@@ -100,6 +100,11 @@ export function memorySessions(): SessionRepository & { all(): Session[] } {
 		},
 		async delete(tokenHash) {
 			sessions.delete(tokenHash);
+		},
+		async deleteForUser(userId) {
+			const mine = [...sessions.values()].filter((s) => s.userId === userId);
+			for (const s of mine) sessions.delete(s.tokenHash);
+			return mine.length;
 		}
 	};
 }

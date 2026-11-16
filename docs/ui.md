@@ -1,9 +1,9 @@
 # Toe Beans — UI and Interaction Design
 
-**Version:** 0.29 (draft for iteration)
+**Version:** 0.30 (draft for iteration)
 **Date:** 16 November 2026
 **Status:** Proposed. Review-round decisions in §8 are accepted.
-**Inputs:** `docs/requirements.md` v1.0, `docs/architecture.md` v1.20
+**Inputs:** `docs/requirements.md` v1.0, `docs/architecture.md` v1.21
 
 **Changes in 0.7:** the logo landed (S0.9). The mark is now a **TB monogram** with four toe beans above it and a heart-shaped bean in the B, from the AI-assisted design board (Monogram Iteration B), replacing the placeholder paw. It was traced from the board and cleaned up rather than redrawn by hand; the variants are the brown-on-cream mark, a cream-on-brown app-icon tile (favicon and maskable) and a white badge. The wordmark uses Fredoka Bold to match the board (§6.4 Logo).
 
@@ -40,6 +40,8 @@
 **Changes in 0.28:** S15.1, the owner's snag list. §2.1: the "+" is on Care too, and offers the page's own record first (*Schedule session* on Plan, *Add care task* on Care, *Log training* elsewhere). §5.1: a list page's primary action leads it, above the list (Plan's *Schedule*, Dogs' *Add a dog*, the cue dictionary's *Add a cue*, as Care's *Add care task* already did), so a long list never pushes it out of sight; a failed submit scrolls the first message into view and focuses its field; selects and date and time fields show the filter buttons' chevron 16 px in from the edge, in place of the browser's own arrow at the edge. §4.6: the exercise page's *Schedule* / *Log practice* bar sits flush on the bottom bar, opaque, with no gap for the page to show through. J7: *Your devices* lists every device, this one first and marked *This device*; removing it turns reminders off here, like the switch.
 
 **Changes in 0.29:** J3 and §4.3: several times a day (architecture 1.20 D24). With a repeat chosen, Schedule shows *Also at (optional)*: a row per extra time with a remove button, and *Add a time*, up to six in all. The session page's *Repeats* names the times ("Every day at 07:00, 12:00 and 18:00"), and Plan says "…, 3 times a day." after saving. *This and following* from a midday session leaves that morning's alone. §5.1: a failed submit's scroll to the first message is instant now, not smooth, as a tap during the glide could land on what slid under it. Inputs moved to architecture 1.20.
+
+**Changes in 0.30:** §4.7: *Sign out everywhere* under *Sign out* on More, confirmed in a bottom sheet that says reminders stop on every device (architecture 1.21 D33, from the S15.2 security audit). The invitation email's subject is now fixed, *You're invited to Toe Beans*, with the names in the body (D32).
 
 **Changes in 0.12:** S3 built. J1 step 4 as built: *Take photo* or *Gallery*, then a framing square with the circle overlay (drag, pinch, a zoom slider and arrow keys), and birth date as *I know the date* or *Approximate* with months old. J2 names the dogs. §2.2: the switcher shows on Today, Plan, History and Care, with name chips. §5.1 gains two rules from using it: one confirm button per context (a sheet is its own context), and a control is never disabled without the reason on screen; the photo moved into its own sheet in J1 to follow the first, and the household, name and email-invite buttons stopped greying out for missing input to follow the second. §4.5: editing is its own page and the overflow sheet holds *Edit details* and *Archive*; the Recent sections wait for their slices. The dog accent palette is defined (§6.4), and More gains *Dogs* (§2.1). The custom dog icon read as a monkey, so it's replaced by Phosphor's *Dog*, the documented fallback library (§6.4).
 
@@ -337,6 +339,7 @@ On More. **Your name** is a text field (48 px, `autocomplete="name"`, up to 100 
 - *Save* is enabled only when the name changed and isn't blank. Saving follows §5.2, but inline, since there's no sheet: "Saving…" on the button, then "Saved" beside it (announced politely). A failed save keeps the typed name, shows "Couldn't save — check your connection." and turns the button into **Retry**.
 - A conflict (the name was saved elsewhere, e.g. on another device) says "Your name was changed somewhere else a moment ago." with *See the new name* and *Keep mine*. It's the person's own record, so overwriting is offered (§5.2).
 - If the account can't be loaded, the name and email show as text, with "Couldn't load your account details. Reload the page to change your name."
+- *Added in 0.30:* **Sign out everywhere**, a quieter button under *Sign out*, for a lost phone or a computer left signed in (architecture D33). It opens a bottom sheet (§5.3), "Sign out on every device?", saying the person is signed out here and on every phone and browser they've used, that reminders stop on all of them, and to sign in again where they still use Toe Beans and turn reminders back on in Notifications. Its one button, *Sign out everywhere*, signs out like *Sign out* (this browser's reminders are unsubscribed first) and lands on the provider's sign-out.
 
 ### 4.8 Household
 

@@ -91,6 +91,9 @@ export default defineConfig({
 			// Every test signs in from localhost, which would soon hit the per-address limit.
 			AUTH_RATE_LIMIT: '10000',
 			INVITE_RATE_LIMIT: '10000',
+			// Tests share people across files, so the per-person limits would bite too (D32).
+			WRITE_RATE_LIMIT: '10000',
+			PHOTO_RATE_LIMIT: '10000',
 			// Whatever .env says: tests invite made-up addresses, and must never send real mail.
 			EMAIL_SENDER: 'console',
 			// Test photos in their own directory, never dev's photos or a real bucket.

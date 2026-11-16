@@ -72,6 +72,15 @@ const Env = z
 		// Looks at and acceptances of invitations one client address may make per 10 minutes, per
 		// instance (architecture §7). E2e raises it for the same reason.
 		INVITE_RATE_LIMIT: z.coerce.number().int().min(1).max(100_000).default(30),
+		// API writes one signed-in person may make per 10 minutes, per instance (architecture D32):
+		// far above real use, it caps how fast one account can fill the free-tier database.
+		WRITE_RATE_LIMIT: z.coerce.number().int().min(1).max(100_000).default(300),
+		// Dog photos one person may upload per hour, per instance (architecture D32).
+		PHOTO_RATE_LIMIT: z.coerce.number().int().min(1).max(100_000).default(20),
+		// The header secret the Cloudflare Worker adds to every request (architecture §7, D32).
+		// Set, the app refuses requests without it, so nobody can reach run.app directly and set
+		// the client address header the rate limits key on. Required in prod.
+		PROXY_SECRET: z.string().min(32).max(200).optional(),
 		// Where email goes (architecture §3.7). Always chosen here, never by a key being present, so
 		// a dev machine holding a Resend key still can't mail real people by accident.
 		EMAIL_SENDER: z.enum(['console', 'mailpit', 'resend']).optional(),
@@ -123,6 +132,7 @@ const Env = z
 				if (!e[key]) required(key, 'required in prod');
 				else if (!e[key].startsWith('https:')) required(key, 'must be https in prod');
 			}
+			if (!e.PROXY_SECRET) required('PROXY_SECRET', 'required in prod');
 			// The others only suit a dev machine: the console sender prints invite links.
 			if (e.EMAIL_SENDER && e.EMAIL_SENDER !== 'resend') {
 				required('EMAIL_SENDER', 'must be resend in prod');
@@ -186,6 +196,12 @@ export interface Config {
 	authRateLimit: { limit: number; windowMs: number };
 	/** Looks at and acceptances of invitations per client address per `windowMs`. */
 	inviteRateLimit: { limit: number; windowMs: number };
+	/** API writes per signed-in person per `windowMs`. */
+	writeRateLimit: { limit: number; windowMs: number };
+	/** Dog photo uploads per person per `windowMs`. */
+	photoRateLimit: { limit: number; windowMs: number };
+	/** The secret the proxy in front sends in `x-toe-beans-proxy`; unset takes any request. */
+	proxySecret?: string;
 	email: EmailConfig;
 	photos: PhotoConfig;
 	/** Where the exercise YAML files are; unset finds the nearest `content/exercises`. */
@@ -281,6 +297,9 @@ export function loadConfig(env: Record<string, string | undefined>): Config {
 			: LOCAL_OIDC,
 		authRateLimit: { limit: e.AUTH_RATE_LIMIT, windowMs: 10 * 60_000 },
 		inviteRateLimit: { limit: e.INVITE_RATE_LIMIT, windowMs: 10 * 60_000 },
+		writeRateLimit: { limit: e.WRITE_RATE_LIMIT, windowMs: 10 * 60_000 },
+		photoRateLimit: { limit: e.PHOTO_RATE_LIMIT, windowMs: 60 * 60_000 },
+		...(e.PROXY_SECRET && { proxySecret: e.PROXY_SECRET }),
 		email: emailConfig(e),
 		photos: photoConfig(e),
 		...(e.CONTENT_DIR && { contentDir: e.CONTENT_DIR }),

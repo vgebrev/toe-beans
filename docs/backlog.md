@@ -1,8 +1,8 @@
 # Toe Beans — Backlog
 
-**Version:** 0.42 (draft for iteration)
+**Version:** 0.43 (draft for iteration)
 **Date:** 16 November 2026
-**Inputs:** `docs/requirements.md` v1.0, `docs/architecture.md` v1.20, `docs/ui.md` v0.29
+**Inputs:** `docs/requirements.md` v1.0, `docs/architecture.md` v1.21, `docs/ui.md` v0.30
 
 **Changes in 0.3:** spike results S-1.0 to S-1.4 and S0.1–S0.2 recorded as they landed (see Current progress). S-1.4b dropped as not needed, S-1.5 parked, S-1.4a retargeted to `toebeans.co.za`.
 
@@ -67,6 +67,8 @@
 **Changes in 0.41:** new S6.5, several times a day, the owner's answer to S15.1's open question (architecture 1.20 D24, ui 0.29 J3), built; S6 is open again until it's tried on a phone. Inputs moved to architecture 1.20 and ui 0.29.
 
 **Changes in 0.42:** S6.5 done: the owner tried it on the Galaxy S23 FE, so S6 is closed again.
+
+**Changes in 0.43:** S15.2's audit is done (`docs/security-audit.md`), and every finding is now fixed or decided (architecture 1.21 D32–D34, ui 0.30 §4.7). S15.2 is done, tried by the owner on the phone. S14.1 gains the Worker's header secret (`PROXY_SECRET`) and the audit's checks on the deployed settings (log access and retention, the prod Auth0 connections). Inputs moved to architecture 1.21 and ui 0.30.
 
 **Changes in 0.21:** S2 and S3 done: the owner tested both on the phones in Chrome, including S3.5's photo flow and the Android share sheet. The installed PWA wasn't part of it; that's S13.
 
@@ -163,6 +165,7 @@ Work is organised as **vertical slices**: each delivers a usable end-to-end incr
 
 | 2026-11-15 | S13 done. The owner tried S13.5 on the Galaxy S23 FE and closed it without the Redmi Note 12 Pro, whose e2e viewport stays an estimate. S15 added before S14: the owner's snag list, a security audit, and a code review and refactor, each in its own session. |
 | 2026-11-16 | S15.1 done, closed by the owner on the Galaxy S23 FE: the snag list below, with e2e checks for each. `pnpm check` also failed on `develop` already: Kit's `page.url` is now a read-only URL type, so `AddMenu` copies it by its `href`. The owner's open question on sessions several times a day became S6.5. |
+| 2026-11-16 | S15.2 done, tried by the owner on the phone: each finding of the audit (`docs/security-audit.md` v0.2) fixed or decided, on the owner's calls for F7, C3 and F2's subject. D32: the Worker's header secret, a write budget per person, photo limits and one decode at a time, up to 50 dogs, email invite caps counted in the database (migration 0013) with a fixed subject, and the CSP and security headers. D33: *Sign out everywhere*, and a device moves to someone else only with its keys. D34: accepted risks. The image defaults to `APP_ENV=prod`; adapter-node 6.0.1 for a new advisory. Unit, integration and e2e tests (259 e2e pass with the CSP on). |
 | 2026-11-16 | S6.5 done, closed by the owner on the Galaxy S23 FE: several times a day (architecture 1.20 D24, ui 0.29), from the owner's puppy-school question in S15.1. Each time is its own session; *This and following* from a midday session keeps the morning's; migration 0012 moves existing plans and keys. Unit, integration (the migration too) and e2e tests. The error reveal from S15.1 now scrolls at once: a smooth scroll let a quick tap land on the wrong chip, which the e2e suite caught. |
 
 **Next up:** S15.2, S15.3, then S14.
@@ -357,7 +360,7 @@ Work is organised as **vertical slices**: each delivers a usable end-to-end incr
 | # | Task | Status |
 |---|---|---|
 | S15.1 | The owner's snag list: small fixes and polish found while using the app. **Built (ui 0.28):** (a) Notifications lists *Your devices*, all of them, this one first and marked *This device*; (b) selects and date and time fields show the filter buttons' chevron 16 px in from the edge; (c) the exercise page's *Schedule* / *Log practice* bar sits flush on the bottom bar; (d) the "+" is on Care too and offers the page's own record first; (e) a list page's primary action leads it (Plan's *Schedule*, Dogs, the cue dictionary); (f) a failed submit brings the first message into view and focuses its field. **Open question, answered:** sessions several times a day (puppy school's "before each feeding") became S6.5. The owner closed all but (b) on the Galaxy S23 FE, which came back with two snags: Android still drew its own arrow beside the chevron on date and time fields (now `appearance: none`), and desktop Chrome's dark theme showed options light on grey (now the theme's surface). The owner then closed (b) on the phone, after a third fix: Android's leftover arrow margin clipped the date's last character. | ✅ |
-| S15.2 | Security audit of the whole app against architecture §7 and NFR-01/02: household isolation on every read and write (scenario 9), sign-in and sessions, invitations, uploads, push endpoints and the tick, headers and CSP, secrets and logging. Findings fixed or recorded with a decision. | ⬜ |
+| S15.2 | Security audit of the whole app against architecture §7 and NFR-01/02: household isolation on every read and write (scenario 9), sign-in and sessions, invitations, uploads, push endpoints and the tick, headers and CSP, secrets and logging. Findings fixed or recorded with a decision. **Audit done (16 Nov):** `docs/security-audit.md` lists the findings with file and line, severity and fix: F1–F7 confirmed, C1–C4 worth checking. **Built (architecture 1.21, ui 0.30; audit v0.2 has each resolution):** F1 the app refuses requests without the Worker's header secret (`PROXY_SECRET`, required in prod; D32); F2 email invitations capped per person, per household and in total from the stored invitations, with a fixed subject (D32); F3 the CSP with nonces and the other security headers (D32); F4 the image defaults to `APP_ENV=prod`; F5 a photo budget per person, one decode at a time, up to 50 dogs (D32); F6 a device moves to someone else only with its keys (D33); F7 *Sign out everywhere* on More (D33); C3 a write budget per person (D32); C1, C2 and C4 accepted (D34), with adapter-node 6.0.1 for a new advisory. The owner tried it on the phone: pages under the CSP and *Sign out everywhere*. F1's address header and C1/C2's checks are S14.1's. | ✅ |
 | S15.3 | Code review and refactor: duplication, dead code, layer boundaries (architecture §4.2) and test gaps, without changing behaviour. Notable changes recorded in the architecture decision log. | ⬜ |
 
 ### S14 Operations and release ⬜
@@ -365,7 +368,7 @@ Work is organised as **vertical slices**: each delivers a usable end-to-end incr
 
 | # | Task | Status |
 |---|---|---|
-| S14.1 | Production environment provisioned (the platform chosen in S-1). Secrets in the platform store, including `RESEND_API_KEY` and `VAPID_PRIVATE_KEY`, which prod won't start without (generate the pair once with `pnpm vapid`). The Cloud Scheduler job `toe-beans-tick` POSTs `/internal/tick` every 5 minutes with an OIDC token for its service account (`TICK_AUDIENCE`, `TICK_INVOKER`), as the spike's did. Budget alert. Deploy workflow per architecture D15: Workload Identity Federation with an attribute condition pinning this repo and the `production` environment, a least-privilege deploy service account, a `production` environment (main only, owner approval), images in Artifact Registry deployed by digest. The client address for rate limits (architecture §7): the Worker forwards `CF-Connecting-IP`, `ADDRESS_HEADER`/`XFF_DEPTH` are set to match, and a sign-in from a phone confirms the app sees the phone's address. | ⬜ |
+| S14.1 | Production environment provisioned (the platform chosen in S-1). Secrets in the platform store, including `RESEND_API_KEY` and `VAPID_PRIVATE_KEY`, which prod won't start without (generate the pair once with `pnpm vapid`). The Cloud Scheduler job `toe-beans-tick` POSTs `/internal/tick` every 5 minutes with an OIDC token for its service account (`TICK_AUDIENCE`, `TICK_INVOKER`), as the spike's did. Budget alert. Deploy workflow per architecture D15: Workload Identity Federation with an attribute condition pinning this repo and the `production` environment, a least-privilege deploy service account, a `production` environment (main only, owner approval), images in Artifact Registry deployed by digest. The client address for rate limits (architecture §7): the Worker forwards `CF-Connecting-IP`, `ADDRESS_HEADER`/`XFF_DEPTH` are set to match, and a sign-in from a phone confirms the app sees the phone's address. The Worker sends `x-toe-beans-proxy` with `PROXY_SECRET` (Secret Manager on both sides; prod won't start without it, D32), and a request to `run.app` directly gets 403. The audit's checks on deployed settings (D34): Cloud Run's and Cloudflare's request logs are readable by the owner only, with known retention (they hold invite tokens); the prod Auth0 tenant has only Google and the database connection on. | ⬜ |
 | S14.2 | Nightly encrypted `mongodump` to R2, photo bucket copy, retention | ⬜ |
 | S14.3 | Restore runbook written **and tested** (`docs/runbooks/restore.md`) | ⬜ |
 | S14.4 | Uptime monitor. Sentry alerts. Accounts inventory (`docs/runbooks/accounts.md`). | ⬜ |

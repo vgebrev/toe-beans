@@ -134,9 +134,10 @@ export async function createBackend(
 		email: overrides.email ?? createEmailSender(config.email),
 		inviteRateLimit:
 			overrides.inviteRateLimit ?? memoryRateLimiter({ ...config.inviteRateLimit, clock }),
-		inviteEmailRateLimit:
-			overrides.inviteEmailRateLimit ??
-			memoryRateLimiter({ limit: 10, windowMs: 60 * 60_000, clock }),
+		writeRateLimit:
+			overrides.writeRateLimit ?? memoryRateLimiter({ ...config.writeRateLimit, clock }),
+		photoRateLimit:
+			overrides.photoRateLimit ?? memoryRateLimiter({ ...config.photoRateLimit, clock }),
 		dogs: overrides.dogs ?? mongoDogs(mongo.db, clock),
 		photos: overrides.photos ?? createPhotoStore(config.photos),
 		photoProcessor: overrides.photoProcessor ?? sharpPhotoProcessor(),
@@ -180,6 +181,7 @@ export async function createBackend(
 		config,
 		http: createHttp(ports, {
 			publicOrigin: config.publicOrigin,
+			...(config.proxySecret && { proxySecret: config.proxySecret }),
 			allowedPushEndpoints: config.push.allowedEndpoints,
 			worker,
 			tickAuth: tickAuthenticator(config.worker.auth)

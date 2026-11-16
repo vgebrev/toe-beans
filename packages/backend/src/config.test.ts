@@ -16,6 +16,8 @@ const local = {
 	},
 	authRateLimit: { limit: 30, windowMs: 600_000 },
 	inviteRateLimit: { limit: 30, windowMs: 600_000 },
+	writeRateLimit: { limit: 300, windowMs: 600_000 },
+	photoRateLimit: { limit: 20, windowMs: 3_600_000 },
 	email: { kind: 'console' },
 	photos: { kind: 'filesystem', directory: '.data/photos' },
 	push: { subject: 'mailto:hello@toebeans.co.za', allowedEndpoints: [...PUSH_SERVICES] },
@@ -37,11 +39,13 @@ const r2 = {
 	S3_ACCESS_KEY_ID: 'key-id',
 	S3_SECRET_ACCESS_KEY: 'key-secret'
 };
+const proxySecret = 'p'.repeat(32);
 const prod = {
 	APP_ENV: 'prod',
 	MONGODB_URI: atlas,
 	PUBLIC_BASE_URL: 'https://toebeans.co.za',
 	RESEND_API_KEY: 're_key',
+	PROXY_SECRET: proxySecret,
 	...auth0,
 	...r2,
 	...vapid,
@@ -75,6 +79,9 @@ describe('loadConfig', () => {
 			oidc: { issuer: auth0.OIDC_ISSUER, clientId: 'client', clientSecret: 'secret' },
 			authRateLimit: { limit: 30, windowMs: 600_000 },
 			inviteRateLimit: { limit: 30, windowMs: 600_000 },
+			writeRateLimit: { limit: 300, windowMs: 600_000 },
+			photoRateLimit: { limit: 20, windowMs: 3_600_000 },
+			proxySecret,
 			email: { kind: 'resend', apiKey: 're_key', from: 'Toe Beans <invites@toebeans.co.za>' },
 			photos: {
 				kind: 's3',
@@ -188,6 +195,15 @@ describe('loadConfig', () => {
 		expect(loadConfig({ APP_RELEASE: '1.2.0', K_REVISION: 'web-00012-xyz' }).release).toBe('1.2.0');
 		expect(loadConfig({})).not.toHaveProperty('sentry');
 		expect(() => loadConfig({ SENTRY_DSN: 'http://abc@sentry.example/1' })).toThrow(/SENTRY_DSN/);
+	});
+
+	it("requires the proxy's header secret in prod, and takes any request without one locally", () => {
+		expect(() => loadConfig({ ...prod, PROXY_SECRET: '' })).toThrow(
+			/PROXY_SECRET: required in prod/
+		);
+		expect(() => loadConfig({ ...prod, PROXY_SECRET: 'short' })).toThrow(/PROXY_SECRET/);
+		expect(loadConfig(prod).proxySecret).toBe(proxySecret);
+		expect(loadConfig({})).not.toHaveProperty('proxySecret');
 	});
 
 	it('requires MONGODB_URI in prod', () => {

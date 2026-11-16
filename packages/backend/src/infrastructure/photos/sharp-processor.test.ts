@@ -1,6 +1,6 @@
 import sharp from 'sharp';
 import { describe, expect, it } from 'vitest';
-import { sharpPhotoProcessor } from './sharp-processor.js';
+import { oneAtATime, sharpPhotoProcessor } from './sharp-processor.js';
 
 const processor = sharpPhotoProcessor();
 
@@ -95,5 +95,28 @@ describe('sharpPhotoProcessor', () => {
 			.png({ compressionLevel: 9 })
 			.toBuffer();
 		expect(await processor.process(new Uint8Array(huge))).toBeNull();
+	});
+});
+
+describe('oneAtATime', () => {
+	it('runs the next only once the one before has finished, failed or not', async () => {
+		const queue = oneAtATime();
+		const events: string[] = [];
+		const job =
+			(name: string, fail = false) =>
+			async () => {
+				events.push(`start ${name}`);
+				await new Promise((r) => setTimeout(r, 5));
+				events.push(`end ${name}`);
+				if (fail) throw new Error(name);
+				return name;
+			};
+		const results = await Promise.allSettled([
+			queue(job('a')),
+			queue(job('b', true)),
+			queue(job('c'))
+		]);
+		expect(events).toEqual(['start a', 'end a', 'start b', 'end b', 'start c', 'end c']);
+		expect(results.map((r) => r.status)).toEqual(['fulfilled', 'rejected', 'fulfilled']);
 	});
 });

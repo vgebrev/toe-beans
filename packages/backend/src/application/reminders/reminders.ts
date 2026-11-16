@@ -120,6 +120,13 @@ export function createReminderSettings(
 				keys: input.keys,
 				label
 			});
+			if (!device) {
+				// Someone else's endpoint without its keys: not this browser (security audit F6).
+				log.warn('push endpoint of another person refused', { userId: ctx.userId });
+				return err(
+					validationError('This subscription is not valid.', { endpoint: ['Not valid.'] })
+				);
+			}
 			for (const old of replaced) await pushDevices.remove(ctx.userId, old.id);
 			if (!known) {
 				log.info('push device added', {

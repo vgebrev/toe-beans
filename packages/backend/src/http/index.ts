@@ -22,6 +22,7 @@ import { CALLBACK_PATH, createAuthHttp, type AuthHttp } from './auth.js';
 import { createCareTasksHttp, type CareTasksHttp } from './care-tasks.js';
 import { createCuesHttp, type CuesHttp } from './cues.js';
 import { createDogsHttp, type DogsHttp } from './dogs.js';
+import { createEdgeHttp, type EdgeHttp } from './edge.js';
 import { createExercisesHttp, type ExercisesHttp } from './exercises.js';
 import { createHealthHttp, type HealthHttp } from './health.js';
 import { createHistoryHttp, type HistoryHttp } from './history.js';
@@ -33,6 +34,8 @@ import { createTodayHttp, type TodayHttp } from './today.js';
 import { createWorkerHttp, type WorkerHttp } from './tick.js';
 
 export interface Http {
+	/** Checks before any route, and the headers on every response (architecture §7). */
+	edge: EdgeHttp;
 	health: HealthHttp;
 	auth: AuthHttp;
 	account: AccountHttp;
@@ -53,6 +56,8 @@ export interface Http {
 export interface HttpOptions {
 	/** The origin users reach the app on, e.g. `https://toebeans.co.za`. */
 	publicOrigin: string;
+	/** The proxy's header secret; unset takes requests from anyone. */
+	proxySecret?: string;
 	/** Push services devices may subscribe with. */
 	allowedPushEndpoints: readonly string[];
 	/** The reminder tick, and who may run it over HTTP (architecture §6.3). */
@@ -62,7 +67,7 @@ export interface HttpOptions {
 
 export function createHttp(
 	ports: Ports,
-	{ publicOrigin, allowedPushEndpoints, worker, tickAuth }: HttpOptions
+	{ publicOrigin, proxySecret, allowedPushEndpoints, worker, tickAuth }: HttpOptions
 ): Http {
 	const auth = createAuth(ports, {
 		callbackUri: publicOrigin + CALLBACK_PATH,
@@ -73,6 +78,12 @@ export function createHttp(
 	const behaviourEvents = createBehaviourEvents(ports);
 	const careTasks = createCareTasks(ports);
 	return {
+		edge: createEdgeHttp({
+			publicOrigin,
+			...(proxySecret && { proxySecret }),
+			writeRateLimit: ports.writeRateLimit,
+			logger: ports.logger
+		}),
 		health: createHealthHttp(ports),
 		auth: createAuthHttp(auth, {
 			publicOrigin,
@@ -105,6 +116,7 @@ export type { AuthContext, Viewer } from '../application/auth/auth.js';
 export { safeReturnTo, signInPath, type CookieReader, type SignInError } from './auth.js';
 export type { DogForm } from './dogs.js';
 export * from './response.js';
+export { PROXY_SECRET_HEADER } from './edge.js';
 export { toProblem } from './problem.js';
 export { REQUEST_ID_HEADER, requestIdFrom } from './request-id.js';
 export { parseInput } from './validation.js';

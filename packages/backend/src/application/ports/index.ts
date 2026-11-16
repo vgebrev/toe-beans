@@ -116,8 +116,10 @@ export interface Ports {
 	email: EmailSender;
 	/** Looking at or accepting an invitation, per client address (architecture §7). */
 	inviteRateLimit: RateLimiter;
-	/** Invitations sent by email, per household, so one can't be used to mail people at will. */
-	inviteEmailRateLimit: RateLimiter;
+	/** API writes, per signed-in person (architecture D32). */
+	writeRateLimit: RateLimiter;
+	/** Dog photo uploads, per person (architecture D32). */
+	photoRateLimit: RateLimiter;
 	dogs: DogRepository;
 	photos: PhotoStore;
 	photoProcessor: PhotoProcessor;

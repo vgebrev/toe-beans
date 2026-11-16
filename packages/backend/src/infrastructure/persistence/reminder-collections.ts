@@ -58,8 +58,12 @@ export function mongoPushDevices(db: Db, clock: Clock): PushDeviceRepository {
 
 	async function upsert({ id, endpoint, ...fields }: Parameters<PushDeviceRepository['save']>[0]) {
 		const now = clock.now();
+		const { userId, keys } = fields;
+		// Someone else's device matches only with its keys; failing that, the insert hits the unique
+		// endpoint and `save` says no.
+		const sameBrowser = { 'keys.p256dh': keys.p256dh, 'keys.auth': keys.auth };
 		const doc = await devices.findOneAndUpdate(
-			{ endpoint },
+			{ endpoint, $or: [{ userId }, sameBrowser] },
 			{
 				$set: { ...fields, failureCount: 0, updatedAt: now },
 				$unset: { disabledAt: '' },
@@ -75,8 +79,14 @@ export function mongoPushDevices(db: Db, clock: Clock): PushDeviceRepository {
 			try {
 				return await upsert(device);
 			} catch (e) {
-				// Two saves of a new endpoint at once: one inserted, so the other now updates it.
-				if (isDuplicateKey(e)) return upsert(device);
+				if (!isDuplicateKey(e)) throw e;
+			}
+			// Two saves of a new endpoint at once: one inserted, so the other now updates it. Or the
+			// endpoint is someone else's and the keys don't match: then it's refused again.
+			try {
+				return await upsert(device);
+			} catch (e) {
+				if (isDuplicateKey(e)) return null;
 				throw e;
 			}
 		},
@@ -97,6 +107,10 @@ export function mongoPushDevices(db: Db, clock: Clock): PushDeviceRepository {
 		async remove(userId, id) {
 			const { deletedCount } = await devices.deleteOne({ _id: id, userId });
 			return deletedCount === 1;
+		},
+		async removeAllForUser(userId) {
+			const { deletedCount } = await devices.deleteMany({ userId });
+			return deletedCount;
 		},
 		async recordSuccess(id, at) {
 			await devices.updateOne({ _id: id }, { $set: { lastSuccessAt: at, failureCount: 0 } });

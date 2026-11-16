@@ -9,6 +9,7 @@
 	import PageHeader from '#lib/components/shell/PageHeader.svelte';
 	import ThemeSwitch from '#lib/components/shell/ThemeSwitch.svelte';
 	import { Button } from '#lib/components/ui/button/index.js';
+	import * as Sheet from '#lib/components/ui/sheet/index.js';
 	import { unsubscribe } from '#lib/push/browser.js';
 	import type { PageProps } from './$types';
 
@@ -19,6 +20,7 @@
 	 * shouldn't get them. The push service then refuses sends, and the server drops the device.
 	 */
 	let signingOut = false;
+	let everywhereOpen = $state(false);
 	async function signOut(event: SubmitEvent) {
 		if (signingOut) return;
 		event.preventDefault();
@@ -153,7 +155,30 @@
 		<form method="POST" action={resolve('/auth/sign-out')} onsubmit={signOut}>
 			<Button type="submit" variant="outline" class="w-full">Sign out</Button>
 		</form>
+		<!-- For a lost phone or a shared computer left signed in (architecture D33, ui.md §4.7). -->
+		<Button variant="ghost" class="w-full" onclick={() => (everywhereOpen = true)}>
+			Sign out everywhere
+		</Button>
 	</section>
+
+	<Sheet.Root bind:open={everywhereOpen}>
+		<Sheet.Content side="bottom" class="mx-auto flex max-w-xl flex-col gap-4 px-4 pt-6 pb-4">
+			<Sheet.Header class="p-0 pr-12 text-left">
+				<Sheet.Title class="font-display text-xl font-semibold">
+					Sign out on every device?
+				</Sheet.Title>
+				<Sheet.Description class="text-base">
+					You'll be signed out here and on every phone and browser you've used, and reminders stop
+					on all of them. Sign in again where you still use Toe Beans, and turn reminders back on in
+					Notifications.
+				</Sheet.Description>
+			</Sheet.Header>
+			<form method="POST" action={resolve('/auth/sign-out')} onsubmit={signOut}>
+				<input type="hidden" name="scope" value="everywhere" />
+				<Button type="submit" variant="destructive" class="w-full">Sign out everywhere</Button>
+			</form>
+		</Sheet.Content>
+	</Sheet.Root>
 
 	<footer class="flex flex-col items-center gap-1 pt-4 text-sm text-muted-foreground">
 		<Logo wordmark size={28} />

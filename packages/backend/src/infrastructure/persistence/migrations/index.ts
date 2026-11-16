@@ -11,6 +11,7 @@ import { behaviourEventIndexes } from './0009-behaviour-events.js';
 import { historyIndexes } from './0010-history.js';
 import { careTaskIndexes } from './0011-care-tasks.js';
 import { planTimes } from './0012-plan-times.js';
+import { invitationEmailIndex } from './0013-invitation-emails.js';
 import type { Migration } from './runner.js';
 
 export const migrations: readonly Migration[] = [
@@ -25,7 +26,8 @@ export const migrations: readonly Migration[] = [
 	behaviourEventIndexes,
 	historyIndexes,
 	careTaskIndexes,
-	planTimes
+	planTimes,
+	invitationEmailIndex
 ];
 
 export { migrate, type Migration } from './runner.js';

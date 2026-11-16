@@ -16,6 +16,9 @@ export function memoryPushDevices(now: () => Date): PushDeviceRepository & { all
 		all: () => structuredClone([...devices.values()]),
 		async save({ id, endpoint, ...fields }) {
 			const existing = [...devices.values()].find((d) => d.endpoint === endpoint);
+			const sameBrowser =
+				existing?.keys.p256dh === fields.keys.p256dh && existing.keys.auth === fields.keys.auth;
+			if (existing && existing.userId !== fields.userId && !sameBrowser) return null;
 			const at = now();
 			const device: PushDevice = existing
 				? { ...existing, ...fields, failureCount: 0, updatedAt: at }
@@ -41,6 +44,11 @@ export function memoryPushDevices(now: () => Date): PushDeviceRepository & { all
 		async remove(userId, id) {
 			if (devices.get(id)?.userId !== userId) return false;
 			return devices.delete(id);
+		},
+		async removeAllForUser(userId) {
+			const mine = [...devices.values()].filter((d) => d.userId === userId);
+			for (const d of mine) devices.delete(d.id);
+			return mine.length;
 		},
 		async recordSuccess(id, at) {
 			const d = devices.get(id);

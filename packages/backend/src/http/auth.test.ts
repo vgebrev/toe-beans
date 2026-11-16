@@ -211,12 +211,21 @@ describe('auth http', () => {
 		const res = await createAuthHttp(auth, options(origin)).signOut({
 			cookie: reader({ '__Host-tb_session': TOKEN })
 		});
-		expect(auth.signOut).toHaveBeenCalledWith(TOKEN);
+		expect(auth.signOut).toHaveBeenCalledWith(TOKEN, { everywhere: false });
 		expect(res).toMatchObject({
 			status: 303,
 			headers: { location: 'https://idp.example/logout' },
 			cookies: [{ name: '__Host-tb_session', value: '', maxAge: 0 }]
 		});
+	});
+
+	it('sign-out everywhere passes it on', async () => {
+		const auth = fakeAuth();
+		await createAuthHttp(auth, options(origin)).signOut({
+			cookie: reader({ '__Host-tb_session': TOKEN }),
+			everywhere: true
+		});
+		expect(auth.signOut).toHaveBeenCalledWith(TOKEN, { everywhere: true });
 	});
 
 	describe('authenticate', () => {

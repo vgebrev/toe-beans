@@ -189,6 +189,10 @@ export function mongoInvitations(db: Db, clock: Clock): InvitationRepository {
 		},
 		async remove(householdId, id) {
 			await raw.deleteOne({ _id: id, householdId }, { session: currentSession() });
+		},
+		async countEmailsSince(since, by) {
+			// Across households on purpose: the caps are per person and in total (security audit F2).
+			return raw.countDocuments({ kind: 'email', createdAt: { $gte: since }, ...by });
 		}
 	};
 }

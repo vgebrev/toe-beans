@@ -103,14 +103,14 @@ async function setup() {
 	};
 	const planner = createPlanner(ports);
 	const worker = createWorker(ports, planner, { intervalMs: 5 * MIN });
-	const device = (userId: Id, name: string) =>
-		ports.pushDevices.save({
+	const device = async (userId: Id, name: string) =>
+		(await ports.pushDevices.save({
 			id: ids.next(),
 			userId,
 			endpoint: `https://fcm.googleapis.com/fcm/send/${name}`,
 			keys,
 			label: name
-		});
+		}))!;
 	const schedule = async (date: string, time: string, repeat?: { days: number[] }) => {
 		const made = await planner.schedule(ctx, {
 			dogId: dog.id,

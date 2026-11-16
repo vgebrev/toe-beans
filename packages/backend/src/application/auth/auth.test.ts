@@ -11,6 +11,7 @@ import {
 } from '../../testing/auth.js';
 import { manualClock } from '../../testing/clock.js';
 import { memoryHouseholds } from '../../testing/household.js';
+import { memoryPushDevices } from '../../testing/reminders.js';
 import type { IdentityClaims, Logger } from '../ports/index.js';
 import {
 	createAuth,
@@ -30,6 +31,7 @@ function setup() {
 	const users = memoryUsers();
 	const households = memoryHouseholds();
 	const sessions = memorySessions();
+	const pushDevices = memoryPushDevices(() => clock.now());
 	const logger: Logger = {
 		debug: vi.fn(),
 		info: vi.fn(),
@@ -44,6 +46,7 @@ function setup() {
 			households,
 			sessions,
 			pendingSignIns: memoryPendingSignIns(),
+			pushDevices,
 			uow: directUnitOfWork,
 			clock,
 			ids: createIdGenerator(() => clock.now().getTime()),
@@ -51,7 +54,7 @@ function setup() {
 		},
 		{ callbackUri, postSignOutUri: 'https://app.example/' }
 	);
-	return { auth, clock, identity, users, households, sessions, logger };
+	return { auth, clock, identity, users, households, sessions, pushDevices, logger };
 }
 
 const google = (overrides: Partial<IdentityClaims> = {}): IdentityClaims => ({
@@ -381,6 +384,34 @@ describe('auth', () => {
 				url: 'https://idp.example/logout?post_logout_redirect_uri=https%3A%2F%2Fapp.example%2F'
 			});
 			expect(await t.auth.authenticate(token)).toBeNull();
+		});
+
+		it("everywhere ends all the person's sessions and removes their devices, no one else's", async () => {
+			const tokenOf = (r: Awaited<ReturnType<typeof signIn>>) => (r.ok ? r.value.token : '');
+			const phone = tokenOf(await signIn(google()));
+			const laptop = tokenOf(await signIn(google()));
+			const alex = tokenOf(await signIn(google({ subject: 'google-oauth2|2', email: 'a@x.com' })));
+			const samId = (await t.auth.authenticate(phone))!.viewer.auth.userId;
+			const alexId = (await t.auth.authenticate(alex))!.viewer.auth.userId;
+			const keys = { p256dh: 'B'.repeat(87), auth: 'a'.repeat(22) };
+			const device = (userId: Id, n: string) =>
+				t.pushDevices.save({ id: n as Id, userId, endpoint: `https://p/${n}`, keys, label: n });
+			await device(samId, 'd1');
+			await device(samId, 'd2');
+			await device(alexId, 'd3');
+
+			await t.auth.signOut(laptop, { everywhere: true });
+			expect(await t.auth.authenticate(phone)).toBeNull();
+			expect(await t.auth.authenticate(laptop)).toBeNull();
+			expect(await t.auth.authenticate(alex)).not.toBeNull();
+			expect(t.pushDevices.all().map((d) => d.id)).toEqual(['d3']);
+		});
+
+		it('everywhere with an unknown or expired session ends nothing else', async () => {
+			const result = await signIn(google());
+			const token = result.ok ? result.value.token : '';
+			await t.auth.signOut('x'.repeat(43), { everywhere: true });
+			expect(await t.auth.authenticate(token)).not.toBeNull();
 		});
 
 		it('still signs out locally when the provider is unreachable', async () => {
