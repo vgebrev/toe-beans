@@ -1,6 +1,6 @@
 # Toe Beans — UI and Interaction Design
 
-**Version:** 0.31 (draft for iteration)
+**Version:** 0.32 (draft for iteration)
 **Date:** 16 November 2026
 **Status:** Proposed. Review-round decisions in §8 are accepted.
 **Inputs:** `docs/requirements.md` v1.0, `docs/architecture.md` v1.22
@@ -44,6 +44,8 @@
 **Changes in 0.30:** §4.7: *Sign out everywhere* under *Sign out* on More, confirmed in a bottom sheet that says reminders stop on every device (architecture 1.21 D33, from the S15.2 security audit). The invitation email's subject is now fixed, *You're invited to Toe Beans*, with the names in the body (D32).
 
 **Changes in 0.31:** Done care tasks are in History (architecture 1.22 D35). §2.1's History row and §4.4: each done task leads the day it was done, *Show* gains *Any care* and each kind of care, with a line between its groups (§5.1), and the card has the category's icon where the time would be, the title, the dog, who marked it done and *Done*. J6: a task opened from History has a back link to *History*.
+
+**Changes in 0.32:** §6.4 gains the cursor convention from the owner's S15.1 snag list: on a pointer device everything clickable shows the pointer (Tailwind 4 gives buttons the arrow), while fields you type into keep the text cursor.
 
 **Changes in 0.12:** S3 built. J1 step 4 as built: *Take photo* or *Gallery*, then a framing square with the circle overlay (drag, pinch, a zoom slider and arrow keys), and birth date as *I know the date* or *Approximate* with months old. J2 names the dogs. §2.2: the switcher shows on Today, Plan, History and Care, with name chips. §5.1 gains two rules from using it: one confirm button per context (a sheet is its own context), and a control is never disabled without the reason on screen; the photo moved into its own sheet in J1 to follow the first, and the household, name and email-invite buttons stopped greying out for missing input to follow the second. §4.5: editing is its own page and the overflow sheet holds *Edit details* and *Archive*; the Recent sections wait for their slices. The dog accent palette is defined (§6.4), and More gains *Dogs* (§2.1). The custom dog icon read as a monkey, so it's replaced by Phosphor's *Dog*, the documented fallback library (§6.4).
 
@@ -437,6 +439,7 @@ All deletes, archives, invite revocations and "turn off reminders" go through a 
 
 - **Toolkit:** Tailwind CSS with shadcn-svelte components (Bits UI primitives for accessible sheets, dialogs and menus), restyled entirely through the brand tokens below.
 - **Motion:** subtle 150–200 ms transitions, respecting `prefers-reduced-motion`.
+- **Cursor:** with a mouse, everything clickable shows the pointer: links, buttons, summaries, selects, chips and checkable labels, date and time fields (a click opens their picker), and the ARIA roles that act like buttons. Fields you type into keep the text cursor, and disabled controls don't show the pointer. One base rule in `app.css` does it, so components don't add `cursor-pointer` themselves.
 - **Mock-ups:** [Toe Beans mock-ups canvas](https://claude.ai/artifact/BAuRdwCcZ5ULVhbSDMjxVU) (private). It shows Today, the Quick log sheet (interactive) and Exercise detail in both themes, plus a brand sheet. Icons and the logo in the mock-ups are placeholders.
 
 #### Icons

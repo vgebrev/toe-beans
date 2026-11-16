@@ -1,6 +1,6 @@
 // The training planner (FR-05, NFR-13, scenarios 3 and 9; ui.md J3, §4.3). Each test brings its
 // own household, in Johannesburg, so dates are worked out on its clocks.
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type Locator, type Page } from '@playwright/test';
 import { blockMockFonts, dayFromToday, jsonHeaders, ownHousehold } from './mock-sign-in.js';
 
 test.use({ storageState: { cookies: [], origins: [] } });
@@ -390,4 +390,25 @@ test("another household can't see or change a session by its ID (scenario 9)", a
 		status: 'planned',
 		time: '17:30'
 	});
+});
+
+test('clickable things show the pointer, and text fields the text cursor (S15.1)', async ({
+	page,
+	baseURL
+}) => {
+	await ownHousehold(page, baseURL!);
+	const cursor = (locator: Locator) =>
+		locator.evaluate((element) => getComputedStyle(element).cursor);
+	await page.goto('/plan/new');
+	expect(await cursor(page.getByRole('button', { name: 'Schedule', exact: true }))).toBe('pointer');
+	expect(
+		await cursor(page.getByRole('navigation', { name: 'Main' }).getByRole('link').first())
+	).toBe('pointer');
+	expect(await cursor(page.getByLabel('Date'))).toBe('pointer');
+	expect(await cursor(page.getByLabel('Time'))).toBe('pointer');
+	expect(await cursor(page.getByRole('group', { name: 'Repeat' }).locator('label').first())).toBe(
+		'pointer'
+	);
+	await page.goto('/dogs/new');
+	expect(await cursor(page.getByLabel('Name'))).toBe('text');
 });
