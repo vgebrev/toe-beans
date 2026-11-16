@@ -4,6 +4,7 @@ import { expect, test, type Page } from '@playwright/test';
 import {
 	blockMockFonts,
 	createHousehold,
+	jsonHeaders,
 	newPerson,
 	signIn,
 	type TestPerson
@@ -76,7 +77,7 @@ test('a save from an older page offers both versions', async ({ page, context, b
 
 test('the API needs If-Match and refuses a stale one', async ({ page, baseURL }) => {
 	await signInAs(page, newPerson(), baseURL!);
-	const headers = { origin: baseURL!, 'content-type': 'application/json' };
+	const headers = jsonHeaders(baseURL!);
 	const me = await page.request.get('/api/v1/me');
 	expect(me.status()).toBe(200);
 	const etag = me.headers()['etag']!;

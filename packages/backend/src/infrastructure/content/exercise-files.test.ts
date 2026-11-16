@@ -9,6 +9,7 @@ import {
 	loadExerciseCatalogue,
 	readExerciseFiles
 } from './exercise-files.js';
+import { silentLogger } from '../../testing/logger.js';
 
 const yaml = (id: string, skillArea = 'recall', extra = '') => `id: ${id}
 contentVersion: 1
@@ -47,7 +48,6 @@ const problemsOf = async () => {
 	expect(error).toBeInstanceOf(ExerciseFileError);
 	return (error as ExerciseFileError).problems;
 };
-const silent = { debug() {}, info() {}, warn() {}, error() {}, child: () => silent };
 
 describe('readExerciseFiles', () => {
 	it('reads each YAML file into an exercise, in library order', async () => {
@@ -95,21 +95,21 @@ describe('loadExerciseCatalogue', () => {
 	it('serves drafts locally but refuses them in prod', async () => {
 		await write('recall-basics.yaml', yaml('recall-basics'));
 		const warnings: unknown[] = [];
-		const logger = { ...silent, warn: (_: string, fields: unknown) => warnings.push(fields) };
+		const logger = { ...silentLogger, warn: (_: string, fields: unknown) => warnings.push(fields) };
 		const local = await loadExerciseCatalogue(dir, { strict: false, logger });
 		expect(local.get('recall-basics')?.title).toBe('Recall basics');
 		expect(local.get('nope')).toBeUndefined();
 		expect(warnings).toContainEqual({
 			problem: 'recall-basics: not reviewed yet (set reviewedBy and reviewedAt)'
 		});
-		await expect(loadExerciseCatalogue(dir, { strict: true, logger: silent })).rejects.toThrow(
-			ExerciseFileError
-		);
+		await expect(
+			loadExerciseCatalogue(dir, { strict: true, logger: silentLogger })
+		).rejects.toThrow(ExerciseFileError);
 	});
 
 	it('starts in prod with a reviewed library covering every area', async () => {
 		for (const area of SKILL_AREAS) await write(`${area}.yaml`, yaml(area, area, reviewed));
-		const catalogue = await loadExerciseCatalogue(dir, { strict: true, logger: silent });
+		const catalogue = await loadExerciseCatalogue(dir, { strict: true, logger: silentLogger });
 		expect(catalogue.all().map((e) => e.skillArea)).toEqual(SKILL_AREAS);
 	});
 });

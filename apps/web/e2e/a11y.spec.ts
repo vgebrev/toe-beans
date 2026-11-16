@@ -2,7 +2,15 @@
 // Android's font size setting gives an installed app (app.html's `text-scale` meta scales the
 // root font), no page scrolls sideways. TalkBack is tried by hand on a phone.
 import { expect, test, type Page } from '@playwright/test';
-import { addDog, blockMockFonts, createHousehold, newPerson, signIn } from './mock-sign-in.js';
+import {
+	addDog,
+	blockMockFonts,
+	createHousehold,
+	dayFromToday,
+	jsonHeaders,
+	newPerson,
+	signIn
+} from './mock-sign-in.js';
 import { fakePushInBrowser, fakeSubscription } from './push-service.js';
 
 test.use({ storageState: { cookies: [], origins: [] } });
@@ -49,13 +57,6 @@ test('at 200% text size, no page scrolls sideways', async ({ page, baseURL }) =>
 	expect(wide).toEqual([]);
 });
 
-const ZONE = 'Africa/Johannesburg';
-const json = (baseURL: string) => ({ origin: baseURL, 'content-type': 'application/json' });
-const dayFromToday = (days: number) =>
-	new Intl.DateTimeFormat('en-CA', { timeZone: ZONE }).format(
-		new Date(Date.now() + days * 86_400_000)
-	);
-
 test("at 200% text size, Today's cards keep their titles wide, beside Log and Overdue", async ({
 	page,
 	baseURL
@@ -71,7 +72,7 @@ test("at 200% text size, Today's cards keep their titles wide, beside Log and Ov
 		['/api/v1/care-tasks', { dogId: dog.id, category: 'vaccination', dueDate: dayFromToday(-2) }]
 	] as const) {
 		const response = await page.request.post(path, {
-			headers: json(baseURL!),
+			headers: jsonHeaders(baseURL!),
 			data: JSON.stringify(body)
 		});
 		expect(response.status()).toBe(201);

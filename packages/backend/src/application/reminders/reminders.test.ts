@@ -10,9 +10,9 @@ import {
 } from '../../testing/reminders.js';
 import type { MemberContext } from '../auth/auth.js';
 import { createReminderSettings } from './reminders.js';
+import { silentLogger } from '../../testing/logger.js';
 
 const start = new Date('2026-11-10T15:00:00Z');
-const silent = { debug() {}, info() {}, warn() {}, error() {}, child: () => silent };
 const sam: MemberContext = { userId: 'sam' as Id, householdId: 'h1' as Id, role: 'owner' };
 const alex: MemberContext = { userId: 'alex' as Id, householdId: 'h1' as Id, role: 'caregiver' };
 const keys = { p256dh: 'B'.repeat(87), auth: 'a'.repeat(22) };
@@ -28,7 +28,7 @@ function setup() {
 		push: fakePushSender(),
 		clock,
 		ids: createIdGenerator(() => now().getTime()),
-		logger: silent
+		logger: silentLogger
 	};
 	const settings = createReminderSettings(ports, { allowedEndpoints: PUSH_SERVICES });
 	const save = async (ctx: MemberContext, name: string) => {

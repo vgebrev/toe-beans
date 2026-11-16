@@ -2,25 +2,12 @@
 // done care tasks in one timeline with filters, and deleting from a log's or event's page with Undo. Each test brings its own
 // household, in Johannesburg.
 import { expect, test, type Page } from '@playwright/test';
-import { addDog, blockMockFonts, createHousehold, newPerson, signIn } from './mock-sign-in.js';
+import { blockMockFonts, dayFromToday, jsonHeaders, ownHousehold } from './mock-sign-in.js';
 
 test.use({ storageState: { cookies: [], origins: [] } });
 test.beforeEach(({ page }) => blockMockFonts(page));
 
-const ZONE = 'Africa/Johannesburg';
-const today = () => new Intl.DateTimeFormat('en-CA', { timeZone: ZONE }).format(new Date());
-const json = (baseURL: string) => ({ origin: baseURL, 'content-type': 'application/json' });
 const ago = (minutes: number) => new Date(Date.now() - minutes * 60_000).toISOString();
-const yesterday = () =>
-	new Intl.DateTimeFormat('en-CA', { timeZone: ZONE }).format(Date.now() - 24 * 3_600_000);
-
-async function household(page: Page, baseURL: string, dogs: string[] = ['Rosie']) {
-	await signIn(page, newPerson('owner'));
-	await createHousehold(page, baseURL);
-	const added = [];
-	for (const name of dogs) added.push(await addDog(page, baseURL, { name }));
-	return added;
-}
 
 interface Saved {
 	id: string;
@@ -29,7 +16,7 @@ interface Saved {
 
 async function logPractice(page: Page, baseURL: string, body: Record<string, unknown>) {
 	const response = await page.request.post('/api/v1/session-logs', {
-		headers: json(baseURL),
+		headers: jsonHeaders(baseURL),
 		data: JSON.stringify({ exerciseId: 'recall-basics', ...body })
 	});
 	expect(response.status()).toBe(201);
@@ -38,7 +25,7 @@ async function logPractice(page: Page, baseURL: string, body: Record<string, unk
 
 async function record(page: Page, baseURL: string, body: Record<string, unknown>) {
 	const response = await page.request.post('/api/v1/behaviour-events', {
-		headers: json(baseURL),
+		headers: jsonHeaders(baseURL),
 		data: JSON.stringify({ category: 'barking', ...body })
 	});
 	expect(response.status()).toBe(201);
@@ -47,7 +34,7 @@ async function record(page: Page, baseURL: string, body: Record<string, unknown>
 
 async function addCare(page: Page, baseURL: string, body: Record<string, unknown>) {
 	const response = await page.request.post('/api/v1/care-tasks', {
-		headers: json(baseURL),
+		headers: jsonHeaders(baseURL),
 		data: JSON.stringify({ category: 'vaccination', ...body })
 	});
 	expect(response.status()).toBe(201);
@@ -60,7 +47,7 @@ test('FR-09: logs and events in one timeline, newest first by day, with filters'
 	page,
 	baseURL
 }) => {
-	const [rosie, miso] = await household(page, baseURL!, ['Rosie', 'Miso']);
+	const [rosie, miso] = await ownHousehold(page, baseURL!, { dogs: ['Rosie', 'Miso'] });
 	await logPractice(page, baseURL!, { dogId: rosie!.id, practisedAt: ago(60) });
 	await record(page, baseURL!, { dogId: miso!.id, occurredAt: ago(30), trigger: 'Postman' });
 	await logPractice(page, baseURL!, {
@@ -112,9 +99,9 @@ test('FR-09: logs and events in one timeline, newest first by day, with filters'
 		.getByRole('button', { name: 'Choose dates…' })
 		.click();
 	const dates = page.getByRole('dialog', { name: 'Choose dates' });
-	await dates.getByLabel(/From/).fill(today());
+	await dates.getByLabel(/From/).fill(dayFromToday(0));
 	await dates.getByRole('button', { name: 'Show these dates' }).click();
-	await expect(page).toHaveURL(new RegExp(`from=${today()}`));
+	await expect(page).toHaveURL(new RegExp(`from=${dayFromToday(0)}`));
 	await expect(cards(page)).toHaveCount(2);
 	await page.reload();
 	await expect(cards(page)).toHaveCount(2);
@@ -141,8 +128,8 @@ test('D35: a done care task heads the day it was done, under *Any care*, and lea
 	page,
 	baseURL
 }) => {
-	const [rosie] = await household(page, baseURL!);
-	const day = yesterday();
+	const [rosie] = await ownHousehold(page, baseURL!);
+	const day = dayFromToday(-1);
 	await logPractice(page, baseURL!, { dogId: rosie!.id, practisedAt: ago(5) });
 	// 21:00 yesterday in Johannesburg: the care done that day still comes above it.
 	await logPractice(page, baseURL!, { dogId: rosie!.id, practisedAt: `${day}T19:00:00Z` });
@@ -152,7 +139,7 @@ test('D35: a done care task heads the day it was done, under *Any care*, and lea
 		title: 'Rabies booster'
 	});
 	const completed = await page.request.post(`/api/v1/care-tasks/${done.id}/complete`, {
-		headers: { ...json(baseURL!), 'if-match': done.etag },
+		headers: { ...jsonHeaders(baseURL!), 'if-match': done.etag },
 		data: JSON.stringify({ completedOn: day })
 	});
 	expect(completed.ok()).toBe(true);
@@ -163,13 +150,13 @@ test('D35: a done care task heads the day it was done, under *Any care*, and lea
 		category: 'puppy_school'
 	});
 	const cancelled = await page.request.patch(`/api/v1/care-tasks/${dropped.id}`, {
-		headers: { ...json(baseURL!), 'if-match': dropped.etag },
+		headers: { ...jsonHeaders(baseURL!), 'if-match': dropped.etag },
 		data: JSON.stringify({ status: 'cancelled' })
 	});
 	expect(cancelled.ok()).toBe(true);
 	await addCare(page, baseURL!, {
 		dogId: rosie!.id,
-		dueDate: today(),
+		dueDate: dayFromToday(0),
 		category: 'vet_appointment'
 	});
 
@@ -223,7 +210,7 @@ test('Load more pages through the timeline, and Back from an entry keeps the lis
 	page,
 	baseURL
 }) => {
-	const [rosie] = await household(page, baseURL!);
+	const [rosie] = await ownHousehold(page, baseURL!);
 	for (let i = 0; i < 32; i++) {
 		await logPractice(page, baseURL!, { dogId: rosie!.id, practisedAt: ago(10 + i) });
 	}
@@ -263,7 +250,7 @@ test('Load more pages through the timeline, and Back from an entry keeps the lis
 });
 
 test('a failed load says so and offers to try again (NFR-04)', async ({ page, baseURL }) => {
-	const [rosie] = await household(page, baseURL!);
+	const [rosie] = await ownHousehold(page, baseURL!);
 	await logPractice(page, baseURL!, { dogId: rosie!.id });
 	await page.route('**/api/v1/history*', (route) => route.abort('internetdisconnected'));
 	await page.goto('/history');
@@ -278,13 +265,13 @@ test('J8: deleting a planned session’s log puts it back in the plan, and Undo 
 	page,
 	baseURL
 }) => {
-	const [rosie] = await household(page, baseURL!);
+	const [rosie] = await ownHousehold(page, baseURL!);
 	const scheduled = await page.request.post('/api/v1/planned-sessions', {
-		headers: json(baseURL!),
+		headers: jsonHeaders(baseURL!),
 		data: JSON.stringify({
 			dogId: rosie!.id,
 			exerciseId: 'recall-basics',
-			date: today(),
+			date: dayFromToday(0),
 			times: ['00:00']
 		})
 	});
@@ -321,13 +308,13 @@ test('J8: deleting an event with Undo, and a change made meanwhile deletes nothi
 	page,
 	baseURL
 }) => {
-	const [rosie] = await household(page, baseURL!);
+	const [rosie] = await ownHousehold(page, baseURL!);
 	const event = await record(page, baseURL!, { dogId: rosie!.id, occurredAt: ago(5) });
 
 	// Changed on another device after this page loaded (NFR-13).
 	await page.goto(`/events/${event.id}`);
 	await page.request.patch(`/api/v1/behaviour-events/${event.id}`, {
-		headers: { ...json(baseURL!), 'if-match': event.etag },
+		headers: { ...jsonHeaders(baseURL!), 'if-match': event.etag },
 		data: JSON.stringify({ category: 'visitor' })
 	});
 	await page.getByRole('button', { name: 'Delete this event' }).click();
@@ -361,14 +348,14 @@ test("another household can't list, delete or restore a household's entries (sce
 	browser,
 	baseURL
 }) => {
-	const [rosie] = await household(page, baseURL!);
+	const [rosie] = await ownHousehold(page, baseURL!);
 	const log = await logPractice(page, baseURL!, { dogId: rosie!.id });
 	const event = await record(page, baseURL!, { dogId: rosie!.id });
 
 	const context = await browser.newContext({ storageState: { cookies: [], origins: [] } });
 	const outsider = await context.newPage();
 	await blockMockFonts(outsider);
-	await household(outsider, baseURL!);
+	await ownHousehold(outsider, baseURL!);
 	const removed = await Promise.all([
 		outsider.request.delete(`/api/v1/session-logs/${log.id}`, {
 			headers: { origin: baseURL!, 'if-match': log.etag }

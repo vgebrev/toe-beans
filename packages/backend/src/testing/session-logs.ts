@@ -1,20 +1,20 @@
 // An in-memory double for the session log repository, for unit tests of the use cases. The Mongo
 // adapter has its own integration test.
 import type { SessionLogRepository } from '../application/ports/index.js';
-import { notFound, staleVersion } from '../application/errors.js';
-import { err, ok } from '../domain/result.js';
 import { timelinePage } from './timeline.js';
+import { versionedStore } from './versioned-store.js';
 import type { SessionLog } from '../domain/session-log.js';
 
 export function memorySessionLogs(now: () => Date): SessionLogRepository & { all(): SessionLog[] } {
-	const items = new Map<string, SessionLog>();
+	const store = versionedStore<SessionLog>(now, 'log');
+	const { items } = store;
 	const live = (householdId: string, id: string) => {
-		const item = items.get(id);
-		return item?.householdId === householdId && !item.deletedAt ? item : undefined;
+		const item = store.inHousehold(householdId, id);
+		return item && !item.deletedAt ? item : undefined;
 	};
 	const deleted = (householdId: string, id: string) => {
-		const item = items.get(id);
-		return item?.householdId === householdId && item.deletedAt ? item : undefined;
+		const item = store.inHousehold(householdId, id);
+		return item?.deletedAt ? item : undefined;
 	};
 	return {
 		all: () => structuredClone([...items.values()]),
@@ -25,10 +25,7 @@ export function memorySessionLogs(now: () => Date): SessionLogRepository & { all
 			) {
 				throw new Error('duplicate plannedSessionId');
 			}
-			const at = now();
-			const stored: SessionLog = { ...log, version: 1, createdAt: at, updatedAt: at };
-			items.set(log.id, structuredClone(stored));
-			return structuredClone(stored);
+			return store.insert(log);
 		},
 		findById: async (householdId, id) => structuredClone(live(householdId, id) ?? null),
 		findByIds: async (householdId, ids) =>
@@ -60,37 +57,18 @@ export function memorySessionLogs(now: () => Date): SessionLogRepository & { all
 					query
 				)
 			),
-		async softDelete(householdId, id, expectedVersion, deletedBy) {
-			const item = live(householdId, id);
-			if (!item) return err(notFound('log'));
-			if (item.version !== expectedVersion) return err(staleVersion);
-			Object.assign(item, {
+		softDelete: async (householdId, id, expectedVersion, deletedBy) =>
+			store.edit(live(householdId, id), expectedVersion, {
 				deletedAt: now(),
-				updatedBy: deletedBy,
-				version: item.version + 1,
-				updatedAt: now()
-			});
-			return ok(structuredClone(item));
-		},
+				updatedBy: deletedBy
+			}),
 		findDeleted: async (householdId, id) => structuredClone(deleted(householdId, id) ?? null),
-		async restore(householdId, id, expectedVersion, restoredBy) {
-			const item = deleted(householdId, id);
-			if (!item) return err(notFound('log'));
-			if (item.version !== expectedVersion) return err(staleVersion);
-			delete item.deletedAt;
-			Object.assign(item, { updatedBy: restoredBy, version: item.version + 1, updatedAt: now() });
-			return ok(structuredClone(item));
-		},
-		async update(householdId, id, expectedVersion, changes) {
-			const item = live(householdId, id);
-			if (!item) return err(notFound('log'));
-			if (item.version !== expectedVersion) return err(staleVersion);
-			for (const [key, value] of Object.entries(changes)) {
-				if (value === undefined) delete (item as unknown as Record<string, unknown>)[key];
-				else (item as unknown as Record<string, unknown>)[key] = structuredClone(value);
-			}
-			Object.assign(item, { version: item.version + 1, updatedAt: now() });
-			return ok(structuredClone(item));
-		}
+		restore: async (householdId, id, expectedVersion, restoredBy) =>
+			store.edit(deleted(householdId, id), expectedVersion, {
+				deletedAt: undefined,
+				updatedBy: restoredBy
+			}),
+		update: async (householdId, id, expectedVersion, changes) =>
+			store.edit(live(householdId, id), expectedVersion, changes)
 	};
 }

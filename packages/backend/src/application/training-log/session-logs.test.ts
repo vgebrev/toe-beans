@@ -10,10 +10,10 @@ import { memorySessionLogs } from '../../testing/session-logs.js';
 import type { PlannerContext } from '../auth/auth.js';
 import { createPlanner } from '../planner/planner.js';
 import { createSessionLogs } from './session-logs.js';
+import { silentLogger } from '../../testing/logger.js';
 
 // Tuesday 10 November 2026, 17:00 in Johannesburg.
 const at = new Date('2026-11-10T15:00:00Z');
-const silent = { debug() {}, info() {}, warn() {}, error() {}, child: () => silent };
 const person = (id: string, displayName: string): User => ({
 	id: id as Id,
 	identities: [],
@@ -86,7 +86,7 @@ async function setup() {
 		uow: directUnitOfWork,
 		clock,
 		ids,
-		logger: silent
+		logger: silentLogger
 	};
 	const planner = createPlanner(ports);
 	const logs = createSessionLogs(ports);

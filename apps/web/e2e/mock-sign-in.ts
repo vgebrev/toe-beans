@@ -34,6 +34,21 @@ export async function signInAtMockProvider(page: Page, person: TestPerson): Prom
 	await page.getByRole('button', { name: 'Sign-in' }).click();
 }
 
+/** The time zone every household made through `createHousehold` keeps its clocks in. */
+export const ZONE = 'Africa/Johannesburg';
+
+/** A date on the test households' clocks, `days` from today: `0` is today, `-1` yesterday. */
+export function dayFromToday(days: number): string {
+	const today = new Intl.DateTimeFormat('en-CA', { timeZone: ZONE }).format(new Date());
+	return new Date(Date.parse(`${today}T00:00:00Z`) + days * 86_400_000).toISOString().slice(0, 10);
+}
+
+/** Headers for a JSON write through `page.request`: the app refuses a write without an Origin. */
+export const jsonHeaders = (baseURL: string) => ({
+	origin: baseURL,
+	'content-type': 'application/json'
+});
+
 /**
  * Creates a household for whoever `page` is signed in as, through the API: most suites are about
  * what comes after onboarding, which has a suite of its own.
@@ -44,8 +59,8 @@ export async function createHousehold(
 	name = 'The Testers'
 ): Promise<void> {
 	const response = await page.request.post('/api/v1/household', {
-		headers: { origin: baseURL, 'content-type': 'application/json' },
-		data: JSON.stringify({ name, timeZone: 'Africa/Johannesburg' })
+		headers: jsonHeaders(baseURL),
+		data: JSON.stringify({ name, timeZone: ZONE })
 	});
 	expect(response.status()).toBe(201);
 }
@@ -102,4 +117,20 @@ export async function addDog(
 	});
 	expect(response.status()).toBe(201);
 	return response.json();
+}
+
+/**
+ * Signs `page` in as someone new who owns a new household with `dogs` (Rosie unless given),
+ * returning the dogs in that order.
+ */
+export async function ownHousehold(
+	page: Page,
+	baseURL: string,
+	{ dogs = ['Rosie'], name }: { dogs?: string[]; name?: string } = {}
+): Promise<CreatedDog[]> {
+	await signIn(page, newPerson('owner'));
+	await createHousehold(page, baseURL, name);
+	const added = [];
+	for (const dog of dogs) added.push(await addDog(page, baseURL, { name: dog }));
+	return added;
 }

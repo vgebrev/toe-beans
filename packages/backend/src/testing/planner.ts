@@ -4,45 +4,8 @@ import type {
 	PlannedSessionRepository,
 	TrainingPlanRepository
 } from '../application/ports/index.js';
-import { notFound, staleVersion } from '../application/errors.js';
 import type { PlannedSession, TrainingPlan } from '../domain/planner.js';
-import { err, ok } from '../domain/result.js';
-
-interface Versioned {
-	id: string;
-	householdId: string;
-	version: number;
-	updatedAt: Date;
-}
-
-function versionedStore<T extends Versioned>(now: () => Date, resource: string) {
-	const items = new Map<string, T>();
-	const inHousehold = (householdId: string, id: string) => {
-		const item = items.get(id);
-		return item?.householdId === householdId ? item : undefined;
-	};
-	return {
-		items,
-		inHousehold,
-		insert(item: Omit<T, 'version' | 'createdAt' | 'updatedAt'>): T {
-			const at = now();
-			const stored = { ...item, version: 1, createdAt: at, updatedAt: at } as unknown as T;
-			items.set(item.id, structuredClone(stored));
-			return structuredClone(stored);
-		},
-		update(householdId: string, id: string, expectedVersion: number, changes: object) {
-			const item = inHousehold(householdId, id);
-			if (!item) return err(notFound(resource));
-			if (item.version !== expectedVersion) return err(staleVersion);
-			for (const [key, value] of Object.entries(changes)) {
-				if (value === undefined) delete (item as Record<string, unknown>)[key];
-				else (item as Record<string, unknown>)[key] = structuredClone(value);
-			}
-			Object.assign(item, { version: item.version + 1, updatedAt: now() });
-			return ok(structuredClone(item));
-		}
-	};
-}
+import { versionedStore } from './versioned-store.js';
 
 export function memoryTrainingPlans(
 	now: () => Date

@@ -1,32 +1,17 @@
 import { describe, expect, it } from 'vitest';
-import type { MemberViewer, Viewer } from '../application/auth/auth.js';
 import { createDogs } from '../application/dogs/dogs.js';
-import { createIdGenerator, type Id } from '../domain/id.js';
+import { createIdGenerator } from '../domain/id.js';
 import { ok } from '../domain/result.js';
 import { directUnitOfWork } from '../testing/auth.js';
 import { manualClock } from '../testing/clock.js';
 import { fakePhoto, fakePhotoProcessor, memoryDogs, memoryPhotoStore } from '../testing/dogs.js';
 import { createDogsHttp } from './dogs.js';
+import { silentLogger } from '../testing/logger.js';
+import { memberViewer, noHousehold } from '../testing/viewers.js';
 
-const silent = { debug() {}, info() {}, warn() {}, error() {}, child: () => silent };
 const at = new Date('2026-11-08T08:00:00Z');
 
-const noHousehold: Viewer = {
-	auth: { userId: 'u' as Id },
-	displayName: 'Sam',
-	email: 'sam@example.com',
-	member: null
-};
-const member = (householdId: string): MemberViewer => ({
-	...noHousehold,
-	member: {
-		userId: 'u' as Id,
-		householdId: householdId as Id,
-		role: 'caregiver',
-		householdName: 'The Does',
-		timeZone: 'UTC'
-	}
-});
+const member = (householdId: string) => memberViewer(householdId);
 const viewer = member('h1');
 const outsider = member('h2');
 
@@ -42,7 +27,7 @@ function setup() {
 			uow: directUnitOfWork,
 			clock,
 			ids,
-			logger: silent
+			logger: silentLogger
 		},
 		{ dogArchived: async () => ok(undefined), dogRestored: async () => ok(undefined) }
 	);

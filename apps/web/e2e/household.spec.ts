@@ -4,6 +4,7 @@ import { expect, test, type Browser, type Page } from '@playwright/test';
 import {
 	blockMockFonts,
 	createHousehold,
+	jsonHeaders,
 	newPerson,
 	photoFile,
 	signIn,
@@ -22,11 +23,9 @@ async function secondPerson(browser: Browser, baseURL: string): Promise<Page> {
 	return page;
 }
 
-const json = (baseURL: string) => ({ origin: baseURL, 'content-type': 'application/json' });
-
 async function createLink(page: Page, baseURL: string): Promise<{ url: string; id: string }> {
 	const response = await page.request.post('/api/v1/household/invitations', {
-		headers: json(baseURL),
+		headers: jsonHeaders(baseURL),
 		data: JSON.stringify({ kind: 'link' })
 	});
 	expect(response.status()).toBe(201);
@@ -114,7 +113,7 @@ test('nobody without a household reaches the app, and nobody with one sees onboa
 	await page.goto('/onboarding/household');
 	await expect(page).toHaveURL('/');
 	const again = await page.request.post('/api/v1/household', {
-		headers: json(baseURL!),
+		headers: jsonHeaders(baseURL!),
 		data: JSON.stringify({ name: 'Second', timeZone: 'UTC' })
 	});
 	expect(again.status()).toBe(409);
@@ -123,7 +122,7 @@ test('nobody without a household reaches the app, and nobody with one sees onboa
 test('a bad time zone or blank name comes back as field errors', async ({ page, baseURL }) => {
 	await signIn(page, newPerson());
 	const response = await page.request.post('/api/v1/household', {
-		headers: json(baseURL!),
+		headers: jsonHeaders(baseURL!),
 		data: JSON.stringify({ name: ' ', timeZone: 'Mars/Olympus' })
 	});
 	expect(response.status()).toBe(400);
@@ -376,7 +375,7 @@ test('scenario 9: an outsider reaches nothing by changing identifiers', async ({
 
 	// The body can't point somewhere else.
 	const smuggled = await outsider.request.post('/api/v1/household/invitations', {
-		headers: json(baseURL!),
+		headers: jsonHeaders(baseURL!),
 		data: JSON.stringify({ kind: 'link', householdId: id })
 	});
 	expect(smuggled.status()).toBe(400);

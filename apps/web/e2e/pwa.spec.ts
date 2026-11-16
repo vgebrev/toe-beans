@@ -2,16 +2,10 @@
 // banner and fallback pages, saves while offline (scenario 8), the loading skeleton, installing
 // and the home screen shortcuts. Each test brings its own household.
 import { expect, test, type Page } from '@playwright/test';
-import { addDog, blockMockFonts, createHousehold, newPerson, signIn } from './mock-sign-in.js';
+import { blockMockFonts, ownHousehold } from './mock-sign-in.js';
 
 test.use({ storageState: { cookies: [], origins: [] } });
 test.beforeEach(({ page }) => blockMockFonts(page));
-
-async function household(page: Page, baseURL: string) {
-	await signIn(page, newPerson('owner'));
-	await createHousehold(page, baseURL);
-	await addDog(page, baseURL, { name: 'Rosie' });
-}
 
 /** Until the service worker has installed, cached the app and taken over the page. */
 async function waitForServiceWorker(page: Page) {
@@ -32,7 +26,7 @@ test('the offline banner shows while the phone is offline, and goes when it is b
 	context,
 	baseURL
 }) => {
-	await household(page, baseURL!);
+	await ownHousehold(page, baseURL!);
 	await page.goto('/');
 	await expect(banner(page)).toBeHidden();
 
@@ -50,7 +44,7 @@ test('scenario 8: a save offline fails at once, keeps everything, and Retry save
 	context,
 	baseURL
 }) => {
-	await household(page, baseURL!);
+	await ownHousehold(page, baseURL!);
 	await page.goto('/');
 	await page.getByRole('button', { name: 'Add', exact: true }).click();
 	await page
@@ -83,7 +77,7 @@ test("a page opened offline in the app still opens, and says its data couldn't l
 	context,
 	baseURL
 }) => {
-	await household(page, baseURL!);
+	await ownHousehold(page, baseURL!);
 	await page.goto('/');
 	await waitForServiceWorker(page);
 	// The service worker has the app's code, so the page opens; its data can't load.
@@ -101,7 +95,7 @@ test('a slow page shows the skeleton, then "Waking up Toe Beans…" (NFR-09)', a
 	context,
 	baseURL
 }) => {
-	await household(page, baseURL!);
+	await ownHousehold(page, baseURL!);
 	await page.goto('/');
 	await context.route('**/api/v1/planned-sessions*', async (route) => {
 		await new Promise((resolve) => setTimeout(resolve, 3500));
@@ -120,7 +114,7 @@ test('with the service worker in place, a page load with no connection shows the
 	context,
 	baseURL
 }) => {
-	await household(page, baseURL!);
+	await ownHousehold(page, baseURL!);
 	await page.goto('/');
 	await waitForServiceWorker(page);
 
@@ -153,7 +147,7 @@ test('Try again on the offline page loads the page once the connection is back',
 	context,
 	baseURL
 }) => {
-	await household(page, baseURL!);
+	await ownHousehold(page, baseURL!);
 	await page.goto('/');
 	await waitForServiceWorker(page);
 	await context.setOffline(true);
@@ -179,7 +173,7 @@ test('the service worker precaches the app and its fallback pages, and only Lati
 	page,
 	baseURL
 }) => {
-	await household(page, baseURL!);
+	await ownHousehold(page, baseURL!);
 	await page.goto('/');
 	const cached = await page.evaluate(async () => {
 		await navigator.serviceWorker.ready;
@@ -219,7 +213,7 @@ test('Today offers installing once the browser does, and the browser installs it
 	page,
 	baseURL
 }) => {
-	await household(page, baseURL!);
+	await ownHousehold(page, baseURL!);
 	await page.goto('/');
 	const install = page.getByRole('button', { name: 'Install Toe Beans on this device' });
 	await expect(install).toBeHidden();
@@ -230,7 +224,7 @@ test('Today offers installing once the browser does, and the browser installs it
 });
 
 test('the install banner, once dismissed, stays away', async ({ page, baseURL }) => {
-	await household(page, baseURL!);
+	await ownHousehold(page, baseURL!);
 	await page.goto('/');
 	await offerInstall(page, 'dismissed');
 	await page.getByRole('button', { name: 'Not now' }).click();
@@ -246,7 +240,7 @@ test('More shows whether Toe Beans is installed, with Install when the browser o
 	page,
 	baseURL
 }) => {
-	await household(page, baseURL!);
+	await ownHousehold(page, baseURL!);
 	await page.goto('/more');
 	const app = page.getByRole('region', { name: 'App', exact: true });
 	await expect(app).toContainText("Toe Beans isn't installed in this browser.");
@@ -275,7 +269,7 @@ test('the shortcuts open Record event and Log training on Today, once', async ({
 	page,
 	baseURL
 }) => {
-	await household(page, baseURL!);
+	await ownHousehold(page, baseURL!);
 	await page.goto('/?add=event');
 	await expect(page.getByRole('dialog', { name: 'Record event' })).toBeVisible();
 	await expect(page).toHaveURL('/');

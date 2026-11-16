@@ -19,13 +19,13 @@ import {
 } from './household-collections.js';
 import { migrate, migrations } from './migrations/index.js';
 import { mongoUnitOfWork } from './unit-of-work.js';
+import { silentLogger } from '../../testing/logger.js';
 
 const db = useTestDatabase();
 const ids = createIdGenerator(Date.now);
 const at = new Date('2026-11-06T08:00:00Z');
 const later = new Date('2026-11-13T08:00:00Z');
 const clock = manualClock(at);
-const silent = { debug() {}, info() {}, warn() {}, error() {}, child: () => silent };
 
 beforeAll(async () => {
 	await migrate(db.mongo.db, migrations, { clock: manualClock() });
@@ -216,7 +216,7 @@ describe('accepting, on a real transaction', () => {
 				uow: mongoUnitOfWork(db.mongo.client),
 				clock,
 				ids,
-				logger: silent
+				logger: silentLogger
 			},
 			{ publicOrigin: 'https://toebeans.example' }
 		);

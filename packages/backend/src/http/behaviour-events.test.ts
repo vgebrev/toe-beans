@@ -1,5 +1,4 @@
 import { describe, expect, it } from 'vitest';
-import type { MemberViewer, Viewer } from '../application/auth/auth.js';
 import { createBehaviourEvents } from '../application/journal/behaviour-events.js';
 import { createIdGenerator, type Id } from '../domain/id.js';
 import { memoryUsers } from '../testing/auth.js';
@@ -7,27 +6,13 @@ import { memoryBehaviourEvents } from '../testing/behaviour-events.js';
 import { manualClock } from '../testing/clock.js';
 import { memoryDogs } from '../testing/dogs.js';
 import { createBehaviourEventsHttp } from './behaviour-events.js';
+import { silentLogger } from '../testing/logger.js';
+import { memberViewer, noHousehold } from '../testing/viewers.js';
 
-const silent = { debug() {}, info() {}, warn() {}, error() {}, child: () => silent };
 // Tuesday 10 November 2026, 17:00 in Johannesburg.
 const at = new Date('2026-11-10T15:00:00Z');
 
-const noHousehold: Viewer = {
-	auth: { userId: 'u' as Id },
-	displayName: 'Sam',
-	email: 'sam@example.com',
-	member: null
-};
-const member = (householdId: string): MemberViewer => ({
-	...noHousehold,
-	member: {
-		userId: 'u' as Id,
-		householdId: householdId as Id,
-		role: 'caregiver',
-		householdName: 'The Does',
-		timeZone: 'Africa/Johannesburg'
-	}
-});
+const member = (householdId: string) => memberViewer(householdId, 'Africa/Johannesburg');
 const viewer = member('h1');
 const outsider = member('h2');
 
@@ -60,7 +45,7 @@ async function setup() {
 		users,
 		clock,
 		ids,
-		logger: silent
+		logger: silentLogger
 	});
 	return { http: createBehaviourEventsHttp(events), dog };
 }

@@ -1,20 +1,10 @@
 // The behaviour journal (FR-08, NFR-04, NFR-13, scenarios 6 and 9; ui.md J5, J8) and the "+"
 // chooser on Today, Plan and History (§2.1). Each test brings its own household, in Johannesburg.
 import { expect, test, type Page } from '@playwright/test';
-import { addDog, blockMockFonts, createHousehold, newPerson, signIn } from './mock-sign-in.js';
+import { blockMockFonts, jsonHeaders, ownHousehold } from './mock-sign-in.js';
 
 test.use({ storageState: { cookies: [], origins: [] } });
 test.beforeEach(({ page }) => blockMockFonts(page));
-
-const json = (baseURL: string) => ({ origin: baseURL, 'content-type': 'application/json' });
-
-async function household(page: Page, baseURL: string, dogs: string[] = ['Rosie']) {
-	await signIn(page, newPerson('owner'));
-	await createHousehold(page, baseURL);
-	const added = [];
-	for (const name of dogs) added.push(await addDog(page, baseURL, { name }));
-	return added;
-}
 
 interface Event {
 	id: string;
@@ -24,7 +14,7 @@ interface Event {
 
 async function record(page: Page, baseURL: string, body: Record<string, unknown>) {
 	const response = await page.request.post('/api/v1/behaviour-events', {
-		headers: json(baseURL),
+		headers: jsonHeaders(baseURL),
 		data: JSON.stringify({ category: 'barking', ...body })
 	});
 	expect(response.status()).toBe(201);
@@ -46,7 +36,7 @@ test('scenario 6: a barking incident recorded for a chosen dog, without a sessio
 	page,
 	baseURL
 }) => {
-	await household(page, baseURL!, ['Rosie', 'Miso']);
+	await ownHousehold(page, baseURL!, { dogs: ['Rosie', 'Miso'] });
 	await page.goto('/');
 	const sheet = await openRecordEvent(page);
 
@@ -81,7 +71,7 @@ test('the switcher’s dog starts the sheet, from Plan and History too', async (
 	page,
 	baseURL
 }) => {
-	await household(page, baseURL!, ['Rosie', 'Miso']);
+	await ownHousehold(page, baseURL!, { dogs: ['Rosie', 'Miso'] });
 	await page.goto('/history');
 	await page.getByRole('button', { name: /Show dog/ }).click();
 	await page
@@ -102,7 +92,7 @@ test('logging training from the "+": pick an exercise, then the quick log', asyn
 	page,
 	baseURL
 }) => {
-	await household(page, baseURL!);
+	await ownHousehold(page, baseURL!);
 	await page.goto('/');
 	await page.getByRole('button', { name: 'Add', exact: true }).click();
 	await page
@@ -125,7 +115,7 @@ test('a failed save keeps everything entered and offers Retry (NFR-04)', async (
 	page,
 	baseURL
 }) => {
-	await household(page, baseURL!);
+	await ownHousehold(page, baseURL!);
 	await page.goto('/');
 	const sheet = await openRecordEvent(page);
 	await sheet.getByRole('radio', { name: 'Toileting accident' }).click();
@@ -151,14 +141,14 @@ test('editing an event, and a change made elsewhere meanwhile (NFR-13)', async (
 	page,
 	baseURL
 }) => {
-	const [rosie, miso] = await household(page, baseURL!, ['Rosie', 'Miso']);
+	const [rosie, miso] = await ownHousehold(page, baseURL!, { dogs: ['Rosie', 'Miso'] });
 	const event = await record(page, baseURL!, { dogId: rosie!.id, trigger: 'Doorbell' });
 	await page.goto(`/events/${event.id}`);
 	await expect(page.getByText('Doorbell')).toBeVisible();
 
 	// Someone else saves first.
 	const theirs = await page.request.patch(`/api/v1/behaviour-events/${event.id}`, {
-		headers: { ...json(baseURL!), 'if-match': event.etag },
+		headers: { ...jsonHeaders(baseURL!), 'if-match': event.etag },
 		data: JSON.stringify({ category: 'fear' })
 	});
 	expect(theirs.status()).toBe(200);
@@ -192,21 +182,21 @@ test("another household can't read, change or record against a household's data 
 	browser,
 	baseURL
 }) => {
-	const [rosie] = await household(page, baseURL!);
+	const [rosie] = await ownHousehold(page, baseURL!);
 	const event = await record(page, baseURL!, { dogId: rosie!.id });
 
 	const context = await browser.newContext({ storageState: { cookies: [], origins: [] } });
 	const outsider = await context.newPage();
 	await blockMockFonts(outsider);
-	await household(outsider, baseURL!);
+	await ownHousehold(outsider, baseURL!);
 	const responses = await Promise.all([
 		outsider.request.get(`/api/v1/behaviour-events/${event.id}`),
 		outsider.request.patch(`/api/v1/behaviour-events/${event.id}`, {
-			headers: { ...json(baseURL!), 'if-match': event.etag },
+			headers: { ...jsonHeaders(baseURL!), 'if-match': event.etag },
 			data: JSON.stringify({ category: 'fear' })
 		}),
 		outsider.request.post('/api/v1/behaviour-events', {
-			headers: json(baseURL!),
+			headers: jsonHeaders(baseURL!),
 			data: JSON.stringify({ dogId: rosie!.id, category: 'fear' })
 		})
 	]);

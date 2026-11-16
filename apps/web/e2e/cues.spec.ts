@@ -1,21 +1,14 @@
 // The shared cue dictionary (FR-04, NFR-13, scenario 9; ui.md §4.6, §5.2). Each test brings its
 // own household, so it sees only its own cues.
 import { expect, test, type Browser, type Page } from '@playwright/test';
-import { blockMockFonts, createHousehold, newPerson, signIn } from './mock-sign-in.js';
+import { blockMockFonts, jsonHeaders, ownHousehold } from './mock-sign-in.js';
 
 test.use({ storageState: { cookies: [], origins: [] } });
 test.beforeEach(({ page }) => blockMockFonts(page));
 
-const json = (baseURL: string) => ({ origin: baseURL, 'content-type': 'application/json' });
-
-async function household(page: Page, baseURL: string, name?: string) {
-	await signIn(page, newPerson('owner'));
-	await createHousehold(page, baseURL, name);
-}
-
 async function addCue(page: Page, baseURL: string, label: string, meaning = 'Bottom down.') {
 	const response = await page.request.post('/api/v1/cues', {
-		headers: json(baseURL),
+		headers: jsonHeaders(baseURL),
 		data: JSON.stringify({ label, meaning })
 	});
 	expect(response.status()).toBe(201);
@@ -23,7 +16,7 @@ async function addCue(page: Page, baseURL: string, label: string, meaning = 'Bot
 }
 
 test('adding, editing and deleting cues from More', async ({ page, baseURL }) => {
-	await household(page, baseURL!);
+	await ownHousehold(page, baseURL!, { dogs: [] });
 	await page.goto('/more');
 	await page.getByRole('link', { name: /Cue dictionary/ }).click();
 	await expect(page).toHaveURL('/cues');
@@ -87,7 +80,7 @@ test('adding, editing and deleting cues from More', async ({ page, baseURL }) =>
 });
 
 test('a change made elsewhere is never overwritten without asking', async ({ page, baseURL }) => {
-	await household(page, baseURL!);
+	await ownHousehold(page, baseURL!, { dogs: [] });
 	const cue = await addCue(page, baseURL!, 'Leave it', 'Ignore it.');
 	await page.goto('/cues');
 	await page.getByRole('button', { name: /^Leave it/ }).click();
@@ -96,7 +89,7 @@ test('a change made elsewhere is never overwritten without asking', async ({ pag
 
 	// Meanwhile, someone saves a change on another phone.
 	const elsewhere = await page.request.patch(`/api/v1/cues/${cue.id}`, {
-		headers: { ...json(baseURL!), 'if-match': cue.etag },
+		headers: { ...jsonHeaders(baseURL!), 'if-match': cue.etag },
 		data: JSON.stringify({ meaning: 'Turn away from it.' })
 	});
 	expect(elsewhere.status()).toBe(200);
@@ -112,7 +105,7 @@ test('a change made elsewhere is never overwritten without asking', async ({ pag
 	// Again, and this time overwrite theirs.
 	const latest = await (await page.request.get(`/api/v1/cues/${cue.id}`)).json();
 	await page.request.patch(`/api/v1/cues/${cue.id}`, {
-		headers: { ...json(baseURL!), 'if-match': latest.etag },
+		headers: { ...jsonHeaders(baseURL!), 'if-match': latest.etag },
 		data: JSON.stringify({ meaning: 'Third version.' })
 	});
 	await sheet.getByLabel('What it means').fill('Mine wins.');
@@ -145,14 +138,14 @@ async function secondPerson(browser: Browser, baseURL: string): Promise<Page> {
 }
 
 test('scenario 9: an outsider reaches no cue by its ID', async ({ page, browser, baseURL }) => {
-	await household(page, baseURL!);
+	await ownHousehold(page, baseURL!, { dogs: [] });
 	const cue = await addCue(page, baseURL!, 'Sit');
 	const outsider = await secondPerson(browser, baseURL!);
-	await household(outsider, baseURL!, 'The Others');
+	await ownHousehold(outsider, baseURL!, { dogs: [], name: 'The Others' });
 
 	expect((await outsider.request.get(`/api/v1/cues/${cue.id}`)).status()).toBe(404);
 	const change = await outsider.request.patch(`/api/v1/cues/${cue.id}`, {
-		headers: { ...json(baseURL!), 'if-match': cue.etag },
+		headers: { ...jsonHeaders(baseURL!), 'if-match': cue.etag },
 		data: JSON.stringify({ meaning: 'Taken over.' })
 	});
 	expect(change.status()).toBe(404);

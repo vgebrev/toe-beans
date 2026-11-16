@@ -3,16 +3,22 @@
 // server, the tick and the encryption are real: reminders go to a stand-in push service and are
 // decrypted here as a phone would. Each test brings its own household, in Johannesburg.
 import { expect, test, type Page } from '@playwright/test';
-import { addDog, blockMockFonts, createHousehold, newPerson, signIn } from './mock-sign-in.js';
+import {
+	blockMockFonts,
+	createHousehold,
+	jsonHeaders,
+	newPerson,
+	ownHousehold,
+	signIn,
+	ZONE
+} from './mock-sign-in.js';
 import { fakePushInBrowser, fakeSubscription, pushesFor } from './push-service.js';
 import { runTick } from './tick.js';
 
 test.use({ storageState: { cookies: [], origins: [] } });
 test.beforeEach(({ page }) => blockMockFonts(page));
 
-const ZONE = 'Africa/Johannesburg';
 const FIVE_MIN = 5 * 60_000;
-const json = (baseURL: string) => ({ origin: baseURL, 'content-type': 'application/json' });
 const onClock = (instant: Date) => {
 	const parts = Object.fromEntries(
 		new Intl.DateTimeFormat('en-CA', {
@@ -48,15 +54,9 @@ async function nextMark(): Promise<Date> {
 	return new Date(mark);
 }
 
-async function household(page: Page, baseURL: string) {
-	await signIn(page, newPerson('owner'));
-	await createHousehold(page, baseURL);
-	return addDog(page, baseURL, { name: 'Ripley' });
-}
-
 async function schedule(page: Page, baseURL: string, dogId: string, at: Date) {
 	const response = await page.request.post('/api/v1/planned-sessions', {
-		headers: json(baseURL),
+		headers: jsonHeaders(baseURL),
 		data: JSON.stringify({
 			dogId,
 			exerciseId: 'recall-basics',
@@ -83,7 +83,7 @@ test('scenario 4: turn on reminders, and one arrives for a planned session with 
 	page,
 	baseURL
 }) => {
-	const dog = await household(page, baseURL!);
+	const dog = (await ownHousehold(page, baseURL!, { dogs: ['Ripley'] }))[0]!;
 	const sub = fakeSubscription();
 	await fakePushInBrowser(page, sub);
 	await page.goto('/more');
@@ -121,7 +121,7 @@ test('scenario 5: a session moved or cancelled before its time sends no stale re
 	page,
 	baseURL
 }) => {
-	const dog = await household(page, baseURL!);
+	const dog = (await ownHousehold(page, baseURL!, { dogs: ['Ripley'] }))[0]!;
 	const sub = fakeSubscription();
 	await fakePushInBrowser(page, sub);
 	await turnOn(page);
@@ -133,7 +133,7 @@ test('scenario 5: a session moved or cancelled before its time sends no stale re
 	expect(
 		(
 			await page.request.patch(`/api/v1/planned-sessions/${moved.id}`, {
-				headers: { ...json(baseURL!), 'if-match': moved.etag },
+				headers: { ...jsonHeaders(baseURL!), 'if-match': moved.etag },
 				data: JSON.stringify({ date: later.date, time: later.time })
 			})
 		).status()
@@ -141,7 +141,7 @@ test('scenario 5: a session moved or cancelled before its time sends no stale re
 	expect(
 		(
 			await page.request.patch(`/api/v1/planned-sessions/${cancelled.id}`, {
-				headers: { ...json(baseURL!), 'if-match': cancelled.etag },
+				headers: { ...jsonHeaders(baseURL!), 'if-match': cancelled.etag },
 				data: JSON.stringify({ status: 'cancelled' })
 			})
 		).status()
@@ -161,7 +161,7 @@ test('lead time and turning training reminders off are saved, and say so', async
 	page,
 	baseURL
 }) => {
-	await household(page, baseURL!);
+	await ownHousehold(page, baseURL!, { dogs: ['Ripley'] });
 	const sub = fakeSubscription();
 	await fakePushInBrowser(page, sub);
 	await turnOn(page);
@@ -181,7 +181,7 @@ test('care reminders: days before and the time of day are saved, and one arrives
 	page,
 	baseURL
 }) => {
-	const dog = await household(page, baseURL!);
+	const dog = (await ownHousehold(page, baseURL!, { dogs: ['Ripley'] }))[0]!;
 	const sub = fakeSubscription();
 	await fakePushInBrowser(page, sub);
 	await turnOn(page);
@@ -198,7 +198,7 @@ test('care reminders: days before and the time of day are saved, and one arrives
 	// Due tomorrow with no time: reminded today at the care time, the day before.
 	const tomorrow = onClock(new Date(mark.getTime() + 24 * 60 * 60_000)).date;
 	const created = await page.request.post('/api/v1/care-tasks', {
-		headers: json(baseURL!),
+		headers: jsonHeaders(baseURL!),
 		data: JSON.stringify({ dogId: dog.id, category: 'vaccination', dueDate: tomorrow })
 	});
 	expect(created.status()).toBe(201);
@@ -225,7 +225,7 @@ test('the delayed test: due in 3 minutes, and the service worker reports its arr
 	page,
 	baseURL
 }) => {
-	await household(page, baseURL!);
+	await ownHousehold(page, baseURL!, { dogs: ['Ripley'] });
 	const sub = fakeSubscription();
 	await fakePushInBrowser(page, sub);
 	await turnOn(page);
@@ -276,7 +276,7 @@ test('a device the push service says is gone stops getting reminders', async ({
 	page,
 	baseURL
 }) => {
-	const dog = await household(page, baseURL!);
+	const dog = (await ownHousehold(page, baseURL!, { dogs: ['Ripley'] }))[0]!;
 	const sub = fakeSubscription('gone-');
 	await fakePushInBrowser(page, sub);
 	await turnOn(page);
@@ -288,7 +288,7 @@ test('a device the push service says is gone stops getting reminders', async ({
 });
 
 test('blocked, unsupported and failed states say what to do', async ({ page, baseURL }) => {
-	await household(page, baseURL!);
+	await ownHousehold(page, baseURL!, { dogs: ['Ripley'] });
 
 	await fakePushInBrowser(page, fakeSubscription(), 'denied');
 	await page.goto('/settings/notifications');
@@ -315,10 +315,10 @@ test('every device is listed, this one marked; the switch turns it off, and othe
 	page,
 	baseURL
 }) => {
-	await household(page, baseURL!);
+	await ownHousehold(page, baseURL!, { dogs: ['Ripley'] });
 	const other = fakeSubscription();
 	const saved = await page.request.put('/api/v1/reminders/devices', {
-		headers: json(baseURL!),
+		headers: jsonHeaders(baseURL!),
 		data: JSON.stringify({
 			endpoint: other.endpoint,
 			keys: { p256dh: other.p256dh, auth: other.auth },
@@ -358,7 +358,7 @@ test('scenario 9: devices and reminders are only ever the person’s own', async
 	baseURL,
 	browser
 }) => {
-	await household(page, baseURL!);
+	await ownHousehold(page, baseURL!, { dogs: ['Ripley'] });
 	const sub = fakeSubscription();
 	await fakePushInBrowser(page, sub);
 	const deviceId = await turnOn(page);
@@ -372,7 +372,7 @@ test('scenario 9: devices and reminders are only ever the person’s own', async
 	await blockMockFonts(outsider);
 	await signIn(outsider, newPerson('outsider'));
 	await createHousehold(outsider, baseURL!);
-	const headers = json(baseURL!);
+	const headers = jsonHeaders(baseURL!);
 	const answers = await Promise.all([
 		outsider.request.delete(`/api/v1/reminders/devices/${deviceId}`, { headers }),
 		outsider.request.post(`/api/v1/reminders/${started.id}/received`, { headers }),
@@ -398,7 +398,7 @@ test('the tick refuses anyone without its secret', async ({ request }) => {
 });
 
 test('Today offers reminders until they’re turned on or dismissed', async ({ page, baseURL }) => {
-	await household(page, baseURL!);
+	await ownHousehold(page, baseURL!, { dogs: ['Ripley'] });
 	await fakePushInBrowser(page, fakeSubscription());
 	await page.goto('/');
 	await expect(page.getByRole('link', { name: 'Turn on training reminders' })).toBeVisible();

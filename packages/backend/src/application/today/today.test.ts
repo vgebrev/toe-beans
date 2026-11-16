@@ -13,13 +13,13 @@ import type { PlannerContext } from '../auth/auth.js';
 import { createPlanner } from '../planner/planner.js';
 import { createSessionLogs } from '../training-log/session-logs.js';
 import { createToday } from './today.js';
+import { silentLogger } from '../../testing/logger.js';
 
 // Monday 9 November 2026, 07:00 in Johannesburg: sessions are planned from here, then the clock
 // moves on to Tuesday.
 const monday = new Date('2026-11-09T05:00:00Z');
 // Tuesday 10 November 2026, 17:00 in Johannesburg.
 const tuesday = new Date('2026-11-10T15:00:00Z');
-const silent = { debug() {}, info() {}, warn() {}, error() {}, child: () => silent };
 const person = (id: string, displayName: string): User => ({
 	id: id as Id,
 	identities: [],
@@ -90,7 +90,7 @@ async function setup() {
 		uow: directUnitOfWork,
 		clock,
 		ids,
-		logger: silent
+		logger: silentLogger
 	};
 	const planner = createPlanner(ports);
 	const sessionLogs = createSessionLogs(ports);

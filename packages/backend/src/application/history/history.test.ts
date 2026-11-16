@@ -14,10 +14,10 @@ import { createBehaviourEvents } from '../journal/behaviour-events.js';
 import type { PlannerContext } from '../auth/auth.js';
 import { createSessionLogs } from '../training-log/session-logs.js';
 import { careAt, createHistory, decodeCursor, encodeCursor, type HistoryEntry } from './history.js';
+import { silentLogger } from '../../testing/logger.js';
 
 // Tuesday 10 November 2026, 17:00 in Johannesburg.
 const at = new Date('2026-11-10T15:00:00Z');
-const silent = { debug() {}, info() {}, warn() {}, error() {}, child: () => silent };
 const sam: PlannerContext = {
 	userId: 'sam' as Id,
 	householdId: 'h1' as Id,
@@ -54,7 +54,7 @@ async function setup() {
 		exercises,
 		clock,
 		ids,
-		logger: silent
+		logger: silentLogger
 	} as never;
 	const history = createHistory(
 		{ sessionLogs, behaviourEvents, careTasks },

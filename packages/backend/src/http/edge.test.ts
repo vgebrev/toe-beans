@@ -1,8 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { RateLimiter } from '../application/ports/index.js';
 import { createEdgeHttp } from './edge.js';
+import { silentLogger } from '../testing/logger.js';
 
-const silent = { debug() {}, info() {}, warn() {}, error() {}, child: () => silent };
 const allowAll: RateLimiter = { take: () => ({ allowed: true }) };
 const secret = 's'.repeat(40);
 
@@ -10,7 +10,7 @@ const edge = (overrides: Partial<Parameters<typeof createEdgeHttp>[0]> = {}) =>
 	createEdgeHttp({
 		publicOrigin: 'https://toebeans.co.za',
 		writeRateLimit: allowAll,
-		logger: silent,
+		logger: silentLogger,
 		...overrides
 	});
 

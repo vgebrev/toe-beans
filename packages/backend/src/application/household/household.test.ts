@@ -5,6 +5,7 @@ import { directUnitOfWork, memoryUsers } from '../../testing/auth.js';
 import { manualClock } from '../../testing/clock.js';
 import { memoryHouseholds, memoryInvitations } from '../../testing/household.js';
 import { createHouseholds } from './household.js';
+import { silentLogger } from '../../testing/logger.js';
 
 const at = new Date('2026-11-06T08:00:00Z');
 const sam: User = {
@@ -19,7 +20,6 @@ const sam: User = {
 };
 const alex: User = { ...sam, id: 'u2' as Id, email: 'alex@example.com', displayName: 'Alex' };
 const jo: User = { ...sam, id: 'u3' as Id, email: 'jo@example.com', displayName: 'Jo' };
-const silent = { debug() {}, info() {}, warn() {}, error() {}, child: () => silent };
 const valid = { name: ' The  Does ', timeZone: 'Africa/Johannesburg' };
 const ctx = { userId: sam.id };
 
@@ -42,7 +42,7 @@ async function setup() {
 			uow: directUnitOfWork,
 			clock,
 			ids,
-			logger: silent
+			logger: silentLogger
 		})
 	};
 }

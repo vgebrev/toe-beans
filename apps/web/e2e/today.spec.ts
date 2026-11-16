@@ -3,22 +3,10 @@
 // Johannesburg. Times are on the real clock: 00:00 today has passed and 23:55 hasn't, unless the
 // suite runs in the five minutes either side of midnight there.
 import { expect, test, type Page } from '@playwright/test';
-import { addDog, blockMockFonts, createHousehold, newPerson, signIn } from './mock-sign-in.js';
+import { blockMockFonts, dayFromToday, jsonHeaders, ownHousehold } from './mock-sign-in.js';
 
 test.use({ storageState: { cookies: [], origins: [] } });
 test.beforeEach(({ page }) => blockMockFonts(page));
-
-const ZONE = 'Africa/Johannesburg';
-const json = (baseURL: string) => ({ origin: baseURL, 'content-type': 'application/json' });
-const today = () => new Intl.DateTimeFormat('en-CA', { timeZone: ZONE }).format(new Date());
-
-async function household(page: Page, baseURL: string, dogs: string[]) {
-	await signIn(page, newPerson('owner'));
-	await createHousehold(page, baseURL);
-	const added = [];
-	for (const name of dogs) added.push(await addDog(page, baseURL, { name }));
-	return added;
-}
 
 async function schedule(
 	page: Page,
@@ -27,8 +15,8 @@ async function schedule(
 ) {
 	const { time, ...rest } = body;
 	const response = await page.request.post('/api/v1/planned-sessions', {
-		headers: json(baseURL),
-		data: JSON.stringify({ date: today(), times: [time], ...rest })
+		headers: jsonHeaders(baseURL),
+		data: JSON.stringify({ date: dayFromToday(0), times: [time], ...rest })
 	});
 	expect(response.status()).toBe(201);
 	return (await response.json()) as { id: string; etag: string };
@@ -38,7 +26,7 @@ test('FR-06: overdue, planned, done and skipped, each dog named, logged from its
 	page,
 	baseURL
 }) => {
-	const [rosie, miso] = await household(page, baseURL!, ['Rosie', 'Miso']);
+	const [rosie, miso] = await ownHousehold(page, baseURL!, { dogs: ['Rosie', 'Miso'] });
 	await schedule(page, baseURL!, { dogId: rosie!.id, exerciseId: 'recall-basics', time: '00:00' });
 	await schedule(page, baseURL!, { dogId: miso!.id, exerciseId: 'recall-basics', time: '23:55' });
 	const skipped = await schedule(page, baseURL!, {
@@ -47,11 +35,11 @@ test('FR-06: overdue, planned, done and skipped, each dog named, logged from its
 		time: '23:55'
 	});
 	await page.request.patch(`/api/v1/planned-sessions/${skipped.id}`, {
-		headers: { ...json(baseURL!), 'if-match': skipped.etag },
+		headers: { ...jsonHeaders(baseURL!), 'if-match': skipped.etag },
 		data: JSON.stringify({ status: 'skipped' })
 	});
 	const adHoc = await page.request.post('/api/v1/session-logs', {
-		headers: json(baseURL!),
+		headers: jsonHeaders(baseURL!),
 		data: JSON.stringify({ dogId: miso!.id, exerciseId: 'name-game', outcome: 'successful' })
 	});
 	expect(adHoc.status()).toBe(201);
@@ -109,18 +97,18 @@ test('FR-06: overdue, planned, done and skipped, each dog named, logged from its
 });
 
 test('an empty day suggests scheduling from the library', async ({ page, baseURL }) => {
-	await household(page, baseURL!, ['Rosie']);
+	await ownHousehold(page, baseURL!, { dogs: ['Rosie'] });
 	await page.goto('/');
 	await expect(page.getByRole('heading', { name: 'Nothing planned today' })).toBeVisible();
 	await page.getByRole('link', { name: 'Schedule' }).click();
-	await expect(page).toHaveURL(new RegExp(`/plan/new\\?date=${today()}`));
+	await expect(page).toHaveURL(new RegExp(`/plan/new\\?date=${dayFromToday(0)}`));
 });
 
 test('a failed load says so rather than showing an empty day (NFR-04)', async ({
 	page,
 	baseURL
 }) => {
-	await household(page, baseURL!, ['Rosie']);
+	await ownHousehold(page, baseURL!, { dogs: ['Rosie'] });
 	await page.route('**/api/v1/today', (route) => route.abort('internetdisconnected'));
 	await page.goto('/plan');
 	await page.getByRole('navigation', { name: 'Main' }).getByRole('link', { name: 'Today' }).click();

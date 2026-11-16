@@ -4,6 +4,7 @@ import type { User } from '../../domain/user.js';
 import { memoryUsers } from '../../testing/auth.js';
 import { manualClock } from '../../testing/clock.js';
 import { createAccount } from './account.js';
+import { silentLogger } from '../../testing/logger.js';
 
 const at = new Date('2026-11-04T08:00:00Z');
 const sam: User = {
@@ -16,13 +17,12 @@ const sam: User = {
 	createdAt: at,
 	updatedAt: at
 };
-const silent = { debug() {}, info() {}, warn() {}, error() {}, child: () => silent };
 
 async function setup(user: User = sam) {
 	const users = memoryUsers();
 	await users.insert(user);
 	const clock = manualClock(at);
-	return { users, clock, account: createAccount({ users, clock, logger: silent }) };
+	return { users, clock, account: createAccount({ users, clock, logger: silentLogger }) };
 }
 
 describe('account', () => {

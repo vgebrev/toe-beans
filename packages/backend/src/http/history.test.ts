@@ -1,5 +1,4 @@
 import { describe, expect, it } from 'vitest';
-import type { MemberViewer, Viewer } from '../application/auth/auth.js';
 import { createHistory } from '../application/history/history.js';
 import { createCareTasks } from '../application/care/care-tasks.js';
 import { createBehaviourEvents } from '../application/journal/behaviour-events.js';
@@ -12,27 +11,13 @@ import { memoryCareTasks } from '../testing/care-tasks.js';
 import { manualClock } from '../testing/clock.js';
 import { memorySessionLogs } from '../testing/session-logs.js';
 import { createHistoryHttp } from './history.js';
+import { silentLogger } from '../testing/logger.js';
+import { memberViewer, noHousehold } from '../testing/viewers.js';
 
-const silent = { debug() {}, info() {}, warn() {}, error() {}, child: () => silent };
 // Tuesday 10 November 2026, 17:00 in Johannesburg.
 const at = new Date('2026-11-10T15:00:00Z');
 
-const noHousehold: Viewer = {
-	auth: { userId: 'u' as Id },
-	displayName: 'Sam',
-	email: 'sam@example.com',
-	member: null
-};
-const viewer: MemberViewer = {
-	...noHousehold,
-	member: {
-		userId: 'u' as Id,
-		householdId: 'h1' as Id,
-		role: 'caregiver',
-		householdName: 'The Does',
-		timeZone: 'Africa/Johannesburg'
-	}
-};
+const viewer = memberViewer('h1', 'Africa/Johannesburg');
 
 async function setup() {
 	const clock = manualClock(at);
@@ -49,7 +34,7 @@ async function setup() {
 		exercises: { all: () => [], get: () => undefined },
 		clock,
 		ids,
-		logger: silent
+		logger: silentLogger
 	} as never;
 	const http = createHistoryHttp(
 		createHistory(

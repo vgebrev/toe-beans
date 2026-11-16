@@ -1,42 +1,24 @@
 // An in-memory double for the care task repository, for unit tests of the use cases and the tick.
 // The Mongo adapter has its own integration test.
 import type { CareTaskRepository } from '../application/ports/index.js';
-import { notFound, staleVersion } from '../application/errors.js';
 import type { CareTask } from '../domain/care-task.js';
-import { err, ok } from '../domain/result.js';
+import { versionedStore } from './versioned-store.js';
 
 const due = (t: CareTask) => `${t.dueDate} ${t.dueTime ?? ''}`;
 const soonest = (a: CareTask, b: CareTask) =>
 	due(a).localeCompare(due(b)) || a.id.localeCompare(b.id);
 
 export function memoryCareTasks(now: () => Date): CareTaskRepository & { all(): CareTask[] } {
-	const items = new Map<string, CareTask>();
-	const own = (householdId: string, id: string) => {
-		const item = items.get(id);
-		return item?.householdId === householdId ? item : undefined;
-	};
+	const store = versionedStore<CareTask>(now, 'care task');
+	const { items, inHousehold: own } = store;
 	const inHousehold = (householdId: string) =>
 		[...items.values()].filter((t) => t.householdId === householdId);
 	return {
 		all: () => structuredClone([...items.values()]),
-		async insert(task) {
-			const at = now();
-			const stored: CareTask = { ...task, version: 1, createdAt: at, updatedAt: at };
-			items.set(task.id, structuredClone(stored));
-			return structuredClone(stored);
-		},
+		insert: async (task) => store.insert(task),
 		findById: async (householdId, id) => structuredClone(own(householdId, id) ?? null),
-		async update(householdId, id, expectedVersion, changes) {
-			const item = own(householdId, id);
-			if (!item) return err(notFound('care task'));
-			if (item.version !== expectedVersion) return err(staleVersion);
-			for (const [key, value] of Object.entries(changes)) {
-				if (value === undefined) delete (item as unknown as Record<string, unknown>)[key];
-				else (item as unknown as Record<string, unknown>)[key] = structuredClone(value);
-			}
-			Object.assign(item, { version: item.version + 1, updatedAt: now() });
-			return ok(structuredClone(item));
-		},
+		update: async (householdId, id, expectedVersion, changes) =>
+			store.update(householdId, id, expectedVersion, changes),
 		listUpcoming: async (householdId, { until } = {}) =>
 			structuredClone(
 				inHousehold(householdId)

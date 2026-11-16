@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import type { MemberViewer, Viewer } from '../application/auth/auth.js';
 import { createReminderSettings } from '../application/reminders/reminders.js';
-import { createIdGenerator, type Id } from '../domain/id.js';
+import { createIdGenerator } from '../domain/id.js';
 import { PUSH_SERVICES } from '../domain/reminders.js';
 import { manualClock } from '../testing/clock.js';
 import {
@@ -12,25 +11,11 @@ import {
 } from '../testing/reminders.js';
 import { createRemindersHttp } from './reminders.js';
 import { createWorkerHttp } from './tick.js';
+import { silentLogger } from '../testing/logger.js';
+import { memberViewer, noHousehold } from '../testing/viewers.js';
 
-const silent = { debug() {}, info() {}, warn() {}, error() {}, child: () => silent };
 const at = new Date('2026-11-10T15:00:00Z');
-const noHousehold: Viewer = {
-	auth: { userId: 'u' as Id },
-	displayName: 'Sam',
-	email: 'sam@example.com',
-	member: null
-};
-const viewer: MemberViewer = {
-	...noHousehold,
-	member: {
-		userId: 'u' as Id,
-		householdId: 'h1' as Id,
-		role: 'caregiver',
-		householdName: 'The Does',
-		timeZone: 'UTC'
-	}
-};
+const viewer = memberViewer('h1');
 const subscription = {
 	endpoint: 'https://fcm.googleapis.com/fcm/send/secret-token',
 	expirationTime: null,
@@ -49,7 +34,7 @@ function setup() {
 				push: fakePushSender(),
 				clock,
 				ids: createIdGenerator(() => now().getTime()),
-				logger: silent
+				logger: silentLogger
 			},
 			{ allowedEndpoints: PUSH_SERVICES }
 		)
@@ -162,14 +147,14 @@ describe('tick http', () => {
 	const auth = { verify: async (h: string | null) => h === 'Bearer good' };
 
 	it('runs the tick for its scheduler', async () => {
-		const http = createWorkerHttp(worker, { auth, logger: silent });
+		const http = createWorkerHttp(worker, { auth, logger: silentLogger });
 		expect(
 			await http.tick({ authorization: 'Bearer good', scheduledAt: '2026-11-10T15:00:00Z' })
 		).toMatchObject({ status: 200, body: report });
 	});
 
 	it('refuses anyone else, saying nothing', async () => {
-		const http = createWorkerHttp(worker, { auth, logger: silent });
+		const http = createWorkerHttp(worker, { auth, logger: silentLogger });
 		const res = await http.tick({ authorization: 'Bearer bad', scheduledAt: null });
 		expect(res.status).toBe(401);
 		expect(res.body).toBeUndefined();

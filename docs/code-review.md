@@ -1,8 +1,8 @@
 # Toe Beans — Code Review
 
-**Version:** 0.8
+**Version:** 0.9
 **Date:** 16 November 2026
-**Status:** Rounds 1–7 (the backend, the contracts and the web app) done; round 8 to do (S15.3).
+**Status:** All eight rounds done (S15.3).
 **Inputs:** `docs/architecture.md` v1.22 (§4.2 layering), the code at commit `d7dd854` (`develop`)
 
 **Changes in 0.1:** the review's split into eight rounds, one layer or boundary each, and round 1 (domain) with its fixes.
@@ -20,6 +20,8 @@
 **Changes in 0.7:** round 7 (web routes, hooks and the service worker) with its fixes (§9).
 
 **Changes in 0.8:** a replaced Kit link option, found in the browser after round 7 (§9).
+
+**Changes in 0.9:** round 8 (tests) with its fixes (§10), which ends the review.
 
 ---
 
@@ -42,7 +44,7 @@ Each round reports first, the owner decides, and only then are the fixes made.
 | 5 | Contracts | `packages/contracts`, and how it lines up with the domain and http | ✅ | Worth a round, done |
 | 6 | Web library | `apps/web/src/lib` (api-client, components, stores) | ✅ | Worth a round, done |
 | 7 | Web routes | `apps/web/src/routes`, hooks, the service worker | ✅ | Worth a round, done |
-| 8 | Tests | unit, integration and e2e helpers (duplication only, not coverage) | ⬜ | |
+| 8 | Tests | unit, integration and e2e helpers (duplication only, not coverage) | ✅ | Worth a round, done |
 
 **Carried forward** (both settled in round 5):
 
@@ -208,3 +210,28 @@ Checked with the unit tests and `pnpm test:e2e --project=galaxy-s23-fe` (131 pas
 - The `(app)` layout keeps the query in `returnTo`; onboarding doesn't, and needn't.
 - The service worker saves a renewed subscription with its own `fetch` rather than the API client.
 - One comment line past the wrap width in the Notifications page.
+
+## 10. Round 8: Tests
+
+**Verdict:** worth a round, for duplication only (coverage wasn't in scope). The shared pieces were already there (the isolation suite, `timelinePage`, `manualClock`, `useTestDatabase`, and e2e's `newPerson`, `signIn`, `createHousehold` and `addDog`); fixtures had been copied from file to file beside them instead of joining them.
+
+**Fixed:**
+
+| Finding | Problem | Fix |
+|---|---|---|
+| A do-nothing logger in 27 files | Each backend test spelled out `{ debug() {}, info() {}, warn() {}, error() {}, child: () => silent }`, which must follow the `Logger` port. | `silentLogger` in `testing/logger.ts`. The three that spy on `warn` keep their own. |
+| The fakes' insert and update, five times over | `testing/planner.ts` had a generic `versionedStore`, but the cue, dog, event, log and care-task fakes wrote their own insert and update, and events and logs their own soft delete and restore. The update rule must match `HouseholdCollection`'s, and had already drifted: the cue fake stored `changes`' values without copying them. | `testing/versioned-store.ts`, with an `edit` step for a record the caller found (live or deleted); all six fakes use it. |
+| The http tests' viewer in nine files | `noHousehold` and a member viewer, identical but for the time zone. | `noHousehold` and `memberViewer(householdId, timeZone)` in `testing/viewers.ts`. |
+| e2e: JSON write headers, 13 times | A local `json(baseURL)` in ten specs, and the same headers inline in `createHousehold`, the account spec and the dogs spec. | `jsonHeaders(baseURL)` in `e2e/mock-sign-in.ts`. |
+| e2e: "a new owner with a household and dogs", 12 times | Each spec had its own `household()`, most identical, the rest varying in dogs, a household name or what they returned. | `ownHousehold(page, baseURL, { dogs, name })`, returning the dogs. |
+| e2e: the test time zone and its dates | `createHousehold` set Johannesburg and eight specs repeated it, with six local helpers for its today, yesterday and days ahead; a change to the zone would have left them counting the wrong days. | `ZONE` and `dayFromToday(days)` beside `createHousehold`. |
+
+Checked with the unit tests, `pnpm test:integration` (156 pass, 11 skipped) and `pnpm test:e2e` on both phones (261 pass).
+
+**Taste, left alone:**
+
+- The application tests' `ctx(userId, householdId)` in about five files, each suite with its own role.
+- Users built inline in several application tests (`person`, `sam`, `alex`).
+- `e2e/mock-sign-in.ts` now holds household, dog and date fixtures as well as sign-in.
+- A fixed instant `at` per test file: each suite's own clock, on purpose.
+- The onboarding spec picks Johannesburg in the UI rather than reading `ZONE`; it's what a person would choose there.

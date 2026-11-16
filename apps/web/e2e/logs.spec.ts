@@ -1,22 +1,10 @@
 // The quick training log (FR-07, NFR-04, NFR-13, scenarios 3 and 9; ui.md J3, J4, §4.2). Each
 // test brings its own household, in Johannesburg.
 import { expect, test, type Page } from '@playwright/test';
-import { addDog, blockMockFonts, createHousehold, newPerson, signIn } from './mock-sign-in.js';
+import { blockMockFonts, dayFromToday, jsonHeaders, ownHousehold } from './mock-sign-in.js';
 
 test.use({ storageState: { cookies: [], origins: [] } });
 test.beforeEach(({ page }) => blockMockFonts(page));
-
-const ZONE = 'Africa/Johannesburg';
-const json = (baseURL: string) => ({ origin: baseURL, 'content-type': 'application/json' });
-const today = () => new Intl.DateTimeFormat('en-CA', { timeZone: ZONE }).format(new Date());
-
-async function household(page: Page, baseURL: string, dogs: string[] = ['Rosie']) {
-	await signIn(page, newPerson('owner'));
-	await createHousehold(page, baseURL);
-	const added = [];
-	for (const name of dogs) added.push(await addDog(page, baseURL, { name }));
-	return added;
-}
 
 interface Log {
 	id: string;
@@ -26,7 +14,7 @@ interface Log {
 
 async function logAdHoc(page: Page, baseURL: string, body: Record<string, unknown>) {
 	const response = await page.request.post('/api/v1/session-logs', {
-		headers: json(baseURL),
+		headers: jsonHeaders(baseURL),
 		data: JSON.stringify({ exerciseId: 'recall-basics', ...body })
 	});
 	expect(response.status()).toBe(201);
@@ -37,13 +25,13 @@ test('scenario 3: a planned session logged in under 30 seconds, then Done with i
 	page,
 	baseURL
 }) => {
-	const [rosie] = await household(page, baseURL!);
+	const [rosie] = await ownHousehold(page, baseURL!);
 	const scheduled = await page.request.post('/api/v1/planned-sessions', {
-		headers: json(baseURL!),
+		headers: jsonHeaders(baseURL!),
 		data: JSON.stringify({
 			dogId: rosie!.id,
 			exerciseId: 'recall-basics',
-			date: today(),
+			date: dayFromToday(0),
 			times: ['00:00']
 		})
 	});
@@ -85,7 +73,7 @@ test('scenario 3: a planned session logged in under 30 seconds, then Done with i
 
 	// It can't be logged twice.
 	const again = await page.request.post('/api/v1/session-logs', {
-		headers: json(baseURL!),
+		headers: jsonHeaders(baseURL!),
 		data: JSON.stringify({ plannedSessionId: session.id })
 	});
 	expect(again.status()).toBe(409);
@@ -95,7 +83,7 @@ test('an ad-hoc log from the library, not assessed, after choosing the dog', asy
 	page,
 	baseURL
 }) => {
-	await household(page, baseURL!, ['Rosie', 'Miso']);
+	await ownHousehold(page, baseURL!, { dogs: ['Rosie', 'Miso'] });
 	const started = Date.now();
 	await page.goto('/library/recall-basics');
 	await page.getByRole('button', { name: 'Log practice' }).click();
@@ -121,7 +109,7 @@ test('a failed save keeps everything chosen and offers Retry (NFR-04)', async ({
 	page,
 	baseURL
 }) => {
-	await household(page, baseURL!);
+	await ownHousehold(page, baseURL!);
 	await page.goto('/library/recall-basics');
 	await page.getByRole('button', { name: 'Log practice' }).click();
 	const sheet = page.getByRole('dialog', { name: 'Log practice' });
@@ -145,14 +133,14 @@ test('a failed save keeps everything chosen and offers Retry (NFR-04)', async ({
 });
 
 test('editing a log, and a change made elsewhere meanwhile (NFR-13)', async ({ page, baseURL }) => {
-	const [rosie] = await household(page, baseURL!);
+	const [rosie] = await ownHousehold(page, baseURL!);
 	const log = await logAdHoc(page, baseURL!, { dogId: rosie!.id, durationMin: 5 });
 	await page.goto(`/logs/${log.id}`);
 	await expect(page.getByText('5 min')).toBeVisible();
 
 	// Someone else saves first.
 	const theirs = await page.request.patch(`/api/v1/session-logs/${log.id}`, {
-		headers: { ...json(baseURL!), 'if-match': log.etag },
+		headers: { ...jsonHeaders(baseURL!), 'if-match': log.etag },
 		data: JSON.stringify({ outcome: 'successful' })
 	});
 	expect(theirs.status()).toBe(200);
@@ -180,14 +168,14 @@ test("another household can't read, change or log against a household's data (sc
 	browser,
 	baseURL
 }) => {
-	const [rosie] = await household(page, baseURL!);
+	const [rosie] = await ownHousehold(page, baseURL!);
 	const log = await logAdHoc(page, baseURL!, { dogId: rosie!.id });
 	const scheduled = await page.request.post('/api/v1/planned-sessions', {
-		headers: json(baseURL!),
+		headers: jsonHeaders(baseURL!),
 		data: JSON.stringify({
 			dogId: rosie!.id,
 			exerciseId: 'recall-basics',
-			date: today(),
+			date: dayFromToday(0),
 			times: ['23:55']
 		})
 	});
@@ -196,19 +184,19 @@ test("another household can't read, change or log against a household's data (sc
 	const context = await browser.newContext({ storageState: { cookies: [], origins: [] } });
 	const outsider = await context.newPage();
 	await blockMockFonts(outsider);
-	await household(outsider, baseURL!);
+	await ownHousehold(outsider, baseURL!);
 	const responses = await Promise.all([
 		outsider.request.get(`/api/v1/session-logs/${log.id}`),
 		outsider.request.patch(`/api/v1/session-logs/${log.id}`, {
-			headers: { ...json(baseURL!), 'if-match': log.etag },
+			headers: { ...jsonHeaders(baseURL!), 'if-match': log.etag },
 			data: JSON.stringify({ outcome: 'successful' })
 		}),
 		outsider.request.post('/api/v1/session-logs', {
-			headers: json(baseURL!),
+			headers: jsonHeaders(baseURL!),
 			data: JSON.stringify({ plannedSessionId: session.id })
 		}),
 		outsider.request.post('/api/v1/session-logs', {
-			headers: json(baseURL!),
+			headers: jsonHeaders(baseURL!),
 			data: JSON.stringify({ dogId: rosie!.id, exerciseId: 'recall-basics' })
 		})
 	]);

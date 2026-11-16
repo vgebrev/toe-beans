@@ -20,11 +20,11 @@ import {
 } from '../testing/reminders.js';
 import { memorySessionLogs } from '../testing/session-logs.js';
 import { createWorker } from './tick.js';
+import { silentLogger } from '../testing/logger.js';
 
 // Tuesday 10 November 2026, 17:00 in Johannesburg (UTC+2).
 const start = new Date('2026-11-10T15:00:00Z');
 const MIN = 60_000;
-const silent = { debug() {}, info() {}, warn() {}, error() {}, child: () => silent };
 const noErrors = { capture() {}, flush: async () => {} };
 const exercise: Exercise = {
 	id: 'recall-basics',
@@ -99,7 +99,7 @@ async function setup() {
 		uow: directUnitOfWork,
 		clock,
 		ids,
-		logger: silent,
+		logger: silentLogger,
 		errors: noErrors
 	};
 	const planner = createPlanner(ports);

@@ -7,9 +7,9 @@ import { memoryCues } from '../../testing/cues.js';
 import type { MemberContext } from '../auth/auth.js';
 import { FORMER_MEMBER } from '../names.js';
 import { createCues } from './cues.js';
+import { silentLogger } from '../../testing/logger.js';
 
 const at = new Date('2026-11-09T08:00:00Z');
-const silent = { debug() {}, info() {}, warn() {}, error() {}, child: () => silent };
 const person = (id: string, displayName: string): User => ({
 	id: id as Id,
 	identities: [],
@@ -32,7 +32,7 @@ async function setup() {
 	}
 	const cues = memoryCues(() => clock.now());
 	const ids = createIdGenerator(() => clock.now().getTime());
-	const service = createCues({ cues, users, ids, logger: silent });
+	const service = createCues({ cues, users, ids, logger: silentLogger });
 	const add = async (label = 'Sit', ctx = sam) => {
 		const created = await service.create(ctx, { label, meaning: 'Bottom on the floor.' });
 		if (!created.ok) throw new Error('could not add the cue');

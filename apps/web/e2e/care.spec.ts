@@ -1,30 +1,22 @@
 // The care calendar (FR-10, NFR-13, scenarios 5, 7 and 9; ui.md J6). Each test brings its own
 // household, in Johannesburg.
 import { expect, test, type Page } from '@playwright/test';
-import { addDog, blockMockFonts, createHousehold, newPerson, signIn } from './mock-sign-in.js';
+import {
+	blockMockFonts,
+	createHousehold,
+	dayFromToday,
+	jsonHeaders,
+	newPerson,
+	ownHousehold,
+	signIn
+} from './mock-sign-in.js';
 
 test.use({ storageState: { cookies: [], origins: [] } });
 test.beforeEach(({ page }) => blockMockFonts(page));
 
-const json = (baseURL: string) => ({ origin: baseURL, 'content-type': 'application/json' });
-
-/** A date on Johannesburg's clocks, `days` from today. */
-const dayFromToday = (days: number) =>
-	new Intl.DateTimeFormat('en-CA', { timeZone: 'Africa/Johannesburg' }).format(
-		new Date(Date.now() + days * 24 * 60 * 60_000)
-	);
-
-async function household(page: Page, baseURL: string, dogs: string[] = ['Rosie']) {
-	await signIn(page, newPerson('owner'));
-	await createHousehold(page, baseURL);
-	const added = [];
-	for (const name of dogs) added.push(await addDog(page, baseURL, { name }));
-	return added;
-}
-
 async function addCare(page: Page, baseURL: string, body: Record<string, unknown>) {
 	const response = await page.request.post('/api/v1/care-tasks', {
-		headers: json(baseURL),
+		headers: jsonHeaders(baseURL),
 		data: JSON.stringify({ category: 'vaccination', ...body })
 	});
 	expect(response.status()).toBe(201);
@@ -35,7 +27,7 @@ test('scenario 7: a vaccination for one dog shows on Care and Today, and is mark
 	page,
 	baseURL
 }) => {
-	await household(page, baseURL!, ['Rosie', 'Miso']);
+	await ownHousehold(page, baseURL!, { dogs: ['Rosie', 'Miso'] });
 	await page.goto('/');
 	await page.getByRole('button', { name: 'Add', exact: true }).click();
 	await page
@@ -104,7 +96,7 @@ test('an overdue task says so on Care and Today, and a move goes into its histor
 	page,
 	baseURL
 }) => {
-	const [rosie] = await household(page, baseURL!);
+	const [rosie] = await ownHousehold(page, baseURL!);
 	const task = await addCare(page, baseURL!, {
 		dogId: rosie!.id,
 		category: 'parasite_prevention',
@@ -129,14 +121,14 @@ test('an overdue task says so on Care and Today, and a move goes into its histor
 });
 
 test('a change made elsewhere is never overwritten (NFR-13)', async ({ page, baseURL }) => {
-	const [rosie] = await household(page, baseURL!);
+	const [rosie] = await ownHousehold(page, baseURL!);
 	const task = await addCare(page, baseURL!, { dogId: rosie!.id, dueDate: dayFromToday(5) });
 	await page.goto(`/care/${task.id}/edit`);
 	// Someone else saves first.
 	expect(
 		(
 			await page.request.patch(`/api/v1/care-tasks/${task.id}`, {
-				headers: { ...json(baseURL!), 'if-match': task.etag },
+				headers: { ...jsonHeaders(baseURL!), 'if-match': task.etag },
 				data: JSON.stringify({ notes: 'From the other phone' })
 			})
 		).status()
@@ -152,7 +144,7 @@ test('scenario 5: a cancelled task’s page says so, and it can be put back', as
 	page,
 	baseURL
 }) => {
-	const [rosie] = await household(page, baseURL!);
+	const [rosie] = await ownHousehold(page, baseURL!);
 	const task = await addCare(page, baseURL!, {
 		dogId: rosie!.id,
 		category: 'vet_appointment',
@@ -175,7 +167,7 @@ test('scenario 9: another household’s task can’t be reached by its ID', asyn
 	baseURL,
 	browser
 }) => {
-	const [rosie] = await household(page, baseURL!);
+	const [rosie] = await ownHousehold(page, baseURL!);
 	const task = await addCare(page, baseURL!, { dogId: rosie!.id, dueDate: dayFromToday(3) });
 
 	const other = await browser.newPage();
@@ -186,7 +178,7 @@ test('scenario 9: another household’s task can’t be reached by its ID', asyn
 	expect(
 		(
 			await other.request.post(`/api/v1/care-tasks/${task.id}/complete`, {
-				headers: { ...json(baseURL!), 'if-match': task.etag },
+				headers: { ...jsonHeaders(baseURL!), 'if-match': task.etag },
 				data: '{}'
 			})
 		).status()
@@ -203,7 +195,7 @@ test('the "+" on Care offers Add care task first, below the page\'s own button',
 	page,
 	baseURL
 }) => {
-	await household(page, baseURL!);
+	await ownHousehold(page, baseURL!);
 	await page.goto('/care');
 	await expect(page.getByRole('link', { name: 'Add care task' })).toBeVisible();
 	await page.getByRole('button', { name: 'Add', exact: true }).click();

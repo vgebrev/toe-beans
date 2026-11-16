@@ -7,9 +7,9 @@ import { ok } from '../../domain/result.js';
 import type { PlannerContext } from '../auth/auth.js';
 import type { RateLimiter } from '../ports/index.js';
 import { createDogs, MAX_DOGS, PHOTO_MAX_BYTES } from './dogs.js';
+import { silentLogger } from '../../testing/logger.js';
 
 const at = new Date('2026-11-08T08:00:00Z');
-const silent = { debug() {}, info() {}, warn() {}, error() {}, child: () => silent };
 const ctx: PlannerContext = {
 	userId: 'u1' as Id,
 	householdId: 'h1' as Id,
@@ -50,7 +50,7 @@ function setup({ photoRateLimit = allowAll } = {}) {
 			uow: directUnitOfWork,
 			clock,
 			ids,
-			logger: silent
+			logger: silentLogger
 		},
 		planner
 	);
