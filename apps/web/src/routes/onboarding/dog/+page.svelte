@@ -4,7 +4,7 @@
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import DogForm from '#lib/components/dogs/DogForm.svelte';
-	import { todayIn } from '#lib/dogs/age.js';
+	import { todayIn } from '#lib/planner/dates.js';
 	import type { PageProps } from './$types';
 
 	let { data }: PageProps = $props();

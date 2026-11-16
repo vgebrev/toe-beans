@@ -10,7 +10,7 @@
 	import PageHeader from '#lib/components/shell/PageHeader.svelte';
 	import { Button } from '#lib/components/ui/button/index.js';
 	import * as Sheet from '#lib/components/ui/sheet/index.js';
-	import { createApiClient } from '#lib/api-client/index.js';
+	import { createApiClient, problemStatus } from '#lib/api-client/index.js';
 	import type { PageProps } from './$types';
 
 	let { data }: PageProps = $props();
@@ -135,7 +135,7 @@
 			await invalidateAll();
 			return;
 		}
-		const code = result.error.kind === 'problem' ? result.error.problem.status : 0;
+		const code = problemStatus(result.error);
 		if (code === 412 || code === 404) {
 			// Changed since this page loaded: show what's true now, and let them look again.
 			sheetOpen = false;

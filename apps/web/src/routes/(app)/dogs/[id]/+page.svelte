@@ -12,7 +12,8 @@
 	import { Button } from '#lib/components/ui/button/index.js';
 	import * as Sheet from '#lib/components/ui/sheet/index.js';
 	import { createApiClient } from '#lib/api-client/index.js';
-	import { adoptedText, ageText, todayIn } from '#lib/dogs/age.js';
+	import { adoptedText, ageText } from '#lib/dogs/age.js';
+	import { todayIn } from '#lib/planner/dates.js';
 	import type { PageProps } from './$types';
 
 	let { data }: PageProps = $props();
@@ -187,8 +188,10 @@
 						<Sheet.Title class="font-display text-xl font-semibold">Archive {dog.name}?</Sheet.Title
 						>
 						<Sheet.Description class="text-base">
-							{dog.name}'s training, events and care stay in History. They leave the dog switcher
-							and can't be picked for new records. You can bring them back from their profile.
+							{dog.name}'s training, events and care stay in History. Their planned sessions are
+							cancelled, and their care tasks set aside with no reminders. They leave the dog
+							switcher and can't be picked for new records. You can bring them back from their
+							profile, with their sessions still ahead and their care tasks.
 						</Sheet.Description>
 					</Sheet.Header>
 					{#if archiveStatus === 'failed'}

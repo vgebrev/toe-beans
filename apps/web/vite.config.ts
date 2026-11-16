@@ -62,6 +62,29 @@ export default defineConfig({
 			// compares with the request URL's origin, which adapter-node assumes is https and which
 			// behind the Cloudflare Worker is run.app, so it refused same-origin forms.
 			csrf: { trustedOrigins: ['*'] },
+			// Architecture §7 (security audit F3). Kit adds a nonce to script-src on every page and
+			// fills %sveltekit.nonce% in app.html. Styles allow 'unsafe-inline': Svelte and bits-ui
+			// set style attributes, and Kit adds no style nonce while it's there. No form-action:
+			// signing out is a form POST that redirects to the identity provider, and Chrome applies
+			// form-action to that redirect. The other headers are set in hooks.server.ts.
+			csp: {
+				mode: 'nonce',
+				directives: {
+					'default-src': ['self'],
+					'script-src': ['self'],
+					'style-src': ['self', 'unsafe-inline'],
+					// blob: is the photo cropper's preview; data: covers inline SVG in the CSS.
+					'img-src': ['self', 'blob:', 'data:'],
+					'font-src': ['self'],
+					// Browser error reports go to Sentry's ingest hosts (architecture §9).
+					'connect-src': ['self', 'https://*.sentry.io'],
+					'worker-src': ['self'],
+					'manifest-src': ['self'],
+					'object-src': ['none'],
+					'base-uri': ['self'],
+					'frame-ancestors': ['none']
+				}
+			},
 			version: { name: release() }
 		})
 	]

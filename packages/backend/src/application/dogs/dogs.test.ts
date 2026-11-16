@@ -1,34 +1,65 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { createIdGenerator, type Id } from '../../domain/id.js';
+import { directUnitOfWork } from '../../testing/auth.js';
 import { manualClock } from '../../testing/clock.js';
 import { fakePhoto, fakePhotoProcessor, memoryDogs, memoryPhotoStore } from '../../testing/dogs.js';
-import type { MemberContext } from '../auth/auth.js';
-import { createDogs, PHOTO_MAX_BYTES } from './dogs.js';
+import { ok } from '../../domain/result.js';
+import type { PlannerContext } from '../auth/auth.js';
+import type { RateLimiter } from '../ports/index.js';
+import { createDogs, MAX_DOGS, PHOTO_MAX_BYTES } from './dogs.js';
+import { silentLogger } from '../../testing/logger.js';
 
 const at = new Date('2026-11-08T08:00:00Z');
-const silent = { debug() {}, info() {}, warn() {}, error() {}, child: () => silent };
-const ctx: MemberContext = { userId: 'u1' as Id, householdId: 'h1' as Id, role: 'caregiver' };
-const outsider: MemberContext = { userId: 'u9' as Id, householdId: 'h9' as Id, role: 'owner' };
+const ctx: PlannerContext = {
+	userId: 'u1' as Id,
+	householdId: 'h1' as Id,
+	role: 'caregiver',
+	timeZone: 'UTC'
+};
+const outsider: PlannerContext = {
+	userId: 'u9' as Id,
+	householdId: 'h9' as Id,
+	role: 'owner',
+	timeZone: 'UTC'
+};
 
-function setup() {
+const allowAll: RateLimiter = { take: () => ({ allowed: true }) };
+
+function setup({ photoRateLimit = allowAll } = {}) {
 	const clock = manualClock(at);
 	const dogs = memoryDogs(() => clock.now());
 	const photos = memoryPhotoStore();
 	const ids = createIdGenerator(() => clock.now().getTime());
-	const service = createDogs({
-		dogs,
-		photos,
-		photoProcessor: fakePhotoProcessor,
-		clock,
-		ids,
-		logger: silent
-	});
+	const archivedDogs: string[] = [];
+	const planner = {
+		dogArchived: async (_: PlannerContext, dogId: Id) => {
+			archivedDogs.push(`archived ${dogId}`);
+			return ok(undefined);
+		},
+		dogRestored: async (_: PlannerContext, dogId: Id) => {
+			archivedDogs.push(`restored ${dogId}`);
+			return ok(undefined);
+		}
+	};
+	const service = createDogs(
+		{
+			dogs,
+			photos,
+			photoProcessor: fakePhotoProcessor,
+			photoRateLimit,
+			uow: directUnitOfWork,
+			clock,
+			ids,
+			logger: silentLogger
+		},
+		planner
+	);
 	const add = async (name = 'Rosie') => {
 		const created = await service.create(ctx, { details: { name }, photo: fakePhoto() });
 		if (!created.ok) throw new Error('could not add the dog');
 		return created.value;
 	};
-	return { clock, dogs, photos, service, add };
+	return { clock, dogs, photos, service, add, archivedDogs };
 }
 
 describe('adding a dog', () => {
@@ -195,7 +226,7 @@ describe('updating a dog', () => {
 	});
 
 	it('archives and brings back, keeping when it was first archived', async () => {
-		const { add, service, clock } = setup();
+		const { add, service, clock, archivedDogs } = setup();
 		const rosie = await add();
 		const archived = await service.update(ctx, {
 			id: rosie.id,
@@ -219,12 +250,14 @@ describe('updating a dog', () => {
 			archived: false
 		});
 		expect(back.ok && back.value).not.toHaveProperty('archivedAt');
+		// The planner hears of each change once, not of archiving again.
+		expect(archivedDogs).toEqual([`archived ${rosie.id}`, `restored ${rosie.id}`]);
 	});
 
 	it("refuses a stale version, and can't touch another household's dog", async () => {
 		const { add, service } = setup();
 		const rosie = await add();
-		const rename = (who: MemberContext, expectedVersion: number) =>
+		const rename = (who: PlannerContext, expectedVersion: number) =>
 			service.update(who, { id: rosie.id, expectedVersion, details: { name: 'Milo' } });
 		expect(await rename(ctx, 7)).toEqual({ ok: false, error: { kind: 'stale-version' } });
 		expect(await rename(outsider, 1)).toMatchObject({ error: { kind: 'not-found' } });
@@ -302,6 +335,53 @@ describe('serving the photo', () => {
 		expect(await service.photo(outsider, { id: rosie.id, size: 'large' })).toEqual({
 			ok: false,
 			error: { kind: 'not-found', resource: 'dog' }
+		});
+	});
+});
+
+describe('limits (architecture D32)', () => {
+	const refuse: RateLimiter = { take: () => ({ allowed: false, retryAfterSeconds: 60 }) };
+
+	it("counts each person's photo uploads, and decodes nothing over the limit", async () => {
+		const take = vi.fn(allowAll.take);
+		const { service, add } = setup({ photoRateLimit: { take } });
+		const dog = await add();
+		await service.changePhoto(ctx, {
+			id: dog.id,
+			expectedVersion: dog.version,
+			photo: fakePhoto()
+		});
+		expect(take.mock.calls).toEqual([[ctx.userId], [ctx.userId]]);
+	});
+
+	it('refuses a photo over the limit, adding or changing', async () => {
+		const limit: RateLimiter = { take: vi.fn(allowAll.take) };
+		const { service, add, photos } = setup({ photoRateLimit: limit });
+		const dog = await add();
+		const stored = photos.keys();
+		vi.mocked(limit.take).mockImplementation(refuse.take);
+		expect(await service.create(ctx, { details: { name: 'Max' }, photo: fakePhoto() })).toEqual({
+			ok: false,
+			error: { kind: 'rate-limited' }
+		});
+		expect(
+			await service.changePhoto(ctx, {
+				id: dog.id,
+				expectedVersion: dog.version,
+				photo: fakePhoto()
+			})
+		).toEqual({ ok: false, error: { kind: 'rate-limited' } });
+		expect(photos.keys()).toEqual(stored);
+	});
+
+	it(`keeps a household to ${MAX_DOGS} dogs, archived ones included`, async () => {
+		const { service, add } = setup();
+		for (let i = 0; i < MAX_DOGS; i++) await add(`Dog ${i}`);
+		expect(
+			await service.create(ctx, { details: { name: 'One more' }, photo: fakePhoto() })
+		).toEqual({
+			ok: false,
+			error: { kind: 'validation', message: `A household can have up to ${MAX_DOGS} dogs.` }
 		});
 	});
 });

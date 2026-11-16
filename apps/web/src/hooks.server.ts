@@ -1,25 +1,25 @@
 import type { RequestEvent } from '@sveltejs/kit';
 import type { Handle, HandleServerError, ServerInit } from '@sveltejs/kit/hooks';
-import { errorResponse, REQUEST_ID_HEADER, requestIdFrom } from '@toe-beans/backend';
+import { PROXY_SECRET_HEADER, REQUEST_ID_HEADER, requestIdFrom } from '@toe-beans/backend';
 import { backend, startBackend } from '#lib/server/backend.js';
-import { toResponse } from '#lib/server/respond.js';
+import { toResponse, unauthenticated } from '#lib/server/respond.js';
 
 export const init: ServerInit = async () => {
 	await startBackend();
 };
 
 /**
- * Headers the API client reads in universal loads (architecture §3.3). Kit serialises a server
- * render's fetch responses for hydration and makes every header it should keep explicit; reading
- * any other throws. `content-type` tells a problem from a gateway error, so without it every API
- * error in a server render would become a 500.
- */
-/**
  * The Latin fonts start loading with the CSS instead of after it, so they're usually in before
  * first paint and the text doesn't visibly swap (ui.md §6.4). Only Latin: the other subsets have
  * a unicode-range that keeps phones from downloading them, and preloading would defeat that.
  */
 const latinFont = /-latin-wght-normal\.[\w-]+\.woff2$/;
+/**
+ * Headers the API client reads in universal loads (architecture §3.3). Kit serialises a server
+ * render's fetch responses for hydration and makes every header it should keep explicit; reading
+ * any other throws. `content-type` tells a problem from a gateway error, so without it every API
+ * error in a server render would become a 500.
+ */
 const serializedHeaders = new Set(['content-type', 'etag', REQUEST_ID_HEADER]);
 const resolveOptions = {
 	filterSerializedResponseHeaders: (name: string) => serializedHeaders.has(name),
@@ -29,6 +29,10 @@ const resolveOptions = {
 
 // Probes and the uptime monitor hit these every few minutes; their lines would drown the rest.
 const quietRoutes = new Set(['/healthz', '/readyz']);
+
+// Called by a scheduler, not a browser (architecture §6.3): no Origin header and no session. The
+// route checks its own bearer token, so the origin check and session lookup don't apply.
+const machineRoutes = new Set(['/internal/tick']);
 
 // The join page says what an invitation is for before asking anyone to sign in (ui.md J2). The
 // token is what allows it; accepting is a separate route and needs a session.
@@ -49,6 +53,10 @@ export const handle: Handle = ({ event, resolve }) => {
 		const response = await authenticated(event, resolve);
 		try {
 			response.headers.set(REQUEST_ID_HEADER, requestId);
+			// HSTS, Referrer-Policy and the like (architecture §7); Kit sets the CSP itself.
+			for (const [name, value] of Object.entries(backend().http.edge.securityHeaders())) {
+				response.headers.set(name, value);
+			}
 		} catch {
 			// Some responses (e.g. from fetch) have immutable headers; the logs still have the ID.
 		}
@@ -65,16 +73,26 @@ export const handle: Handle = ({ event, resolve }) => {
 };
 
 /**
- * Refuses cross-origin writes, then resolves the session cookie to `locals.viewer` (architecture
- * §3.4). Signed-out API calls get a 401 here; signed-out pages are sent to sign-in by the
- * `(app)` layout, so client-side navigation gets a proper redirect too.
+ * Refuses requests that bypassed the proxy and cross-origin writes, then resolves the session
+ * cookie to `locals.viewer` (architecture §3.4). Signed-out API calls get a 401 here; signed-out
+ * pages are sent to sign-in by the `(app)` layout, so client-side navigation gets a proper
+ * redirect too. A signed-in person's API writes count against their budget (D32).
  */
 async function authenticated(
 	event: RequestEvent,
 	resolve: Parameters<Handle>[0]['resolve']
 ): Promise<Response> {
-	const { auth } = backend().http;
+	const { auth, edge } = backend().http;
 	const headers = event.request.headers;
+	event.locals.viewer = null;
+	const route = event.route.id ?? '';
+	// The scheduler and the platform's probes call the service directly, not through the proxy.
+	if (machineRoutes.has(route)) return resolve(event, resolveOptions);
+	if (!quietRoutes.has(route)) {
+		const bypassed = edge.checkProxy(headers.get(PROXY_SECRET_HEADER));
+		if (bypassed) return toResponse(bypassed);
+	}
+
 	const refused = auth.checkOrigin({
 		method: event.request.method,
 		origin: headers.get('origin'),
@@ -82,18 +100,22 @@ async function authenticated(
 	});
 	if (refused) return toResponse(refused);
 
-	event.locals.viewer = null;
 	// Probes don't need a viewer, so they never touch the sessions.
-	if (quietRoutes.has(event.route.id ?? '')) return resolve(event, resolveOptions);
+	if (quietRoutes.has(route)) return resolve(event, resolveOptions);
 
 	const { viewer, cookies } = await auth.authenticate((name) => event.cookies.get(name));
 	event.locals.viewer = viewer;
 	for (const { name, value, maxAge, secure, sameSite } of cookies) {
 		event.cookies.set(name, value, { path: '/', maxAge, httpOnly: true, secure, sameSite });
 	}
-	const isPublic = publicApiRoutes.has(event.route.id ?? '');
-	if (!viewer && !isPublic && event.url.pathname.startsWith('/api/')) {
-		return toResponse(errorResponse({ kind: 'unauthenticated' }));
+	const isApi = event.url.pathname.startsWith('/api/');
+	if (!viewer && !publicApiRoutes.has(route) && isApi) {
+		return unauthenticated();
+	}
+	if (viewer && isApi) {
+		const userId = viewer.auth.userId;
+		const limited = edge.checkWriteRate({ method: event.request.method, userId });
+		if (limited) return toResponse(limited);
 	}
 	return resolve(event, resolveOptions);
 }

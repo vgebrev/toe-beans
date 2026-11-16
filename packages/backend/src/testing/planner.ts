@@ -1,0 +1,128 @@
+// In-memory doubles for the planner repositories, for unit tests of the use cases. The Mongo
+// adapters have their own integration test.
+import type {
+	PlannedSessionRepository,
+	TrainingPlanRepository
+} from '../application/ports/index.js';
+import type { PlannedSession, TrainingPlan } from '../domain/planner.js';
+import { versionedStore } from './versioned-store.js';
+
+export function memoryTrainingPlans(
+	now: () => Date
+): TrainingPlanRepository & { all(): TrainingPlan[] } {
+	const store = versionedStore<TrainingPlan>(now, 'plan');
+	const own = (householdId: string) =>
+		[...store.items.values()]
+			.filter((p) => p.householdId === householdId)
+			.sort((a, b) => a.id.localeCompare(b.id));
+	return {
+		all: () => structuredClone([...store.items.values()]),
+		insert: async (plan) => store.insert(plan),
+		findById: async (householdId, id) =>
+			structuredClone(store.inHousehold(householdId, id) ?? null),
+		findByIds: async (householdId, ids) =>
+			structuredClone(own(householdId).filter((p) => ids.includes(p.id))),
+		listRunning: async (householdId, date) =>
+			structuredClone(own(householdId).filter((p) => p.until === undefined || p.until >= date)),
+		update: async (householdId, id, expectedVersion, changes) =>
+			store.update(householdId, id, expectedVersion, changes),
+		async advanceHorizon(householdId, id, from, to) {
+			const plan = store.inHousehold(householdId, id);
+			if (!plan || plan.horizon !== from) return false;
+			plan.horizon = to;
+			return true;
+		},
+		householdsBehind: async (through) => [
+			...new Set(
+				[...store.items.values()]
+					.filter(
+						(p) =>
+							p.horizon < through && !p.paused && (p.until === undefined || p.until > p.horizon)
+					)
+					.map((p) => p.householdId)
+			)
+		]
+	};
+}
+
+export function memoryPlannedSessions(
+	now: () => Date
+): PlannedSessionRepository & { all(): PlannedSession[] } {
+	const store = versionedStore<PlannedSession>(now, 'session');
+	const own = (householdId: string) =>
+		[...store.items.values()].filter((s) => s.householdId === householdId);
+	return {
+		all: () =>
+			structuredClone(
+				[...store.items.values()].sort((a, b) => a.scheduledAt.getTime() - b.scheduledAt.getTime())
+			),
+		insert: async (session) => store.insert(session),
+		async insertOccurrences(householdId, list) {
+			for (const s of list) {
+				const exists = own(householdId).some(
+					(o) => o.planId === s.planId && o.occurrenceKey === s.occurrenceKey
+				);
+				if (!exists) store.insert({ ...s, householdId: s.householdId });
+			}
+		},
+		findById: async (householdId, id) =>
+			structuredClone(store.inHousehold(householdId, id) ?? null),
+		listBetween: async (householdId, from, to) =>
+			structuredClone(
+				own(householdId)
+					.filter((s) => s.scheduledAt >= from && s.scheduledAt < to)
+					.sort(
+						(a, b) => a.scheduledAt.getTime() - b.scheduledAt.getTime() || a.id.localeCompare(b.id)
+					)
+			),
+		listFrom: async (householdId, planId, from) =>
+			structuredClone(
+				own(householdId)
+					.filter((s) => s.planId === planId && s.occurrenceKey! >= from)
+					.sort((a, b) => (a.occurrenceKey! < b.occurrenceKey! ? -1 : 1))
+			),
+		update: async (householdId, id, expectedVersion, changes) =>
+			store.update(householdId, id, expectedVersion, changes),
+		async cancelPlannedFor(householdId, dogId, updatedBy) {
+			const planned = own(householdId).filter((s) => s.dogId === dogId && s.status === 'planned');
+			for (const s of planned) {
+				store.update(householdId, s.id, s.version, {
+					status: 'cancelled',
+					cancelledWithDog: true,
+					updatedBy
+				});
+			}
+			return planned.length;
+		},
+		async restoreFor(householdId, dogId, from, updatedBy) {
+			const back = own(householdId).filter(
+				(s) =>
+					s.dogId === dogId &&
+					s.status === 'cancelled' &&
+					s.cancelledWithDog &&
+					s.scheduledAt >= from
+			);
+			for (const s of back) {
+				store.update(householdId, s.id, s.version, {
+					status: 'planned',
+					cancelledWithDog: undefined,
+					updatedBy
+				});
+			}
+			return back.length;
+		},
+		async deleteUnloggedFrom(householdId, planId, from) {
+			const doomed = own(householdId).filter(
+				(s) => s.planId === planId && s.occurrenceKey! >= from && s.status !== 'completed'
+			);
+			for (const s of doomed) store.items.delete(s.id);
+			return doomed.length;
+		},
+		listPlannedAcrossHouseholds: async (from, to) =>
+			structuredClone(
+				[...store.items.values()]
+					.filter((s) => s.status === 'planned' && s.scheduledAt >= from && s.scheduledAt < to)
+					.sort((a, b) => a.scheduledAt.getTime() - b.scheduledAt.getTime())
+			)
+	};
+}

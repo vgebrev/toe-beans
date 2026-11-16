@@ -1,8 +1,8 @@
 # Toe Beans — Backlog
 
-**Version:** 0.24 (draft for iteration)
-**Date:** 10 November 2026
-**Inputs:** `docs/requirements.md` v1.0, `docs/architecture.md` v1.9, `docs/ui.md` v0.14
+**Version:** 0.47 (draft for iteration)
+**Date:** 16 November 2026
+**Inputs:** `docs/requirements.md` v1.0, `docs/architecture.md` v1.22, `docs/ui.md` v0.32
 
 **Changes in 0.3:** spike results S-1.0 to S-1.4 and S0.1–S0.2 recorded as they landed (see Current progress). S-1.4b dropped as not needed, S-1.5 parked, S-1.4a retargeted to `toebeans.co.za`.
 
@@ -31,6 +31,52 @@
 **Changes in 0.23:** the tick-interval check closed early, following architecture 1.8: the 5-minute tick is the permanent setup, and the S-1 spike is torn down.
 
 **Changes in 0.24:** S5 done. S5.1 built (architecture 1.9 D23, ui 0.14 §4.6); S5.2 added for the owner's check on the phones, as for S3.5, and passed.
+
+**Changes in 0.25:** S6 done: S6.1–S6.3 built (architecture 1.10 D24, ui 0.15 §4.3) and tried on the phones (S6.4). Inputs moved to architecture 1.10 and ui 0.15.
+
+**Changes in 0.26:** S6.4's open question settled: archiving a dog cancels its planned sessions and pauses its series, and bringing it back restores them (architecture 1.11 D24, ui 0.16 §4.5). Inputs moved to architecture 1.11 and ui 0.16.
+
+**Changes in 0.27:** S7.1–S7.3 built (architecture 1.12 D25, ui 0.17 §4.2). S7.4 added, trying it on the phones, as for earlier slices. Inputs moved to architecture 1.12 and ui 0.17.
+
+**Changes in 0.28:** S7.4 done, so S7 is done; S8 is next.
+
+**Changes in 0.29:** S8.1–S8.2 built (architecture 1.13 D26, ui 0.18 §4.1). S8.1's upcoming care moves to S11, which brings care tasks. S8.3 added, trying it on the phones, as for earlier slices, and done, so S8 is done: the first usable checkpoint. Inputs moved to architecture 1.13 and ui 0.18.
+
+**Changes in 0.30:** Filters reworked before S12 (ui 0.19 §5.1): the dog switcher and the library's skill areas are a button opening a sheet, *All* first, instead of a sideways-scrolling chip row, and the exercise picker drops its area chips. S10.1's filters follow the same convention. Inputs moved to ui 0.19.
+
+**Changes in 0.31:** S12.1–S12.7 built (architecture 1.14 D27, ui 0.20 J7). S12.3 is now the tick working out due reminders from the sessions, with a send ledger, instead of jobs replanned in every session change (D27), and covers training only: care reminders move to a new S11.3, where they become a second source in the tick. S12 also brings the manifest, icons and a service worker forward from S13.1 (installing is part of testing reminders, NFR-16), so S13.1 keeps shortcuts, the install prompt and caching. S12.8 added, trying it on the phones with the app installed and closed, as for earlier slices. S14.1 gains the VAPID keys and the Cloud Scheduler tick job. Inputs moved to architecture 1.14 and ui 0.20.
+
+**Changes in 0.32:** the S12 Notifications screen simplified (ui 0.21 J7): one *Push notifications* switch, folded *Reminder tips* holding the test, and wording that names no browser or device. Inputs moved to ui 0.21.
+
+**Changes in 0.33:** S12 done. S12.8 tried on the Samsung, with two fixes it prompted (architecture 1.15, ui 0.22 J7); the owner closed it without the Redmi or the battery steps. Inputs moved to architecture 1.15 and ui 0.22.
+
+**Changes in 0.34:** S9.1 built (architecture 1.16 D28, ui 0.23 J5), with the floating "+" and its chooser (§2.1), which no slice had built: J5 starts from it, and J4's *Log training* came with it. S9.2 added, trying it on a phone, as for earlier slices; the owner tried it, and S9 is done. Bottom sheets clear the phone's button bar again (ui 0.23). Inputs moved to architecture 1.16 and ui 0.23.
+
+**Changes in 0.35:** S10.1 and S10.2 built (architecture 1.17 D29, ui 0.24 §4.4, J8). S10.1's dog filter is the switcher, and its type filter offers each kind of event too (FR-09's "event type"); S10.2's purge job is a TTL index rather than a job. S10.3 added, trying it on a phone, as for earlier slices. Inputs moved to architecture 1.17 and ui 0.24.
+
+**Changes in 0.36:** S10 done: the owner tried it on a phone (S10.3), which prompted relabelling History's *Show* filter (*All types*, *Any event*; ui 0.25 §4.4). Inputs moved to ui 0.25.
+
+**Changes in 0.37:** S11.1–S11.3 built (architecture 1.18 D30, ui 0.26 J6, J7). S11.1 gains planning the next task on completion, the owner's answer to repeating care. S11.4 added, trying it on a phone, as for earlier slices. Inputs moved to architecture 1.18 and ui 0.26.
+
+**Changes in 0.38:** S11 done: the owner closed S11.4. S13.1–S13.4 built (architecture 1.19 D31, ui 0.27 §5.2, §6.1, §6.3, §7), with offline as the shell only, the owner's call. S13.3's timings on the phones and S13.4's TalkBack pass move to a new S13.5, trying S13 on the phones, as for earlier slices, which also measures the Redmi's viewport. Inputs moved to architecture 1.19 and ui 0.27.
+
+**Changes in 0.39:** S13 done: the owner tried S13.5 on the Galaxy S23 FE and closed it without the Redmi Note 12 Pro. Added S15, a pre-release review (the owner's snag list, a security audit, and a code review with refactoring), which comes before S14 despite its number, so S14 starts from reviewed code.
+
+**Changes in 0.40:** S15.1 done: the owner's snag list is under S15, and the fixes follow `ui.md` 0.28 (§2.1, §4.6, §5.1, J7). Inputs moved to ui 0.28.
+
+**Changes in 0.41:** new S6.5, several times a day, the owner's answer to S15.1's open question (architecture 1.20 D24, ui 0.29 J3), built; S6 is open again until it's tried on a phone. Inputs moved to architecture 1.20 and ui 0.29.
+
+**Changes in 0.42:** S6.5 done: the owner tried it on the Galaxy S23 FE, so S6 is closed again.
+
+**Changes in 0.43:** S15.2's audit is done (`docs/security-audit.md`), and every finding is now fixed or decided (architecture 1.21 D32–D34, ui 0.30 §4.7). S15.2 is done, tried by the owner on the phone. S14.1 gains the Worker's header secret (`PROXY_SECRET`) and the audit's checks on the deployed settings (log access and retention, the prod Auth0 connections). Inputs moved to architecture 1.21 and ui 0.30.
+
+**Changes in 0.44:** new S11.5: done care tasks in History, the owner's call before S15.3 (architecture 1.22 D35, ui 0.31 §4.4). It's built and the owner tried it on the phone, so S11 is done again. Inputs moved to architecture 1.22 and ui 0.31.
+
+**Changes in 0.45:** S15.3 started: the code review is tracked in its own `docs/code-review.md`, in eight rounds of one layer or boundary each. Round 1 (domain) is done, with its small fixes.
+
+**Changes in 0.46:** S15.3 done, and S15 with it: all eight rounds of the code review and a check of the whole branch afterwards (`docs/code-review.md` 0.10), without changing behaviour. S14 is next.
+
+**Changes in 0.47:** S15.1 gains (g), the pointer cursor on everything clickable (ui 0.32 §6.4), from the owner's snag list; the owner's Android time-picker snag turned out to be the dial's inner ring for 13–00, so nothing changed there. Inputs moved to ui 0.32.
 
 **Changes in 0.21:** S2 and S3 done: the owner tested both on the phones in Chrome, including S3.5's photo flow and the Android share sheet. The installed PWA wasn't part of it; that's S13.
 
@@ -105,7 +151,32 @@ Work is organised as **vertical slices**: each delivers a usable end-to-end incr
 | 2026-11-09 | The 5-minute tick confirmed (architecture 1.8 §6.3). Since the switch on 6 Nov: 829 of 829 ticks, no scheduler errors, 0.35 instance starts a day with none started by a person, and Cloud Run usage down from about 0.41 c to 0.1 c a day, well within the free tier. The S-1 spike's Cloud Run service (`toe-beans-spike`) and Scheduler job (`toe-beans-tick`) are torn down. |
 | 2026-11-09 | S5.1 built. The cue dictionary on More → *Cue dictionary*: add, edit and delete in a sheet, alphabetical, each cue saying who last edited it and when. Cue words are unique per household whatever their case (D23). Every change and delete carries If-Match; a conflict names who changed it and offers *See their version* or *Overwrite with mine*, and a cue deleted meanwhile can be added again from what was typed. Mongo adapter with the household-isolation suite (migration 0005), and an e2e scenario 9 check by ID. `cleanText` moved from the dog's notes into `domain/name.ts` for reuse. 477 unit, 88 integration and 133 e2e tests. |
 | 2026-11-10 | S5 done. The owner tried cues on the phones in Chrome (S5.2): adding, editing and deleting, and a conflict from a second device. Nothing to change. |
-**Next up:** S6 training planner.
+| 2026-11-10 | S6.1–S6.3 built. One-off sessions and weekly series (*Daily*, *Weekdays*, *Custom days*, optional end), materialised 21 days ahead and to any week listed, idempotent through the unique `(planId, occurrenceKey)` (D24). Move, skip, cancel and put back one session; change or cancel *this and following*, which ends the series and starts a new one, keeping logged sessions. All with If-Match and the conflict handling of §5.2 (no overwrite). Household-clock arithmetic in `domain/calendar.ts` with `Intl`, daylight saving tested on London's changes. Plan week view, Schedule with an exercise picker sheet, the session page and its change page; the exercise page's *Schedule*. Mongo adapters with both isolation suites (migration 0006) and an e2e scenario 9 check by ID. Found on the way: the picker sheet's chip row collapsed to nothing in a flex column, and the sheet's own `h-auto` beat a plain height class. 524 unit, 102 integration and 143 e2e tests. Reminders for sessions arrive with S12.3. Not yet tried: any of it on a phone (S6.4). |
+| 2026-11-11 | S6 done. The owner tried scheduling on the phones. Then, on the owner's call, archiving a dog cancels its planned sessions (still shown as *Cancelled*) and pauses its series, in the archive's transaction; bringing it back plans again those still ahead and resumes the series from today (D24). The archive sheet says so. 527 unit, 104 integration and 145 e2e tests. |
+| 2026-11-11 | S7.1–S7.3 built. `SessionLog` with the outcome defaulting to *Not assessed* and every detail optional; logging a planned session completes it in the same transaction, refused (409) once it's logged, skipped or cancelled, with a unique index for the race (D25, migration 0007). The quick log sheet on the session page and the exercise page, the log page with *Edit*, and the outcome on Plan's cards. The e2e scenario 3 test times the planned path from opening the session to saved, with an outcome and two details, in under 2 s against FR-07's 30 s (scripted taps, not a person's), and the ad-hoc path likewise. Also e2e: a failed save keeps every choice and retries, a conflicting edit offers *See their version*, and scenario 9 by ID. Until Today (S8) and History (S10) land, an ad-hoc log is reached only from the notice after saving. 552 unit, 111 integration and 155 e2e tests. Not yet tried: any of it on a phone (S7.4). |
+| 2026-11-11 | S7 done. The owner tried the quick log on a phone. *Not assessed* had wrapped onto two lines on the Samsung, squashing its option and misaligning its icon; each outcome option now takes the width of its label, so all four sit on one line with their icons in a row. |
+| 2026-11-11 | S8.1–S8.2 built. `GET /api/v1/today` gives the household's day on its clocks (D26): *Overdue* (still planned and past their time, today's or yesterday's, the owner's call), *Planned*, *Done* (every practice logged today, ad hoc included, so an ad-hoc log is no longer reached only from the notice after saving) and *Skipped* (without sessions cancelled with an archived dog). Reading it extends running series, so today's sessions exist without opening Plan. The Today screen: sections in that order with *Skipped* collapsed, each card naming its dog, **Log** beside planned and overdue cards opening the quick log, *Done* cards with the outcome and who practised, the switcher filtering, an empty day suggesting *Schedule*, and a failed load saying so. The day is fetched again when the app comes back to the front. e2e: FR-06 with two dogs, logging an overdue session from its card in well under FR-07's 30 s, the switcher, the empty day and a failed load. 564 unit, 113 integration and 161 e2e tests. Not yet tried: any of it on a phone (S8.3). |
+| 2026-11-11 | S8 done. The owner tried Today on a phone (S8.3). Nothing to change. With S8 the first usable checkpoint is reached: the household can train with it, without push or care. |
+| 2026-11-11 | Filters reworked on the owner's call, before S12 (ui 0.19 §5.1): chip rows scrolled sideways on the phones, and *All dogs* came last where the library's *All* came first. A shared `FilterSheet` is one button showing the current choice that opens a bottom sheet listing the choices one per row, *All* first; the dog switcher (one dog: still just its avatar) and the library's skill areas (still links to `?area=`) use it. The exercise picker, itself a sheet, drops its area chips and lists the library under skill-area headings, with search. 564 unit and 161 e2e tests. |
+| 2026-11-11 | S12.1–S12.7 built, on the owner's call that the tick works out reminders rather than replanning jobs (D27). Devices, preferences and the send ledger (migration 0008); the tick claims each training reminder by its unique key (session, time, person), reads the session again before sending, retries 1 and 4 minutes later, disables a device on 404/410 and takes over a dead tick's claims after 60 s; it also extends series nobody has opened. `POST /internal/tick` takes Cloud Scheduler's OIDC token or `TICK_SECRET`; elsewhere the server ticks itself. Device endpoints must be on a browser's push service, so the server can't be made to post anywhere (SSRF). The service worker shows reminders, reports their arrival and opens the session; the manifest and icons came forward from S13.1. Notifications (J7) with the delayed test, the reliability steps per maker and other devices; a Today banner; sign-out unsubscribes the browser; a cancelled session's page says so. The e2e suite fakes only the browser's PushManager: the real service worker, server and encryption send to a stand-in push service, and the tests decrypt what a phone would get. 643 unit, 122 integration and 181 e2e tests. Not yet tried: any of it on a phone (S12.8). |
+| 2026-11-13 | S12.8 on the Galaxy S23 FE, installed and closed (owner). Turning on, the delayed test (tapped 06:19:57 SAST, due 06:22:57, sent and received 06:24:14, about 4 minutes after the tap, inside the promised 3–8) and a session's reminder arriving, its tap opening the session to log it. Received within a second of sending each time; lateness was the 5-minute tick, and the inline tick doesn't run on start. A rescheduled session sent once, at its new time (47 s ahead, by design); skipped and cancelled sessions sent nothing. Blocking Toe Beans' notifications in Android settings cancelled the subscription: the next send got 410, the device was disabled, the screen showed *blocked*. Two fixes: an installed app only notices a change to its notification setting when it starts (allowed again, it stayed *blocked* through *Check again* and a reload; blocked, it showed as on), so the blocked state now says to close and reopen it and re-checks on returning to the front; and the phone, subscribing anew, listed its old stopped record as an "other device", so a new device now replaces the person's stopped ones with the same label. S12.8 and S12 closed by the owner without the Redmi Note 12 Pro or the battery steps. If the Redmi drops reminders once it's in use, its battery step is the first thing to check. |
+| 2026-11-13 | S9.1 built. Behaviour events (D28): `/api/v1/behaviour-events` records, reads and edits one with If-Match; a current dog and a category are required, the trigger, how the puppy responded and notes optional, and when defaults to now with the session log's limits. An edit can move an event to another current dog. Mongo adapter with the household-isolation suite (migration 0009, indexed for S10's History). The *Record event* sheet (J5) and the event page `/events/:id` with *Edit*, a failure keeping everything for *Retry* and a conflict offering *See their version*. The floating "+" arrived with it on Today, Plan and History (ui §2.1): *Log training* (the exercise picker, then the quick log), *Record event* and *Schedule session*, with a snackbar linking to what was saved. e2e: scenario 6 (a barking incident for a chosen dog, nothing planned or logged), the switcher's dog starting the sheet, *Log training* from the "+", a failed save, an edit with a conflict and a dog change, and scenario 9 by ID. 659 unit, 127 integration and 193 e2e tests. Events are listed with History (S10); not yet tried on a phone (S9.2). |
+| 2026-11-13 | S9 done. The owner tried it on a phone (S9.2): everything worked. Bottom sheets touched the phone's button bar in the installed app: each sheet's own padding replaced the shared sheet's safe-area padding, so their last 1 rem sat under the bar. The shared sheet now clears it with a bottom border in its own colour (ui 0.23). |
+| 2026-11-13 | S10.1–S10.2 built. `GET /api/v1/history` merges logs and events newest first, 30 a page with a cursor of the last entry's time and ID, filtered by dog, type (training, events or one kind of event, the owner's call for FR-09's "event type"), exercise and dates on the household's clocks (D29). History: the switcher as the dog filter, *Show*, *Exercise* and *Dates* filter buttons kept in the URL, cards under day headings, *Load more*, a failed load with *Try again*. Soft delete (D29, §5.3): `DELETE` with If-Match answers the deleted version, `POST …/restore` is *Undo*. Deleting a planned session's log puts the session back in the plan (cancelled with an archived dog) and *Undo* completes it again unless it was logged, skipped or cancelled meanwhile, both the owner's call. *Delete this log* / *Delete this event* on the detail pages confirm by name, then History's snackbar offers *Undo*. The purge is a 30-day TTL index on `deletedAt` (migration 0010, which also indexes logs by dog). e2e: FR-09's timeline and each filter, *Load more*, a planned log deleted and undone, an event deleted after a conflict and a failed delete, a failed load, and scenario 9 for listing, delete and restore. 683 unit, 140 integration and 205 e2e tests; a household join test timed out once under the full parallel run and passed alone (not this slice's code). Not yet tried on a phone (S10.3). |
+| 2026-11-13 | S10 done. The owner tried it on a phone (S10.3): everything worked. The *Show* filter's *Everything* and *All events* read as the same thing, so they became *All types* (the other filters' *All …*) and *Any event* (ui 0.25 §4.4). |
+| 2026-11-13 | S11.1–S11.3 built, on the owner's calls (D30): no care series, but *Mark done* can plan the next one (1, 3 or 12 months on, or a date) in the same transaction; overdue tasks stay on Care and Today's *Coming up*; an archived dog's tasks are set aside untouched rather than cancelled; reminders are day-based. `/api/v1/care-tasks` with If-Match and an append-only history (migration 0011, household-isolation suite). Care (*Overdue*, *Coming up*, *Done and cancelled*), the add and change pages, the task page with *Mark done*, *Cancel…*, *Put it back* and the cancelled landing; *Add care task* in the "+"; *Coming up* on Today. Care tasks are the tick's second source: at the person's care time (08:00) on the day or 1, 2, 3 or 7 days before, an hour before a timed task when that's earlier, a fallback on the day for a task added after its lead time, 12 h TTL. Notifications gains *Care tasks*, *Remind me* and *At*. 730 unit, 147 integration and 217 e2e tests. |
+| 2026-11-15 | S11 done: the owner closed S11.4. |
+| 2026-11-15 | S13.1–S13.4 built (D31). The service worker precaches the build (Latin fonts only), icons and three fallback pages it fetches on install: *You're offline*, *Can't reach Toe Beans* and the waking skeleton, which stands in for a page load slower than 1 s after a quiet minute, says "Waking up Toe Beans…" 3 s from the tap and loads the page once `/healthz` answers. In the app a navigation over 0.4 s shows the same skeleton. The offline banner follows the phone's online flag and failed requests; offline saves fail at once with the form's *Retry*. Install: Chrome's offer kept from the first moment, *Install Toe Beans* on Today (once), Notifications, More (with the installed state) and a new onboarding step; the manifest's *Log training* and *Record event* shortcuts open Today's "+" sheets. A 200% text e2e check found the bottom bar, one-word titles, the theme choices, labels and the email on More scrolling sideways; all fixed. e2e: the banner, scenario 8 offline, the offline page through the service worker, the precache, the skeleton, installing and the shortcuts. 737 unit, 147 integration and 243 e2e tests. Not yet on a phone (S13.5). |
+| 2026-11-15 | The owner's first look at S13 on a phone, and fixes: install wording now says *device* and names no browser; *Try again* on the offline page checks the server answers first and says when it still can't, and is a plain link too (most likely it reloaded straight into the offline page while the connection was still coming back, or the app's code wasn't cached; to recheck in S13.5); at One UI's 6 and 9 of 9 font steps Today's cards squeezed their titles (time and status now move under the title and *Log* drops below in a card under 18 rem) and Notifications' care reminder time overflowed (the fields stack). The 200% e2e check now covers both. 249 e2e tests. |
+| 2026-11-15 | S13 done. The owner tried S13.5 on the Galaxy S23 FE and closed it without the Redmi Note 12 Pro, whose e2e viewport stays an estimate. S15 added before S14: the owner's snag list, a security audit, and a code review and refactor, each in its own session. |
+| 2026-11-16 | S15.1 done, closed by the owner on the Galaxy S23 FE: the snag list below, with e2e checks for each. `pnpm check` also failed on `develop` already: Kit's `page.url` is now a read-only URL type, so `AddMenu` copies it by its `href`. The owner's open question on sessions several times a day became S6.5. |
+| 2026-11-16 | S15.2 done, tried by the owner on the phone: each finding of the audit (`docs/security-audit.md` v0.2) fixed or decided, on the owner's calls for F7, C3 and F2's subject. D32: the Worker's header secret, a write budget per person, photo limits and one decode at a time, up to 50 dogs, email invite caps counted in the database (migration 0013) with a fixed subject, and the CSP and security headers. D33: *Sign out everywhere*, and a device moves to someone else only with its keys. D34: accepted risks. The image defaults to `APP_ENV=prod`; adapter-node 6.0.1 for a new advisory. Unit, integration and e2e tests (259 e2e pass with the CSP on). |
+| 2026-11-16 | S6.5 done, closed by the owner on the Galaxy S23 FE: several times a day (architecture 1.20 D24, ui 0.29), from the owner's puppy-school question in S15.1. Each time is its own session; *This and following* from a midday session keeps the morning's; migration 0012 moves existing plans and keys. Unit, integration (the migration too) and e2e tests. The error reveal from S15.1 now scrolls at once: a smooth scroll let a quick tap land on the wrong chip, which the e2e suite caught. |
+| 2026-11-16 | S11.5 built, on the owner's call before S15.3 (D35): done care tasks are in History, each leading the day it was done (it has a day and no time), with *Any care* and each kind of care on *Show*, as for events; the two *Other* entries are now *Other event* and *Other care*, and lines divide the sheet's groups (a `divider` on the shared filter sheet's choices). `GET /api/v1/history` reads them as a third source on D29's cursor, which the care source reads as whole days. Migration 0014 adds the index, and the household-isolation suite covers the read. The card shows who marked the task done (`completedBy` on the care DTO), and the task's back link says *History* when it was opened from there. Cancelled and upcoming tasks stay on Care. 774 unit, 156 integration and 261 e2e tests. The owner tried it on the phone, with lines between *Show*'s groups, and S11.5 is done. |
+| 2026-11-16 | S15.3 done, closed by the owner: the code review in eight rounds, one layer or boundary each (domain, application, infrastructure, http and worker, contracts, web library, web routes, tests), and a check of the whole branch afterwards, all recorded with their fixes in `docs/code-review.md` 0.10. Shared helpers replaced copies, the web's form limits and choices now come from the contracts with a test holding them to the domain, and behaviour didn't change, bar one fix found on the way: Kit 3's `data-sveltekit-reset="false"` in place of the ignored `noscroll`. S15 is done. |
+| 2026-11-16 | S15.1 (g) done, tried by the owner: with a mouse, everything clickable shows the pointer and text fields keep the text cursor (ui 0.32 §6.4), one base rule in `app.css` with an e2e check. The owner's other late snag, Android's time dial offering only 1–12, was the dial's inner ring for 13–00, so nothing changed. S15 stays done. |
+
+**Next up:** S14.
 
 ---
 
@@ -209,84 +280,104 @@ Work is organised as **vertical slices**: each delivers a usable end-to-end incr
 | S5.1 | Cue CRUD with optimistic concurrency and a conflict UI | ✅ |
 | S5.2 | On a phone: add, edit and delete cues, and see a conflict from a second device | ✅ |
 
-### S6 Training planner ⬜
+### S6 Training planner ✅
 *FR-05.*
 
 | # | Task | Status |
 |---|---|---|
-| S6.1 | One-off planned sessions: schedule, reschedule, skip, cancel | ⬜ |
-| S6.2 | Recurring plans: recurrence subset, rolling-horizon materialisation (idempotent), edit *this / this and following* | ⬜ |
-| S6.3 | Plan week view | ⬜ |
+| S6.1 | One-off planned sessions: schedule, reschedule, skip, cancel | ✅ |
+| S6.2 | Recurring plans: recurrence subset, rolling-horizon materialisation (idempotent), edit *this / this and following* | ✅ |
+| S6.3 | Plan week view | ✅ |
+| S6.4 | On a phone: schedule once and repeating, the time picker's 5-minute rounding, skip, cancel and put back, *this and following*, and a conflict from a second device. Archiving a dog now cancels its planned sessions and pauses its series; bringing it back restores those still ahead (D24). | ✅ |
+| S6.5 | Several times a day (architecture 1.20 D24): a repeat with up to six times, each its own session; *This and following* from a session keeps that day's earlier ones; migration 0012. The owner closed it on the Galaxy S23 FE. | ✅ |
 
-### S7 Quick training log ⬜
+### S7 Quick training log ✅
 *FR-07, scenario 3.*
 
 | # | Task | Status |
 |---|---|---|
-| S7.1 | SessionLog aggregate: outcome default `not_assessed`, optional context, links to a planned session in one transaction | ⬜ |
-| S7.2 | Quick log sheet: scheduled and ad-hoc paths. Measure the < 30 s target in a Playwright scenario. | ⬜ |
-| S7.3 | Edit a log | ⬜ |
+| S7.1 | SessionLog aggregate: outcome default `not_assessed`, optional context, links to a planned session in one transaction | ✅ |
+| S7.2 | Quick log sheet: scheduled and ad-hoc paths. Measure the < 30 s target in a Playwright scenario. | ✅ |
+| S7.3 | Edit a log | ✅ |
+| S7.4 | On a phone: log a planned session and an ad-hoc one, the details and *When*, edit, and a conflict from a second device | ✅ |
 
-### S8 Today dashboard ⬜
+### S8 Today dashboard ✅
 *FR-06.*
 
 | # | Task | Status |
 |---|---|---|
-| S8.1 | Today read model (overdue, planned, done, skipped, upcoming care), computed in the household time zone | ⬜ |
-| S8.2 | Today screen with per-dog identification and a direct log action | ⬜ |
+| S8.1 | Today read model (overdue, planned, done, skipped), computed in the household time zone. Upcoming care comes with S11. | ✅ |
+| S8.2 | Today screen with per-dog identification and a direct log action | ✅ |
+| S8.3 | On a phone: Today with overdue, planned, done and skipped, logging from a card, the switcher, and coming back to the app later in the day | ✅ |
 
-### S9 Behaviour journal ⬜
+### S9 Behaviour journal ✅
 *FR-08, scenario 6.*
 
 | # | Task | Status |
 |---|---|---|
-| S9.1 | BehaviourEvent CRUD, record-event sheet | ⬜ |
+| S9.1 | BehaviourEvent CRUD, record-event sheet. Delete is S10.2's soft delete. Also the floating "+" and its chooser on Today, Plan and History (ui §2.1): *Log training* (J4), *Record event* (J5), *Schedule session*. | ✅ |
+| S9.2 | On a phone: record an event from the "+" with one and two dogs, *Earlier*, the event page and *Edit* (moving it to the other dog), a conflict from a second device, and *Log training* from the "+". Tried by the owner (13 Nov). | ✅ |
 
-### S10 History ⬜
+### S10 History ✅
 *FR-09.*
 
 | # | Task | Status |
 |---|---|---|
-| S10.1 | Combined timeline query with filters (dog, type, exercise, dates) and cursor pagination | ⬜ |
-| S10.2 | Soft delete with confirmation and undo. Purge job. | ⬜ |
+| S10.1 | Combined timeline query with filters (dog, type, exercise, dates; each a filter button, ui §5.1) and cursor pagination | ✅ |
+| S10.2 | Soft delete with confirmation and undo. Purge job. | ✅ |
+| S10.3 | On a phone: History with logs and events from both dogs, each filter and *Load more*; deleting a log and an event from their pages with *Undo*, and a planned session's log (the session back on Today, then *Done* again after *Undo*). | ✅ |
 
-### S11 Care calendar ⬜
+### S11 Care calendar ✅
 *FR-10, scenario 7.*
 
 | # | Task | Status |
 |---|---|---|
-| S11.1 | CareTask with status history. Create, edit, complete, cancel. | ⬜ |
-| S11.2 | Care tab, and Today's *Coming up* integration | ⬜ |
+| S11.1 | CareTask with status history. Create, edit, complete (with the next one planned if wanted), cancel, put back. | ✅ |
+| S11.2 | Care tab, and Today's *Coming up* integration | ✅ |
+| S11.3 | Care reminders: care tasks as a second source in the reminder tick (D27), `careLeadDays` and `careTimeOfDay` (08:00 for a task with a date and no time) in the preference and on Notifications, a 12 h TTL, the `care/:id` deep link and its cancelled landing | ✅ |
+| S11.4 | On a phone, installed: add a vaccination for one dog from the "+" (scenario 7), see it on Care and in Today's *Coming up*, mark it done planning the next one; move and cancel one; a care reminder arriving the day before at a chosen time and its tap opening the task, and one cancelled before its time sending nothing (scenario 5). Closed by the owner (15 Nov). | ✅ |
+| S11.5 | Done care tasks in History (D35): each leads the day it was done, *Any care* and each kind of care on *Show*, the card with who marked it done, and the task's back link to History. **Built:** the History API's third source with migration 0014 and the isolation suite, the card and filter, and unit, integration and e2e tests. On a phone: mark a task done and find it in History under its day, above that day's logs; *Any care* and one kind of care; open it and come back. Tried by the owner on the phone (16 Nov). | ✅ |
 
-### S12 Push reminders ⬜
+### S12 Push reminders ✅
 *FR-12, NFR-16, scenarios 4 and 5. Builds on the S-1 findings.*
 
 | # | Task | Status |
 |---|---|---|
-| S12.1 | PushSubscription lifecycle: subscribe, unsubscribe, list devices, disable on 404/410 | ⬜ |
-| S12.2 | ReminderPreference per member | ⬜ |
-| S12.3 | NotificationJob + `ReminderPlanner.replan` wired transactionally into session and care use cases | ⬜ |
-| S12.4 | `worker.tick`: atomic claim, stale-subject guard, retries/backoff, recovery of stuck `sending` jobs. Both trigger modes (HTTP endpoint and inline loop). | ⬜ |
-| S12.5 | Service worker `push` + `notificationclick` deep links, including the cancelled-item landing state | ⬜ |
-| S12.6 | Notifications settings state-machine screen, *Make reminders reliable* card (per-manufacturer steps) and the **delayed** test reminder (`ui.md` J7) | ⬜ |
-| S12.7 | Tests: reschedule/cancel produces no stale sends, concurrent ticks produce no duplicates, denied/revoked permission | ⬜ |
+| S12.1 | PushSubscription lifecycle: subscribe, unsubscribe, list devices, disable on 404/410 | ✅ |
+| S12.2 | ReminderPreference per member | ✅ |
+| S12.3 | Training reminders worked out at tick time from planned sessions, with the send ledger's unique key as the claim (D27). Care reminders are S11.3. | ✅ |
+| S12.4 | `worker.tick`: atomic claim, stale-subject guard, retries/backoff, recovery of stuck `sending` jobs. Both trigger modes (HTTP endpoint and inline loop). | ✅ |
+| S12.5 | Service worker `push` + `notificationclick` deep links, including the cancelled-item landing state. The manifest and icons, brought forward from S13.1. | ✅ |
+| S12.6 | Notifications settings state-machine screen, *Make reminders reliable* card (per-manufacturer steps) and the **delayed** test reminder (`ui.md` J7) | ✅ |
+| S12.7 | Tests: reschedule/cancel produces no stale sends, concurrent ticks produce no duplicates, denied/revoked permission | ✅ |
+| S12.8 | On both phones, installed and closed (NFR-16): turn reminders on, the delayed test, a session's reminder arriving and its tap opening the session, a moved and a cancelled session sending nothing, blocking notifications in Android settings, and the battery steps for each maker. Note the delivery times (`receivedAt` against `dueAt`). Done on the Galaxy S23 FE (13 Nov); the owner closed it without the Redmi or the battery steps. | ✅ |
 
-### S13 PWA polish and connectivity ⬜
+### S13 PWA polish and connectivity ✅
 *NFR-03, 04, 09.*
 
 | # | Task | Status |
 |---|---|---|
-| S13.1 | Manifest, icons (export the PNG sizes from `src/lib/assets/brand/`), shortcuts, install prompt handling. The service worker precaches only the Latin font files. | ⬜ |
-| S13.2 | Offline banner, offline shell, failed-save retention and retry (scenario 8) | ⬜ |
-| S13.3 | Cold-start skeletons and the "Waking up" message. Measure view timings on both phones. | ⬜ |
-| S13.4 | Accessibility pass (TalkBack, 200% font scaling) | ⬜ |
+| S13.1 | Shortcuts and install prompt handling (the manifest, icons and a push-only service worker came with S12). The service worker precaches only the Latin font files. | ✅ |
+| S13.2 | Offline banner, offline shell, failed-save retention and retry (scenario 8). The shell only: the library isn't readable offline (D31). | ✅ |
+| S13.3 | Cold-start skeletons and the "Waking up" message. The timings on the phones are S13.5. | ✅ |
+| S13.4 | Accessibility pass: an e2e check at 200% text size, and fixes for what it found. TalkBack is S13.5. | ✅ |
+| S13.5 | On both phones, installed: the install offer from Today and the onboarding step, the shortcuts on a long press, airplane mode (the banner, a failed save kept and retried, the offline page on opening the app), a cold start (the waking skeleton; note the time to Today from cold and warm on each phone, NFR-09), 200% font size and TalkBack on one phone through Today, logging a session and recording an event. Measure the Redmi's viewport for its e2e profile. Done on the Galaxy S23 FE (15 Nov); the owner closed it without the Redmi. | ✅ |
+
+### S15 Pre-release review ✅
+*Before S14: go-live prep starts from reviewed code. Numbered after S14 only because it was added later.*
+
+| # | Task | Status |
+|---|---|---|
+| S15.1 | The owner's snag list: small fixes and polish found while using the app. **Built (ui 0.28):** (a) Notifications lists *Your devices*, all of them, this one first and marked *This device*; (b) selects and date and time fields show the filter buttons' chevron 16 px in from the edge; (c) the exercise page's *Schedule* / *Log practice* bar sits flush on the bottom bar; (d) the "+" is on Care too and offers the page's own record first; (e) a list page's primary action leads it (Plan's *Schedule*, Dogs, the cue dictionary); (f) a failed submit brings the first message into view and focuses its field; (g) with a mouse, everything clickable shows the pointer and text fields the text cursor (ui 0.32 §6.4), from a later snag. **Open question, answered:** sessions several times a day (puppy school's "before each feeding") became S6.5. The owner closed all but (b) on the Galaxy S23 FE, which came back with two snags: Android still drew its own arrow beside the chevron on date and time fields (now `appearance: none`), and desktop Chrome's dark theme showed options light on grey (now the theme's surface). The owner then closed (b) on the phone, after a third fix: Android's leftover arrow margin clipped the date's last character. | ✅ |
+| S15.2 | Security audit of the whole app against architecture §7 and NFR-01/02: household isolation on every read and write (scenario 9), sign-in and sessions, invitations, uploads, push endpoints and the tick, headers and CSP, secrets and logging. Findings fixed or recorded with a decision. **Audit done (16 Nov):** `docs/security-audit.md` lists the findings with file and line, severity and fix: F1–F7 confirmed, C1–C4 worth checking. **Built (architecture 1.21, ui 0.30; audit v0.2 has each resolution):** F1 the app refuses requests without the Worker's header secret (`PROXY_SECRET`, required in prod; D32); F2 email invitations capped per person, per household and in total from the stored invitations, with a fixed subject (D32); F3 the CSP with nonces and the other security headers (D32); F4 the image defaults to `APP_ENV=prod`; F5 a photo budget per person, one decode at a time, up to 50 dogs (D32); F6 a device moves to someone else only with its keys (D33); F7 *Sign out everywhere* on More (D33); C3 a write budget per person (D32); C1, C2 and C4 accepted (D34), with adapter-node 6.0.1 for a new advisory. The owner tried it on the phone: pages under the CSP and *Sign out everywhere*. F1's address header and C1/C2's checks are S14.1's. | ✅ |
+| S15.3 | Code review and refactor: duplication, dead code, layer boundaries (architecture §4.2) and test gaps, without changing behaviour. Notable changes recorded in the architecture decision log. Tracked round by round in `docs/code-review.md`. | ✅ |
 
 ### S14 Operations and release ⬜
 *NFR-05, 07, 10, 12, scenario 10.*
 
 | # | Task | Status |
 |---|---|---|
-| S14.1 | Production environment provisioned (the platform chosen in S-1). Secrets in the platform store, including `RESEND_API_KEY`, which prod won't start without. Budget alert. Deploy workflow per architecture D15: Workload Identity Federation with an attribute condition pinning this repo and the `production` environment, a least-privilege deploy service account, a `production` environment (main only, owner approval), images in Artifact Registry deployed by digest. The client address for rate limits (architecture §7): the Worker forwards `CF-Connecting-IP`, `ADDRESS_HEADER`/`XFF_DEPTH` are set to match, and a sign-in from a phone confirms the app sees the phone's address. | ⬜ |
+| S14.1 | Production environment provisioned (the platform chosen in S-1). Secrets in the platform store, including `RESEND_API_KEY` and `VAPID_PRIVATE_KEY`, which prod won't start without (generate the pair once with `pnpm vapid`). The Cloud Scheduler job `toe-beans-tick` POSTs `/internal/tick` every 5 minutes with an OIDC token for its service account (`TICK_AUDIENCE`, `TICK_INVOKER`), as the spike's did. Budget alert. Deploy workflow per architecture D15: Workload Identity Federation with an attribute condition pinning this repo and the `production` environment, a least-privilege deploy service account, a `production` environment (main only, owner approval), images in Artifact Registry deployed by digest. The client address for rate limits (architecture §7): the Worker forwards `CF-Connecting-IP`, `ADDRESS_HEADER`/`XFF_DEPTH` are set to match, and a sign-in from a phone confirms the app sees the phone's address. The Worker sends `x-toe-beans-proxy` with `PROXY_SECRET` (Secret Manager on both sides; prod won't start without it, D32), and a request to `run.app` directly gets 403. The audit's checks on deployed settings (D34): Cloud Run's and Cloudflare's request logs are readable by the owner only, with known retention (they hold invite tokens); the prod Auth0 tenant has only Google and the database connection on. | ⬜ |
 | S14.2 | Nightly encrypted `mongodump` to R2, photo bucket copy, retention | ⬜ |
 | S14.3 | Restore runbook written **and tested** (`docs/runbooks/restore.md`) | ⬜ |
 | S14.4 | Uptime monitor. Sentry alerts. Accounts inventory (`docs/runbooks/accounts.md`). | ⬜ |
@@ -312,7 +403,7 @@ Work is organised as **vertical slices**: each delivers a usable end-to-end incr
 
 | Item | Notes |
 |---|---|
-| Delivery diagnostics screen | Owner view of recent notification jobs and device failures. Deferred in review round 1; the data already exists in `NotificationJob`. |
+| Delivery diagnostics screen | Owner view of recent reminders and device failures. Deferred in review round 1; the data already exists in the `reminders` ledger (D27), for 30 days. |
 
 ## P2 — Deferred (not planned)
 
@@ -324,7 +415,7 @@ See `requirements.md` §3 "Explicitly deferred". Highlights: AI recommendations,
 
 ```
 S-1 spikes ─┐
-S0 ─────────┴─► S1 ─► S2 ─► S3 ─► S4 ─► S6 ─► S7 ─► S8 ─► S12 ─► S13 ─► S14
+S0 ─────────┴─► S1 ─► S2 ─► S3 ─► S4 ─► S6 ─► S7 ─► S8 ─► S12 ─► S13 ─► S15 ─► S14
                                    └─► S5      └─► S9 ─► S10
                                                └─► S11 ──────┘
 ```

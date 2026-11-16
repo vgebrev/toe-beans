@@ -2,7 +2,7 @@ import type { Result } from '../../domain/result.js';
 
 /**
  * Runs several repository calls as one transaction (architecture §7): a log and its planned
- * session's status, a subject and its reminder replan, an invite acceptance and the membership.
+ * session's status, a dog's archive and its sessions, an invite acceptance and the membership.
  */
 export interface UnitOfWork {
 	/**

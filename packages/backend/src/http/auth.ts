@@ -4,6 +4,7 @@
 import type { Auth, Viewer } from '../application/auth/auth.js';
 import { SIGN_IN_TTL_MS } from '../application/auth/auth.js';
 import type { Logger, RateLimiter } from '../application/ports/index.js';
+import { isSafeMethod } from './edge.js';
 import { problem, redirect, type HttpResponse, type SetCookie } from './response.js';
 
 export interface AuthHttpOptions {
@@ -63,8 +64,6 @@ export function signInPath(returnTo: string, error?: SignInError): string {
 	return query ? `${SIGN_IN_PAGE}?${query}` : SIGN_IN_PAGE;
 }
 
-const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
-
 export interface AuthHttp {
 	/**
 	 * `GET /auth/sign-in`: off to the provider. `clientAddress` is the caller's IP address as the
@@ -81,8 +80,8 @@ export interface AuthHttp {
 		cookie: CookieReader;
 		clientAddress: string;
 	}): Promise<HttpResponse>;
-	/** `POST /auth/sign-out`. */
-	signOut(input: { cookie: CookieReader }): Promise<HttpResponse>;
+	/** `POST /auth/sign-out`. `everywhere` ends all of the person's sessions (*Sign out everywhere*). */
+	signOut(input: { cookie: CookieReader; everywhere?: boolean }): Promise<HttpResponse>;
 	/**
 	 * The viewer for this request, or null. `cookies` renews or clears the session cookie, and the
 	 * host must set them on the response.
@@ -161,8 +160,8 @@ export function createAuthHttp(
 			return redirect(returnTo, [clear(names.signIn), sessionCookie(token, expiresAt)]);
 		},
 
-		async signOut({ cookie: read }) {
-			const { url } = await auth.signOut(read(names.session));
+		async signOut({ cookie: read, everywhere = false }) {
+			const { url } = await auth.signOut(read(names.session), { everywhere });
 			return redirect(url, [clear(names.session)]);
 		},
 
@@ -178,7 +177,7 @@ export function createAuthHttp(
 		},
 
 		checkOrigin({ method, origin, fetchSite }) {
-			if (SAFE_METHODS.has(method.toUpperCase())) return null;
+			if (isSafeMethod(method)) return null;
 			if (origin === publicOrigin) return null;
 			// Browsers send Origin on every non-GET request; Sec-Fetch-Site covers any that don't.
 			if (origin === null && fetchSite === 'same-origin') return null;

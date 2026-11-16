@@ -136,6 +136,45 @@
 		line-height: 1.5;
 	}
 
+	/* Everything clickable shows the pointer (Tailwind 4's preflight gives buttons the default
+	   arrow). Fields you type into keep the text cursor; date and time fields count as
+	   clickable, since a tap or click opens their picker. Disabled controls keep the browser's
+	   cursor, or a component's `disabled:cursor-not-allowed`, which as a utility wins. */
+	:is(
+		a[href],
+		button,
+		summary,
+		select,
+		label:has(input:is([type='checkbox'], [type='radio']):not(:disabled)),
+		input:is(
+			[type='checkbox'],
+			[type='radio'],
+			[type='date'],
+			[type='time'],
+			[type='datetime-local'],
+			[type='file'],
+			[type='color'],
+			[type='range'],
+			[type='button'],
+			[type='submit'],
+			[type='reset']
+		),
+		[role='button'],
+		[role='switch'],
+		[role='tab'],
+		[role='option'],
+		[role='menuitem'],
+		[role='checkbox'],
+		[role='radio']
+	):not(:disabled, [aria-disabled='true']) {
+		cursor: pointer;
+	}
+
+	::-webkit-calendar-picker-indicator,
+	::file-selector-button {
+		cursor: pointer;
+	}
+
 	:focus-visible {
 		outline: 2px solid var(--tb-primary);
 		outline-offset: 2px;

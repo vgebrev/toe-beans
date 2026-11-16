@@ -6,12 +6,13 @@ import {
 	type Dog as DogDto,
 	type Dogs as DogsDto
 } from '@toe-beans/contracts';
-import type { MemberViewer, Viewer } from '../application/auth/auth.js';
+import type { Viewer } from '../application/auth/auth.js';
 import type { Dogs } from '../application/dogs/dogs.js';
 import { notFound, validationError } from '../application/errors.js';
 import type { Dog, PhotoSize } from '../domain/dog.js';
 import { etag, versionFromIfMatch } from './etag.js';
 import { errorResponse, json, respond, type HttpResponse } from './response.js';
+import { isMember, noHousehold } from './member.js';
 import { parseInput } from './validation.js';
 
 /**
@@ -59,8 +60,6 @@ export const dogDto = (dog: Dog): DogDto => ({
 const dogResponse = (status: number) => (dog: Dog) =>
 	json(dogDto(dog), status, { etag: etag(dog.version) });
 
-const isMember = (viewer: Viewer): viewer is MemberViewer => viewer.member !== null;
-const noHousehold = () => errorResponse(notFound('household'));
 const notAForm = () =>
 	errorResponse(validationError('Send the dog and its photo as multipart/form-data.'));
 

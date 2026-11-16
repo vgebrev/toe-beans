@@ -5,6 +5,8 @@ import type {
 	SessionRepository,
 	UserRepository
 } from './auth-repositories.js';
+import type { BehaviourEventRepository } from './behaviour-event-repository.js';
+import type { CareTaskRepository } from './care-task-repository.js';
 import type { Clock } from './clock.js';
 import type { CueRepository } from './cue-repository.js';
 import type { DogRepository, PhotoProcessor, PhotoStore } from './dog-ports.js';
@@ -14,8 +16,16 @@ import type { ExerciseCatalogue } from './exercise-catalogue.js';
 import type { HouseholdRepository, InvitationRepository } from './household-repositories.js';
 import type { IdentityProvider } from './identity-provider.js';
 import type { Logger } from './logger.js';
+import type { PlannedSessionRepository, TrainingPlanRepository } from './planner-repositories.js';
 import type { RateLimiter } from './rate-limiter.js';
+import type {
+	PushDeviceRepository,
+	PushSender,
+	ReminderPreferenceRepository,
+	ReminderRepository
+} from './reminder-ports.js';
 import type { Readiness } from './readiness.js';
+import type { SessionLogRepository } from './session-log-repository.js';
 import type { UnitOfWork } from './unit-of-work.js';
 
 export type {
@@ -26,6 +36,17 @@ export type {
 	SignInProfile,
 	UserRepository
 } from './auth-repositories.js';
+export type {
+	BehaviourEventChanges,
+	BehaviourEventRepository,
+	NewBehaviourEvent
+} from './behaviour-event-repository.js';
+export type {
+	CareTaskChanges,
+	CareTaskRepository,
+	CareTimelineQuery,
+	NewCareTask
+} from './care-task-repository.js';
 export type { Clock } from './clock.js';
 export type { CueChanges, CueRepository, NewCue } from './cue-repository.js';
 export type {
@@ -53,8 +74,33 @@ export type {
 	SignInChecks
 } from './identity-provider.js';
 export type { LogFields, Logger } from './logger.js';
+export type {
+	NewPlannedSession,
+	NewTrainingPlan,
+	PlannedSessionChanges,
+	PlannedSessionRepository,
+	TrainingPlanChanges,
+	TrainingPlanRepository
+} from './planner-repositories.js';
 export type { RateLimitDecision, RateLimiter } from './rate-limiter.js';
+export type {
+	NewPushDevice,
+	NewReminder,
+	PushDeviceRepository,
+	PushOptions,
+	PushOutcome,
+	PushSender,
+	ReminderOutcome,
+	ReminderPreferenceRepository,
+	ReminderRepository
+} from './reminder-ports.js';
 export type { Readiness } from './readiness.js';
+export type {
+	NewSessionLog,
+	SessionLogChanges,
+	SessionLogRepository
+} from './session-log-repository.js';
+export type { TimelineCursor, TimelineQuery } from './timeline.js';
 export type { UnitOfWork } from './unit-of-work.js';
 
 export interface Ports {
@@ -75,8 +121,10 @@ export interface Ports {
 	email: EmailSender;
 	/** Looking at or accepting an invitation, per client address (architecture §7). */
 	inviteRateLimit: RateLimiter;
-	/** Invitations sent by email, per household, so one can't be used to mail people at will. */
-	inviteEmailRateLimit: RateLimiter;
+	/** API writes, per signed-in person (architecture D32). */
+	writeRateLimit: RateLimiter;
+	/** Dog photo uploads, per person (architecture D32). */
+	photoRateLimit: RateLimiter;
 	dogs: DogRepository;
 	photos: PhotoStore;
 	photoProcessor: PhotoProcessor;
@@ -84,4 +132,22 @@ export interface Ports {
 	exercises: ExerciseCatalogue;
 	/** The shared cue dictionary (FR-04). */
 	cues: CueRepository;
+	/** Recurring series of planned sessions (FR-05). */
+	plans: TrainingPlanRepository;
+	/** Planned sessions, one-off or from a series (FR-05). */
+	plannedSessions: PlannedSessionRepository;
+	/** Practised sessions, planned or not (FR-07). */
+	sessionLogs: SessionLogRepository;
+	/** Notable moments with a dog, outside training (FR-08). */
+	behaviourEvents: BehaviourEventRepository;
+	/** Dog-specific care tasks: vaccinations, vet visits and the like (FR-10). */
+	careTasks: CareTaskRepository;
+	/** Browsers people turned reminders on in (FR-12). */
+	pushDevices: PushDeviceRepository;
+	/** What each person wants reminding of. */
+	reminderPreferences: ReminderPreferenceRepository;
+	/** The send ledger: one entry per reminder per person (D27). */
+	reminders: ReminderRepository;
+	/** Web Push (VAPID). */
+	push: PushSender;
 }

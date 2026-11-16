@@ -13,11 +13,14 @@ import {
 import { validationError } from '../../domain/errors.js';
 import { isId, type Id } from '../../domain/id.js';
 import { err, ok, type Result } from '../../domain/result.js';
-import type { MemberContext } from '../auth/auth.js';
+import type { MemberContext, PlannerContext } from '../auth/auth.js';
+import type { Planner } from '../planner/planner.js';
 import {
 	notFound,
+	rateLimited,
 	staleVersion,
 	type NotFoundError,
+	type RateLimitedError,
 	type StaleVersionError,
 	type ValidationError
 } from '../errors.js';
@@ -27,6 +30,12 @@ import type { DogChanges, Ports, ProcessedPhoto, StoredPhoto } from '../ports/in
 export const PHOTO_MAX_BYTES = 10 * 1024 * 1024;
 
 const SIZES: readonly PhotoSize[] = ['large', 'thumb'];
+
+/**
+ * Dogs a household may have, archived ones included (architecture D32, security audit F5), so one
+ * account can't fill storage with photos. Far above any real household.
+ */
+export const MAX_DOGS = 50;
 
 /** What a person sends. In an update, a missing field stays as it was and null clears it. */
 export interface DogInput {
@@ -48,14 +57,26 @@ export type Dogs = ReturnType<typeof createDogs>;
 
 const orUndefined = <T>(value: T | null | undefined): T | undefined => value ?? undefined;
 
-export function createDogs({
-	dogs,
-	photos,
-	photoProcessor,
-	clock,
-	ids,
-	logger
-}: Pick<Ports, 'dogs' | 'photos' | 'photoProcessor' | 'clock' | 'ids' | 'logger'>) {
+/**
+ * `planner` is told when a dog is archived or brought back, in the same transaction, so the
+ * dog's plans pause and resume with it (D24).
+ */
+export function createDogs(
+	{
+		dogs,
+		photos,
+		photoProcessor,
+		photoRateLimit,
+		uow,
+		clock,
+		ids,
+		logger
+	}: Pick<
+		Ports,
+		'dogs' | 'photos' | 'photoProcessor' | 'photoRateLimit' | 'uow' | 'clock' | 'ids' | 'logger'
+	>,
+	planner: Pick<Planner, 'dogArchived' | 'dogRestored'>
+) {
 	const log = logger.child({ component: 'dogs' });
 	/** A malformed ID can't be anyone's dog, so it's not found without asking the database. */
 	const find = async (ctx: MemberContext, id: string) =>
@@ -64,8 +85,16 @@ export function createDogs({
 	/** Field errors for the photo, before any decoding: there must be one, and not too large. */
 	const photoProblem = (photo: Uint8Array | null): string | null => {
 		if (!photo || photo.byteLength === 0) return 'Add a photo of your dog.';
-		if (photo.byteLength > PHOTO_MAX_BYTES) return 'Choose a photo under 10 MB.';
+		if (photo.byteLength > PHOTO_MAX_BYTES)
+			return `Choose a photo under ${PHOTO_MAX_BYTES / 1024 / 1024} MB.`;
 		return null;
+	};
+	/** Each upload is decoded, the costly part, so each person has a budget (D32). */
+	const overPhotoBudget = (ctx: MemberContext) => {
+		const decision = photoRateLimit.take(ctx.userId);
+		if (decision.allowed) return false;
+		log.warn('photo upload rate limited', { userId: ctx.userId });
+		return true;
 	};
 	const unreadable = validationError('The photo is not valid.', {
 		photo: ['Choose a JPEG, PNG or WebP photo.']
@@ -112,7 +141,7 @@ export function createDogs({
 		async create(
 			ctx: MemberContext,
 			input: { details: DogInput; photo: Uint8Array | null }
-		): Promise<Result<Dog, ValidationError>> {
+		): Promise<Result<Dog, ValidationError | RateLimitedError>> {
 			const now = clock.now();
 			const { name = '', birth, adoptionDate, notes } = input.details;
 			const details = cleanDogDetails(
@@ -133,11 +162,15 @@ export function createDogs({
 					})
 				);
 			}
+			const { householdId } = ctx;
+			const others = await dogs.list(householdId);
+			if (others.length >= MAX_DOGS) {
+				return err(validationError(`A household can have up to ${MAX_DOGS} dogs.`));
+			}
+			if (overPhotoBudget(ctx)) return err(rateLimited);
 			const processed = await photoProcessor.process(input.photo!);
 			if (!processed) return err(unreadable);
 
-			const { householdId } = ctx;
-			const others = await dogs.list(householdId);
 			const dog = { id: ids.next(), householdId };
 			const photoId = ids.next();
 			const keys = await store(dog, photoId, processed);
@@ -159,9 +192,10 @@ export function createDogs({
 		/**
 		 * Changes the details given, and archives or brings back the dog with `archived`. The
 		 * result is checked as a whole, so a new birth date can't land after the adoption date.
+		 * Archiving also cancels the dog's planned sessions, and bringing it back plans them again.
 		 */
 		async update(
-			ctx: MemberContext,
+			ctx: PlannerContext,
 			input: { id: string; expectedVersion: number; details: DogInput; archived?: boolean }
 		): Promise<Result<Dog, ValidationError | NotFoundError | StaleVersionError>> {
 			const dog = await find(ctx, input.id);
@@ -187,7 +221,16 @@ export function createDogs({
 			if (input.archived !== undefined) {
 				changes.archivedAt = input.archived ? (dog.archivedAt ?? now) : undefined;
 			}
-			const updated = await dogs.update(ctx.householdId, dog.id, input.expectedVersion, changes);
+			const archiving = input.archived === true && !dog.archivedAt;
+			const restoring = input.archived === false && !!dog.archivedAt;
+			const updated = await uow.run<Dog, NotFoundError | StaleVersionError>(async () => {
+				const saved = await dogs.update(ctx.householdId, dog.id, input.expectedVersion, changes);
+				if (!saved.ok || !(archiving || restoring)) return saved;
+				const plans = archiving
+					? await planner.dogArchived(ctx, dog.id)
+					: await planner.dogRestored(ctx, dog.id);
+				return plans.ok ? saved : plans;
+			});
 			if (updated.ok && input.archived !== undefined && input.archived !== !!dog.archivedAt) {
 				const event = input.archived ? 'dog archived' : 'dog unarchived';
 				log.info(event, { householdId: ctx.householdId, dogId: dog.id });
@@ -199,13 +242,16 @@ export function createDogs({
 		async changePhoto(
 			ctx: MemberContext,
 			input: { id: string; expectedVersion: number; photo: Uint8Array | null }
-		): Promise<Result<Dog, ValidationError | NotFoundError | StaleVersionError>> {
+		): Promise<
+			Result<Dog, ValidationError | NotFoundError | StaleVersionError | RateLimitedError>
+		> {
 			const problem = photoProblem(input.photo);
 			if (problem) return err(validationError('The photo is not valid.', { photo: [problem] }));
 			const dog = await find(ctx, input.id);
 			if (!dog) return err(notFound('dog'));
 			// Checked again by the write; this only saves decoding a photo that can't be saved.
 			if (dog.version !== input.expectedVersion) return err(staleVersion);
+			if (overPhotoBudget(ctx)) return err(rateLimited);
 			const processed = await photoProcessor.process(input.photo!);
 			if (!processed) return err(unreadable);
 

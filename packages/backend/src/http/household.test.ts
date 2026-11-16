@@ -6,8 +6,8 @@ import type { RateLimiter } from '../application/ports/index.js';
 import type { Id } from '../domain/id.js';
 import { ok } from '../domain/result.js';
 import { createHouseholdHttp } from './household.js';
+import { silentLogger } from '../testing/logger.js';
 
-const silent = { debug() {}, info() {}, warn() {}, error() {}, child: () => silent };
 const allowAll: RateLimiter = { take: () => ({ allowed: true }) };
 const refuseAll: RateLimiter = { take: () => ({ allowed: false, retryAfterSeconds: 60 }) };
 const client = { clientAddress: '203.0.113.7' };
@@ -69,7 +69,7 @@ function setup(rateLimit = allowAll) {
 		preview: vi.fn(async () => ok({ status: 'open' as const, signedIn: false })),
 		accept: vi.fn(async () => ok(undefined))
 	} as unknown as Invitations;
-	const http = createHouseholdHttp(households, invitations, { rateLimit, logger: silent });
+	const http = createHouseholdHttp(households, invitations, { rateLimit, logger: silentLogger });
 	return { http, households, invitations };
 }
 

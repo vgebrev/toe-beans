@@ -1,0 +1,56 @@
+// /api/v1/history (architecture §5.1, FR-08, FR-09, D35). Someone with no household gets a 404, like
+// every household resource (§4.4).
+import { HistoryQuery, type HistoryPage as HistoryPageDto } from '@toe-beans/contracts';
+import type { Viewer } from '../application/auth/auth.js';
+import type { History } from '../application/history/history.js';
+import type { Clock } from '../application/ports/index.js';
+import { todayIn } from '../domain/calendar.js';
+import { careTaskDto } from './care-tasks.js';
+import { behaviourEventDto } from './behaviour-events.js';
+import { isMember, noHousehold } from './member.js';
+import { errorResponse, json, respond, type HttpResponse } from './response.js';
+import { sessionLogDto } from './session-logs.js';
+import { parseInput } from './validation.js';
+
+export interface HistoryHttp {
+	/** `query` is the URL's search parameters. */
+	list(viewer: Viewer, input: { query: Record<string, string> }): Promise<HttpResponse>;
+}
+
+export function createHistoryHttp(history: History, clock: Clock): HistoryHttp {
+	return {
+		async list(viewer, { query }) {
+			if (!isMember(viewer)) return noHousehold();
+			const { timeZone } = viewer.member;
+			const input = parseInput(HistoryQuery, query);
+			if (!input.ok) return errorResponse(input.error);
+			const { dog, type, exercise, from, to, cursor } = input.value;
+			const found = await history.list(viewer.member, {
+				dogId: dog,
+				type,
+				exerciseId: exercise,
+				from,
+				to,
+				cursor
+			});
+			return respond(found, (page) =>
+				json({
+					entries: page.entries.map((entry) => {
+						switch (entry.kind) {
+							case 'training':
+								return { kind: 'training' as const, log: sessionLogDto(entry.view, timeZone) };
+							case 'event':
+								return { kind: 'event' as const, event: behaviourEventDto(entry.view, timeZone) };
+							case 'care':
+								return {
+									kind: 'care' as const,
+									task: careTaskDto(entry.view, todayIn(clock.now(), timeZone))
+								};
+						}
+					}),
+					...(page.next && { next: page.next })
+				} satisfies HistoryPageDto)
+			);
+		}
+	};
+}

@@ -34,6 +34,15 @@ export const ExerciseSummary = z.object({
 });
 export type ExerciseSummary = z.infer<typeof ExerciseSummary>;
 
+/** An exercise as a session or a log names it. */
+export const ExerciseRef = z.object({
+	id: z.string(),
+	/** The exercise's ID when the library no longer has it. */
+	title: z.string(),
+	minutes: z.number().optional()
+});
+export type ExerciseRef = z.infer<typeof ExerciseRef>;
+
 /** In library order. */
 export const Exercises = z.object({ exercises: z.array(ExerciseSummary) });
 export type Exercises = z.infer<typeof Exercises>;

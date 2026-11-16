@@ -35,6 +35,26 @@ test('the server is ready and tags responses with a request ID', async ({ reques
 	expect(response.headers()['x-request-id']).toMatch(/^[0-9a-f-]{36}$/);
 });
 
+test('pages carry the CSP with a nonce and the other security headers (architecture §7)', async ({
+	page
+}) => {
+	const response = (await page.goto('/more'))!;
+	const headers = response.headers();
+	const csp = headers['content-security-policy']!;
+	expect(csp).toMatch(/script-src 'self' 'nonce-[\w+/=]+'/);
+	expect(csp).toContain("frame-ancestors 'none'");
+	expect(csp).toContain("object-src 'none'");
+	// app.html's inline theme script runs under it: theme.spec.ts checks the override applies.
+	expect(headers).toMatchObject({
+		'referrer-policy': 'same-origin',
+		'x-content-type-options': 'nosniff',
+		'cross-origin-opener-policy': 'same-origin'
+	});
+	expect(headers['permissions-policy']).toContain('camera=(self)');
+	// e2e runs on http://localhost, where HSTS doesn't apply.
+	expect(headers).not.toHaveProperty('strict-transport-security');
+});
+
 test('only the Latin fonts are preloaded, so text rarely swaps after first paint', async ({
 	page
 }) => {

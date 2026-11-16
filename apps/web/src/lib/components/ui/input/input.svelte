@@ -1,6 +1,11 @@
 <script lang="ts">
 	// Toe Beans: 48 px tall for the touch target (ui.md §1, §7), and 16 px text at every width so
-	// Chrome never zooms in on focus.
+	// Chrome never zooms in on focus. A date or time field shows the filter buttons' chevron,
+	// 16 px in from the right edge, over the browser's own picker button, which stays there
+	// (transparent) to open the picker where tapping the text doesn't. `appearance-none` drops
+	// the dropdown arrow Chrome on Android draws on these fields as well, and the value loses the
+	// margin Android keeps for that arrow (24 px on the right), which otherwise clips its end.
+	import Icon from '#lib/components/icon/Icon.svelte';
 	import { cn, type WithElementRef } from '#lib/utils.js';
 	import type { HTMLInputAttributes, HTMLInputTypeAttribute } from 'svelte/elements';
 
@@ -20,6 +25,14 @@
 		'data-slot': dataSlot = 'input',
 		...restProps
 	}: Props = $props();
+
+	const picker = $derived(
+		type === 'date' ||
+			type === 'time' ||
+			type === 'datetime-local' ||
+			type === 'month' ||
+			type === 'week'
+	);
 </script>
 
 {#if type === 'file'}
@@ -35,6 +48,26 @@
 		bind:value
 		{...restProps}
 	/>
+{:else if picker}
+	<span class="relative flex w-full min-w-0">
+		<input
+			bind:this={ref}
+			data-slot={dataSlot}
+			class={cn(
+				'dark:bg-input/30 border-input focus-visible:border-ring focus-visible:ring-ring/50 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive dark:aria-invalid:border-destructive/50 disabled:bg-input/50 dark:disabled:bg-input/80 h-12 rounded-xl border bg-transparent px-4 py-1 text-base transition-colors focus-visible:ring-3 aria-invalid:ring-3 w-full min-w-0 outline-none placeholder:text-muted-foreground disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50',
+				'relative appearance-none pr-11 [&::-webkit-date-and-time-value]:m-0 [&::-webkit-date-and-time-value]:text-left [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:inset-y-0 [&::-webkit-calendar-picker-indicator]:right-0 [&::-webkit-calendar-picker-indicator]:m-0 [&::-webkit-calendar-picker-indicator]:h-full [&::-webkit-calendar-picker-indicator]:w-12 [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:opacity-0',
+				className
+			)}
+			{type}
+			bind:value
+			{...restProps}
+		/>
+		<Icon
+			name="expand"
+			size={20}
+			class="pointer-events-none absolute top-1/2 right-4 -translate-y-1/2 text-muted-foreground"
+		/>
+	</span>
 {:else}
 	<input
 		bind:this={ref}

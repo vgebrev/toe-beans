@@ -1,6 +1,6 @@
 import { z } from 'zod';
-import { describe, expect, it, vi } from 'vitest';
-import { ContractError, createApiClient } from './index.js';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { ContractError, createApiClient, observeConnection, writeCount } from './index.js';
 
 const Dog = z.object({ id: z.string(), name: z.string() });
 
@@ -15,6 +15,19 @@ function respond(status: number, body?: unknown, headers: Record<string, string>
 }
 
 describe('createApiClient', () => {
+	it('counts the writes it sends, landed or not, but not reads', async () => {
+		const api = createApiClient(respond(500));
+		const before = writeCount();
+		await api.get('/dogs', Dog);
+		expect(writeCount()).toBe(before);
+		await api.send('DELETE', '/dogs/d1');
+		await createApiClient(vi.fn(async () => Promise.reject(new Error('offline')))).send(
+			'POST',
+			'/dogs'
+		);
+		expect(writeCount()).toBe(before + 2);
+	});
+
 	it('gets and validates a resource, with its ETag', async () => {
 		const fetchMock = respond(200, { id: 'd1', name: 'Ripley' }, { etag: '"3"' });
 		const result = await createApiClient(fetchMock).get('/dogs/d1', Dog);
@@ -117,5 +130,47 @@ describe('createApiClient', () => {
 		const fetchMock = respond(200, { id: 'd1', name: 'Ripley' });
 		await createApiClient(fetchMock, 'https://api.example.test/v1').get('/dogs/d1', Dog);
 		expect(fetchMock.mock.calls[0]![0]).toBe('https://api.example.test/v1/dogs/d1');
+	});
+});
+
+describe('the connection', () => {
+	afterEach(() => {
+		observeConnection(null);
+		vi.unstubAllGlobals();
+	});
+
+	it('tells the observer whether each request reached Toe Beans', async () => {
+		const seen: boolean[] = [];
+		observeConnection((reached) => seen.push(reached));
+		await createApiClient(respond(200, { id: 'd1', name: 'Ripley' })).get('/dogs/d1', Dog);
+		await createApiClient(respond(404)).get('/dogs/d2', Dog);
+		await createApiClient(respond(503)).get('/dogs', Dog);
+		await createApiClient(
+			vi.fn<typeof globalThis.fetch>(async () => {
+				throw new TypeError('Failed to fetch');
+			})
+		).get('/dogs', Dog);
+		expect(seen).toEqual([true, true, false, false]);
+	});
+
+	it('fails a write straight away when the device is offline, without sending or counting it', async () => {
+		vi.stubGlobal('navigator', { onLine: false });
+		const seen: boolean[] = [];
+		observeConnection((reached) => seen.push(reached));
+		const fetchMock = respond(201, {});
+		const before = writeCount();
+
+		const result = await createApiClient(fetchMock).send('POST', '/dogs', { body: {} });
+
+		expect(result).toEqual({ ok: false, error: { kind: 'network' } });
+		expect(fetchMock).not.toHaveBeenCalled();
+		expect(writeCount()).toBe(before);
+		expect(seen).toEqual([false]);
+	});
+
+	it('only fails writes fast: a read is tried, and fails or not on its own', async () => {
+		vi.stubGlobal('navigator', { onLine: false });
+		const fetchMock = respond(200, { id: 'd1', name: 'Ripley' });
+		expect((await createApiClient(fetchMock).get('/dogs/d1', Dog)).ok).toBe(true);
 	});
 });

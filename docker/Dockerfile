@@ -26,6 +26,9 @@ RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store \
 
 FROM ${NODE_IMAGE} AS runtime
 ENV NODE_ENV=production
+# The image is prod unless told otherwise, so a deploy that forgets APP_ENV still gets every prod
+# guard (security audit F4). Compose's app profile sets it back to local.
+ENV APP_ENV=prod
 # Cloud Run sets PORT itself; 8080 is its default too.
 ENV PORT=8080
 # adapter-node refuses bodies over 512 KB by default. A dog's photo may be up to 10 MB (§3.6).

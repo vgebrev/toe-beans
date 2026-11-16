@@ -19,14 +19,13 @@ import {
 } from './household-collections.js';
 import { migrate, migrations } from './migrations/index.js';
 import { mongoUnitOfWork } from './unit-of-work.js';
+import { silentLogger } from '../../testing/logger.js';
 
 const db = useTestDatabase();
 const ids = createIdGenerator(Date.now);
 const at = new Date('2026-11-06T08:00:00Z');
 const later = new Date('2026-11-13T08:00:00Z');
 const clock = manualClock(at);
-const silent = { debug() {}, info() {}, warn() {}, error() {}, child: () => silent };
-const allowAll = { take: () => ({ allowed: true }) as const };
 
 beforeAll(async () => {
 	await migrate(db.mongo.db, migrations, { clock: manualClock() });
@@ -160,6 +159,28 @@ describe('mongoInvitations', () => {
 		).rejects.toMatchObject({ code: 11000 });
 	});
 
+	it("counts the last day's email invitations per person, per household and in total", async () => {
+		// Its own time, so the other tests' invitations in this database aren't in the window.
+		const day = new Date('2027-03-01T08:00:00Z');
+		const repo = (when: Date) => mongoInvitations(db.mongo.db, manualClock(when));
+		const [sam, alex] = [ids.next(), ids.next()];
+		const [home, other] = [ids.next(), ids.next()];
+		const email = { kind: 'email', email: 'jane@example.com' } as const;
+		await repo(new Date(day.getTime() - 60_000)).insert(
+			newInvitation(home, { ...email, createdBy: sam })
+		);
+		await repo(day).insert(newInvitation(home, { ...email, createdBy: sam }));
+		await repo(day).insert(newInvitation(other, { ...email, createdBy: sam }));
+		await repo(day).insert(newInvitation(home, { ...email, createdBy: alex }));
+		await repo(day).insert(newInvitation(home, { createdBy: alex })); // a link: not counted
+
+		const since = day;
+		expect(await invitations().countEmailsSince(since, { createdBy: sam })).toBe(2);
+		expect(await invitations().countEmailsSince(since, { createdBy: alex })).toBe(1);
+		expect(await invitations().countEmailsSince(since, { householdId: home })).toBe(2);
+		expect(await invitations().countEmailsSince(since)).toBe(3);
+	});
+
 	it('clears invitations 30 days after they stop working', async () => {
 		const indexes = await db.mongo.db.collection(INVITATIONS).indexes();
 		expect(indexes.find((i) => i.expireAfterSeconds !== undefined)).toMatchObject({
@@ -192,11 +213,10 @@ describe('accepting, on a real transaction', () => {
 				dogs: mongoDogs(db.mongo.db, clock),
 				users: mongoUsers(db.mongo.db),
 				email: fakeEmailSender(),
-				inviteEmailRateLimit: allowAll,
 				uow: mongoUnitOfWork(db.mongo.client),
 				clock,
 				ids,
-				logger: silent
+				logger: silentLogger
 			},
 			{ publicOrigin: 'https://toebeans.example' }
 		);

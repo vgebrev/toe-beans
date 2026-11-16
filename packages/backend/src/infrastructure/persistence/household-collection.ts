@@ -26,6 +26,10 @@ export interface HouseholdDocument {
 	schemaVersion: number;
 }
 
+/** How an entity is stored: its ID as `_id`, and the common fields as the base keeps them. */
+export type Stored<E> = HouseholdDocument &
+	Omit<E, 'id' | 'householdId' | 'version' | 'createdAt' | 'updatedAt'>;
+
 /** What a repository supplies; the base fills in the rest. */
 export type Fields<T extends HouseholdDocument> = Omit<T, keyof HouseholdDocument>;
 
@@ -61,7 +65,7 @@ export class HouseholdCollection<T extends HouseholdDocument> {
 	/** `filter` can't widen the household: its own `householdId`, if any, is overridden. */
 	async find(
 		householdId: Id,
-		filter: Filter<Fields<T>> = {},
+		filter: Filter<T> = {},
 		options: Pick<FindOptions, 'sort' | 'limit' | 'skip'> = {}
 	): Promise<T[]> {
 		const docs = await this.#collection
@@ -90,23 +94,20 @@ export class HouseholdCollection<T extends HouseholdDocument> {
 	/**
 	 * Applies `changes` only if the document is still at `expectedVersion` (optimistic concurrency,
 	 * NFR-13), and returns the updated document. `schemaVersion` stays as it was: a partial update
-	 * doesn't bring the rest of an older document up to the current shape.
+	 * doesn't bring the rest of an older document up to the current shape. `filter` narrows the
+	 * match further, e.g. to a document that isn't soft-deleted; a document it rules out reads as
+	 * changed since (a stale version).
 	 */
 	async update(
 		householdId: Id,
 		id: Id,
 		expectedVersion: number,
-		changes: Changes<T>
+		changes: Changes<T>,
+		filter: Filter<T> = {}
 	): Promise<Result<T, WriteError>> {
-		const $set: Record<string, unknown> = { updatedAt: this.#options.clock.now() };
-		const $unset: Record<string, ''> = {};
-		for (const [key, value] of Object.entries(changes)) {
-			if (value === undefined) $unset[key] = '';
-			else $set[key] = value;
-		}
 		const updated = await this.#collection.findOneAndUpdate(
-			this.#scope(householdId, { _id: id, version: expectedVersion }),
-			{ $set, $unset, $inc: { version: 1 } } as never,
+			this.#scope(householdId, { ...filter, _id: id, version: expectedVersion }),
+			this.#edit(changes) as never,
 			{ returnDocument: 'after', session: currentSession() }
 		);
 		return updated ? ok(updated as T) : err(await this.#missOn(householdId, id));
@@ -123,6 +124,89 @@ export class HouseholdCollection<T extends HouseholdDocument> {
 			{ session: currentSession() }
 		);
 		return deletedCount === 1 ? ok(undefined) : err(await this.#missOn(householdId, id));
+	}
+
+	/**
+	 * Inserts each document unless one matching its `match` exists in the household, in one round
+	 * trip. `match` should name a unique index's fields, so a race inserts nothing twice.
+	 */
+	async insertMissing(
+		householdId: Id,
+		items: readonly { match: Filter<T>; id: Id; fields: Fields<T> }[]
+	): Promise<void> {
+		if (items.length === 0) return;
+		const now = this.#options.clock.now();
+		await this.#collection.bulkWrite(
+			items.map(({ match, id, fields }) => ({
+				updateOne: {
+					filter: this.#scope(householdId, match),
+					update: {
+						$setOnInsert: {
+							...fields,
+							_id: id,
+							householdId,
+							version: 1,
+							createdAt: now,
+							updatedAt: now,
+							schemaVersion: this.#options.schemaVersion
+						}
+					} as never,
+					upsert: true
+				}
+			})),
+			{ ordered: false, session: currentSession() }
+		);
+	}
+
+	/**
+	 * Sets fields on the document if it matches `filter`, without counting as an edit: the version
+	 * and `updatedAt` stay. For bookkeeping that no one else's ETag should depend on.
+	 */
+	async setQuietly(
+		householdId: Id,
+		id: Id,
+		filter: Filter<T>,
+		$set: Partial<Fields<T>>
+	): Promise<boolean> {
+		const { modifiedCount } = await this.#collection.updateOne(
+			this.#scope(householdId, { ...filter, _id: id }),
+			{ $set } as never,
+			{ session: currentSession() }
+		);
+		return modifiedCount === 1;
+	}
+
+	/**
+	 * Applies `changes` to every document in the household that matches `filter`, as an edit of
+	 * each: versions go up, so a change someone started on one of them meets a 412 (NFR-13). A
+	 * field set to undefined is removed.
+	 */
+	async updateWhere(householdId: Id, filter: Filter<T>, changes: Changes<T>): Promise<number> {
+		const { modifiedCount } = await this.#collection.updateMany(
+			this.#scope(householdId, filter),
+			this.#edit(changes) as never,
+			{ session: currentSession() }
+		);
+		return modifiedCount;
+	}
+
+	/** Deletes every document in the household that matches `filter`, whatever its version. */
+	async deleteWhere(householdId: Id, filter: Filter<T>): Promise<number> {
+		const { deletedCount } = await this.#collection.deleteMany(this.#scope(householdId, filter), {
+			session: currentSession()
+		});
+		return deletedCount;
+	}
+
+	/** An edit's update: `changes` set, those set to undefined removed, the version up by one. */
+	#edit(changes: Changes<T>) {
+		const $set: Record<string, unknown> = { updatedAt: this.#options.clock.now() };
+		const $unset: Record<string, ''> = {};
+		for (const [key, value] of Object.entries(changes)) {
+			if (value === undefined) $unset[key] = '';
+			else $set[key] = value;
+		}
+		return { $set, $unset, $inc: { version: 1 } };
 	}
 
 	/** Why a versioned write matched nothing: gone (or another household's), or changed since. */

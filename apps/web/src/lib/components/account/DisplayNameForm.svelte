@@ -4,12 +4,13 @@
 	// once the server has it (NFR-04, NFR-13).
 	import { untrack } from 'svelte';
 	import { invalidateAll } from '$app/navigation';
-	import { Profile } from '@toe-beans/contracts';
+	import { limits, Profile } from '@toe-beans/contracts';
 	import Icon from '#lib/components/icon/Icon.svelte';
 	import { Button } from '#lib/components/ui/button/index.js';
 	import { Input } from '#lib/components/ui/input/index.js';
 	import { Label } from '#lib/components/ui/label/index.js';
 	import { createApiClient, type ApiError } from '#lib/api-client/index.js';
+	import { revealErrors } from '#lib/forms/reveal-errors.js';
 
 	interface Props {
 		displayName: string;
@@ -110,13 +111,13 @@
 	}
 </script>
 
-<form class="flex flex-col gap-2" onsubmit={save} novalidate>
+<form class="flex flex-col gap-2" onsubmit={save} novalidate {@attach revealErrors}>
 	<Label for="display-name" class="font-bold">Your name</Label>
 	<Input
 		id="display-name"
 		name="displayName"
 		autocomplete="name"
-		maxlength={100}
+		maxlength={limits.displayName}
 		bind:value
 		oninput={edited}
 		aria-invalid={fieldError ? 'true' : undefined}

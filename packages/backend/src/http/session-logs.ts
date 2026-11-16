@@ -1,0 +1,107 @@
+// /api/v1/session-logs (architecture §5.2, D25, FR-07). Someone with no household gets a 404, as
+// if they'd asked for another household's log (§4.4).
+import {
+	CreateSessionLog,
+	UpdateSessionLog,
+	type SessionLog as SessionLogDto
+} from '@toe-beans/contracts';
+import type { PlannerContext, Viewer } from '../application/auth/auth.js';
+import type { LogView, SessionLogs } from '../application/training-log/session-logs.js';
+import { zonedDateTime } from '../domain/calendar.js';
+import { etag, versionFromIfMatch } from './etag.js';
+import { errorResponse, json, noContent, respond, type HttpResponse } from './response.js';
+import { isMember, noHousehold } from './member.js';
+import { parseInput } from './validation.js';
+
+export interface SessionLogsHttp {
+	get(viewer: Viewer, input: { id: string }): Promise<HttpResponse>;
+	create(viewer: Viewer, input: { body: unknown }): Promise<HttpResponse>;
+	update(
+		viewer: Viewer,
+		input: { id: string; ifMatch: string | null; body: unknown }
+	): Promise<HttpResponse>;
+	/** Soft delete (§5.3): 204 with the deleted version's ETag, for *Undo*. */
+	remove(viewer: Viewer, input: { id: string; ifMatch: string | null }): Promise<HttpResponse>;
+	/** *Undo*, with If-Match from the delete. */
+	restore(viewer: Viewer, input: { id: string; ifMatch: string | null }): Promise<HttpResponse>;
+}
+
+export const sessionLogDto = (
+	{ log, exercise, caregiverName, updatedByName }: LogView,
+	timeZone: string
+): SessionLogDto => {
+	const { date, time } = zonedDateTime(log.practisedAt, timeZone);
+	return {
+		id: log.id,
+		dogId: log.dogId,
+		exercise: {
+			id: log.exerciseId,
+			title: exercise?.title ?? log.exerciseId,
+			...(exercise && { minutes: exercise.suggestedDurationMin })
+		},
+		...(log.plannedSessionId && { plannedSessionId: log.plannedSessionId }),
+		practisedAt: log.practisedAt.toISOString(),
+		date,
+		time,
+		outcome: log.outcome,
+		...(log.durationMin !== undefined && { durationMin: log.durationMin }),
+		...(log.emotionalState && { emotionalState: log.emotionalState }),
+		...(log.environment && { environment: log.environment }),
+		...(log.environmentNote && { environmentNote: log.environmentNote }),
+		...(log.notes && { notes: log.notes }),
+		caregiver: caregiverName,
+		updatedAt: log.updatedAt.toISOString(),
+		updatedBy: updatedByName,
+		etag: etag(log.version)
+	};
+};
+
+export function createSessionLogsHttp(logs: SessionLogs): SessionLogsHttp {
+	const logResponse = (ctx: PlannerContext, status: number) => (view: LogView) =>
+		json(sessionLogDto(view, ctx.timeZone), status, { etag: etag(view.log.version) });
+
+	return {
+		async get(viewer, { id }) {
+			if (!isMember(viewer)) return noHousehold();
+			return respond(await logs.get(viewer.member, id), logResponse(viewer.member, 200));
+		},
+
+		async create(viewer, { body }) {
+			if (!isMember(viewer)) return noHousehold();
+			const input = parseInput(CreateSessionLog, body);
+			if (!input.ok) return errorResponse(input.error);
+			const created = await logs.create(viewer.member, input.value);
+			return respond(created, logResponse(viewer.member, 201));
+		},
+
+		async update(viewer, { id, ifMatch, body }) {
+			if (!isMember(viewer)) return noHousehold();
+			const input = parseInput(UpdateSessionLog, body);
+			if (!input.ok) return errorResponse(input.error);
+			const version = versionFromIfMatch(ifMatch);
+			if (!version.ok) return errorResponse(version.error);
+			const updated = await logs.update(viewer.member, {
+				id,
+				expectedVersion: version.value,
+				changes: input.value
+			});
+			return respond(updated, logResponse(viewer.member, 200));
+		},
+
+		async remove(viewer, { id, ifMatch }) {
+			if (!isMember(viewer)) return noHousehold();
+			const version = versionFromIfMatch(ifMatch);
+			if (!version.ok) return errorResponse(version.error);
+			const removed = await logs.remove(viewer.member, { id, expectedVersion: version.value });
+			return respond(removed, (deleted) => noContent({ etag: etag(deleted.version) }));
+		},
+
+		async restore(viewer, { id, ifMatch }) {
+			if (!isMember(viewer)) return noHousehold();
+			const version = versionFromIfMatch(ifMatch);
+			if (!version.ok) return errorResponse(version.error);
+			const restored = await logs.restore(viewer.member, { id, expectedVersion: version.value });
+			return respond(restored, logResponse(viewer.member, 200));
+		}
+	};
+}

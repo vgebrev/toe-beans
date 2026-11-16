@@ -7,6 +7,7 @@
 // a cold start), or no response at all (offline). The one exception is a response that doesn't
 // match its contract: that's a bug, and it throws so error reporting sees it.
 import { Problem } from '@toe-beans/contracts';
+import { isGatewayError } from '#lib/offline/caching.js';
 
 /** Anything with Zod's `safeParse`, such as the DTO schemas in @toe-beans/contracts. */
 export interface Schema<T> {
@@ -20,6 +21,13 @@ export type ApiError =
 	| { kind: 'http'; status: number; requestId?: string }
 	/** No response: offline, DNS failure, connection dropped. */
 	| { kind: 'network' };
+
+/**
+ * The status of the problem the API answered with, or null: a gateway error page or no response
+ * at all has none a form can act on.
+ */
+export const problemStatus = (error: ApiError): number | null =>
+	error.kind === 'problem' ? error.problem.status : null;
 
 export type ApiResult<T> =
 	| { ok: true; data: T; /** The aggregate version, for If-Match (NFR-13). */ etag?: string }
@@ -63,6 +71,28 @@ export class ContractError extends Error {
 
 const REQUEST_ID_HEADER = 'x-request-id';
 
+let writes = 0;
+/**
+ * How many writes this tab has sent, whether or not they landed. A page that keeps data across
+ * navigations (History on Back) compares it to tell whether anything may have changed meanwhile.
+ */
+export const writeCount = () => writes;
+
+/** Told whether each request reached Toe Beans: the connection status's evidence (ui.md §6.1). */
+export type ConnectionObserver = (reached: boolean) => void;
+let observer: ConnectionObserver | null = null;
+
+/**
+ * Sets the one observer, in the browser only (hooks.client.ts): on the server this module is
+ * shared by every request, and nobody there is watching a connection.
+ */
+export function observeConnection(next: ConnectionObserver | null): void {
+	observer = next;
+}
+
+/** The device says it has no network. Only `false` is reliable; `true` may still mean no way out. */
+const knownOffline = () => globalThis.navigator?.onLine === false;
+
 export function createApiClient(fetch: typeof globalThis.fetch, base = '/api/v1'): ApiClient {
 	async function request<T>(
 		method: string,
@@ -74,6 +104,13 @@ export function createApiClient(fetch: typeof globalThis.fetch, base = '/api/v1'
 		if (body !== undefined && !form) headers['content-type'] = 'application/json';
 		if (ifMatch !== undefined) headers['if-match'] = ifMatch;
 
+		// Offline, a save fails straight away with the offline message rather than waiting on a
+		// request that can't go anywhere (ui.md §5.2). It was never sent, so it isn't counted.
+		if (method !== 'GET' && knownOffline()) {
+			observer?.(false);
+			return { ok: false, error: { kind: 'network' } };
+		}
+		if (method !== 'GET') writes++;
 		let response: Response;
 		try {
 			response = await fetch(`${base}${path}`, {
@@ -85,8 +122,10 @@ export function createApiClient(fetch: typeof globalThis.fetch, base = '/api/v1'
 		} catch (error) {
 			// The caller cancelled: let it see its own abort.
 			if (signal?.aborted) throw error;
+			observer?.(false);
 			return { ok: false, error: { kind: 'network' } };
 		}
+		observer?.(!isGatewayError(response.status));
 
 		const requestId = response.headers.get(REQUEST_ID_HEADER) ?? undefined;
 		if (!response.ok) return { ok: false, error: await toError(response, requestId) };

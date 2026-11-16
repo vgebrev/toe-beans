@@ -3,7 +3,8 @@
 // same migration at once.
 import { randomUUID } from 'node:crypto';
 import { setTimeout as sleep } from 'node:timers/promises';
-import { MongoServerError, type Collection, type Db } from 'mongodb';
+import type { Collection, Db } from 'mongodb';
+import { isDuplicateKey } from '../mongo.js';
 import type { Clock } from '../../../application/ports/index.js';
 
 export interface Migration {
@@ -37,7 +38,6 @@ interface Lock {
 }
 
 const LOCK_ID = 'migrations';
-const DUPLICATE_KEY = 11000;
 
 /** Applies the migrations not yet recorded, in order, and returns their IDs. */
 export async function migrate(
@@ -97,7 +97,7 @@ async function acquire(
 		);
 		return true;
 	} catch (e) {
-		if (e instanceof MongoServerError && e.code === DUPLICATE_KEY) return false;
+		if (isDuplicateKey(e)) return false;
 		throw e;
 	}
 }

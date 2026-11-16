@@ -1,7 +1,7 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import { useTestDatabase } from '../../../test/mongo.js';
 import type { NewDog } from '../../application/ports/index.js';
-import type { PlainDate } from '../../domain/dog.js';
+import type { PlainDate } from '../../domain/calendar.js';
 import { createIdGenerator, type Id } from '../../domain/id.js';
 import { manualClock } from '../../testing/clock.js';
 import { householdIsolationSuite } from '../../testing/household-isolation.js';

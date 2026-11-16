@@ -19,6 +19,7 @@ Run from the repo root (Node ≥ 24, pnpm 10):
 - `pnpm test:integration`: `*.integration.test.ts` against MongoDB in Docker (Testcontainers; needs Docker running)
 - `pnpm test:e2e`: Playwright (`apps/web/e2e`) against the production build on emulated Galaxy S23 FE and Redmi Note 12 Pro. Needs Mongo and the mock provider like `pnpm dev` (database `toe-beans-e2e`; it always signs in through the mock, whatever `.env` says) and Chromium (`pnpm --filter @toe-beans/web exec playwright install chromium`). One project: `pnpm test:e2e --project=galaxy-s23-fe` (keep the `=` when a file or `-g` follows)
 - `pnpm build`: production build of `apps/web` (adapter-node, output in `apps/web/build`)
+- `pnpm --silent vapid >> .env`: a lasting VAPID pair for Web Push reminders. Without one, each start makes a new pair. Locally the server runs the reminder tick itself every `TICK_INTERVAL_MINUTES` (5); e2e runs it with `WORKER_MODE=http` and ticks from the tests (`e2e/tick.ts`) against a stand-in push service (`e2e/push-service.ts`)
 - `pnpm compose …`: `docker compose` on `docker/compose.yaml`. `--profile app up --build -d --wait` also runs the app image on `localhost:3000`. On port clashes set `MONGO_PORT` / `APP_PORT` in `.env` (and the port in `MONGODB_URI` to match). The image alone: `docker build -f docker/Dockerfile .`
 - `apps/web` `dependencies` hold only what the server bundle imports at runtime (now just `@opentelemetry/api`); everything bundled is a devDependency, so the image stays small.
 

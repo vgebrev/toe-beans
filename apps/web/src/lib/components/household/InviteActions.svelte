@@ -9,6 +9,7 @@
 	import { Input } from '#lib/components/ui/input/index.js';
 	import { Label } from '#lib/components/ui/label/index.js';
 	import { createApiClient, type ApiError } from '#lib/api-client/index.js';
+	import { revealErrors } from '#lib/forms/reveal-errors.js';
 
 	interface Props {
 		householdName: string;
@@ -137,7 +138,7 @@
 		{/if}
 	</section>
 
-	<form class="flex flex-col gap-2" onsubmit={sendEmail} novalidate>
+	<form class="flex flex-col gap-2" onsubmit={sendEmail} novalidate {@attach revealErrors}>
 		<Label for="invite-email" class="font-bold">Or send an email invite</Label>
 		<Input
 			id="invite-email"

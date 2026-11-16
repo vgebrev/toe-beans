@@ -37,7 +37,7 @@
 		{#each options as option (option.value)}
 			<label
 				class={[
-					'flex h-12 cursor-pointer items-center justify-center gap-1.5 rounded-full font-bold transition-colors',
+					'flex min-h-12 min-w-0 cursor-pointer flex-wrap items-center justify-center gap-x-1.5 rounded-full px-1 text-center font-bold transition-colors',
 					'has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-primary',
 					choice === option.value
 						? 'bg-primary text-primary-foreground'

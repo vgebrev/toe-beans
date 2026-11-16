@@ -166,6 +166,16 @@ describe('mongoSessions', () => {
 		expect(await sessions().findLive('unknown', at)).toBeNull();
 	});
 
+	it("ends every session of one person, and no one else's", async () => {
+		const sam = ids.next();
+		await sessions().insert({ ...session('hash-sam-1'), userId: sam });
+		await sessions().insert({ ...session('hash-sam-2'), userId: sam });
+		await sessions().insert(session('hash-other'));
+		expect(await sessions().deleteForUser(sam)).toBe(2);
+		expect(await sessions().findLive('hash-sam-1', at)).toBeNull();
+		expect(await sessions().findLive('hash-other', at)).not.toBeNull();
+	});
+
 	it('extends, never past the absolute expiry it was given', async () => {
 		const s = session('hash-extend');
 		await sessions().insert(s);

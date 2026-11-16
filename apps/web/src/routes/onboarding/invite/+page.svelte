@@ -1,5 +1,5 @@
 <script lang="ts">
-	// J1 step 5, skippable, after Add your dog. Reminders come after it with S12.
+	// J1 step 5, skippable, after Add your dog. Installing comes next (step 7).
 	import { resolve } from '$app/paths';
 	import InviteActions from '#lib/components/household/InviteActions.svelte';
 	import { Button } from '#lib/components/ui/button/index.js';
@@ -18,4 +18,4 @@
 {#if data.household}
 	<InviteActions householdName={data.household.name} timeZone={data.household.timeZone} />
 {/if}
-<Button href={resolve('/(app)')} variant="ghost" class="w-full">Done for now</Button>
+<Button href={resolve('/onboarding/install')} variant="ghost" class="w-full">Done for now</Button>

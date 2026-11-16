@@ -2,22 +2,10 @@
 // its own household, so the switcher sees only that test's dogs.
 import { expect, test, type Locator, type Page } from '@playwright/test';
 import sharp from 'sharp';
-import {
-	addDog,
-	blockMockFonts,
-	createHousehold,
-	newPerson,
-	photoFile,
-	signIn
-} from './mock-sign-in.js';
+import { addDog, blockMockFonts, jsonHeaders, ownHousehold, photoFile } from './mock-sign-in.js';
 
 test.use({ storageState: { cookies: [], origins: [] } });
 test.beforeEach(({ page }) => blockMockFonts(page));
-
-async function household(page: Page, baseURL: string, name?: string) {
-	await signIn(page, newPerson('owner'));
-	await createHousehold(page, baseURL, name);
-}
 
 /** Whether the sheet fits on screen: nothing to scroll to, and its confirm button fully shown. */
 async function fitsOnScreen(sheet: Locator, confirm: string) {
@@ -33,7 +21,7 @@ test('adding a dog: framed photo first, then the details, then its profile', asy
 	page,
 	baseURL
 }) => {
-	await household(page, baseURL!);
+	await ownHousehold(page, baseURL!, { dogs: [] });
 	await page.goto('/');
 	await expect(page.getByRole('heading', { name: 'Add your dog' })).toBeVisible();
 	await page.getByRole('link', { name: 'Add a dog' }).click();
@@ -83,7 +71,7 @@ test('the stored photo is the re-encoded square, with no location left', async (
 	page,
 	baseURL
 }) => {
-	await household(page, baseURL!);
+	await ownHousehold(page, baseURL!, { dogs: [] });
 	const dog = await addDog(page, baseURL!);
 	for (const [size, pixels] of [
 		['thumb', 256],
@@ -107,7 +95,7 @@ test('the stored photo is the re-encoded square, with no location left', async (
 });
 
 test('changing the photo, editing and archiving, from the profile', async ({ page, baseURL }) => {
-	await household(page, baseURL!);
+	await ownHousehold(page, baseURL!, { dogs: [] });
 	const dog = await addDog(page, baseURL!, {
 		name: 'Rosie',
 		birth: { date: '2026-07-01', precision: 'month' }
@@ -150,11 +138,11 @@ test('changing the photo, editing and archiving, from the profile', async ({ pag
 });
 
 test('an edit made elsewhere is not overwritten (NFR-13)', async ({ page, baseURL }) => {
-	await household(page, baseURL!);
+	await ownHousehold(page, baseURL!, { dogs: [] });
 	const dog = await addDog(page, baseURL!);
 	await page.goto(`/dogs/${dog.id}/edit`);
 	const meanwhile = await page.request.patch(`/api/v1/dogs/${dog.id}`, {
-		headers: { origin: baseURL!, 'content-type': 'application/json', 'if-match': dog.etag },
+		headers: { ...jsonHeaders(baseURL!), 'if-match': dog.etag },
 		data: JSON.stringify({ name: 'Milo' })
 	});
 	expect(meanwhile.status()).toBe(200);
@@ -170,30 +158,37 @@ test('scenario 2: two dogs, switched between, the choice kept on this phone', as
 	page,
 	baseURL
 }) => {
-	await household(page, baseURL!);
+	await ownHousehold(page, baseURL!, { dogs: [] });
 	await addDog(page, baseURL!, { name: 'Rosie' });
 	await addDog(page, baseURL!, { name: 'Milo' });
 
 	await page.goto('/');
-	const switcher = page.getByRole('group', { name: 'Show dog' });
-	await expect(switcher.getByRole('button')).toHaveText(['Rosie', 'Milo', 'All dogs']);
-	await expect(switcher.getByRole('button', { name: 'All dogs' })).toHaveAttribute(
-		'aria-pressed',
+	// One button shows the dog chosen; its sheet lists All dogs first, one per row (ui.md §2.2).
+	const switcher = page.getByRole('button', { name: /^Show dog:/ });
+	await expect(switcher).toHaveAccessibleName('Show dog: All dogs');
+	await switcher.click();
+	const sheet = page.getByRole('dialog', { name: 'Show dog' });
+	await expect(sheet.getByRole('button', { name: /^(All dogs|Rosie|Milo)$/ })).toHaveText([
+		'All dogs',
+		'Rosie',
+		'Milo'
+	]);
+	await expect(sheet.getByRole('button', { name: 'All dogs' })).toHaveAttribute(
+		'aria-current',
 		'true'
 	);
-	await switcher.getByRole('button', { name: 'Milo' }).click();
-	await expect(switcher.getByRole('button', { name: 'Milo' })).toHaveAttribute(
-		'aria-pressed',
-		'true'
-	);
+	await sheet.getByRole('button', { name: 'Milo' }).click();
+	await expect(sheet).toBeHidden();
+	await expect(switcher).toHaveAccessibleName('Show dog: Milo');
 	await page.reload();
-	await expect(
-		page.getByRole('group', { name: 'Show dog' }).getByRole('button', { name: 'Milo' })
-	).toHaveAttribute('aria-pressed', 'true');
+	await expect(page.getByRole('button', { name: 'Show dog: Milo' })).toBeVisible();
 	await page.goto('/plan');
-	await expect(
-		page.getByRole('group', { name: 'Show dog' }).getByRole('button', { name: 'Milo' })
-	).toHaveAttribute('aria-pressed', 'true');
+	await expect(page.getByRole('button', { name: 'Show dog: Milo' })).toBeVisible();
+
+	// The page never scrolls sideways.
+	expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(
+		await page.evaluate(() => window.innerWidth)
+	);
 
 	await page.goto('/more');
 	await expect(page.getByRole('link', { name: /Dogs/ })).toContainText('Rosie and Milo');
@@ -204,13 +199,13 @@ test("scenario 9: another household can't reach a dog or its photo by ID", async
 	browser,
 	baseURL
 }) => {
-	await household(page, baseURL!, 'The Does');
+	await ownHousehold(page, baseURL!, { dogs: [], name: 'The Does' });
 	const dog = await addDog(page, baseURL!);
 
 	const context = await browser.newContext({ baseURL, storageState: undefined });
 	const outsider = await context.newPage();
 	await blockMockFonts(outsider);
-	await household(outsider, baseURL!, 'The Outsiders');
+	await ownHousehold(outsider, baseURL!, { dogs: [], name: 'The Outsiders' });
 	const headers = { origin: baseURL!, 'if-match': dog.etag };
 	const attempts = [
 		outsider.request.get(`/api/v1/dogs/${dog.id}`),
@@ -247,11 +242,11 @@ test("scenario 9: another household can't reach a dog or its photo by ID", async
 });
 
 test('J2: the invitation names the dogs to help care for', async ({ page, browser, baseURL }) => {
-	await household(page, baseURL!, 'The Does');
+	await ownHousehold(page, baseURL!, { dogs: [], name: 'The Does' });
 	await addDog(page, baseURL!, { name: 'Rosie' });
 	await addDog(page, baseURL!, { name: 'Milo' });
 	const response = await page.request.post('/api/v1/household/invitations', {
-		headers: { origin: baseURL!, 'content-type': 'application/json' },
+		headers: jsonHeaders(baseURL!),
 		data: JSON.stringify({ kind: 'link' })
 	});
 	const { url } = await response.json();

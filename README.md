@@ -55,6 +55,7 @@ Use `pnpm dev --host` to open the app from a phone on the same Wi-Fi, at one URL
 1. Point `toebeans.test` at the dev machine: `address=/toebeans.test/<LAN IP>` in the network's dnsmasq. If dnsmasq runs on the dev machine and you add a hosts-file entry, give it the LAN IP, not `127.0.0.1`: dnsmasq serves `/etc/hosts` to the network too, and phones would get their own loopback address.
 2. Serve https, so phones get a secure context (the service worker, install and push need one): `mkcert -cert-file .certs/toebeans.test.pem -key-file .certs/toebeans.test-key.pem toebeans.test localhost 127.0.0.1 ::1`, then set `DEV_HTTPS_CERT` and `DEV_HTTPS_KEY` in `.env` (`.env.example`). Install mkcert's root CA (`mkcert -CAROOT`/`rootCA.pem`) on each phone as a CA certificate (Android: Settings → Security → Encryption & credentials → Install a certificate). Never share that CA's key.
 3. Set `PUBLIC_BASE_URL=https://toebeans.test:7877` and sign in through the Auth0 dev tenant, since the mock provider only listens on localhost.
+4. For reminders, put a lasting key pair in `.env`: `pnpm --silent vapid >> .env`. Without one, each server start makes a new pair and phones must turn reminders on again. The dev server sends due reminders itself every 5 minutes (`TICK_INTERVAL_MINUTES`).
 
 Without step 2 it works over http (`PUBLIC_BASE_URL=http://…`), but only pages and sign-in.
 
@@ -66,6 +67,7 @@ Without step 2 it works over http (`PUBLIC_BASE_URL=http://…`), but only pages
 | `pnpm test:integration` | Integration tests against MongoDB in Docker |
 | `pnpm test:e2e` | Playwright on emulated Galaxy S23 FE and Redmi Note 12 Pro (needs `pnpm --filter @toe-beans/web exec playwright install chromium` once) |
 | `pnpm build` | Production build (`apps/web/build`) |
+| `pnpm vapid` | Print a new VAPID key pair for Web Push, for `.env` |
 | `pnpm compose --profile app up --build -d --wait` | The app image on http://localhost:3000, with MongoDB |
 
 If port 27017 or 3000 is taken, set `MONGO_PORT` / `APP_PORT` (and the port in `MONGODB_URI`) in

@@ -25,6 +25,8 @@ export function memoryHouseholds(): HouseholdRepository & { all(): Household[] }
 			return ok(undefined);
 		},
 		find: async (id) => structuredClone(households.get(id) ?? null),
+		findByIds: async (ids) =>
+			structuredClone([...households.values()].filter((h) => ids.includes(h.id))),
 		findForMember: async (userId) =>
 			structuredClone([...households.values()].find((h) => hasMember(h, userId)) ?? null),
 		findDeactivatedBy: async (userId) =>
@@ -75,7 +77,10 @@ export function memoryHouseholds(): HouseholdRepository & { all(): Household[] }
 	};
 }
 
-export function memoryInvitations(): InvitationRepository & { all(): Invitation[] } {
+/** `now` stamps `createdAt`, so tests on a manual clock can count by it. */
+export function memoryInvitations(
+	now: () => Date = () => new Date()
+): InvitationRepository & { all(): Invitation[] } {
 	const invitations = new Map<string, Invitation>();
 	const inHousehold = (householdId: string, id: string) => {
 		const i = invitations.get(id);
@@ -84,7 +89,7 @@ export function memoryInvitations(): InvitationRepository & { all(): Invitation[
 	return {
 		all: () => structuredClone([...invitations.values()]),
 		async insert(invitation) {
-			const at = new Date();
+			const at = now();
 			const stored = { ...invitation, useCount: 0, version: 1, createdAt: at, updatedAt: at };
 			invitations.set(invitation.id, structuredClone(stored));
 			return structuredClone(stored);
@@ -121,7 +126,15 @@ export function memoryInvitations(): InvitationRepository & { all(): Invitation[
 		},
 		async remove(householdId, id) {
 			if (inHousehold(householdId, id)) invitations.delete(id);
-		}
+		},
+		countEmailsSince: async (since, by) =>
+			[...invitations.values()].filter(
+				(i) =>
+					i.kind === 'email' &&
+					i.createdAt >= since &&
+					(!by ||
+						('createdBy' in by ? i.createdBy === by.createdBy : i.householdId === by.householdId))
+			).length
 	};
 }
 

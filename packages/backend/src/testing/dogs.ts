@@ -6,24 +6,15 @@ import type {
 	PhotoStore,
 	ProcessedPhoto
 } from '../application/ports/index.js';
-import { notFound, staleVersion } from '../application/errors.js';
 import type { Dog } from '../domain/dog.js';
-import { err, ok } from '../domain/result.js';
+import { versionedStore } from './versioned-store.js';
 
 export function memoryDogs(now: () => Date): DogRepository & { all(): Dog[] } {
-	const dogs = new Map<string, Dog>();
-	const inHousehold = (householdId: string, id: string) => {
-		const dog = dogs.get(id);
-		return dog?.householdId === householdId ? dog : undefined;
-	};
+	const store = versionedStore<Dog>(now, 'dog');
+	const { items: dogs, inHousehold } = store;
 	return {
 		all: () => structuredClone([...dogs.values()]),
-		async insert(dog) {
-			const at = now();
-			const stored: Dog = { ...dog, version: 1, createdAt: at, updatedAt: at };
-			dogs.set(dog.id, structuredClone(stored));
-			return structuredClone(stored);
-		},
+		insert: async (dog) => store.insert(dog),
 		findById: async (householdId, id) => structuredClone(inHousehold(householdId, id) ?? null),
 		list: async (householdId) =>
 			structuredClone(
@@ -31,17 +22,8 @@ export function memoryDogs(now: () => Date): DogRepository & { all(): Dog[] } {
 					.filter((d) => d.householdId === householdId)
 					.sort((a, b) => a.id.localeCompare(b.id))
 			),
-		async update(householdId, id, expectedVersion, changes) {
-			const dog = inHousehold(householdId, id);
-			if (!dog) return err(notFound('dog'));
-			if (dog.version !== expectedVersion) return err(staleVersion);
-			for (const [key, value] of Object.entries(changes)) {
-				if (value === undefined) delete (dog as unknown as Record<string, unknown>)[key];
-				else (dog as unknown as Record<string, unknown>)[key] = structuredClone(value);
-			}
-			Object.assign(dog, { version: dog.version + 1, updatedAt: now() });
-			return ok(structuredClone(dog));
-		}
+		update: async (householdId, id, expectedVersion, changes) =>
+			store.update(householdId, id, expectedVersion, changes)
 	};
 }
 

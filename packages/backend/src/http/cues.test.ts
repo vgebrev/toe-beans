@@ -1,31 +1,16 @@
 import { describe, expect, it } from 'vitest';
-import type { MemberViewer, Viewer } from '../application/auth/auth.js';
 import { createCues } from '../application/cues/cues.js';
 import { createIdGenerator, type Id } from '../domain/id.js';
 import { memoryUsers } from '../testing/auth.js';
 import { manualClock } from '../testing/clock.js';
 import { memoryCues } from '../testing/cues.js';
 import { createCuesHttp } from './cues.js';
+import { silentLogger } from '../testing/logger.js';
+import { memberViewer, noHousehold } from '../testing/viewers.js';
 
-const silent = { debug() {}, info() {}, warn() {}, error() {}, child: () => silent };
 const at = new Date('2026-11-09T08:00:00Z');
 
-const noHousehold: Viewer = {
-	auth: { userId: 'u' as Id },
-	displayName: 'Sam',
-	email: 'sam@example.com',
-	member: null
-};
-const member = (householdId: string): MemberViewer => ({
-	...noHousehold,
-	member: {
-		userId: 'u' as Id,
-		householdId: householdId as Id,
-		role: 'caregiver',
-		householdName: 'The Does',
-		timeZone: 'UTC'
-	}
-});
+const member = (householdId: string) => memberViewer(householdId);
 const viewer = member('h1');
 const outsider = member('h2');
 
@@ -44,7 +29,7 @@ async function setup() {
 	});
 	const ids = createIdGenerator(() => clock.now().getTime());
 	const http = createCuesHttp(
-		createCues({ cues: memoryCues(() => clock.now()), users, ids, logger: silent })
+		createCues({ cues: memoryCues(() => clock.now()), users, ids, logger: silentLogger })
 	);
 	const add = async (label = 'Sit') =>
 		(await http.create(viewer, { body: { label, meaning: 'Bottom down.' } })).body as {

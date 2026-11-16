@@ -181,6 +181,11 @@ export function mongoSessions(db: Db): SessionRepository {
 		},
 		async delete(tokenHash) {
 			await sessions.deleteOne({ _id: tokenHash });
+		},
+		async deleteForUser(userId) {
+			// On migration 0001's userId index.
+			const { deletedCount } = await sessions.deleteMany({ userId });
+			return deletedCount;
 		}
 	};
 }

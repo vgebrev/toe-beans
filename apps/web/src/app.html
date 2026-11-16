@@ -16,6 +16,7 @@
 			media="(prefers-color-scheme: dark)"
 			content="#141110"
 		/>
+		<link rel="manifest" href="/manifest.webmanifest" />
 		<script nonce="%sveltekit.nonce%">
 			// Applies this device's theme override before first paint, so the page never flashes
 			// the wrong theme (ui.md §6.4). Keep in step with src/lib/client/theme.ts.
@@ -30,6 +31,12 @@
 			} catch (e) {
 				// Storage blocked: follow the system setting.
 			}
+			// Chrome's install offer can come before the app's code has loaded; keep it for
+			// src/lib/client/install.svelte.ts, which takes over from here.
+			window.addEventListener('beforeinstallprompt', function (event) {
+				event.preventDefault();
+				window.__toeBeansInstall = event;
+			});
 		</script>
 		%sveltekit.head%
 	</head>

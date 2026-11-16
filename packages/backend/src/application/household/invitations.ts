@@ -28,9 +28,19 @@ import {
 	type UnavailableError,
 	type ValidationError
 } from '../errors.js';
+import { namesOf } from '../names.js';
 import type { Ports } from '../ports/index.js';
 
 export const JOIN_PATH = '/join/';
+
+/**
+ * Email invitations allowed per day (architecture D32, security audit F2), counted from those
+ * stored, so a restart or a second instance doesn't reset them. Per person and per household, so
+ * leaving and starting a new household gives no fresh budget; and in total, so many accounts
+ * can't make the sending domain a spam relay. Over the total, share a link instead.
+ */
+export const EMAIL_INVITES_PER_DAY = { person: 10, household: 20, total: 100 } as const;
+const DAY_MS = 24 * 60 * 60 * 1000;
 
 export interface InvitationView {
 	invitation: Invitation;
@@ -87,23 +97,13 @@ export function createInvitations(
 		dogs,
 		users,
 		email,
-		inviteEmailRateLimit,
 		uow,
 		clock,
 		ids,
 		logger
 	}: Pick<
 		Ports,
-		| 'invitations'
-		| 'households'
-		| 'dogs'
-		| 'users'
-		| 'email'
-		| 'inviteEmailRateLimit'
-		| 'uow'
-		| 'clock'
-		| 'ids'
-		| 'logger'
+		'invitations' | 'households' | 'dogs' | 'users' | 'email' | 'uow' | 'clock' | 'ids' | 'logger'
 	>,
 	{ publicOrigin }: InvitationsOptions
 ) {
@@ -124,6 +124,20 @@ export function createInvitations(
 		return { invitation, url: `${publicOrigin}${JOIN_PATH}${token}` };
 	};
 
+	/** Which daily cap is used up, if any. */
+	const overEmailBudget = async (userId: Id, householdId: Id) => {
+		const since = new Date(clock.now().getTime() - DAY_MS);
+		const [person, household, total] = await Promise.all([
+			invitations.countEmailsSince(since, { createdBy: userId }),
+			invitations.countEmailsSince(since, { householdId }),
+			invitations.countEmailsSince(since)
+		]);
+		if (person >= EMAIL_INVITES_PER_DAY.person) return 'person';
+		if (household >= EMAIL_INVITES_PER_DAY.household) return 'household';
+		if (total >= EMAIL_INVITES_PER_DAY.total) return 'total';
+		return null;
+	};
+
 	const viewOf = (invitation: Invitation, viewer: MemberViewer): InvitationView => ({
 		invitation,
 		invitedBy: viewer.displayName,
@@ -137,7 +151,9 @@ export function createInvitations(
 		);
 		return {
 			to: invitation.email!,
-			subject: `${viewer.displayName} invited you to ${householdName} on Toe Beans`,
+			// Names people chose stay out of the subject, so it can't be made to read as anything
+			// but an invitation (security audit F2).
+			subject: "You're invited to Toe Beans",
 			text: [
 				`${viewer.displayName} has invited you to join ${householdName} on Toe Beans, to share a dog's training and care.`,
 				`Accept the invitation: ${url}`,
@@ -159,9 +175,10 @@ export function createInvitations(
 			viewer: MemberViewer,
 			input: { email: string }
 		): Promise<Result<InvitationView, ValidationError | RateLimitedError | UnavailableError>> {
-			const { householdId } = viewer.member;
-			if (!inviteEmailRateLimit.take(householdId).allowed) {
-				log.warn('invitation email rate limited', { householdId });
+			const { householdId, userId } = viewer.member;
+			const over = await overEmailBudget(userId, householdId);
+			if (over) {
+				log.warn('invitation email rate limited', { householdId, userId, over });
 				return err(rateLimited);
 			}
 			const address = normaliseEmail(input.email);
@@ -188,11 +205,13 @@ export function createInvitations(
 		/** Invitations that can still be used. */
 		async listOpen(ctx: MemberContext): Promise<InvitationView[]> {
 			const open = await invitations.findOpen(ctx.householdId, clock.now());
-			const people = await users.findByIds([...new Set(open.map((i) => i.createdBy))]);
-			const names = new Map(people.map((u) => [u.id, u.displayName]));
+			const name = await namesOf(
+				users,
+				open.map((i) => i.createdBy)
+			);
 			return open.map((invitation) => ({
 				invitation,
-				invitedBy: names.get(invitation.createdBy) ?? 'A former member',
+				invitedBy: name(invitation.createdBy),
 				canRevoke: canRevoke(invitation, ctx)
 			}));
 		},

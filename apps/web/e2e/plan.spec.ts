@@ -1,0 +1,414 @@
+// The training planner (FR-05, NFR-13, scenarios 3 and 9; ui.md J3, §4.3). Each test brings its
+// own household, in Johannesburg, so dates are worked out on its clocks.
+import { expect, test, type Locator, type Page } from '@playwright/test';
+import { blockMockFonts, dayFromToday, jsonHeaders, ownHousehold } from './mock-sign-in.js';
+
+test.use({ storageState: { cookies: [], origins: [] } });
+test.beforeEach(({ page }) => blockMockFonts(page));
+
+const weekday = (date: string) => new Date(`${date}T00:00:00Z`).getUTCDay() || 7;
+const isoWeek = (date: string) => {
+	const ms = Date.parse(`${date}T00:00:00Z`);
+	const thursday = new Date(ms + (4 - weekday(date)) * 86_400_000);
+	const year = thursday.getUTCFullYear();
+	const week = Math.floor((thursday.getTime() - Date.UTC(year, 0, 1)) / (7 * 86_400_000)) + 1;
+	return `${year}-W${String(week).padStart(2, '0')}`;
+};
+
+interface Session {
+	id: string;
+	etag: string;
+	date: string;
+	time: string;
+	status: string;
+	plan?: { id: string; etag: string };
+}
+
+/** `time` is the one time, `times` several (with a repeat). */
+async function schedule(page: Page, baseURL: string, body: Record<string, unknown>) {
+	const { time = '17:30', ...rest } = body;
+	const response = await page.request.post('/api/v1/planned-sessions', {
+		headers: jsonHeaders(baseURL),
+		data: JSON.stringify({ exerciseId: 'recall-basics', times: [time], ...rest })
+	});
+	expect(response.status()).toBe(201);
+	return (await response.json()) as Session;
+}
+
+async function sessionsOn(page: Page, from: string, to = from) {
+	const response = await page.request.get(`/api/v1/planned-sessions?from=${from}&to=${to}`);
+	expect(response.status()).toBe(200);
+	return ((await response.json()) as { sessions: Session[] }).sessions;
+}
+
+test('scheduling a session from Plan, then skipping, cancelling and putting it back', async ({
+	page,
+	baseURL
+}) => {
+	await ownHousehold(page, baseURL!, { dogs: ['Rosie', 'Miso'] });
+	const tomorrow = dayFromToday(1);
+	await page.goto(`/plan?week=${isoWeek(tomorrow)}&day=${tomorrow}`);
+	await expect(page.getByRole('heading', { name: 'Nothing planned' })).toBeVisible();
+	await page.getByRole('link', { name: 'Schedule' }).click();
+	await expect(page).toHaveURL(`/plan/new?date=${tomorrow}`);
+
+	// Nothing chosen: the button stays enabled and says what's missing (ui.md §5.1).
+	await page.getByRole('button', { name: 'Schedule' }).click();
+	await expect(page.getByText('Choose a dog.')).toBeVisible();
+	await expect(page.getByText('Choose an exercise.')).toBeVisible();
+	await expect(page.getByText('Choose a time.')).toBeVisible();
+
+	await page.getByRole('radio', { name: 'Miso' }).check({ force: true });
+	await page.getByRole('button', { name: /Exercise/ }).click();
+	const picker = page.getByRole('dialog', { name: 'Choose an exercise' });
+	// No area filter in the picker: the whole library under skill-area headings, and search.
+	await expect(picker.getByRole('heading', { name: 'Settling', exact: true })).toBeVisible();
+	await picker.getByLabel('Search exercises').fill('mat');
+	await expect(picker.getByRole('button', { name: /Recall basics/ })).toBeHidden();
+	await picker.getByRole('button', { name: /Settle on a mat/ }).click();
+	await expect(picker).toBeHidden();
+	await expect(page.getByRole('button', { name: /Exercise Settle on a mat/ })).toBeVisible();
+	await page.getByLabel('Time', { exact: true }).fill('07:02');
+	await page.getByLabel('Time').blur();
+	await expect(page.getByLabel('Time')).toHaveValue('07:00');
+	await page.getByRole('button', { name: 'Schedule' }).click();
+
+	await expect(page).toHaveURL(`/plan?week=${isoWeek(tomorrow)}&day=${tomorrow}`);
+	await expect(
+		page.getByText('Planned Settle on a mat for Miso, tomorrow at 07:00.')
+	).toBeVisible();
+	const card = page.getByRole('link', { name: /07:00 Settle on a mat Miso/ });
+	await expect(card).toBeVisible();
+	await expect(
+		page.getByRole('link', {
+			name: new RegExp(`${tomorrow.slice(8).replace(/^0/, '')}.*has sessions`)
+		})
+	).toBeVisible();
+
+	await card.click();
+	await expect(page.getByRole('heading', { name: 'Settle on a mat' })).toBeVisible();
+	await expect(page.getByText('Tomorrow at 07:00')).toBeVisible();
+	await page.getByRole('button', { name: 'Skip this session' }).click();
+	await expect(page.getByText('Skipped. It won’t count as done.')).toBeVisible();
+	await expect(page.getByText('Skipped · not counted as done')).toBeVisible();
+	await page.getByRole('button', { name: 'Put it back in the plan' }).click();
+	await expect(page.getByText('Put back in the plan.')).toBeVisible();
+
+	await page.getByRole('button', { name: 'Cancel…' }).click();
+	const sheet = page.getByRole('dialog', { name: /Cancel Settle on a mat tomorrow/ });
+	await sheet.getByRole('button', { name: 'Cancel session' }).click();
+	await expect(sheet).toBeHidden();
+	await expect(page.getByText('Cancelled · not counted as done')).toBeVisible();
+
+	await page.getByRole('link', { name: 'Plan' }).first().click();
+	await expect(
+		page.getByRole('link', { name: /07:00 Settle on a mat Miso Cancelled/ })
+	).toBeVisible();
+});
+
+test('Schedule leads Plan, above the week, and the "+" offers it first', async ({
+	page,
+	baseURL
+}) => {
+	const [rosie] = await ownHousehold(page, baseURL!);
+	const tomorrow = dayFromToday(1);
+	// A full day doesn't push Schedule out of sight (S15.1).
+	for (const time of ['07:00', '09:00', '11:00', '13:00', '15:00', '17:00', '19:00'])
+		await schedule(page, baseURL!, { dogId: rosie!.id, date: tomorrow, time });
+	await page.goto(`/plan?week=${isoWeek(tomorrow)}&day=${tomorrow}`);
+	const button = (await page.getByRole('link', { name: 'Schedule', exact: true }).boundingBox())!;
+	const week = (await page.getByRole('navigation', { name: 'Week' }).boundingBox())!;
+	expect(button.y).toBeLessThan(week.y);
+	await expect(page.getByRole('link', { name: 'Schedule', exact: true })).toBeInViewport();
+
+	await page.getByRole('button', { name: 'Add', exact: true }).click();
+	await expect(page.getByRole('dialog', { name: 'Add' }).getByRole('listitem')).toHaveText([
+		/Schedule session/,
+		/Log training/,
+		/Record event/,
+		/Add care task/
+	]);
+});
+
+test('the library’s Schedule button starts with that exercise', async ({ page, baseURL }) => {
+	await ownHousehold(page, baseURL!);
+	await page.goto('/library/recall-basics');
+	await page.getByRole('link', { name: 'Schedule' }).click();
+	await expect(page).toHaveURL('/plan/new?exercise=recall-basics');
+	await expect(page.getByRole('button', { name: /Exercise Recall basics/ })).toBeVisible();
+	// One dog: it's simply named, nothing to pick.
+	await expect(page.getByRole('group', { name: 'Dog' })).toContainText('Rosie');
+	await expect(page.getByRole('group', { name: 'Dog' }).getByRole('radio')).toHaveCount(0);
+});
+
+test('several times a day: each time is its own session, and a change from midday keeps the morning', async ({
+	page,
+	baseURL
+}) => {
+	await ownHousehold(page, baseURL!);
+	const start = dayFromToday(1);
+	await page.goto('/plan/new');
+	await page.getByRole('button', { name: /Exercise/ }).click();
+	await page
+		.getByRole('dialog', { name: 'Choose an exercise' })
+		.getByRole('button', { name: /The name game/ })
+		.click();
+	await page.getByLabel('Date').fill(start);
+	await page.getByLabel('Time', { exact: true }).fill('07:00');
+	// Only a repeat offers more times.
+	await expect(page.getByRole('button', { name: 'Add a time' })).toHaveCount(0);
+	await page.getByText('Daily', { exact: true }).click();
+	await page.getByRole('button', { name: 'Add a time' }).click();
+	await expect(page.getByLabel('Time 2', { exact: true })).toBeFocused();
+	await page.getByLabel('Time 2', { exact: true }).fill('07:00');
+	await page.getByRole('button', { name: 'Add a time' }).click();
+	await page.getByLabel('Time 3', { exact: true }).fill('18:00');
+	await page.getByRole('button', { name: 'Schedule' }).click();
+	await expect(page.getByText('That time is already in.')).toBeVisible();
+	await expect(page.getByLabel('Time 2', { exact: true })).toBeFocused();
+	await page.getByLabel('Time 2', { exact: true }).fill('12:00');
+	await page.getByRole('button', { name: 'Schedule' }).click();
+
+	await expect(
+		page.getByText(/Planned The name game for Rosie, starting .+ at 07:00, 3 times a day\./)
+	).toBeVisible();
+	const cards = page.getByRole('list', { name: 'Sessions' }).getByRole('link');
+	await expect(cards).toHaveCount(3);
+	await expect(cards.nth(0)).toContainText('07:00');
+	await expect(cards.nth(1)).toContainText('12:00');
+	await expect(cards.nth(2)).toContainText('18:00');
+
+	// From the midday session on: the morning stays as it was.
+	await cards.nth(1).click();
+	await expect(page.getByText('Every day at 07:00, 12:00 and 18:00')).toBeVisible();
+	await page.getByRole('button', { name: 'Change' }).click();
+	await page.getByRole('link', { name: 'This and following' }).click();
+	await expect(page.getByLabel('Time 2', { exact: true })).toHaveValue('12:00');
+	await page.getByRole('button', { name: 'Remove 18:00' }).click();
+	await page.getByRole('button', { name: 'Save' }).click();
+	await expect(page.getByText('Saved this and the following sessions.')).toBeVisible();
+	const day = await sessionsOn(page, start);
+	expect(day.map((s) => s.time)).toEqual(['07:00', '12:00']);
+	const next = await sessionsOn(page, dayFromToday(2));
+	expect(next.map((s) => s.time)).toEqual(['07:00', '12:00']);
+	expect(day[0]!.plan!.id).not.toBe(day[1]!.plan!.id);
+});
+
+test('a repeating plan: this and following, then cancelling the rest', async ({
+	page,
+	baseURL
+}) => {
+	const [rosie] = await ownHousehold(page, baseURL!);
+	const start = dayFromToday(1);
+	await page.goto('/plan/new');
+	await page.getByRole('button', { name: /Exercise/ }).click();
+	await page
+		.getByRole('dialog', { name: 'Choose an exercise' })
+		.getByRole('button', { name: /Recall basics/ })
+		.click();
+	await page.getByLabel('Date').fill(start);
+	await page.getByLabel('Time', { exact: true }).fill('17:30');
+	await page.getByText('Daily', { exact: true }).click();
+	await page.getByRole('button', { name: 'Schedule' }).click();
+	await expect(
+		page.getByText(/Planned Recall basics for Rosie, starting tomorrow at 17:30\./)
+	).toBeVisible();
+	await expect(page.getByRole('link', { name: /17:30 Recall basics Rosie Repeats/ })).toBeVisible();
+
+	// Three weeks out exists already, and a week further out is made when it's looked at.
+	expect(await sessionsOn(page, dayFromToday(21))).toHaveLength(1);
+	const far = dayFromToday(40);
+	await page.goto(`/plan?week=${isoWeek(far)}&day=${far}`);
+	await expect(page.getByRole('link', { name: /17:30 Recall basics Rosie/ })).toBeVisible();
+
+	// From the third session on, an hour later on weekdays only.
+	const third = (await sessionsOn(page, dayFromToday(3)))[0]!;
+	await page.goto(`/sessions/${third.id}`);
+	await expect(page.getByText('Every day')).toBeVisible();
+	await page.getByRole('button', { name: 'Change' }).click();
+	await page.getByRole('link', { name: 'This and following' }).click();
+	await expect(page.getByRole('heading', { name: 'Change this and following' })).toBeVisible();
+	await page.getByLabel('Time', { exact: true }).fill('18:30');
+	await page.getByText('Weekdays', { exact: true }).click();
+	await page.getByRole('button', { name: 'Save' }).click();
+	await expect(page.getByText('Saved this and the following sessions.')).toBeVisible();
+	await expect(page.getByText('Weekdays')).toBeVisible();
+
+	const before = await sessionsOn(page, dayFromToday(1), dayFromToday(2));
+	expect(before.map((s) => s.time)).toEqual(['17:30', '17:30']);
+	const after = await sessionsOn(page, dayFromToday(3), dayFromToday(9));
+	expect(after.every((s) => s.time === '18:30' && weekday(s.date) <= 5)).toBe(true);
+	expect(after).toHaveLength(5);
+
+	// Moving one session leaves the rest of its plan alone.
+	const moved = after[1]!;
+	await page.goto(`/sessions/${moved.id}`);
+	await page.getByRole('button', { name: 'Change' }).click();
+	await page.getByRole('link', { name: 'This session only' }).click();
+	await page.getByLabel('Time', { exact: true }).fill('06:45');
+	await page.getByRole('button', { name: 'Save' }).click();
+	await expect(page.getByText('Saved.', { exact: true })).toBeVisible();
+	await expect(page.getByText(/at 06:45/)).toBeVisible();
+	expect((await sessionsOn(page, after[2]!.date))[0]!.time).toBe('18:30');
+
+	// Cancel this and following from the next one: nothing of the plan is left after it.
+	await page.goto(`/sessions/${after[2]!.id}`);
+	await page.getByRole('button', { name: 'Cancel…' }).click();
+	await page
+		.getByRole('dialog', { name: 'Cancel Recall basics?' })
+		.getByRole('button', { name: 'This and following' })
+		.click();
+	await expect(page).toHaveURL(new RegExp(`day=${after[2]!.date}`));
+	await expect(page.getByText(/^Cancelled Recall basics from/)).toBeVisible();
+	expect(await sessionsOn(page, after[2]!.date, dayFromToday(30))).toEqual([]);
+	expect(await sessionsOn(page, moved.date)).toHaveLength(1);
+	expect(rosie).toBeDefined();
+});
+
+test('a change made elsewhere is never overwritten', async ({ page, baseURL }) => {
+	const [rosie] = await ownHousehold(page, baseURL!);
+	const session = await schedule(page, baseURL!, { dogId: rosie!.id, date: dayFromToday(2) });
+	await page.goto(`/sessions/${session.id}/edit?scope=this`);
+	// Another caregiver moves it meanwhile.
+	const meanwhile = await page.request.patch(`/api/v1/planned-sessions/${session.id}`, {
+		headers: { ...jsonHeaders(baseURL!), 'if-match': session.etag },
+		data: JSON.stringify({ time: '09:00' })
+	});
+	expect(meanwhile.status()).toBe(200);
+	await page.getByLabel('Time', { exact: true }).fill('10:00');
+	await page.getByRole('button', { name: 'Save' }).click();
+	await expect(
+		page.getByText('Test owner changed this a moment ago, so nothing was saved.')
+	).toBeVisible();
+	await page.getByRole('button', { name: 'See their version' }).click();
+	await expect(page.getByLabel('Time')).toHaveValue('09:00');
+
+	// Skipping a stale session reloads it and says so.
+	await page.goto(`/sessions/${session.id}`);
+	const latest = (await (
+		await page.request.get(`/api/v1/planned-sessions/${session.id}`)
+	).json()) as Session;
+	await page.request.patch(`/api/v1/planned-sessions/${session.id}`, {
+		headers: { ...jsonHeaders(baseURL!), 'if-match': latest.etag },
+		data: JSON.stringify({ time: '09:30' })
+	});
+	await page.getByRole('button', { name: 'Skip this session' }).click();
+	await expect(page.getByText(/changed this a moment ago, so it wasn't skipped/)).toBeVisible();
+	await expect(page.getByText(/at 09:30/)).toBeVisible();
+});
+
+test('archiving a dog cancels its sessions, not the other dog’s, and bringing it back restores them', async ({
+	page,
+	baseURL
+}) => {
+	const [rosie, pip] = await ownHousehold(page, baseURL!, { dogs: ['Rosie', 'Pip'] });
+	const once = await schedule(page, baseURL!, { dogId: rosie!.id, date: dayFromToday(1) });
+	const series = await schedule(page, baseURL!, {
+		dogId: rosie!.id,
+		date: dayFromToday(1),
+		repeat: { days: [1, 2, 3, 4, 5, 6, 7] }
+	});
+	const pips = await schedule(page, baseURL!, { dogId: pip!.id, date: dayFromToday(1) });
+
+	await page.goto(`/dogs/${rosie!.id}`);
+	await page.getByRole('button', { name: 'More for Rosie' }).click();
+	await page.getByRole('button', { name: 'Archive Rosie' }).click();
+	await expect(page.getByRole('dialog', { name: 'Archive Rosie?' })).toContainText(
+		'Their planned sessions are cancelled, and their care tasks set aside with no reminders.'
+	);
+	await page.getByRole('button', { name: 'Archive Rosie' }).click();
+	await expect(page.getByText(/is archived: their history stays/)).toBeVisible();
+
+	const after = await sessionsOn(page, dayFromToday(0), dayFromToday(27));
+	const rosies = after.filter((s) => s.id !== pips.id);
+	expect(rosies.map((s) => s.id)).toContain(once.id);
+	expect(rosies.filter((s) => s.plan?.id === series.plan!.id).length).toBeGreaterThan(1);
+	expect(rosies.every((s) => s.status === 'cancelled')).toBe(true);
+	expect(after.find((s) => s.id === pips.id)).toMatchObject({ status: 'planned' });
+	// A week beyond what was planned gets nothing new for Rosie.
+	expect(await sessionsOn(page, dayFromToday(35), dayFromToday(41))).toEqual([]);
+
+	await page.getByRole('button', { name: 'Bring Rosie back' }).click();
+	await expect(page.getByRole('button', { name: 'Bring Rosie back' })).toBeHidden();
+	const back = await sessionsOn(page, dayFromToday(1), dayFromToday(27));
+	expect(back.find((s) => s.id === once.id)).toMatchObject({ status: 'planned' });
+	expect(
+		back.filter((s) => s.plan?.id === series.plan!.id).every((s) => s.status === 'planned')
+	).toBe(true);
+	expect((await sessionsOn(page, dayFromToday(35), dayFromToday(41))).length).toBe(7);
+});
+
+test("another household can't see or change a session by its ID (scenario 9)", async ({
+	page,
+	browser,
+	baseURL
+}) => {
+	const [rosie] = await ownHousehold(page, baseURL!);
+	const session = await schedule(page, baseURL!, {
+		dogId: rosie!.id,
+		date: dayFromToday(1),
+		repeat: { days: [1, 2, 3, 4, 5, 6, 7] }
+	});
+	const context = await browser.newContext({ storageState: { cookies: [], origins: [] } });
+	const outsider = await context.newPage();
+	await blockMockFonts(outsider);
+	await ownHousehold(outsider, baseURL!);
+	const headers = { ...jsonHeaders(baseURL!), 'if-match': session.etag };
+	const responses = await Promise.all([
+		outsider.request.get(`/api/v1/planned-sessions/${session.id}`),
+		outsider.request.patch(`/api/v1/planned-sessions/${session.id}`, {
+			headers,
+			data: JSON.stringify({ status: 'cancelled' })
+		}),
+		outsider.request.patch(`/api/v1/training-plans/${session.plan!.id}`, {
+			headers: { ...headers, 'if-match': session.plan!.etag },
+			data: JSON.stringify({ fromSessionId: session.id, times: ['06:00'] })
+		}),
+		outsider.request.post(`/api/v1/training-plans/${session.plan!.id}/end`, {
+			headers: { ...headers, 'if-match': session.plan!.etag },
+			data: JSON.stringify({ fromSessionId: session.id })
+		})
+	]);
+	expect(responses.map((r) => r.status())).toEqual([404, 404, 404, 404]);
+	expect(await sessionsOn(outsider, dayFromToday(1), dayFromToday(7))).toEqual([]);
+	// Nor schedule for another household's dog.
+	const theirDog = await outsider.request.post('/api/v1/planned-sessions', {
+		headers: jsonHeaders(baseURL!),
+		data: JSON.stringify({
+			dogId: rosie!.id,
+			exerciseId: 'recall-basics',
+			date: dayFromToday(1),
+			times: ['07:00']
+		})
+	});
+	expect(theirDog.status()).toBe(400);
+	await outsider.goto(`/sessions/${session.id}`);
+	await expect(outsider.getByRole('heading', { name: "We couldn't find that" })).toBeVisible();
+	await context.close();
+
+	expect((await sessionsOn(page, dayFromToday(1)))[0]).toMatchObject({
+		status: 'planned',
+		time: '17:30'
+	});
+});
+
+test('clickable things show the pointer, and text fields the text cursor (S15.1)', async ({
+	page,
+	baseURL
+}) => {
+	await ownHousehold(page, baseURL!);
+	const cursor = (locator: Locator) =>
+		locator.evaluate((element) => getComputedStyle(element).cursor);
+	await page.goto('/plan/new');
+	expect(await cursor(page.getByRole('button', { name: 'Schedule', exact: true }))).toBe('pointer');
+	expect(
+		await cursor(page.getByRole('navigation', { name: 'Main' }).getByRole('link').first())
+	).toBe('pointer');
+	expect(await cursor(page.getByLabel('Date'))).toBe('pointer');
+	expect(await cursor(page.getByLabel('Time'))).toBe('pointer');
+	expect(await cursor(page.getByRole('group', { name: 'Repeat' }).locator('label').first())).toBe(
+		'pointer'
+	);
+	await page.goto('/dogs/new');
+	expect(await cursor(page.getByLabel('Name'))).toBe('text');
+});

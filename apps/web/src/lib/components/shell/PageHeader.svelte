@@ -23,7 +23,12 @@
 		     other pages have it. -->
 		<div class="flex items-center gap-2.5">
 			<Logo size={30} />
-			<h1 class="min-w-0 font-display text-[1.75rem] leading-tight font-semibold">{title}</h1>
+			<!-- Hyphenates a long one-word title at large text sizes rather than overflow (ui.md §7). -->
+			<h1
+				class="min-w-0 font-display text-[1.75rem] leading-tight font-semibold hyphens-auto [overflow-wrap:anywhere]"
+			>
+				{title}
+			</h1>
 		</div>
 		{#if subtitle !== undefined}
 			<!-- Always rendered when asked for, so the header doesn't jump when it fills in. Indented

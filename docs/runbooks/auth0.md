@@ -46,7 +46,7 @@ Names follow the project convention: kebab-case words (`toe-beans`), not run tog
    - In the GCP project, under **APIs & Services → OAuth consent screen**, choose External, enter the app name *Toe Beans*, a support email and the `toebeans.co.za` domain, with only the basic scopes. Publish it, so sign-in isn't limited to listed test users.
    - Under **Credentials → Create OAuth client ID**, choose Web application. Set the authorised redirect URI to `https://auth.toebeans.co.za/login/callback`, the custom domain from step 6.
    - Paste the client ID and secret into the Auth0 Google connection.
-4. Turn off every other connection for the application, so the login page shows only Google and email.
+4. Turn off every other connection for the application, so the login page shows only Google and email. This matters for security, not just looks: the app trusts the provider's `email_verified` claim to link accounts and to match email invitations (architecture D34, security audit C2), and Google and the database connection are the two that verify an address. Check it again on the prod tenant before the first real user, and before enabling any new connection.
 
 ## 5. Login page
 

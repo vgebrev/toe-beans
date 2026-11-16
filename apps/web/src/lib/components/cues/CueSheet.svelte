@@ -4,14 +4,15 @@
 	// simple records, so the conflict offers *Overwrite with mine* beside *See their version*.
 	// Deleting is confirmed in the same sheet, naming the cue (§5.3).
 	import { untrack } from 'svelte';
-	import { Cue } from '@toe-beans/contracts';
+	import { Cue, limits } from '@toe-beans/contracts';
 	import Icon from '#lib/components/icon/Icon.svelte';
 	import { Button } from '#lib/components/ui/button/index.js';
 	import { Input } from '#lib/components/ui/input/index.js';
 	import { Label } from '#lib/components/ui/label/index.js';
 	import * as Sheet from '#lib/components/ui/sheet/index.js';
 	import { Textarea } from '#lib/components/ui/textarea/index.js';
-	import { createApiClient, type ApiError } from '#lib/api-client/index.js';
+	import { type ApiError, createApiClient, problemStatus } from '#lib/api-client/index.js';
+	import { revealErrors } from '#lib/forms/reveal-errors.js';
 
 	interface Props {
 		open: boolean;
@@ -141,7 +142,7 @@
 			status = 'conflict';
 			return;
 		}
-		const gone = latest.error.kind === 'problem' && latest.error.problem.status === 404;
+		const gone = problemStatus(latest.error) === 404;
 		status = gone ? 'gone' : 'failed';
 	}
 
@@ -177,7 +178,7 @@
 			await finish(`Deleted “${base.label}”.`);
 			return;
 		}
-		const code = result.error.kind === 'problem' ? result.error.problem.status : null;
+		const code = problemStatus(result.error);
 		if (code === 404) return finish(`“${base.label}” was already deleted.`);
 		if (code === 412) return conflicted();
 		if (code === 401) {
@@ -321,28 +322,28 @@
 					each of you.
 				</Sheet.Description>
 			</Sheet.Header>
-			<form class="flex flex-col gap-5" onsubmit={save} novalidate>
+			<form class="flex flex-col gap-5" onsubmit={save} novalidate {@attach revealErrors}>
 				{#if status === 'theirs' && base}
 					<p aria-live="polite" class="rounded-2xl border border-border bg-soft px-4 py-3">
 						This is {base.updatedBy}'s version. Change it and save, or close to keep it.
 					</p>
 				{/if}
 				{@render field('label', 'Cue word', {
-					max: 50,
+					max: limits.cueLabel,
 					hint: 'What you say, like Sit or Leave it.'
 				})}
 				{@render field('meaning', 'What it means', {
-					max: 500,
+					max: limits.cueText,
 					multiline: true,
 					hint: 'What your puppy does, and when they’re done.'
 				})}
-				{@render field('handSignal', 'Hand signal', { optional: true, max: 500 })}
+				{@render field('handSignal', 'Hand signal', { optional: true, max: limits.cueText })}
 				{@render field('rewardConvention', 'Reward', {
 					optional: true,
-					max: 500,
+					max: limits.cueText,
 					hint: 'How and when the reward comes, like a treat at your left knee.'
 				})}
-				{@render field('notes', 'Notes', { optional: true, max: 2000, multiline: true })}
+				{@render field('notes', 'Notes', { optional: true, max: limits.cueNotes, multiline: true })}
 
 				{#if initial && base}
 					<Button

@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, onTestFinished, vi } from 'vitest';
 import type { Auth } from '../application/auth/auth.js';
 import type { RateLimiter } from '../application/ports/index.js';
 import { err, ok } from '../domain/result.js';
@@ -127,6 +127,9 @@ describe('auth http', () => {
 	});
 
 	it('the callback validates against the public origin and sets the session cookie', async () => {
+		// Frozen, so a millisecond between the fake's expiry and the cookie's can't make it 3599.
+		vi.useFakeTimers({ toFake: ['Date'] });
+		onTestFinished(() => void vi.useRealTimers());
 		const auth = fakeAuth();
 		const res = await createAuthHttp(auth, options(origin)).callback({
 			search: '?code=c&state=s',
@@ -208,12 +211,21 @@ describe('auth http', () => {
 		const res = await createAuthHttp(auth, options(origin)).signOut({
 			cookie: reader({ '__Host-tb_session': TOKEN })
 		});
-		expect(auth.signOut).toHaveBeenCalledWith(TOKEN);
+		expect(auth.signOut).toHaveBeenCalledWith(TOKEN, { everywhere: false });
 		expect(res).toMatchObject({
 			status: 303,
 			headers: { location: 'https://idp.example/logout' },
 			cookies: [{ name: '__Host-tb_session', value: '', maxAge: 0 }]
 		});
+	});
+
+	it('sign-out everywhere passes it on', async () => {
+		const auth = fakeAuth();
+		await createAuthHttp(auth, options(origin)).signOut({
+			cookie: reader({ '__Host-tb_session': TOKEN }),
+			everywhere: true
+		});
+		expect(auth.signOut).toHaveBeenCalledWith(TOKEN, { everywhere: true });
 	});
 
 	describe('authenticate', () => {

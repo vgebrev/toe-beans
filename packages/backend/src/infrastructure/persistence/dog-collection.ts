@@ -4,14 +4,13 @@ import type { Db } from 'mongodb';
 import type { Clock, DogRepository } from '../../application/ports/index.js';
 import type { Dog } from '../../domain/dog.js';
 import { ok } from '../../domain/result.js';
-import { HouseholdCollection, type HouseholdDocument } from './household-collection.js';
+import { HouseholdCollection, type Stored } from './household-collection.js';
 
 export const DOGS = 'dogs';
 
 const DOG_SCHEMA = 1;
 
-type DogDoc = HouseholdDocument &
-	Omit<Dog, 'id' | 'householdId' | 'version' | 'createdAt' | 'updatedAt'>;
+type DogDoc = Stored<Dog>;
 
 function toDog({ _id, schemaVersion: _, ...rest }: DogDoc): Dog {
 	return { id: _id, ...rest };

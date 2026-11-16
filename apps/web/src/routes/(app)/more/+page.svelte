@@ -2,14 +2,36 @@
 	import { version } from '$app/env';
 	import { resolve } from '$app/paths';
 	import DisplayNameForm from '#lib/components/account/DisplayNameForm.svelte';
+	import { install } from '#lib/client/install.svelte.js';
 	import Icon from '#lib/components/icon/Icon.svelte';
 	import Logo from '#lib/components/Logo.svelte';
+	import InstallOffer from '#lib/components/shell/InstallOffer.svelte';
 	import PageHeader from '#lib/components/shell/PageHeader.svelte';
 	import ThemeSwitch from '#lib/components/shell/ThemeSwitch.svelte';
 	import { Button } from '#lib/components/ui/button/index.js';
+	import * as Sheet from '#lib/components/ui/sheet/index.js';
+	import { unsubscribe } from '#lib/push/browser.js';
 	import type { PageProps } from './$types';
 
 	let { data }: PageProps = $props();
+
+	/**
+	 * Signing out stops this browser's reminders first: on a shared phone the next person
+	 * shouldn't get them. The push service then refuses sends, and the server drops the device.
+	 */
+	let signingOut = false;
+	let everywhereOpen = $state(false);
+	async function signOut(event: SubmitEvent) {
+		if (signingOut) return;
+		event.preventDefault();
+		signingOut = true;
+		const form = event.currentTarget as HTMLFormElement;
+		await Promise.race([
+			unsubscribe().catch(() => undefined),
+			new Promise((resolve) => setTimeout(resolve, 3000))
+		]);
+		form.submit();
+	}
 
 	const listFormat = new Intl.ListFormat('en', { type: 'conjunction' });
 	const dogsLine = $derived.by(() => {
@@ -23,7 +45,6 @@
 
 <PageHeader title="More" />
 <div class="flex flex-col gap-8 px-4 pt-2">
-	<!-- Notifications join this page with their slice (ui.md §2.1). -->
 	<div class="flex flex-col gap-3">
 		<a
 			href={resolve('/(app)/dogs')}
@@ -69,6 +90,18 @@
 			</span>
 			<Icon name="forward" class="text-muted-foreground" />
 		</a>
+		<a
+			href={resolve('/(app)/settings/notifications')}
+			class="flex min-h-12 items-center gap-3 rounded-2xl border border-border px-4 py-3"
+		>
+			<Icon name="notifications" class="text-primary" />
+			<span class="flex min-w-0 flex-1 flex-col">
+				<span class="font-bold">Notifications</span>
+				<span class="truncate text-sm text-muted-foreground">Training reminders on this device</span
+				>
+			</span>
+			<Icon name="forward" class="text-muted-foreground" />
+		</a>
 	</div>
 
 	<section aria-labelledby="appearance" class="flex flex-col gap-3">
@@ -81,6 +114,23 @@
 		<ThemeSwitch />
 	</section>
 
+	<!-- Installed or not, on this device (ui.md §6.3). -->
+	<section aria-labelledby="app" class="flex flex-col gap-3">
+		<h2 id="app" class="text-sm font-extrabold tracking-wide text-muted-foreground uppercase">
+			App
+		</h2>
+		{#if install.state === 'app'}
+			<p class="flex items-center gap-3">
+				<Icon name="done" class="text-primary" />
+				Installed: you're using the Toe Beans app.
+			</p>
+		{:else}
+			<InstallOffer
+				reason="Toe Beans isn't installed in this browser. Installed, it opens like an app, and reminders are more reliable."
+			/>
+		{/if}
+	</section>
+
 	<section aria-labelledby="account" class="flex flex-col gap-3">
 		<h2 id="account" class="text-sm font-extrabold tracking-wide text-muted-foreground uppercase">
 			Account
@@ -89,23 +139,46 @@
 			<DisplayNameForm displayName={data.me.profile.displayName} etag={data.me.etag} />
 			<p class="flex flex-col">
 				<span class="font-bold">Email</span>
-				<span class="text-muted-foreground">{data.me.profile.email}</span>
+				<span class="break-all text-muted-foreground">{data.me.profile.email}</span>
 			</p>
 		{:else}
 			<!-- The API didn't answer: show who's signed in, without an edit that can't save. -->
 			<p class="flex flex-col">
 				<span class="font-bold">{data.viewer.displayName}</span>
-				<span class="text-muted-foreground">{data.viewer.email}</span>
+				<span class="break-all text-muted-foreground">{data.viewer.email}</span>
 			</p>
 			<p class="text-sm text-muted-foreground">
 				Couldn't load your account details. Reload the page to change your name.
 			</p>
 		{/if}
 		<!-- A plain form POST: the server ends the session and sends the browser to the provider. -->
-		<form method="POST" action={resolve('/auth/sign-out')}>
+		<form method="POST" action={resolve('/auth/sign-out')} onsubmit={signOut}>
 			<Button type="submit" variant="outline" class="w-full">Sign out</Button>
 		</form>
+		<!-- For a lost phone or a shared computer left signed in (architecture D33, ui.md §4.7). -->
+		<Button variant="ghost" class="w-full" onclick={() => (everywhereOpen = true)}>
+			Sign out everywhere
+		</Button>
 	</section>
+
+	<Sheet.Root bind:open={everywhereOpen}>
+		<Sheet.Content side="bottom" class="mx-auto flex max-w-xl flex-col gap-4 px-4 pt-6 pb-4">
+			<Sheet.Header class="p-0 pr-12 text-left">
+				<Sheet.Title class="font-display text-xl font-semibold">
+					Sign out on every device?
+				</Sheet.Title>
+				<Sheet.Description class="text-base">
+					You'll be signed out here and on every phone and browser you've used, and reminders stop
+					on all of them. Sign in again where you still use Toe Beans, and turn reminders back on in
+					Notifications.
+				</Sheet.Description>
+			</Sheet.Header>
+			<form method="POST" action={resolve('/auth/sign-out')} onsubmit={signOut}>
+				<input type="hidden" name="scope" value="everywhere" />
+				<Button type="submit" variant="destructive" class="w-full">Sign out everywhere</Button>
+			</form>
+		</Sheet.Content>
+	</Sheet.Root>
 
 	<footer class="flex flex-col items-center gap-1 pt-4 text-sm text-muted-foreground">
 		<Logo wordmark size={28} />
