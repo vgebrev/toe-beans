@@ -1,6 +1,6 @@
 # Toe Beans — Backlog
 
-**Version:** 0.41 (draft for iteration)
+**Version:** 0.42 (draft for iteration)
 **Date:** 16 November 2026
 **Inputs:** `docs/requirements.md` v1.0, `docs/architecture.md` v1.20, `docs/ui.md` v0.29
 
@@ -65,6 +65,8 @@
 **Changes in 0.40:** S15.1 done: the owner's snag list is under S15, and the fixes follow `ui.md` 0.28 (§2.1, §4.6, §5.1, J7). Inputs moved to ui 0.28.
 
 **Changes in 0.41:** new S6.5, several times a day, the owner's answer to S15.1's open question (architecture 1.20 D24, ui 0.29 J3), built; S6 is open again until it's tried on a phone. Inputs moved to architecture 1.20 and ui 0.29.
+
+**Changes in 0.42:** S6.5 done: the owner tried it on the Galaxy S23 FE, so S6 is closed again.
 
 **Changes in 0.21:** S2 and S3 done: the owner tested both on the phones in Chrome, including S3.5's photo flow and the Android share sheet. The installed PWA wasn't part of it; that's S13.
 
@@ -161,9 +163,9 @@ Work is organised as **vertical slices**: each delivers a usable end-to-end incr
 
 | 2026-11-15 | S13 done. The owner tried S13.5 on the Galaxy S23 FE and closed it without the Redmi Note 12 Pro, whose e2e viewport stays an estimate. S15 added before S14: the owner's snag list, a security audit, and a code review and refactor, each in its own session. |
 | 2026-11-16 | S15.1 done, closed by the owner on the Galaxy S23 FE: the snag list below, with e2e checks for each. `pnpm check` also failed on `develop` already: Kit's `page.url` is now a read-only URL type, so `AddMenu` copies it by its `href`. The owner's open question on sessions several times a day became S6.5. |
-| 2026-11-16 | S6.5 built: several times a day (architecture 1.20 D24, ui 0.29), from the owner's puppy-school question in S15.1. Each time is its own session; *This and following* from a midday session keeps the morning's; migration 0012 moves existing plans and keys. Unit, integration (the migration too) and e2e tests. The error reveal from S15.1 now scrolls at once: a smooth scroll let a quick tap land on the wrong chip, which the e2e suite caught. |
+| 2026-11-16 | S6.5 done, closed by the owner on the Galaxy S23 FE: several times a day (architecture 1.20 D24, ui 0.29), from the owner's puppy-school question in S15.1. Each time is its own session; *This and following* from a midday session keeps the morning's; migration 0012 moves existing plans and keys. Unit, integration (the migration too) and e2e tests. The error reveal from S15.1 now scrolls at once: a smooth scroll let a quick tap land on the wrong chip, which the e2e suite caught. |
 
-**Next up:** S6.5 on the Galaxy S23 FE, S15.2, S15.3, then S14.
+**Next up:** S15.2, S15.3, then S14.
 
 ---
 
@@ -267,7 +269,7 @@ Work is organised as **vertical slices**: each delivers a usable end-to-end incr
 | S5.1 | Cue CRUD with optimistic concurrency and a conflict UI | ✅ |
 | S5.2 | On a phone: add, edit and delete cues, and see a conflict from a second device | ✅ |
 
-### S6 Training planner 🟨
+### S6 Training planner ✅
 *FR-05.*
 
 | # | Task | Status |
@@ -276,7 +278,7 @@ Work is organised as **vertical slices**: each delivers a usable end-to-end incr
 | S6.2 | Recurring plans: recurrence subset, rolling-horizon materialisation (idempotent), edit *this / this and following* | ✅ |
 | S6.3 | Plan week view | ✅ |
 | S6.4 | On a phone: schedule once and repeating, the time picker's 5-minute rounding, skip, cancel and put back, *this and following*, and a conflict from a second device. Archiving a dog now cancels its planned sessions and pauses its series; bringing it back restores those still ahead (D24). | ✅ |
-| S6.5 | Several times a day (architecture 1.20 D24): a repeat with up to six times, each its own session; *This and following* from a session keeps that day's earlier ones; migration 0012. Built; waits for the owner on the Galaxy S23 FE, including a plan from before the migration. | 🟨 |
+| S6.5 | Several times a day (architecture 1.20 D24): a repeat with up to six times, each its own session; *This and following* from a session keeps that day's earlier ones; migration 0012. The owner closed it on the Galaxy S23 FE. | ✅ |
 
 ### S7 Quick training log ✅
 *FR-07, scenario 3.*
