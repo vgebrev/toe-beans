@@ -97,7 +97,7 @@
 				href={planHref(addDays(data.monday, -7))}
 				class="flex size-12 items-center justify-center rounded-full"
 				aria-label="Previous week"
-				data-sveltekit-noscroll
+				data-sveltekit-reset="false"
 			>
 				<Icon name="back" />
 			</a>
@@ -114,7 +114,7 @@
 					href={planHref(addDays(data.monday, 7))}
 					class="flex size-12 items-center justify-center rounded-full"
 					aria-label="Next week"
-					data-sveltekit-noscroll
+					data-sveltekit-reset="false"
 				>
 					<Icon name="forward" />
 				</a>
@@ -134,7 +134,7 @@
 						)
 							? ', has sessions'
 							: ''}"
-						data-sveltekit-noscroll
+						data-sveltekit-reset="false"
 						data-sveltekit-replacestate
 						class={[
 							'flex min-h-16 flex-col items-center justify-center gap-0.5 rounded-2xl border',

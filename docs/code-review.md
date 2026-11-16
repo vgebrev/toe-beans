@@ -1,6 +1,6 @@
 # Toe Beans — Code Review
 
-**Version:** 0.7
+**Version:** 0.8
 **Date:** 16 November 2026
 **Status:** Rounds 1–7 (the backend, the contracts and the web app) done; round 8 to do (S15.3).
 **Inputs:** `docs/architecture.md` v1.22 (§4.2 layering), the code at commit `d7dd854` (`develop`)
@@ -18,6 +18,8 @@
 **Changes in 0.6:** round 6 (web library) with its fixes (§8); the status helper also reached the routes, ahead of round 7.
 
 **Changes in 0.7:** round 7 (web routes, hooks and the service worker) with its fixes (§9).
+
+**Changes in 0.8:** a replaced Kit link option, found in the browser after round 7 (§9).
 
 ---
 
@@ -196,6 +198,8 @@ Checked with the unit tests and `pnpm test:integration`.
 | The waking delay in three places | `LoadingSkeleton` waited 3 s by default; the app layout passed `3000 - SLOW_AFTER_MS` and the waking page `2000` (3 s less the service worker's second) to keep the message 3 s after the tap. | `WAKE_AFTER_MS` exported from `LoadingSkeleton`; both pages subtract their own head start from it. |
 
 Checked with the unit tests and `pnpm test:e2e --project=galaxy-s23-fe` (131 pass), which also covers round 6.
+
+**Found afterwards, in the browser:** Kit 3 replaced `data-sveltekit-noscroll` with `data-sveltekit-reset="false"` and ignores the old attribute, warning in dev. So Plan's week arrows and days, and every filter sheet choice (History's type and dates, the library's areas), had gone back to scrolling to the top. They use `reset="false"`, which also keeps focus on what was tapped. Checked with Plan's, History's and the library's e2e tests.
 
 **Taste, left alone:**
 

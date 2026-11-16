@@ -81,7 +81,7 @@
 						<a
 							href={option.href}
 							aria-current={isCurrent ? 'true' : undefined}
-							data-sveltekit-noscroll
+							data-sveltekit-reset="false"
 							data-sveltekit-replacestate
 							class={row}
 							onclick={() => choose(option)}
