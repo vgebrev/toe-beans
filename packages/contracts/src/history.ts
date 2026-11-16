@@ -1,9 +1,23 @@
 // History: /api/v1/history (architecture §5.1, FR-08, FR-09, D35), session logs, behaviour events
 // and completed care tasks in one timeline, newest first, a page at a time.
 import { z } from 'zod';
-import { BehaviourEvent } from './behaviour-events.js';
-import { CareTask } from './care-tasks.js';
+import { BehaviourEvent, EventCategory } from './behaviour-events.js';
+import { CareCategory, CareTask } from './care-tasks.js';
 import { SessionLog } from './session-logs.js';
+
+/**
+ * What History can show: `training`, `events`, one event category, `care`, or `care-` and a care
+ * category (`care-vaccination`), as an event category could share a care category's name. The
+ * backend's application holds the same list.
+ */
+export const historyTypes = [
+	'training',
+	'events',
+	...EventCategory.options,
+	'care',
+	...CareCategory.options.map((c) => `care-${c}` as const)
+] as const;
+export type HistoryType = (typeof historyTypes)[number];
 
 export const HistoryEntry = z.discriminatedUnion('kind', [
 	z.object({ kind: z.literal('training'), log: SessionLog }),
@@ -21,8 +35,7 @@ export const HistoryPage = z.object({
 export type HistoryPage = z.infer<typeof HistoryPage>;
 
 /**
- * The query string, every parameter optional: `dog`, `type` (`training`, `events`, an event
- * category, `care`, or `care-` and a care category such as `care-vaccination`), `exercise`
+ * The query string, every parameter optional: `dog`, `type` (one of `historyTypes`), `exercise`
  * (training only), `from` and `to` (dates on the household's clocks, inclusive) and `cursor`.
  */
 export const HistoryQuery = z.object({

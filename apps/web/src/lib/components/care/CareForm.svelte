@@ -4,7 +4,7 @@
 	// 5-minute steps, and notes. Saving keeps everything typed on a failure; a change made
 	// elsewhere offers the latest version, never an overwrite.
 	import { untrack } from 'svelte';
-	import type { CareCategory, Dog } from '@toe-beans/contracts';
+	import { limits, type CareCategory, type Dog } from '@toe-beans/contracts';
 	import DogAvatar from '#lib/components/dogs/DogAvatar.svelte';
 	import Icon from '#lib/components/icon/Icon.svelte';
 	import { Button } from '#lib/components/ui/button/index.js';
@@ -156,7 +156,7 @@
 		<Label for="care-title" class="font-bold">Title</Label>
 		<Input
 			id="care-title"
-			maxlength={80}
+			maxlength={limits.careTitle}
 			autocomplete="off"
 			bind:value={values.title}
 			oninput={() => {
@@ -219,7 +219,7 @@
 		<Textarea
 			id="care-notes"
 			rows={3}
-			maxlength={2000}
+			maxlength={limits.careNotes}
 			bind:value={values.notes}
 			oninput={() => clear('notes')}
 			aria-invalid={errors.notes ? 'true' : undefined}

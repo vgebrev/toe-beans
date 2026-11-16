@@ -3,7 +3,7 @@
 	// can't be saved without one; editing changes the details, and the photo changes on its own.
 	// Saving follows §5.2: nothing typed is lost on a failure, and the button becomes Retry.
 	import { invalidateAll } from '$app/navigation';
-	import { Dog, type BirthDate } from '@toe-beans/contracts';
+	import { Dog, limits, type BirthDate } from '@toe-beans/contracts';
 	import Icon from '#lib/components/icon/Icon.svelte';
 	import { Button } from '#lib/components/ui/button/index.js';
 	import { Input } from '#lib/components/ui/input/index.js';
@@ -141,7 +141,7 @@
 		<Label for="dog-name" class="font-bold">Name</Label>
 		<Input
 			id="dog-name"
-			maxlength={50}
+			maxlength={limits.dogName}
 			autocomplete="off"
 			bind:value={name}
 			oninput={clear('name')}
@@ -222,7 +222,7 @@
 		</Label>
 		<Textarea
 			id="dog-notes"
-			maxlength={2000}
+			maxlength={limits.dogNotes}
 			bind:value={notes}
 			oninput={clear('notes')}
 			aria-invalid={errors.notes ? 'true' : undefined}

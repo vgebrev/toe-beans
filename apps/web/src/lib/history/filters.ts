@@ -1,14 +1,10 @@
 // History's filters (ui.md §4.4, §2.3, FR-09), kept in the URL so they survive a reload and Back:
-// `type` (training, events, one kind of event, care or one kind of care, `care-` and its kind), `exercise`, and `from` / `to` dates. The dog
-// is the switcher's (§2.2), not in the URL. Anything the URL holds that isn't a filter is dropped.
-import type { CareCategory, EventCategory } from '@toe-beans/contracts';
-import { careLabels } from '#lib/care/labels.js';
+// `type` (one of the contracts' `historyTypes`), `exercise`, and `from` / `to` dates. The dog is the
+// switcher's (§2.2), not in the URL. Anything the URL holds that isn't a filter is dropped.
+import { historyTypes, type CareCategory, type HistoryType } from '@toe-beans/contracts';
+import { CARE_CATEGORIES, careLabels } from '#lib/care/labels.js';
 import { categoryLabels, CATEGORIES } from '#lib/journal/labels.js';
 import { addDays, isPlainDate } from '#lib/planner/dates.js';
-
-export type HistoryType = 'training' | 'events' | EventCategory | 'care' | `care-${CareCategory}`;
-
-const CARE_KINDS = Object.keys(careLabels) as CareCategory[];
 
 /** The kind of care a type picks, if it picks one. */
 export const careKindOf = (type: HistoryType | null): CareCategory | null =>
@@ -24,14 +20,6 @@ export interface HistoryFilters {
 	to: string | null;
 }
 
-const TYPES: readonly string[] = [
-	'training',
-	'events',
-	...CATEGORIES,
-	'care',
-	...CARE_KINDS.map((k) => `care-${k}`)
-];
-
 export function readFilters(params: Pick<URLSearchParams, 'get'>): HistoryFilters {
 	const type = params.get('type');
 	const exercise = params.get('exercise');
@@ -39,7 +27,10 @@ export function readFilters(params: Pick<URLSearchParams, 'get'>): HistoryFilter
 	const to = params.get('to');
 	const dates = isPlainDate(from) && isPlainDate(to) && to < from ? {} : { from, to };
 	return {
-		type: type !== null && TYPES.includes(type) ? (type as HistoryType) : null,
+		type:
+			type !== null && (historyTypes as readonly string[]).includes(type)
+				? (type as HistoryType)
+				: null,
 		exercise: exercise && exercise.length <= 100 ? exercise : null,
 		from: isPlainDate(dates.from ?? null) ? dates.from! : null,
 		to: isPlainDate(dates.to ?? null) ? dates.to! : null
@@ -76,7 +67,7 @@ export const typeOptions: readonly { id: HistoryType | 'all'; label: string; div
 			label: c === 'other' ? 'Other event' : categoryLabels[c].label
 		})),
 		{ id: 'care', label: 'Any care', divider: true },
-		...CARE_KINDS.map((k) => ({
+		...CARE_CATEGORIES.map((k) => ({
 			id: `care-${k}` as const,
 			label: k === 'other' ? 'Other care' : careLabels[k].label
 		}))

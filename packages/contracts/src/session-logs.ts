@@ -1,5 +1,6 @@
 // The quick training log: /api/v1/session-logs (architecture §5.2, D25, FR-07).
 import { z } from 'zod';
+import { ExerciseRef } from './exercises.js';
 
 /** How it went. Not assessed is the default, and never counts as successful (FR-07). */
 export const Outcome = z.enum(['successful', 'partial', 'not_yet', 'not_assessed']);
@@ -14,12 +15,7 @@ export type Environment = z.infer<typeof Environment>;
 export const SessionLog = z.object({
 	id: z.string(),
 	dogId: z.string(),
-	exercise: z.object({
-		id: z.string(),
-		/** The exercise's ID when the library no longer has it. */
-		title: z.string(),
-		minutes: z.number().optional()
-	}),
+	exercise: ExerciseRef,
 	/** The planned session it completed, if any. */
 	plannedSessionId: z.string().optional(),
 	practisedAt: z.iso.datetime(),

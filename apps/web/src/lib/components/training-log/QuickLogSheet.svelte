@@ -6,7 +6,13 @@
 	// failure, and a change made elsewhere is never overwritten; *See their version* loads it.
 	import { untrack } from 'svelte';
 	import { resolve } from '$app/paths';
-	import { SessionLog, type Dog, type PlannedSession } from '@toe-beans/contracts';
+	import {
+		limits,
+		SessionLog,
+		type Dog,
+		type ExerciseRef,
+		type PlannedSession
+	} from '@toe-beans/contracts';
 	import DogAvatar from '#lib/components/dogs/DogAvatar.svelte';
 	import Icon from '#lib/components/icon/Icon.svelte';
 	import { Button } from '#lib/components/ui/button/index.js';
@@ -16,7 +22,6 @@
 	import { Textarea } from '#lib/components/ui/textarea/index.js';
 	import { createApiClient, type ApiError } from '#lib/api-client/index.js';
 	import {
-		DURATION_MAX,
 		MOODS,
 		moodLabels,
 		OUTCOMES,
@@ -29,7 +34,7 @@
 
 	type Target =
 		| { kind: 'session'; session: PlannedSession }
-		| { kind: 'exercise'; exercise: { id: string; title: string; minutes?: number | undefined } }
+		| { kind: 'exercise'; exercise: ExerciseRef }
 		| { kind: 'log'; log: SessionLog };
 
 	interface Props {
@@ -248,10 +253,10 @@
 	function step(by: number) {
 		const minutes = values.minutes;
 		if (minutes === null) {
-			if (by > 0) values.minutes = Math.min(exercise.minutes ?? 5, DURATION_MAX);
+			if (by > 0) values.minutes = Math.min(exercise.minutes ?? 5, limits.logDurationMin);
 		} else {
 			const next = minutes + by;
-			values.minutes = next < 1 ? null : Math.min(next, DURATION_MAX);
+			values.minutes = next < 1 ? null : Math.min(next, limits.logDurationMin);
 		}
 		errors = { ...errors, minutes: undefined };
 		edited();
@@ -454,7 +459,7 @@
 						<Input
 							id="log-place-note"
 							autocomplete="off"
-							maxlength={100}
+							maxlength={limits.logEnvironmentNote}
 							bind:value={values.placeNote}
 							oninput={edited}
 							aria-invalid={errors.placeNote ? 'true' : undefined}
@@ -505,7 +510,7 @@
 					<Textarea
 						id="log-notes"
 						class="min-h-16"
-						maxlength={2000}
+						maxlength={limits.logNotes}
 						bind:value={values.notes}
 						oninput={edited}
 						aria-invalid={errors.notes ? 'true' : undefined}

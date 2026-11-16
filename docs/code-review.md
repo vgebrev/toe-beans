@@ -1,8 +1,8 @@
 # Toe Beans — Code Review
 
-**Version:** 0.4
+**Version:** 0.5
 **Date:** 16 November 2026
-**Status:** Rounds 1–4 (the backend package) done; rounds 5–8 to do (S15.3).
+**Status:** Rounds 1–5 (the backend package and the contracts) done; rounds 6–8 to do (S15.3).
 **Inputs:** `docs/architecture.md` v1.22 (§4.2 layering), the code at commit `d7dd854` (`develop`)
 
 **Changes in 0.1:** the review's split into eight rounds, one layer or boundary each, and round 1 (domain) with its fixes.
@@ -12,6 +12,8 @@
 **Changes in 0.3:** round 3 (infrastructure) with its fixes (§5).
 
 **Changes in 0.4:** round 4 (http, worker and wiring) with its fixes (§6).
+
+**Changes in 0.5:** round 5 (contracts) with its fixes (§7), which settle both items carried forward.
 
 ---
 
@@ -31,12 +33,12 @@ Each round reports first, the owner decides, and only then are the fixes made.
 | 2 | Application | `packages/backend/src/application` | ✅ | A couple of small fixes, done |
 | 3 | Infrastructure | `packages/backend/src/infrastructure`, migrations included | ✅ | A couple of small fixes, done |
 | 4 | http, worker and wiring | `packages/backend/src/{http,worker}`, `composition.ts`, `config.ts` | ✅ | A couple of small fixes, done |
-| 5 | Contracts | `packages/contracts`, and how it lines up with the domain and http | ⬜ | |
+| 5 | Contracts | `packages/contracts`, and how it lines up with the domain and http | ✅ | Worth a round, done |
 | 6 | Web library | `apps/web/src/lib` (api-client, components, stores) | ⬜ | |
 | 7 | Web routes | `apps/web/src/routes`, hooks, the service worker | ⬜ | |
 | 8 | Tests | unit, integration and e2e helpers (duplication only, not coverage) | ⬜ | |
 
-**Carried forward:**
+**Carried forward** (both settled in round 5):
 
 - To round 5: the web forms repeat the domain's text limits as literals (`maxlength={2000}`, `{80}`, `{50}` in `CareForm`, `DogForm`, `CueSheet`, `EventSheet` and `QuickLogSheet`, and `DURATION_MAX = 240` in `training-log/labels.ts`), about 15 numbers that can drift from the domain. The domain may not import `contracts`, so the fix is a design question for that round.
 - To round 5: `apps/web/src/lib/history/filters.ts` builds its own list of History's types, the `care-` prefix included, which `application/history/history.ts` also defines as `HISTORY_TYPES`.
@@ -130,3 +132,24 @@ Checked with the unit tests and `pnpm test:integration`.
 - The tick has `preferenceOf` and also an inline `?? defaultPreference(...)`.
 - `composition.ts` and `createHttp` each make a planner; it holds no state.
 - `sessionCookie` reads `Date.now()` rather than the clock.
+
+## 7. Round 5: Contracts
+
+**Verdict:** worth a round. The contracts themselves are consistent (response shapes, then shape-only inputs as `strictObject`, `etag` and `updatedBy` documented the same way); what needed work was the seam either side. The domain may not import `contracts`, so lists and numbers were held in two or three places with only one direction checked.
+
+**Fixed:**
+
+| Finding | Problem | Fix |
+|---|---|---|
+| The form limits typed out again in the web | About 16 numbers (names, notes, cue text, event and log fields, the duration stepper, times a day, household and display names) were literals in the forms, `DURATION_MAX` in `training-log/labels.ts` and `TIMES_MAX` in `planner/form.ts`. A changed domain limit would leave the form stopping too early or too late. | `limits` in `contracts/limits.ts`, read by every form. |
+| Enums held by both the domain and the contracts | Outcome, mood, place, event and care categories, skill areas and the two reminder leads. The DTOs' `satisfies` caught a value only the domain had; nothing caught one only the contract had, which the web would offer and the backend refuse. | `http/contracts.test.ts` checks each pair is equal, in order, along with the limits; date precision and role, which the domain has only as types, are compared as types. |
+| History's types built twice | `HISTORY_TYPES` in `application/history/history.ts`, and the web's own list and `HistoryType` in `lib/history/filters.ts`, `care-` prefix included. | `historyTypes` and `HistoryType` in `contracts/history.ts`, used by the web and checked against `HISTORY_TYPES` by the same test. The web's `CARE_KINDS` went with it, as `CARE_CATEGORIES` already gives the order. |
+| An exercise reference written three times | `SessionLog.exercise`, `PlannedSession.exercise` and an inline type in `QuickLogSheet`. | `ExerciseRef` in `contracts/exercises.ts`. |
+
+**Taste, left alone:**
+
+- `date` and `time` input caps defined in both `planner.ts` and `care-tasks.ts`, and inline in `dogs.ts` and `history.ts`.
+- `UpdateBehaviourEvent` is the same schema as `CreateBehaviourEvent`; the two names say what each is for.
+- `Weekday` has no exported type, unlike the other schemas.
+- `z.string().max(100)` for an ID, repeated across the inputs.
+- The input caps (a dog name up to 500) sit far above the domain's limits; they're a ceiling against abuse, not the rule.

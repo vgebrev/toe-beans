@@ -1,6 +1,7 @@
 // The training planner: /api/v1/planned-sessions and /api/v1/training-plans (architecture §5.2,
 // D24, FR-05).
 import { z } from 'zod';
+import { ExerciseRef } from './exercises.js';
 import { Outcome } from './session-logs.js';
 
 /** ISO weekday: Monday is 1, Sunday 7. */
@@ -27,12 +28,7 @@ export type TrainingPlan = z.infer<typeof TrainingPlan>;
 export const PlannedSession = z.object({
 	id: z.string(),
 	dogId: z.string(),
-	exercise: z.object({
-		id: z.string(),
-		/** The exercise's ID when the library no longer has it. */
-		title: z.string(),
-		minutes: z.number().optional()
-	}),
+	exercise: ExerciseRef,
 	scheduledAt: z.iso.datetime(),
 	/** On the household's clocks. */
 	date: z.iso.date(),

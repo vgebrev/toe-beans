@@ -4,7 +4,7 @@
 	// simple records, so the conflict offers *Overwrite with mine* beside *See their version*.
 	// Deleting is confirmed in the same sheet, naming the cue (§5.3).
 	import { untrack } from 'svelte';
-	import { Cue } from '@toe-beans/contracts';
+	import { Cue, limits } from '@toe-beans/contracts';
 	import Icon from '#lib/components/icon/Icon.svelte';
 	import { Button } from '#lib/components/ui/button/index.js';
 	import { Input } from '#lib/components/ui/input/index.js';
@@ -329,21 +329,21 @@
 					</p>
 				{/if}
 				{@render field('label', 'Cue word', {
-					max: 50,
+					max: limits.cueLabel,
 					hint: 'What you say, like Sit or Leave it.'
 				})}
 				{@render field('meaning', 'What it means', {
-					max: 500,
+					max: limits.cueText,
 					multiline: true,
 					hint: 'What your puppy does, and when they’re done.'
 				})}
-				{@render field('handSignal', 'Hand signal', { optional: true, max: 500 })}
+				{@render field('handSignal', 'Hand signal', { optional: true, max: limits.cueText })}
 				{@render field('rewardConvention', 'Reward', {
 					optional: true,
-					max: 500,
+					max: limits.cueText,
 					hint: 'How and when the reward comes, like a treat at your left knee.'
 				})}
-				{@render field('notes', 'Notes', { optional: true, max: 2000, multiline: true })}
+				{@render field('notes', 'Notes', { optional: true, max: limits.cueNotes, multiline: true })}
 
 				{#if initial && base}
 					<Button

@@ -4,7 +4,7 @@
 	// once the server has it (NFR-04, NFR-13).
 	import { untrack } from 'svelte';
 	import { invalidateAll } from '$app/navigation';
-	import { Profile } from '@toe-beans/contracts';
+	import { limits, Profile } from '@toe-beans/contracts';
 	import Icon from '#lib/components/icon/Icon.svelte';
 	import { Button } from '#lib/components/ui/button/index.js';
 	import { Input } from '#lib/components/ui/input/index.js';
@@ -117,7 +117,7 @@
 		id="display-name"
 		name="displayName"
 		autocomplete="name"
-		maxlength={100}
+		maxlength={limits.displayName}
 		bind:value
 		oninput={edited}
 		aria-invalid={fieldError ? 'true' : undefined}

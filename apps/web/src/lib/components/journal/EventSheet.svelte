@@ -6,7 +6,7 @@
 	// survives a failure, and a change made elsewhere is never overwritten; *See their version*
 	// loads it.
 	import { untrack } from 'svelte';
-	import { BehaviourEvent, type Dog, type EventCategory } from '@toe-beans/contracts';
+	import { BehaviourEvent, limits, type Dog, type EventCategory } from '@toe-beans/contracts';
 	import DogAvatar from '#lib/components/dogs/DogAvatar.svelte';
 	import Icon from '#lib/components/icon/Icon.svelte';
 	import { Button } from '#lib/components/ui/button/index.js';
@@ -392,15 +392,21 @@
 				{/if}
 			</fieldset>
 
-			{@render text('trigger', 'Trigger', 'What set it off, like the doorbell.', 200, false)}
+			{@render text(
+				'trigger',
+				'Trigger',
+				'What set it off, like the doorbell.',
+				limits.eventTrigger,
+				false
+			)}
 			{@render text(
 				'response',
 				'How your puppy responded',
 				'What they did, and how they settled.',
-				1000,
+				limits.eventResponse,
 				true
 			)}
-			{@render text('notes', 'Notes', 'Anything else worth remembering.', 2000, true)}
+			{@render text('notes', 'Notes', 'Anything else worth remembering.', limits.eventNotes, true)}
 
 			<div class="sticky bottom-0 -mt-1 flex flex-col gap-3 bg-popover pt-3 pb-4">
 				{@render alerts()}

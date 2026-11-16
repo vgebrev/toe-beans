@@ -4,9 +4,6 @@ import { EVERY_DAY, WEEKDAYS } from './dates.js';
 
 export type RepeatChoice = 'never' | 'daily' | 'weekdays' | 'custom';
 
-/** Times a day a repeat can have (architecture D24). */
-export const TIMES_MAX = 6;
-
 export interface SessionValues {
 	dogId: string;
 	exerciseId: string | null;

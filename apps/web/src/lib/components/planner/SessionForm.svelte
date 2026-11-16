@@ -5,7 +5,7 @@
 	// Saving keeps everything typed on a failure; a change made elsewhere offers the latest
 	// version, never an overwrite (sessions aren't simple records like cues).
 	import { tick, untrack } from 'svelte';
-	import type { Dog, ExerciseSummary } from '@toe-beans/contracts';
+	import { limits, type Dog, type ExerciseSummary } from '@toe-beans/contracts';
 	import DogAvatar from '#lib/components/dogs/DogAvatar.svelte';
 	import Icon from '#lib/components/icon/Icon.svelte';
 	import { Button } from '#lib/components/ui/button/index.js';
@@ -15,7 +15,6 @@
 	import {
 		checkValues,
 		timeField,
-		TIMES_MAX,
 		type FieldName,
 		type RepeatChoice,
 		type SaveOutcome,
@@ -303,7 +302,7 @@
 							</div>
 						{/if}
 					{/each}
-					{#if values.times.length < TIMES_MAX}
+					{#if values.times.length < limits.sessionTimes}
 						<Button type="button" variant="outline" class="self-start" onclick={addTime}>
 							<Icon name="add" />
 							Add a time

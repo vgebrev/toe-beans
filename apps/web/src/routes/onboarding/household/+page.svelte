@@ -4,7 +4,7 @@
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
-	import { Household } from '@toe-beans/contracts';
+	import { Household, limits } from '@toe-beans/contracts';
 	import NativeSelect from '#lib/components/form/NativeSelect.svelte';
 	import Icon from '#lib/components/icon/Icon.svelte';
 	import { Button } from '#lib/components/ui/button/index.js';
@@ -125,7 +125,7 @@
 		<Label for="household-name" class="font-bold">Household name</Label>
 		<Input
 			id="household-name"
-			maxlength={100}
+			maxlength={limits.householdName}
 			bind:value={name}
 			oninput={() => (errors = { ...errors, name: undefined })}
 			aria-invalid={errors.name ? 'true' : undefined}

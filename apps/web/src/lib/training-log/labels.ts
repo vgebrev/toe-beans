@@ -28,6 +28,3 @@ export const placeLabels: Record<Environment, { short: string; full: string }> =
 	public: { short: 'Public', full: 'Public space' },
 	other: { short: 'Other', full: 'Somewhere else' }
 };
-
-/** The stepper's range, matching the API's (architecture §5.2). */
-export const DURATION_MAX = 240;
