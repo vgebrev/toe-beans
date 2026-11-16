@@ -5,14 +5,13 @@ import type { Db } from 'mongodb';
 import type { CareTaskRepository, Clock } from '../../application/ports/index.js';
 import type { CareTask } from '../../domain/care-task.js';
 import { ok } from '../../domain/result.js';
-import { HouseholdCollection, type HouseholdDocument } from './household-collection.js';
+import { HouseholdCollection, type Stored } from './household-collection.js';
 
 export const CARE_TASKS = 'careTasks';
 
 const CARE_SCHEMA = 1;
 
-type CareDoc = HouseholdDocument &
-	Omit<CareTask, 'id' | 'householdId' | 'version' | 'createdAt' | 'updatedAt'>;
+type CareDoc = Stored<CareTask>;
 
 function toTask({ _id, schemaVersion: _, ...rest }: CareDoc): CareTask {
 	return { id: _id, ...rest };
@@ -44,7 +43,7 @@ export function mongoCareTasks(db: Db, clock: Clock): CareTaskRepository {
 		async listUpcoming(householdId, { until } = {}) {
 			const docs = await tasks.find(
 				householdId,
-				{ status: 'upcoming', ...(until && { dueDate: { $lte: until } }) } as never,
+				{ status: 'upcoming', ...(until && { dueDate: { $lte: until } }) },
 				{ sort: soonest, limit: 500 }
 			);
 			return docs.map(toTask);
@@ -52,7 +51,7 @@ export function mongoCareTasks(db: Db, clock: Clock): CareTaskRepository {
 		async listClosed(householdId, limit) {
 			const docs = await tasks.find(
 				householdId,
-				{ status: { $in: ['completed', 'cancelled'] } } as never,
+				{ status: { $in: ['completed', 'cancelled'] } },
 				{ sort: latest, limit }
 			);
 			return docs.map(toTask);
@@ -76,7 +75,7 @@ export function mongoCareTasks(db: Db, clock: Clock): CareTaskRepository {
 							...(before.id ? [{ completedOn: before.date, _id: { $lt: before.id } }] : [])
 						]
 					})
-				} as never,
+				},
 				{ sort: { completedOn: -1, _id: -1 }, limit }
 			);
 			return docs.map(toTask);

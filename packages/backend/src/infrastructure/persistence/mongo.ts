@@ -1,7 +1,7 @@
 // One pooled MongoClient per process, connected before the server listens (architecture §8.4):
 // on Cloud Run, connecting during startup gets the CPU boost, while connecting after the startup
 // probe passed took 5.7–31 s instead of 0.3 s (S-1.4).
-import { MongoClient, type Db } from 'mongodb';
+import { MongoClient, MongoServerError, type Db } from 'mongodb';
 import type { Readiness } from '../../application/ports/index.js';
 
 export interface MongoConnection {
@@ -23,6 +23,10 @@ export async function connectMongo(uri: string, dbName: string): Promise<MongoCo
 	await client.connect();
 	return { client, db: client.db(dbName), close: () => client.close() };
 }
+
+/** A write refused by a unique index. */
+export const isDuplicateKey = (e: unknown): boolean =>
+	e instanceof MongoServerError && e.code === 11000;
 
 /** `/readyz`: a ping, given 2 s. The driver reconnects on its own once Atlas is back. */
 export const mongoReadiness = (db: Db, timeoutMS = 2000): Readiness => ({

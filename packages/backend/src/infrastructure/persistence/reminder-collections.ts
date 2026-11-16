@@ -3,7 +3,7 @@
 // HouseholdCollection: every method takes the user. The ledger is written by the worker, which
 // works across households; people only reach their own entries, by user. Indexes, including the
 // ledger's unique key and its 30-day TTL, are created by migration 0008.
-import { MongoServerError, type Db } from 'mongodb';
+import type { Db } from 'mongodb';
 import type {
 	Clock,
 	PushDeviceRepository,
@@ -17,6 +17,7 @@ import {
 	type Reminder,
 	type ReminderPreference
 } from '../../domain/reminders.js';
+import { isDuplicateKey } from './mongo.js';
 
 export const PUSH_DEVICES = 'pushDevices';
 export const REMINDER_PREFERENCES = 'reminderPreferences';
@@ -50,8 +51,6 @@ const toReminder = ({ _id, schemaVersion: _, ...rest }: ReminderDoc): Reminder =
 	id: _id,
 	...rest
 });
-
-const isDuplicateKey = (e: unknown) => e instanceof MongoServerError && e.code === 11000;
 
 export function mongoPushDevices(db: Db, clock: Clock): PushDeviceRepository {
 	const devices = db.collection<DeviceDoc>(PUSH_DEVICES);

@@ -1,7 +1,7 @@
 // Mongo adapters for households and invitations (architecture §3.5, §4.4). Indexes are created by
 // migration 0002. A household is the isolation boundary itself, so its document has no
 // `householdId` and it doesn't build on HouseholdCollection; invitations do.
-import { MongoServerError, type Collection, type Db } from 'mongodb';
+import type { Collection, Db } from 'mongodb';
 import type {
 	Clock,
 	HouseholdRepository,
@@ -12,7 +12,8 @@ import type { Household, Membership } from '../../domain/household.js';
 import type { Id } from '../../domain/id.js';
 import { invitationState, type Invitation } from '../../domain/invitation.js';
 import { err, ok } from '../../domain/result.js';
-import { HouseholdCollection, type HouseholdDocument } from './household-collection.js';
+import { HouseholdCollection, type Stored } from './household-collection.js';
+import { isDuplicateKey } from './mongo.js';
 import { currentSession } from './unit-of-work.js';
 
 export const HOUSEHOLDS = 'households';
@@ -31,8 +32,6 @@ function toHousehold({ _id, schemaVersion: _, ...rest }: HouseholdDoc): Househol
 }
 
 const alreadyInOne = conflictError('This person already belongs to a household.');
-const isDuplicateKey = (e: unknown) => e instanceof MongoServerError && e.code === 11000;
-
 export function mongoHouseholds(db: Db): HouseholdRepository {
 	const households = db.collection<HouseholdDoc>(HOUSEHOLDS);
 	const one = async (filter: object) => {
@@ -123,8 +122,7 @@ export function mongoHouseholds(db: Db): HouseholdRepository {
 	};
 }
 
-type InvitationDoc = HouseholdDocument &
-	Omit<Invitation, 'id' | 'householdId' | 'version' | 'createdAt' | 'updatedAt'>;
+type InvitationDoc = Stored<Invitation>;
 
 function toInvitation({ _id, schemaVersion: _, ...rest }: InvitationDoc): Invitation {
 	return { id: _id, ...rest };

@@ -4,14 +4,13 @@ import type { Db } from 'mongodb';
 import type { Clock, CueRepository } from '../../application/ports/index.js';
 import type { Cue } from '../../domain/cue.js';
 import { ok } from '../../domain/result.js';
-import { HouseholdCollection, type HouseholdDocument } from './household-collection.js';
+import { HouseholdCollection, type Stored } from './household-collection.js';
 
 export const CUES = 'cues';
 
 const CUE_SCHEMA = 1;
 
-type CueDoc = HouseholdDocument &
-	Omit<Cue, 'id' | 'householdId' | 'version' | 'createdAt' | 'updatedAt'>;
+type CueDoc = Stored<Cue>;
 
 function toCue({ _id, schemaVersion: _, ...rest }: CueDoc): Cue {
 	return { id: _id, ...rest };

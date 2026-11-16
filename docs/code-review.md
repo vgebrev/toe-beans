@@ -1,13 +1,15 @@
 # Toe Beans — Code Review
 
-**Version:** 0.2
+**Version:** 0.3
 **Date:** 16 November 2026
-**Status:** Rounds 1 (domain) and 2 (application) done; rounds 3–8 to do (S15.3).
+**Status:** Rounds 1–3 (domain, application, infrastructure) done; rounds 4–8 to do (S15.3).
 **Inputs:** `docs/architecture.md` v1.22 (§4.2 layering), the code at commit `d7dd854` (`develop`)
 
 **Changes in 0.1:** the review's split into eight rounds, one layer or boundary each, and round 1 (domain) with its fixes.
 
 **Changes in 0.2:** round 2 (application) with its fixes (§4), and the web's copy of History's types carried forward to round 5.
+
+**Changes in 0.3:** round 3 (infrastructure) with its fixes (§5).
 
 ---
 
@@ -25,7 +27,7 @@ Each round reports first, the owner decides, and only then are the fixes made.
 |---|---|---|---|---|
 | 1 | Domain | `packages/backend/src/domain` | ✅ | A couple of small fixes, done |
 | 2 | Application | `packages/backend/src/application` | ✅ | A couple of small fixes, done |
-| 3 | Infrastructure | `packages/backend/src/infrastructure`, migrations included | ⬜ | |
+| 3 | Infrastructure | `packages/backend/src/infrastructure`, migrations included | ✅ | A couple of small fixes, done |
 | 4 | http, worker and wiring | `packages/backend/src/{http,worker}`, `composition.ts`, `config.ts` | ⬜ | |
 | 5 | Contracts | `packages/contracts`, and how it lines up with the domain and http | ⬜ | |
 | 6 | Web library | `apps/web/src/lib` (api-client, components, stores) | ⬜ | |
@@ -79,3 +81,26 @@ Each round reports first, the owner decides, and only then are the fixes made.
 - `validationError` imported from `domain/errors.js` in some files and from the re-export in `application/errors.js` in others.
 - `auth.ts` keeps its own `DAY_MS`.
 - Two comment lines past the wrap width (`household.ts`, `planner.ts`).
+
+## 5. Round 3: Infrastructure
+
+**Verdict:** a couple of small fixes, all in the persistence base and its repositories. `HouseholdCollection` scopes every household read and write, and the other adapters (email, photos, push, logging, Sentry, rate limits, OIDC, tick auth, content) are small, consistent and careful about what reaches the logs. Deployed migrations are never edited, so they were read but not changed.
+
+**Fixed:**
+
+| Finding | Problem | Fix |
+|---|---|---|
+| About 21 `as never` casts on repository filters | `HouseholdCollection` typed filters as `Filter<Fields<T>>`, which has no `_id`, so every filter on an ID or a soft-delete flag was cast and went unchecked (events, logs, care tasks, plans). | Filters are `Filter<T>`; the casts are gone. The household still comes last in `#scope`, so a filter can't widen it. |
+| An edit's `$set`/`$unset` built twice | `update` and `updateWhere` each turned `changes` into the update, and had to agree that undefined removes a field. | A private `#edit(changes)`. |
+| The duplicate-key check in three places | `isDuplicateKey` in the household and reminder repositories, and `DUPLICATE_KEY = 11000` in the migration runner. | One `isDuplicateKey` in `mongo.ts`. |
+| The stored document's type spelled out seven times | Dogs, cues, events, logs, care tasks and invitations each repeated `HouseholdDocument & Omit<…, 'id' \| 'householdId' \| 'version' \| 'createdAt' \| 'updatedAt'>`, a list that must match `HouseholdDocument`; the planner had it as a local `Stored<T>`. | `Stored<E>` exported from `household-collection.ts`. |
+
+The four `as never` left in `household-collection.ts` are on update documents, where the driver's update types don't follow a generic `T`. Checked with the unit tests and `pnpm test:integration` (156 pass; the 11 skipped are the isolation suite's checks for operations a repository doesn't have).
+
+**Taste, left alone:**
+
+- Eight identical `toX` mappers: each is where an older schema is read (§3.5), so one per entity is deliberate.
+- The `live` and `deleted` soft-delete filters, once each in events and logs.
+- `e instanceof Error ? e.name : 'unknown'` in the Mailpit, Resend and push adapters.
+- `sourceOf` in `auth-collections.ts` repeats the domain's email-local-part rule; it reads schema 1 and shouldn't follow later changes.
+- A long comment line in `exercise-files.ts`.

@@ -10,7 +10,7 @@ import type {
 } from '../../application/ports/index.js';
 import type { OccurrenceKey, PlannedSession, TrainingPlan } from '../../domain/planner.js';
 import { ok } from '../../domain/result.js';
-import { HouseholdCollection, type HouseholdDocument } from './household-collection.js';
+import { HouseholdCollection, type Stored } from './household-collection.js';
 
 export const TRAINING_PLANS = 'trainingPlans';
 export const PLANNED_SESSIONS = 'plannedSessions';
@@ -18,9 +18,8 @@ export const PLANNED_SESSIONS = 'plannedSessions';
 const PLAN_SCHEMA = 2;
 const SESSION_SCHEMA = 2;
 
-type Stored<T> = Omit<T, 'id' | 'householdId' | 'version' | 'createdAt' | 'updatedAt'>;
-type PlanDoc = HouseholdDocument & Stored<TrainingPlan>;
-type SessionDoc = HouseholdDocument & Stored<PlannedSession>;
+type PlanDoc = Stored<TrainingPlan>;
+type SessionDoc = Stored<PlannedSession>;
 
 function toPlan({ _id, schemaVersion: _, ...rest }: PlanDoc): TrainingPlan {
 	return { id: _id, ...rest };
@@ -45,7 +44,7 @@ export function mongoTrainingPlans(db: Db, clock: Clock): TrainingPlanRepository
 			return doc && toPlan(doc);
 		},
 		async findByIds(householdId, ids) {
-			return (await plans.find(householdId, { _id: { $in: [...ids] } } as never)).map(toPlan);
+			return (await plans.find(householdId, { _id: { $in: [...ids] } })).map(toPlan);
 		},
 		async listRunning(householdId, date) {
 			const docs = await plans.find(

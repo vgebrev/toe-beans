@@ -26,6 +26,10 @@ export interface HouseholdDocument {
 	schemaVersion: number;
 }
 
+/** How an entity is stored: its ID as `_id`, and the common fields as the base keeps them. */
+export type Stored<E> = HouseholdDocument &
+	Omit<E, 'id' | 'householdId' | 'version' | 'createdAt' | 'updatedAt'>;
+
 /** What a repository supplies; the base fills in the rest. */
 export type Fields<T extends HouseholdDocument> = Omit<T, keyof HouseholdDocument>;
 
@@ -61,7 +65,7 @@ export class HouseholdCollection<T extends HouseholdDocument> {
 	/** `filter` can't widen the household: its own `householdId`, if any, is overridden. */
 	async find(
 		householdId: Id,
-		filter: Filter<Fields<T>> = {},
+		filter: Filter<T> = {},
 		options: Pick<FindOptions, 'sort' | 'limit' | 'skip'> = {}
 	): Promise<T[]> {
 		const docs = await this.#collection
@@ -99,17 +103,11 @@ export class HouseholdCollection<T extends HouseholdDocument> {
 		id: Id,
 		expectedVersion: number,
 		changes: Changes<T>,
-		filter: Filter<Fields<T>> = {}
+		filter: Filter<T> = {}
 	): Promise<Result<T, WriteError>> {
-		const $set: Record<string, unknown> = { updatedAt: this.#options.clock.now() };
-		const $unset: Record<string, ''> = {};
-		for (const [key, value] of Object.entries(changes)) {
-			if (value === undefined) $unset[key] = '';
-			else $set[key] = value;
-		}
 		const updated = await this.#collection.findOneAndUpdate(
 			this.#scope(householdId, { ...filter, _id: id, version: expectedVersion }),
-			{ $set, $unset, $inc: { version: 1 } } as never,
+			this.#edit(changes) as never,
 			{ returnDocument: 'after', session: currentSession() }
 		);
 		return updated ? ok(updated as T) : err(await this.#missOn(householdId, id));
@@ -134,7 +132,7 @@ export class HouseholdCollection<T extends HouseholdDocument> {
 	 */
 	async insertMissing(
 		householdId: Id,
-		items: readonly { match: Filter<Fields<T>>; id: Id; fields: Fields<T> }[]
+		items: readonly { match: Filter<T>; id: Id; fields: Fields<T> }[]
 	): Promise<void> {
 		if (items.length === 0) return;
 		const now = this.#options.clock.now();
@@ -167,7 +165,7 @@ export class HouseholdCollection<T extends HouseholdDocument> {
 	async setQuietly(
 		householdId: Id,
 		id: Id,
-		filter: Filter<Fields<T>>,
+		filter: Filter<T>,
 		$set: Partial<Fields<T>>
 	): Promise<boolean> {
 		const { modifiedCount } = await this.#collection.updateOne(
@@ -183,31 +181,32 @@ export class HouseholdCollection<T extends HouseholdDocument> {
 	 * each: versions go up, so a change someone started on one of them meets a 412 (NFR-13). A
 	 * field set to undefined is removed.
 	 */
-	async updateWhere(
-		householdId: Id,
-		filter: Filter<Fields<T>>,
-		changes: Changes<T>
-	): Promise<number> {
-		const $set: Record<string, unknown> = { updatedAt: this.#options.clock.now() };
-		const $unset: Record<string, ''> = {};
-		for (const [key, value] of Object.entries(changes)) {
-			if (value === undefined) $unset[key] = '';
-			else $set[key] = value;
-		}
+	async updateWhere(householdId: Id, filter: Filter<T>, changes: Changes<T>): Promise<number> {
 		const { modifiedCount } = await this.#collection.updateMany(
 			this.#scope(householdId, filter),
-			{ $set, $unset, $inc: { version: 1 } } as never,
+			this.#edit(changes) as never,
 			{ session: currentSession() }
 		);
 		return modifiedCount;
 	}
 
 	/** Deletes every document in the household that matches `filter`, whatever its version. */
-	async deleteWhere(householdId: Id, filter: Filter<Fields<T>>): Promise<number> {
+	async deleteWhere(householdId: Id, filter: Filter<T>): Promise<number> {
 		const { deletedCount } = await this.#collection.deleteMany(this.#scope(householdId, filter), {
 			session: currentSession()
 		});
 		return deletedCount;
+	}
+
+	/** An edit's update: `changes` set, those set to undefined removed, the version up by one. */
+	#edit(changes: Changes<T>) {
+		const $set: Record<string, unknown> = { updatedAt: this.#options.clock.now() };
+		const $unset: Record<string, ''> = {};
+		for (const [key, value] of Object.entries(changes)) {
+			if (value === undefined) $unset[key] = '';
+			else $set[key] = value;
+		}
+		return { $set, $unset, $inc: { version: 1 } };
 	}
 
 	/** Why a versioned write matched nothing: gone (or another household's), or changed since. */

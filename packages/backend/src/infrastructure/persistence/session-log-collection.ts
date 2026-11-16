@@ -11,17 +11,14 @@ import { notFound } from '../../application/errors.js';
 import type { Id } from '../../domain/id.js';
 import { err, ok } from '../../domain/result.js';
 import type { SessionLog } from '../../domain/session-log.js';
-import { HouseholdCollection, type HouseholdDocument } from './household-collection.js';
+import { HouseholdCollection, type Stored } from './household-collection.js';
 import { timelineFilter, timelineSort } from './timeline-filter.js';
 
 export const SESSION_LOGS = 'sessionLogs';
 
 const LOG_SCHEMA = 1;
 
-type LogDoc = HouseholdDocument &
-	Omit<SessionLog, 'id' | 'householdId' | 'version' | 'createdAt' | 'updatedAt'> & {
-		deletedPlannedSessionId?: Id;
-	};
+type LogDoc = Stored<SessionLog> & { deletedPlannedSessionId?: Id };
 
 function toLog({ _id, schemaVersion: _, deletedPlannedSessionId, ...rest }: LogDoc): SessionLog {
 	return {
@@ -45,18 +42,16 @@ export function mongoSessionLogs(db: Db, clock: Clock): SessionLogRepository {
 			return toLog(await logs.insert(householdId, id, fields));
 		},
 		async findById(householdId, id) {
-			const [doc] = await logs.find(householdId, { _id: id, ...live } as never);
+			const [doc] = await logs.find(householdId, { _id: id, ...live });
 			return doc ? toLog(doc) : null;
 		},
 		async findByIds(householdId, ids) {
-			return (await logs.find(householdId, { _id: { $in: [...ids] }, ...live } as never)).map(
-				toLog
-			);
+			return (await logs.find(householdId, { _id: { $in: [...ids] }, ...live })).map(toLog);
 		},
 		async listPractisedBetween(householdId, from, to) {
 			const docs = await logs.find(
 				householdId,
-				{ practisedAt: { $gte: from, $lt: to }, ...live } as never,
+				{ practisedAt: { $gte: from, $lt: to }, ...live },
 				{ sort: { practisedAt: 1, _id: 1 } }
 			);
 			return docs.map(toLog);
@@ -68,17 +63,17 @@ export function mongoSessionLogs(db: Db, clock: Clock): SessionLogRepository {
 					...timelineFilter('practisedAt', query),
 					...(exerciseId && { exerciseId }),
 					...live
-				} as never,
+				},
 				{ sort: timelineSort('practisedAt'), limit: query.limit }
 			);
 			return docs.map(toLog);
 		},
 		async update(householdId, id, expectedVersion, changes) {
-			const updated = await logs.update(householdId, id, expectedVersion, changes, live as never);
+			const updated = await logs.update(householdId, id, expectedVersion, changes, live);
 			return updated.ok ? ok(toLog(updated.value)) : updated;
 		},
 		async softDelete(householdId, id, expectedVersion, deletedBy) {
-			const [doc] = await logs.find(householdId, { _id: id, ...live } as never);
+			const [doc] = await logs.find(householdId, { _id: id, ...live });
 			if (!doc) return err(notFound('log'));
 			const updated = await logs.update(
 				householdId,
@@ -92,16 +87,16 @@ export function mongoSessionLogs(db: Db, clock: Clock): SessionLogRepository {
 						deletedPlannedSessionId: doc.plannedSessionId
 					})
 				},
-				live as never
+				live
 			);
 			return updated.ok ? ok(toLog(updated.value)) : updated;
 		},
 		async findDeleted(householdId, id) {
-			const [doc] = await logs.find(householdId, { _id: id, ...deleted } as never);
+			const [doc] = await logs.find(householdId, { _id: id, ...deleted });
 			return doc ? toLog(doc) : null;
 		},
 		async restore(householdId, id, expectedVersion, restoredBy) {
-			const [doc] = await logs.find(householdId, { _id: id, ...deleted } as never);
+			const [doc] = await logs.find(householdId, { _id: id, ...deleted });
 			if (!doc) return err(notFound('log'));
 			const updated = await logs.update(
 				householdId,
@@ -115,7 +110,7 @@ export function mongoSessionLogs(db: Db, clock: Clock): SessionLogRepository {
 						deletedPlannedSessionId: undefined
 					})
 				},
-				deleted as never
+				deleted
 			);
 			return updated.ok ? ok(toLog(updated.value)) : updated;
 		}
