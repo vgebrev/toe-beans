@@ -1,6 +1,6 @@
 <script lang="ts">
-	// History (ui.md §4.4, FR-08, FR-09): the household's logs and events in one timeline, newest
-	// first, grouped by day. The switcher picks the dog; *Show*, *Exercise* and *Dates* are filter
+	// History (ui.md §4.4, FR-08, FR-09): the household's logs, events and done care tasks in one
+	// timeline, newest first, grouped by day; a care task heads the day it was done (D35). The switcher picks the dog; *Show*, *Exercise* and *Dates* are filter
 	// buttons (§5.1) kept in the URL. A page at a time with *Load more*, not infinite scroll.
 	// After a delete on a log's or event's page, the snackbar here offers *Undo* (J8). Back from a
 	// log or event shows the list as it was, without asking again, unless this tab saved something
@@ -17,6 +17,7 @@
 		type HistoryEntry
 	} from '@toe-beans/contracts';
 	import FilterSheet from '#lib/components/filter/FilterSheet.svelte';
+	import CareEntryCard from '#lib/components/history/CareEntryCard.svelte';
 	import DateRangeSheet from '#lib/components/history/DateRangeSheet.svelte';
 	import EventCard from '#lib/components/history/EventCard.svelte';
 	import Icon from '#lib/components/icon/Icon.svelte';
@@ -40,7 +41,7 @@
 		withFilters,
 		type HistoryFilters
 	} from '#lib/history/filters.js';
-	import { keepList, keptList, matches, placeEntry } from '#lib/history/timeline.js';
+	import { dateOf, idOf, keepList, keptList, matches, placeEntry } from '#lib/history/timeline.js';
 	import { dayName, formatDate } from '#lib/planner/dates.js';
 	import type { PageProps } from './$types';
 
@@ -110,8 +111,6 @@
 	});
 
 	// Consecutive entries on the same day, under one heading.
-	const dateOf = (entry: HistoryEntry) =>
-		entry.kind === 'training' ? entry.log.date : entry.event.date;
 	const days = $derived(
 		entries.reduce<{ date: string; entries: HistoryEntry[] }[]>((list, entry) => {
 			const date = dateOf(entry);
@@ -278,7 +277,7 @@
 			<EmptyState
 				icon="history"
 				title="No history yet"
-				text="Logged sessions and notable moments will build up here."
+				text="Logged sessions, notable moments and care done will build up here."
 			/>
 		{/if}
 	{:else}
@@ -288,10 +287,12 @@
 					{heading(day.date)}
 				</h2>
 				<ul class="flex flex-col gap-2">
-					{#each day.entries as entry (entry.kind === 'training' ? entry.log.id : entry.event.id)}
+					{#each day.entries as entry (idOf(entry))}
 						<li>
 							{#if entry.kind === 'training'}
 								<LogCard log={entry.log} dog={dogOf(entry.log.dogId)} />
+							{:else if entry.kind === 'care'}
+								<CareEntryCard task={entry.task} dog={dogOf(entry.task.dogId)} />
 							{:else}
 								<EventCard event={entry.event} dog={dogOf(entry.event.dogId)} />
 							{/if}

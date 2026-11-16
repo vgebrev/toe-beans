@@ -1,15 +1,19 @@
 import { describe, expect, it } from 'vitest';
 import type { EventCategory } from '../../domain/behaviour-event.js';
+import type { PlainDate } from '../../domain/calendar.js';
+import type { CareStatus } from '../../domain/care-task.js';
 import { createIdGenerator, type Id } from '../../domain/id.js';
 import type { User } from '../../domain/user.js';
 import { memoryUsers } from '../../testing/auth.js';
 import { memoryBehaviourEvents } from '../../testing/behaviour-events.js';
+import { memoryCareTasks } from '../../testing/care-tasks.js';
 import { manualClock } from '../../testing/clock.js';
 import { memorySessionLogs } from '../../testing/session-logs.js';
+import { createCareTasks } from '../care/care-tasks.js';
 import { createBehaviourEvents } from '../journal/behaviour-events.js';
 import type { PlannerContext } from '../planner/planner.js';
 import { createSessionLogs } from '../training-log/session-logs.js';
-import { createHistory, decodeCursor, encodeCursor, type HistoryEntry } from './history.js';
+import { careAt, createHistory, decodeCursor, encodeCursor, type HistoryEntry } from './history.js';
 
 // Tuesday 10 November 2026, 17:00 in Johannesburg.
 const at = new Date('2026-11-10T15:00:00Z');
@@ -40,10 +44,12 @@ async function setup() {
 	await users.insert(person);
 	const sessionLogs = memorySessionLogs(now);
 	const behaviourEvents = memoryBehaviourEvents(now);
+	const careTasks = memoryCareTasks(now);
 	const exercises = { all: () => [], get: () => undefined };
 	const ports = {
 		sessionLogs,
 		behaviourEvents,
+		careTasks,
 		users,
 		exercises,
 		clock,
@@ -51,8 +57,12 @@ async function setup() {
 		logger: silent
 	} as never;
 	const history = createHistory(
-		{ sessionLogs, behaviourEvents },
-		{ sessionLogs: createSessionLogs(ports), behaviourEvents: createBehaviourEvents(ports) }
+		{ sessionLogs, behaviourEvents, careTasks },
+		{
+			sessionLogs: createSessionLogs(ports),
+			behaviourEvents: createBehaviourEvents(ports),
+			careTasks: createCareTasks(ports)
+		}
 	);
 	const ripley = ids.next();
 	const miso = ids.next();
@@ -79,11 +89,37 @@ async function setup() {
 			recordedBy: 'sam' as Id,
 			updatedBy: 'sam' as Id
 		});
-	return { history, sessionLogs, behaviourEvents, ripley, miso, logAt, eventAt };
+	const careDone = (
+		on: string,
+		dogId = ripley,
+		status: CareStatus = 'completed',
+		householdId = 'h1'
+	) =>
+		careTasks.insert({
+			id: ids.next(),
+			householdId: householdId as Id,
+			dogId,
+			category: 'vaccination',
+			title: 'Vaccination',
+			dueDate: on as PlainDate,
+			status,
+			...(status === 'completed' && { completedOn: on as PlainDate }),
+			history: [
+				{ kind: 'created', due: { date: on as PlainDate }, at, by: 'sam' as Id },
+				...(status === 'completed'
+					? [{ kind: 'completed' as const, on: on as PlainDate, at, by: 'sam' as Id }]
+					: [])
+			],
+			createdBy: 'sam' as Id,
+			updatedBy: 'sam' as Id
+		});
+	return { history, sessionLogs, behaviourEvents, ripley, miso, logAt, eventAt, careDone };
 }
 
 const idsOf = (entries: HistoryEntry[]) =>
-	entries.map((e) => (e.kind === 'training' ? e.view.log.id : e.view.event.id));
+	entries.map((e) =>
+		e.kind === 'training' ? e.view.log.id : e.kind === 'event' ? e.view.event.id : e.view.task.id
+	);
 
 describe('the history timeline', () => {
 	it('merges logs and events, newest first, with names', async () => {
@@ -167,6 +203,74 @@ describe('the history timeline', () => {
 		await behaviourEvents.softDelete('h1' as Id, goneEvent.id, 1, 'sam' as Id);
 		const page = await history.list(sam, {});
 		expect(page.ok && idsOf(page.value.entries)).toEqual([kept.id]);
+	});
+
+	it('lists completed care tasks at the head of the day they were done (D35)', async () => {
+		const { history, logAt, eventAt, careDone } = await setup();
+		// 17:00 on the 10th and 09:00 on the 9th in Johannesburg; the care was done on each day.
+		const log = await logAt(hours(0));
+		const ninth = await eventAt(new Date('2026-11-09T07:00:00Z'));
+		const careTenth = await careDone('2026-11-10');
+		const careNinth = await careDone('2026-11-09');
+		await careDone('2026-11-08', undefined, 'upcoming');
+		await careDone('2026-11-08', undefined, 'cancelled');
+		await careDone('2026-11-08', undefined, 'completed', 'h9');
+		const page = await history.list(sam, {});
+		if (!page.ok) throw new Error(JSON.stringify(page.error));
+		expect(idsOf(page.value.entries)).toEqual([careTenth.id, log.id, careNinth.id, ninth.id]);
+		expect(page.value.entries[0]).toMatchObject({ kind: 'care', view: { names: { sam: 'Sam' } } });
+	});
+
+	it('places care on the last millisecond of its day on the household clocks', () => {
+		expect(careAt('2026-11-10' as PlainDate, 'Africa/Johannesburg')).toEqual(
+			new Date('2026-11-10T21:59:59.999Z')
+		);
+	});
+
+	it('pages through care tasks done on the same day without skipping or repeating', async () => {
+		const { history, logAt, careDone } = await setup();
+		const made = [];
+		for (let i = 0; i < 4; i++) made.push(await careDone('2026-11-09'));
+		// A log at the very millisecond the care entries sort at, tied only by ID.
+		made.push(await logAt(careAt('2026-11-09' as PlainDate, sam.timeZone)));
+		made.push(await logAt(new Date('2026-11-09T08:00:00Z')));
+		made.push(await careDone('2026-11-08'));
+		const seen: string[] = [];
+		let cursor: string | undefined;
+		for (let round = 0; round < 10; round++) {
+			const page = await history.list(sam, { cursor }, 2);
+			if (!page.ok) throw new Error(JSON.stringify(page.error));
+			seen.push(...idsOf(page.value.entries));
+			cursor = page.value.next;
+			if (!cursor) break;
+		}
+		expect(seen).toHaveLength(made.length);
+		expect(new Set(seen)).toEqual(new Set(made.map((m) => m.id)));
+		expect(seen.at(-1)).toBe(made.at(-1)!.id);
+	});
+
+	it('filters care by type, dog and dates, and leaves it out for an exercise or events', async () => {
+		const { history, logAt, eventAt, careDone, ripley, miso } = await setup();
+		await logAt(hours(-1));
+		await eventAt(hours(-2));
+		const ripleys = await careDone('2026-11-10', ripley);
+		const misos = await careDone('2026-11-08', miso);
+		const list = async (filter: Parameters<typeof history.list>[1]) => {
+			const page = await history.list(sam, filter);
+			if (!page.ok) throw new Error(JSON.stringify(page.error));
+			return idsOf(page.value.entries);
+		};
+		expect(await list({ type: 'care' })).toEqual([ripleys.id, misos.id]);
+		expect(await list({ type: 'care', dogId: miso })).toEqual([misos.id]);
+		expect(await list({ type: 'care-vaccination' })).toEqual([ripleys.id, misos.id]);
+		expect(await list({ type: 'care-puppy_school' })).toEqual([]);
+		expect(await list({ type: 'other' })).toEqual([]);
+		expect(await list({ type: 'care', from: '2026-11-09' })).toEqual([ripleys.id]);
+		expect(await list({ type: 'care', to: '2026-11-08' })).toEqual([misos.id]);
+		expect(await list({ type: 'events' })).toHaveLength(1);
+		expect(await list({ type: 'barking' })).toHaveLength(1);
+		expect(await list({ type: 'training' })).toHaveLength(1);
+		expect(await list({ exerciseId: 'recall-basics' })).toHaveLength(1);
 	});
 
 	it('refuses a bad filter, field by field', async () => {

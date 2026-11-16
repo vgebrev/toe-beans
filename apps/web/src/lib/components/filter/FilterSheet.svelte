@@ -4,6 +4,8 @@
 		label: string;
 		/** Choosing it navigates here instead of calling `onselect`. */
 		href?: string;
+		/** Starts a new group: a line above it in the sheet (ui.md §5.1). */
+		divider?: boolean;
 	}
 </script>
 
@@ -11,7 +13,8 @@
 	// A filter as one button showing the current choice; tapping it opens a bottom sheet with the
 	// choices one per row, *All* first (ui.md §5.1). It never scrolls sideways, however many
 	// choices there are. A choice is a link when it has an `href` (a filter kept in the URL) and a
-	// button otherwise; either way choosing closes the sheet.
+	// button otherwise; either way choosing closes the sheet. Choices can be grouped, with a line
+	// between groups.
 	import type { Snippet } from 'svelte';
 	import Icon from '#lib/components/icon/Icon.svelte';
 	import * as Sheet from '#lib/components/ui/sheet/index.js';
@@ -71,7 +74,7 @@
 		<ul class="-mx-4 flex min-h-0 flex-col gap-1 overflow-y-auto px-4 pb-4" aria-label={title}>
 			{#each options as option (option.id)}
 				{@const isCurrent = option.id === current.id}
-				<li>
+				<li class={option.divider ? 'mt-1 border-t border-border pt-2' : undefined}>
 					{#if option.href !== undefined}
 						<!-- The page resolves the route; the rule can't see through the prop. -->
 						<!-- eslint-disable svelte/no-navigation-without-resolve -->

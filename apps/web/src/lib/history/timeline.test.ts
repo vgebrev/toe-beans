@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { HistoryEntry } from '@toe-beans/contracts';
-import { keepList, keptList, matches, placeEntry } from './timeline.js';
+import { idOf, keepList, keptList, matches, placeEntry } from './timeline.js';
 
 const none = { type: null, exercise: null, from: null, to: null };
 const by = { caregiverName: 'Sam', updatedByName: 'Sam', version: 1 };
@@ -24,8 +24,12 @@ const event = (id: string, at: string, category = 'barking', dogId = 'rosie'): H
 		kind: 'event',
 		event: { id, dogId, category, occurredAt: at, date: at.slice(0, 10), time: '10:00', ...by }
 	}) as unknown as HistoryEntry;
-const ids = (entries: HistoryEntry[]) =>
-	entries.map((e) => (e.kind === 'training' ? e.log.id : e.event.id));
+const care = (id: string, on: string, dogId = 'rosie'): HistoryEntry =>
+	({
+		kind: 'care',
+		task: { id, dogId, category: 'vaccination', status: 'completed', dueDate: on, completedOn: on }
+	}) as unknown as HistoryEntry;
+const ids = (entries: HistoryEntry[]) => entries.map(idOf);
 
 describe('which entries the filters list', () => {
 	it('follows the dog, the type, the exercise and the dates', () => {
@@ -43,6 +47,24 @@ describe('which entries the filters list', () => {
 		expect(matches(bark, { ...none, from: '2026-11-10', to: '2026-11-10' }, null)).toBe(true);
 		expect(matches(bark, { ...none, from: '2026-11-11' }, null)).toBe(false);
 		expect(matches(bark, { ...none, to: '2026-11-09' }, null)).toBe(false);
+		expect(matches(bark, { ...none, type: 'care' }, null)).toBe(false);
+		expect(matches(sit, { ...none, type: 'care' }, null)).toBe(false);
+		expect(matches(bark, { ...none, type: 'care-other' }, null)).toBe(false);
+	});
+
+	it('lists care with no type or *Any care*, by the day it was done, never with an exercise', () => {
+		const shot = care('v', '2026-11-10');
+		expect(matches(shot, none, null)).toBe(true);
+		expect(matches(shot, { ...none, type: 'care' }, 'rosie')).toBe(true);
+		expect(matches(shot, { ...none, type: 'care-vaccination' }, null)).toBe(true);
+		expect(matches(shot, { ...none, type: 'care-other' }, null)).toBe(false);
+		expect(matches(shot, { ...none, type: 'other' }, null)).toBe(false);
+		expect(matches(shot, none, 'miso')).toBe(false);
+		expect(matches(shot, { ...none, type: 'events' }, null)).toBe(false);
+		expect(matches(shot, { ...none, type: 'training' }, null)).toBe(false);
+		expect(matches(shot, { ...none, exercise: 'sit' }, null)).toBe(false);
+		expect(matches(shot, { ...none, from: '2026-11-11' }, null)).toBe(false);
+		expect(matches(shot, { ...none, to: '2026-11-10' }, null)).toBe(true);
 	});
 });
 
@@ -67,6 +89,18 @@ describe('putting an entry back', () => {
 			'a'
 		]);
 		expect(ids(placeEntry(list, log('b', '2026-11-10T08:00:00Z'), false))).toHaveLength(3);
+	});
+
+	it("puts care at the head of its day, above that day's logs", () => {
+		const withCare = [care('k', '2026-11-10'), ...list];
+		expect(ids(placeEntry(withCare, log('x', '2026-11-10T23:00:00Z'), false))).toEqual([
+			'k',
+			'x',
+			'c',
+			'b',
+			'a'
+		]);
+		expect(ids(placeEntry(list, care('y', '2026-11-09'), false))).toEqual(['c', 'b', 'y', 'a']);
 	});
 
 	it('leaves one older than the list to Load more, but ends a complete list with it', () => {

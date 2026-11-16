@@ -1,5 +1,5 @@
-// History (FR-09, FR-08, NFR-13, scenario 9; ui.md §4.4, J8): logs and events in one timeline
-// with filters, and deleting from a log's or event's page with Undo. Each test brings its own
+// History (FR-09, FR-08, NFR-13, scenario 9; ui.md §4.4, J8; architecture D35): logs, events and
+// done care tasks in one timeline with filters, and deleting from a log's or event's page with Undo. Each test brings its own
 // household, in Johannesburg.
 import { expect, test, type Page } from '@playwright/test';
 import { addDog, blockMockFonts, createHousehold, newPerson, signIn } from './mock-sign-in.js';
@@ -11,6 +11,8 @@ const ZONE = 'Africa/Johannesburg';
 const today = () => new Intl.DateTimeFormat('en-CA', { timeZone: ZONE }).format(new Date());
 const json = (baseURL: string) => ({ origin: baseURL, 'content-type': 'application/json' });
 const ago = (minutes: number) => new Date(Date.now() - minutes * 60_000).toISOString();
+const yesterday = () =>
+	new Intl.DateTimeFormat('en-CA', { timeZone: ZONE }).format(Date.now() - 24 * 3_600_000);
 
 async function household(page: Page, baseURL: string, dogs: string[] = ['Rosie']) {
 	await signIn(page, newPerson('owner'));
@@ -38,6 +40,15 @@ async function record(page: Page, baseURL: string, body: Record<string, unknown>
 	const response = await page.request.post('/api/v1/behaviour-events', {
 		headers: json(baseURL),
 		data: JSON.stringify({ category: 'barking', ...body })
+	});
+	expect(response.status()).toBe(201);
+	return (await response.json()) as Saved;
+}
+
+async function addCare(page: Page, baseURL: string, body: Record<string, unknown>) {
+	const response = await page.request.post('/api/v1/care-tasks', {
+		headers: json(baseURL),
+		data: JSON.stringify({ category: 'vaccination', ...body })
 	});
 	expect(response.status()).toBe(201);
 	return (await response.json()) as Saved;
@@ -124,6 +135,79 @@ test('FR-09: logs and events in one timeline, newest first by day, with filters'
 	await expect(page.getByText('Nothing matches these filters for Miso.')).toBeVisible();
 	await page.getByRole('link', { name: 'Clear filters' }).click();
 	await expect(cards(page)).toHaveCount(2);
+});
+
+test('D35: a done care task heads the day it was done, under *Any care*, and leads back here', async ({
+	page,
+	baseURL
+}) => {
+	const [rosie] = await household(page, baseURL!);
+	const day = yesterday();
+	await logPractice(page, baseURL!, { dogId: rosie!.id, practisedAt: ago(5) });
+	// 21:00 yesterday in Johannesburg: the care done that day still comes above it.
+	await logPractice(page, baseURL!, { dogId: rosie!.id, practisedAt: `${day}T19:00:00Z` });
+	const done = await addCare(page, baseURL!, {
+		dogId: rosie!.id,
+		dueDate: day,
+		title: 'Rabies booster'
+	});
+	const completed = await page.request.post(`/api/v1/care-tasks/${done.id}/complete`, {
+		headers: { ...json(baseURL!), 'if-match': done.etag },
+		data: JSON.stringify({ completedOn: day })
+	});
+	expect(completed.ok()).toBe(true);
+	// Cancelled and upcoming tasks aren't history.
+	const dropped = await addCare(page, baseURL!, {
+		dogId: rosie!.id,
+		dueDate: day,
+		category: 'puppy_school'
+	});
+	const cancelled = await page.request.patch(`/api/v1/care-tasks/${dropped.id}`, {
+		headers: { ...json(baseURL!), 'if-match': dropped.etag },
+		data: JSON.stringify({ status: 'cancelled' })
+	});
+	expect(cancelled.ok()).toBe(true);
+	await addCare(page, baseURL!, {
+		dogId: rosie!.id,
+		dueDate: today(),
+		category: 'vet_appointment'
+	});
+
+	await page.goto('/history');
+	await expect(cards(page)).toHaveCount(3);
+	await expect(page.getByRole('heading', { level: 2, name: 'Yesterday' })).toBeVisible();
+	await expect(cards(page).nth(0)).toContainText('Recall basics');
+	await expect(cards(page).nth(1)).toContainText('Rabies booster');
+	await expect(cards(page).nth(1)).toContainText('Done');
+	await expect(cards(page).nth(1)).toContainText(/by /);
+	await expect(cards(page).nth(2)).toContainText('Recall basics');
+
+	await page.getByRole('button', { name: 'Show: All types' }).click();
+	await page.getByRole('dialog', { name: 'Show' }).getByRole('link', { name: 'Any care' }).click();
+	await expect(page).toHaveURL(/type=care$/);
+	await expect(cards(page)).toHaveCount(1);
+
+	// One kind of care, as for events.
+	await page.getByRole('button', { name: 'Show: Any care' }).click();
+	await page
+		.getByRole('dialog', { name: 'Show' })
+		.getByRole('link', { name: 'Puppy school' })
+		.click();
+	await expect(page).toHaveURL(/type=care-puppy_school/);
+	await expect(page.getByText('Nothing matches these filters.')).toBeVisible();
+	await page.getByRole('button', { name: 'Show: Puppy school' }).click();
+	await page
+		.getByRole('dialog', { name: 'Show' })
+		.getByRole('link', { name: 'Vaccination' })
+		.click();
+	await expect(cards(page)).toHaveCount(1);
+	await expect(cards(page).first()).toContainText('Rabies booster');
+
+	await cards(page).first().click();
+	await expect(page).toHaveURL(new RegExp(`/care/${done.id}\\?from=history`));
+	await page.getByRole('link', { name: 'History', exact: true }).first().click();
+	await expect(page).toHaveURL(/\/history$/);
+	await expect(cards(page)).toHaveCount(3);
 });
 
 /** Counts the History list requests the page makes from now on. */

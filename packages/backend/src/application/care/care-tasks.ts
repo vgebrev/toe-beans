@@ -126,6 +126,9 @@ export function createCareTasks({
 		);
 
 	return {
+		/** Tasks with their names, for History's care entries (D35). */
+		views,
+
 		/** The Care tab: current dogs' tasks, upcoming and past. */
 		async list(ctx: PlannerContext): Promise<CareList> {
 			const [upcoming, closed, current] = await Promise.all([

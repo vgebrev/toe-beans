@@ -57,6 +57,30 @@ export function mongoCareTasks(db: Db, clock: Clock): CareTaskRepository {
 			);
 			return docs.map(toTask);
 		},
+		// History's care source (D35), on the (householdId, status, completedOn, _id) index from
+		// migration 0014.
+		async listCompletedTimeline(householdId, { dogId, categories, from, to, before, limit }) {
+			const range: Record<string, string> = {};
+			if (from) range.$gte = from;
+			if (to) range.$lte = to;
+			const docs = await tasks.find(
+				householdId,
+				{
+					status: 'completed',
+					...(dogId && { dogId }),
+					...(categories && { category: { $in: [...categories] } }),
+					...(Object.keys(range).length > 0 && { completedOn: range }),
+					...(before && {
+						$or: [
+							{ completedOn: { $lt: before.date } },
+							...(before.id ? [{ completedOn: before.date, _id: { $lt: before.id } }] : [])
+						]
+					})
+				} as never,
+				{ sort: { completedOn: -1, _id: -1 }, limit }
+			);
+			return docs.map(toTask);
+		},
 		// Across households, for the reminder tick (D27): the raw collection, read only. Uses the
 		// (status, dueDate) index.
 		async listUpcomingAcrossHouseholds(from, to) {

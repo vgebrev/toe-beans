@@ -1,9 +1,12 @@
-// /api/v1/history (architecture §5.1, FR-08, FR-09). Someone with no household gets a 404, like
+// /api/v1/history (architecture §5.1, FR-08, FR-09, D35). Someone with no household gets a 404, like
 // every household resource (§4.4).
 import { HistoryQuery, type HistoryPage as HistoryPageDto } from '@toe-beans/contracts';
 import type { Viewer } from '../application/auth/auth.js';
 import { notFound } from '../application/errors.js';
 import type { History } from '../application/history/history.js';
+import type { Clock } from '../application/ports/index.js';
+import { todayIn } from '../domain/calendar.js';
+import { careTaskDto } from './care-tasks.js';
 import { behaviourEventDto } from './behaviour-events.js';
 import { errorResponse, json, respond, type HttpResponse } from './response.js';
 import { sessionLogDto } from './session-logs.js';
@@ -14,7 +17,7 @@ export interface HistoryHttp {
 	list(viewer: Viewer, input: { query: Record<string, string> }): Promise<HttpResponse>;
 }
 
-export function createHistoryHttp(history: History): HistoryHttp {
+export function createHistoryHttp(history: History, clock: Clock): HistoryHttp {
 	return {
 		async list(viewer, { query }) {
 			if (!viewer.member) return errorResponse(notFound('household'));
@@ -32,11 +35,19 @@ export function createHistoryHttp(history: History): HistoryHttp {
 			});
 			return respond(found, (page) =>
 				json({
-					entries: page.entries.map((entry) =>
-						entry.kind === 'training'
-							? { kind: 'training' as const, log: sessionLogDto(entry.view, timeZone) }
-							: { kind: 'event' as const, event: behaviourEventDto(entry.view, timeZone) }
-					),
+					entries: page.entries.map((entry) => {
+						switch (entry.kind) {
+							case 'training':
+								return { kind: 'training' as const, log: sessionLogDto(entry.view, timeZone) };
+							case 'event':
+								return { kind: 'event' as const, event: behaviourEventDto(entry.view, timeZone) };
+							case 'care':
+								return {
+									kind: 'care' as const,
+									task: careTaskDto(entry.view, todayIn(clock.now(), timeZone))
+								};
+						}
+					}),
 					...(page.next && { next: page.next })
 				} satisfies HistoryPageDto)
 			);

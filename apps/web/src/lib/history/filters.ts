@@ -1,11 +1,21 @@
 // History's filters (ui.md §4.4, §2.3, FR-09), kept in the URL so they survive a reload and Back:
-// `type` (training, events or one kind of event), `exercise`, and `from` / `to` dates. The dog
+// `type` (training, events, one kind of event, care or one kind of care, `care-` and its kind), `exercise`, and `from` / `to` dates. The dog
 // is the switcher's (§2.2), not in the URL. Anything the URL holds that isn't a filter is dropped.
-import type { EventCategory } from '@toe-beans/contracts';
+import type { CareCategory, EventCategory } from '@toe-beans/contracts';
+import { careLabels } from '#lib/care/labels.js';
 import { categoryLabels, CATEGORIES } from '#lib/journal/labels.js';
 import { addDays, isPlainDate } from '#lib/planner/dates.js';
 
-export type HistoryType = 'training' | 'events' | EventCategory;
+export type HistoryType = 'training' | 'events' | EventCategory | 'care' | `care-${CareCategory}`;
+
+const CARE_KINDS = Object.keys(careLabels) as CareCategory[];
+
+/** The kind of care a type picks, if it picks one. */
+export const careKindOf = (type: HistoryType | null): CareCategory | null =>
+	type?.startsWith('care-') ? (type.slice('care-'.length) as CareCategory) : null;
+
+export const isCareType = (type: HistoryType | null) =>
+	type === 'care' || careKindOf(type) !== null;
 
 export interface HistoryFilters {
 	type: HistoryType | null;
@@ -14,7 +24,13 @@ export interface HistoryFilters {
 	to: string | null;
 }
 
-const TYPES: readonly string[] = ['training', 'events', ...CATEGORIES];
+const TYPES: readonly string[] = [
+	'training',
+	'events',
+	...CATEGORIES,
+	'care',
+	...CARE_KINDS.map((k) => `care-${k}`)
+];
 
 export function readFilters(params: Pick<URLSearchParams, 'get'>): HistoryFilters {
 	const type = params.get('type');
@@ -41,7 +57,7 @@ export function filterQuery(filters: HistoryFilters, extra: Record<string, strin
 	return params.toString();
 }
 
-/** These filters with some changed. An exercise only applies to training, so it drops events. */
+/** These filters with some changed. An exercise only applies to training, so it drops the rest. */
 export function withFilters(filters: HistoryFilters, change: Partial<HistoryFilters>) {
 	const next = { ...filters, ...change };
 	if (change.exercise && next.type !== 'training') next.type = null;
@@ -49,12 +65,22 @@ export function withFilters(filters: HistoryFilters, change: Partial<HistoryFilt
 	return next;
 }
 
-export const typeOptions: readonly { id: HistoryType | 'all'; label: string }[] = [
-	{ id: 'all', label: 'All types' },
-	{ id: 'training', label: 'Training' },
-	{ id: 'events', label: 'Any event' },
-	...CATEGORIES.map((c) => ({ id: c, label: categoryLabels[c].label }))
-];
+export const typeOptions: readonly { id: HistoryType | 'all'; label: string; divider?: boolean }[] =
+	[
+		{ id: 'all', label: 'All types' },
+		{ id: 'training', label: 'Training', divider: true },
+		{ id: 'events', label: 'Any event', divider: true },
+		// Both lists have an *Other*; the button shows the choice alone, so each says which.
+		...CATEGORIES.map((c) => ({
+			id: c,
+			label: c === 'other' ? 'Other event' : categoryLabels[c].label
+		})),
+		{ id: 'care', label: 'Any care', divider: true },
+		...CARE_KINDS.map((k) => ({
+			id: `care-${k}` as const,
+			label: k === 'other' ? 'Other care' : careLabels[k].label
+		}))
+	];
 
 /** The date choices before *Choose dates*: how many days back, today included. */
 export const DATE_PRESETS = [

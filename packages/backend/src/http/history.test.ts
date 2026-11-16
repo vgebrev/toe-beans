@@ -1,11 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import type { MemberViewer, Viewer } from '../application/auth/auth.js';
 import { createHistory } from '../application/history/history.js';
+import { createCareTasks } from '../application/care/care-tasks.js';
 import { createBehaviourEvents } from '../application/journal/behaviour-events.js';
 import { createSessionLogs } from '../application/training-log/session-logs.js';
+import type { PlainDate } from '../domain/calendar.js';
 import { createIdGenerator, type Id } from '../domain/id.js';
 import { memoryUsers } from '../testing/auth.js';
 import { memoryBehaviourEvents } from '../testing/behaviour-events.js';
+import { memoryCareTasks } from '../testing/care-tasks.js';
 import { manualClock } from '../testing/clock.js';
 import { memorySessionLogs } from '../testing/session-logs.js';
 import { createHistoryHttp } from './history.js';
@@ -37,9 +40,11 @@ async function setup() {
 	const ids = createIdGenerator(() => now().getTime());
 	const sessionLogs = memorySessionLogs(now);
 	const behaviourEvents = memoryBehaviourEvents(now);
+	const careTasks = memoryCareTasks(now);
 	const ports = {
 		sessionLogs,
 		behaviourEvents,
+		careTasks,
 		users: memoryUsers(),
 		exercises: { all: () => [], get: () => undefined },
 		clock,
@@ -48,9 +53,14 @@ async function setup() {
 	} as never;
 	const http = createHistoryHttp(
 		createHistory(
-			{ sessionLogs, behaviourEvents },
-			{ sessionLogs: createSessionLogs(ports), behaviourEvents: createBehaviourEvents(ports) }
-		)
+			{ sessionLogs, behaviourEvents, careTasks },
+			{
+				sessionLogs: createSessionLogs(ports),
+				behaviourEvents: createBehaviourEvents(ports),
+				careTasks: createCareTasks(ports)
+			}
+		),
+		clock
 	);
 	const dogId = ids.next();
 	for (let i = 0; i < 31; i++) {
@@ -75,7 +85,7 @@ async function setup() {
 		recordedBy: 'u' as Id,
 		updatedBy: 'u' as Id
 	});
-	return { http, event };
+	return { http, event, careTasks, ids };
 }
 
 describe('history http', () => {
@@ -107,6 +117,46 @@ describe('history http', () => {
 			status: 400,
 			body: { errors: { type: expect.any(Array) } }
 		});
+	});
+
+	it('answers a completed care task with who marked it done', async () => {
+		const { http, careTasks, ids } = await setup();
+		const on = '2026-11-09' as PlainDate;
+		const task = await careTasks.insert({
+			id: ids.next(),
+			householdId: 'h1' as Id,
+			dogId: ids.next(),
+			category: 'parasite_prevention',
+			title: 'Deworming',
+			dueDate: on,
+			status: 'completed',
+			completedOn: on,
+			history: [
+				{ kind: 'created', due: { date: on }, at, by: 'u' as Id },
+				{ kind: 'completed', on, at, by: 'u' as Id }
+			],
+			createdBy: 'u' as Id,
+			updatedBy: 'u' as Id
+		});
+		const res = await http.list(viewer, { query: { type: 'care-parasite_prevention' } });
+		expect(res.body).toEqual({
+			entries: [
+				{
+					kind: 'care',
+					task: expect.objectContaining({
+						id: task.id,
+						title: 'Deworming',
+						status: 'completed',
+						overdue: false,
+						completedOn: on,
+						completedBy: 'A former member'
+					})
+				}
+			]
+		});
+		expect((res.body as { entries: [{ task: object }] }).entries[0].task).not.toHaveProperty(
+			'history'
+		);
 	});
 
 	it('answers 404 to someone with no household', async () => {

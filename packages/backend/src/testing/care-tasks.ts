@@ -50,6 +50,24 @@ export function memoryCareTasks(now: () => Date): CareTaskRepository & { all(): 
 					.sort((a, b) => soonest(b, a))
 					.slice(0, limit)
 			),
+		listCompletedTimeline: async (householdId, { dogId, categories, from, to, before, limit }) =>
+			structuredClone(
+				inHousehold(householdId)
+					.filter(
+						(t) =>
+							t.status === 'completed' &&
+							t.completedOn !== undefined &&
+							(!dogId || t.dogId === dogId) &&
+							(!categories || categories.includes(t.category)) &&
+							(!from || t.completedOn >= from) &&
+							(!to || t.completedOn <= to) &&
+							(!before ||
+								t.completedOn < before.date ||
+								(before.id !== undefined && t.completedOn === before.date && t.id < before.id))
+					)
+					.sort((a, b) => b.completedOn!.localeCompare(a.completedOn!) || (a.id < b.id ? 1 : -1))
+					.slice(0, limit)
+			),
 		listUpcomingAcrossHouseholds: async (from, to) =>
 			structuredClone(
 				[...items.values()]

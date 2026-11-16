@@ -52,6 +52,8 @@ export const CareTask = z.object({
 	/** Still upcoming on a day that's gone. */
 	overdue: z.boolean(),
 	completedOn: z.iso.date().optional(),
+	/** Who marked it done, for History's "by Sam" (D35). */
+	completedBy: z.string().optional(),
 	/** The task planned on completing this one. */
 	nextId: z.string().optional(),
 	notes: z.string().optional(),

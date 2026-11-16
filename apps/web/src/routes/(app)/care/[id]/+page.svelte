@@ -25,6 +25,8 @@
 	const api = createApiClient((input, init) => fetch(input, init));
 	const task = $derived(data.task);
 	const dog = $derived(data.dogs?.find((d) => d.id === task?.dogId));
+	// Opened from History, the back link goes there (architecture D35).
+	const fromHistory = $derived(page.url.searchParams.get('from') === 'history');
 
 	let notice = $state<string | null>(page.state.notice ?? null);
 	let status = $state<'idle' | 'working' | 'failed' | 'signed-out'>('idle');
@@ -128,9 +130,12 @@
 <svelte:head><title>{task?.title ?? 'Care task'} · Toe Beans</title></svelte:head>
 
 <PageHeader title={task?.title ?? 'Care task'}>
-	<a href={resolve('/(app)/care')} class="flex min-h-12 items-center gap-1 self-start font-bold">
+	<a
+		href={fromHistory ? resolve('/(app)/history') : resolve('/(app)/care')}
+		class="flex min-h-12 items-center gap-1 self-start font-bold"
+	>
 		<Icon name="back" />
-		Care
+		{fromHistory ? 'History' : 'Care'}
 	</a>
 </PageHeader>
 

@@ -41,7 +41,12 @@ export type {
 	BehaviourEventRepository,
 	NewBehaviourEvent
 } from './behaviour-event-repository.js';
-export type { CareTaskChanges, CareTaskRepository, NewCareTask } from './care-task-repository.js';
+export type {
+	CareTaskChanges,
+	CareTaskRepository,
+	CareTimelineQuery,
+	NewCareTask
+} from './care-task-repository.js';
 export type { Clock } from './clock.js';
 export type { CueChanges, CueRepository, NewCue } from './cue-repository.js';
 export type {

@@ -1,9 +1,9 @@
 # Toe Beans — UI and Interaction Design
 
-**Version:** 0.30 (draft for iteration)
+**Version:** 0.31 (draft for iteration)
 **Date:** 16 November 2026
 **Status:** Proposed. Review-round decisions in §8 are accepted.
-**Inputs:** `docs/requirements.md` v1.0, `docs/architecture.md` v1.21
+**Inputs:** `docs/requirements.md` v1.0, `docs/architecture.md` v1.22
 
 **Changes in 0.7:** the logo landed (S0.9). The mark is now a **TB monogram** with four toe beans above it and a heart-shaped bean in the B, from the AI-assisted design board (Monogram Iteration B), replacing the placeholder paw. It was traced from the board and cleaned up rather than redrawn by hand; the variants are the brown-on-cream mark, a cream-on-brown app-icon tile (favicon and maskable) and a white badge. The wordmark uses Fredoka Bold to match the board (§6.4 Logo).
 
@@ -42,6 +42,8 @@
 **Changes in 0.29:** J3 and §4.3: several times a day (architecture 1.20 D24). With a repeat chosen, Schedule shows *Also at (optional)*: a row per extra time with a remove button, and *Add a time*, up to six in all. The session page's *Repeats* names the times ("Every day at 07:00, 12:00 and 18:00"), and Plan says "…, 3 times a day." after saving. *This and following* from a midday session leaves that morning's alone. §5.1: a failed submit's scroll to the first message is instant now, not smooth, as a tap during the glide could land on what slid under it. Inputs moved to architecture 1.20.
 
 **Changes in 0.30:** §4.7: *Sign out everywhere* under *Sign out* on More, confirmed in a bottom sheet that says reminders stop on every device (architecture 1.21 D33, from the S15.2 security audit). The invitation email's subject is now fixed, *You're invited to Toe Beans*, with the names in the body (D32).
+
+**Changes in 0.31:** Done care tasks are in History (architecture 1.22 D35). §2.1's History row and §4.4: each done task leads the day it was done, *Show* gains *Any care* and each kind of care, with a line between its groups (§5.1), and the card has the category's icon where the time would be, the title, the dog, who marked it done and *Done*. J6: a task opened from History has a back link to *History*.
 
 **Changes in 0.12:** S3 built. J1 step 4 as built: *Take photo* or *Gallery*, then a framing square with the circle overlay (drag, pinch, a zoom slider and arrow keys), and birth date as *I know the date* or *Approximate* with months old. J2 names the dogs. §2.2: the switcher shows on Today, Plan, History and Care, with name chips. §5.1 gains two rules from using it: one confirm button per context (a sheet is its own context), and a control is never disabled without the reason on screen; the photo moved into its own sheet in J1 to follow the first, and the household, name and email-invite buttons stopped greying out for missing input to follow the second. §4.5: editing is its own page and the overflow sheet holds *Edit details* and *Archive*; the Recent sections wait for their slices. The dog accent palette is defined (§6.4), and More gains *Dogs* (§2.1). The custom dog icon read as a monkey, so it's replaced by Phosphor's *Dog*, the documented fallback library (§6.4).
 
@@ -91,7 +93,7 @@ This document covers user journeys, information architecture, screen layouts and
 |---|---|---|
 | **Today** | Planned, overdue and done sessions for today; upcoming care; quick log | FR-06, FR-07 |
 | **Plan** | Week view of planned sessions; schedule, reschedule, skip, cancel | FR-05 |
-| **History** | Combined timeline of session logs and behaviour events, with filters | FR-08, FR-09 |
+| **History** | Combined timeline of session logs, behaviour events and done care tasks, with filters | FR-08, FR-09, FR-10 |
 | **Care** | Upcoming and past care tasks per dog | FR-10 |
 | **More** | Dogs, Exercise library, Cue dictionary, Household & invites, Notifications, Account | FR-01–04, FR-12 |
 
@@ -317,6 +319,8 @@ The header shows a week strip (Mon–Sun) with dots for days that have sessions,
 - Loading uses cursor pagination with a "Load more" button, not infinite scroll, to keep it accessible. A page is 30 entries, about four phone screens.
 - *As built (S10):* Back from a log or event shows the list as it was (every page loaded, scrolled where it was) without asking the server again, unless this device saved something meanwhile. Coming by the tab or a reload loads afresh. *Undo* puts the entry back in its place in the list rather than loading it again.
 - *As built (S10):* the dog switcher under the title is the dog filter (§2.2); with one current dog there's nothing to choose and every dog's history shows, an archived dog's too. Below it a wrapping row of three filter buttons (§5.1), kept in the URL (`?type=&exercise=&from=&to=`): **Show** (*All types*, *Training*, *Any event*, then each kind of event, FR-09's "event type"), **Exercise** (the exercise picker, titled *Exercise*, with *All exercises* first; choosing one shows only training) and **Dates** (*All time*, *Last 7 days*, *Last 30 days*, *Last 3 months*, then *Choose dates…*, a sheet with optional *From* and *To* dates, both included, whose button is *Show these dates*; a chosen range then labels the button, e.g. "1 Nov – 5 Nov"). Entries are grouped under day headings (*Today*, *Yesterday*, "Tue 10 Nov", with the year once it isn't this one). A training card is the one Today's *Done* uses: time, avatar, exercise, the dog's name, the outcome badge and "by Sam"; an event card has the time, avatar, the kind of event with its icon, the trigger on its own line, the dog's name and who recorded it. Each opens its page. 30 at a time, then *Load more* ("Loading…", or *Try again* after a failure). Loading shows grey placeholder cards; a failed load says "Couldn't load your history — check your connection." with *Try again*, never an empty history. Empty, it says "No history yet"; with filters, "Nothing matches these filters" (naming the dog when one's chosen) and *Clear filters*.
+- *As built (S11.5, architecture D35):* done care tasks are in the timeline on the day they were done. A care task has a day and no time, so it leads its day, like an all-day item in a calendar. Its card has the category's icon in the time column, the dog's avatar, the title, the dog's name, "by Sam" (who marked it done) and a *Done* badge, which moves under the title at large text as Care's cards do. *Show* lists *All types*, *Training*, *Any event* and each kind of event, then *Any care* and each kind of care (`?type=care-vaccination`). The two *Other* entries are named *Other event* and *Other care*, so the button says which is meant. Lines divide the sheet into *All types*, *Training*, the events and the care. Choosing an exercise or an event type leaves care out, and *Dates* matches the day it was done. Cancelled and upcoming tasks stay on Care. The card opens the task, whose back link then says *History*. There's no delete here: *Not done after all* on the task takes it off History. The empty history says "Logged sessions, notable moments and care done will build up here."
+
 
 ### 4.5 Dog profile
 
@@ -360,7 +364,7 @@ On More as **Household & invites**, showing the household's name; the page keeps
 - Labels sit above fields and are always visible, never placeholder-only. Optional fields are marked "(optional)". Required fields are not marked with asterisks.
 - Use native inputs where Android does them well (`type=date`, `type=time`, `inputmode`, `capture` for camera).
 - Prefer chips and segmented controls over dropdowns for short option sets. Use dropdowns or searchable pickers for exercises.
-- **Filters never scroll sideways.** A filter is one button showing the current choice and a ▾ (the dog switcher, the library's skill area, History's filters). It opens a bottom sheet titled with what's filtered, listing the choices one per row, 48 px each, **All first**, the current one ticked; choosing closes it. Several filters sit in a row of these buttons that wraps. Inside a sheet, where a second sheet would stack, a list is searched or grouped under headings instead.
+- **Filters never scroll sideways.** A filter is one button showing the current choice and a ▾ (the dog switcher, the library's skill area, History's filters). It opens a bottom sheet titled with what's filtered, listing the choices one per row, 48 px each, **All first**, the current one ticked; choosing closes it. Several filters sit in a row of these buttons that wraps. Choices that fall into groups have a line between groups (History's *Show*: *All types* | *Training* | events | care). Inside a sheet, where a second sheet would stack, a list is searched or grouped under headings instead.
 - Validate on blur and on submit. Errors appear inline under the field with `aria-describedby`.
 - The primary action is a full-width button at the bottom of sheets and forms, kept above the keyboard.
 - **One confirm button per context.** A screen or sheet has a single primary button, which does the whole step. A sub-step that needs its own confirmation (choosing and framing a photo, picking from a long list) goes in its own sheet with its own one button, and returns to the form, whose button saves.

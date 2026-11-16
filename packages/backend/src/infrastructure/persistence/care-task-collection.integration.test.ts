@@ -101,6 +101,46 @@ describe('mongoCareTasks', () => {
 		);
 		expect(across.map((t) => t.id)).not.toContain(later.id);
 	});
+
+	it("lists History's completed tasks by day done, after a cursor, by dog and dates", async () => {
+		const household = ids.next();
+		const d = (s: string) => s as PlainDate;
+		const dog = ids.next();
+		const done = (on: string, dogId?: Id) =>
+			tasks().insert(
+				newTask(household, {
+					status: 'completed',
+					completedOn: d(on),
+					...(dogId && { dogId })
+				})
+			);
+		const a = await done('2026-11-10', dog);
+		const b = await done('2026-11-09');
+		const c = await done('2026-11-09');
+		const e = await done('2026-11-01');
+		await tasks().insert(newTask(household, { status: 'cancelled' }));
+		await tasks().insert(
+			newTask(ids.next(), { status: 'completed', completedOn: d('2026-11-10') })
+		);
+		const list = async (query: Parameters<ReturnType<typeof tasks>['listCompletedTimeline']>[1]) =>
+			(await tasks().listCompletedTimeline(household, query)).map((t) => t.id);
+		const [later, earlier] = c.id > b.id ? [c, b] : [b, c];
+
+		expect(await list({ limit: 10 })).toEqual([a.id, later.id, earlier.id, e.id]);
+		expect(await list({ limit: 2 })).toEqual([a.id, later.id]);
+		expect(await list({ before: { date: d('2026-11-09'), id: later.id }, limit: 10 })).toEqual([
+			earlier.id,
+			e.id
+		]);
+		expect(await list({ before: { date: d('2026-11-09') }, limit: 10 })).toEqual([e.id]);
+		expect(await list({ dogId: dog, limit: 10 })).toEqual([a.id]);
+		expect(await list({ categories: ['vaccination'], limit: 1 })).toEqual([a.id]);
+		expect(await list({ categories: ['puppy_school'], limit: 10 })).toEqual([]);
+		expect(await list({ from: d('2026-11-02'), to: d('2026-11-09'), limit: 10 })).toEqual([
+			later.id,
+			earlier.id
+		]);
+	});
 });
 
 householdIsolationSuite('mongoCareTasks', () => ({
@@ -114,4 +154,16 @@ householdIsolationSuite('mongoCareTasks', () => ({
 			updatedBy: ids.next()
 		});
 	}
+}));
+
+householdIsolationSuite('mongoCareTasks: History', () => ({
+	create: async (householdId) =>
+		(
+			await tasks().insert(
+				newTask(householdId, { status: 'completed', completedOn: '2026-11-10' as PlainDate })
+			)
+		).id,
+	read: (householdId, id) => tasks().findById(householdId, id),
+	list: async (householdId) =>
+		(await tasks().listCompletedTimeline(householdId, { limit: 10 })).map((t) => t.id)
 }));

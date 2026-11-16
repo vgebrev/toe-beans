@@ -104,7 +104,10 @@ export function createHttp(
 		behaviourEvents: createBehaviourEventsHttp(behaviourEvents),
 		careTasks: createCareTasksHttp(careTasks, ports.clock),
 		today: createTodayHttp(createToday(ports, { planner, sessionLogs, careTasks })),
-		history: createHistoryHttp(createHistory(ports, { sessionLogs, behaviourEvents })),
+		history: createHistoryHttp(
+			createHistory(ports, { sessionLogs, behaviourEvents, careTasks }),
+			ports.clock
+		),
 		reminders: createRemindersHttp(
 			createReminderSettings(ports, { allowedEndpoints: allowedPushEndpoints })
 		),

@@ -47,6 +47,13 @@ const historyDto = (h: CareHistoryEntry, names: Record<string, string>): History
 	}
 };
 
+/** Who marked a completed task done: the latest *done* in its history. */
+function completedBy({ status, history }: CareView['task'], names: Record<string, string>) {
+	if (status !== 'completed') return undefined;
+	const done = history.findLast((h) => h.kind === 'completed');
+	return done && (names[done.by] ?? done.by);
+}
+
 /** A task as the browser sees it; `withHistory` on its own page. */
 export const careTaskDto = (
 	{ task, names }: CareView,
@@ -62,6 +69,7 @@ export const careTaskDto = (
 	status: task.status,
 	overdue: isOverdue(task, today),
 	...(task.completedOn && { completedOn: task.completedOn }),
+	...(completedBy(task, names) !== undefined && { completedBy: completedBy(task, names) }),
 	...(task.nextId && { nextId: task.nextId }),
 	...(task.notes && { notes: task.notes }),
 	...(withHistory && { history: task.history.map((h) => historyDto(h, names)) }),

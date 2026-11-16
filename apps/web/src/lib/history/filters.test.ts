@@ -8,6 +8,12 @@ describe('history filters', () => {
 		expect(
 			readFilters(new URLSearchParams('type=fear&exercise=sit&from=2026-11-01&to=2026-11-10&x=1'))
 		).toEqual({ type: 'fear', exercise: 'sit', from: '2026-11-01', to: '2026-11-10' });
+		expect(readFilters(new URLSearchParams('type=care'))).toEqual({ ...none, type: 'care' });
+		expect(readFilters(new URLSearchParams('type=care-other'))).toEqual({
+			...none,
+			type: 'care-other'
+		});
+		expect(readFilters(new URLSearchParams('type=care-walks'))).toEqual(none);
 		expect(readFilters(new URLSearchParams('type=walks&from=2026-13-01'))).toEqual(none);
 		expect(readFilters(new URLSearchParams('from=2026-11-10&to=2026-11-01'))).toEqual(none);
 	});
@@ -21,6 +27,10 @@ describe('history filters', () => {
 
 	it('keeps an exercise only with training', () => {
 		expect(withFilters({ ...none, type: 'fear' }, { exercise: 'sit' })).toEqual({
+			...none,
+			exercise: 'sit'
+		});
+		expect(withFilters({ ...none, type: 'care' }, { exercise: 'sit' })).toEqual({
 			...none,
 			exercise: 'sit'
 		});
