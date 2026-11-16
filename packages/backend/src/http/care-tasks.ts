@@ -8,15 +8,14 @@ import {
 	type CareTask as CareTaskDto,
 	type CareTasks as CareTasksDto
 } from '@toe-beans/contracts';
-import type { MemberViewer, Viewer } from '../application/auth/auth.js';
+import type { PlannerContext, Viewer } from '../application/auth/auth.js';
 import type { CareTasks, CareView } from '../application/care/care-tasks.js';
-import { notFound } from '../application/errors.js';
-import type { PlannerContext } from '../application/auth/auth.js';
 import type { Clock } from '../application/ports/index.js';
 import { todayIn, type PlainDate } from '../domain/calendar.js';
 import { isOverdue, type CareHistoryEntry } from '../domain/care-task.js';
 import { etag, versionFromIfMatch } from './etag.js';
 import { errorResponse, json, respond, type HttpResponse } from './response.js';
+import { isMember, noHousehold } from './member.js';
 import { parseInput } from './validation.js';
 
 export interface CareTasksHttp {
@@ -78,9 +77,6 @@ export const careTaskDto = (
 	updatedBy: names[task.updatedBy] ?? task.updatedBy,
 	etag: etag(task.version)
 });
-
-const isMember = (viewer: Viewer): viewer is MemberViewer => viewer.member !== null;
-const noHousehold = () => errorResponse(notFound('household'));
 
 export function createCareTasksHttp(care: CareTasks, clock: Clock): CareTasksHttp {
 	// Whether a task is overdue is worked out per response, on the household's clocks.

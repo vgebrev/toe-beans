@@ -2,11 +2,11 @@
 // household resource (§4.4).
 import type { Today as TodayDto } from '@toe-beans/contracts';
 import type { Viewer } from '../application/auth/auth.js';
-import { notFound } from '../application/errors.js';
 import type { Today } from '../application/today/today.js';
 import { careTaskDto } from './care-tasks.js';
 import { sessionDto } from './planner.js';
-import { errorResponse, json, respond, type HttpResponse } from './response.js';
+import { isMember, noHousehold } from './member.js';
+import { json, respond, type HttpResponse } from './response.js';
 import { sessionLogDto } from './session-logs.js';
 
 export interface TodayHttp {
@@ -16,7 +16,7 @@ export interface TodayHttp {
 export function createTodayHttp(today: Today): TodayHttp {
 	return {
 		async get(viewer) {
-			if (!viewer.member) return errorResponse(notFound('household'));
+			if (!isMember(viewer)) return noHousehold();
 			const { timeZone } = viewer.member;
 			return respond(await today.read(viewer.member), (view) =>
 				json({

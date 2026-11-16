@@ -2,12 +2,12 @@
 // every household resource (§4.4).
 import { HistoryQuery, type HistoryPage as HistoryPageDto } from '@toe-beans/contracts';
 import type { Viewer } from '../application/auth/auth.js';
-import { notFound } from '../application/errors.js';
 import type { History } from '../application/history/history.js';
 import type { Clock } from '../application/ports/index.js';
 import { todayIn } from '../domain/calendar.js';
 import { careTaskDto } from './care-tasks.js';
 import { behaviourEventDto } from './behaviour-events.js';
+import { isMember, noHousehold } from './member.js';
 import { errorResponse, json, respond, type HttpResponse } from './response.js';
 import { sessionLogDto } from './session-logs.js';
 import { parseInput } from './validation.js';
@@ -20,7 +20,7 @@ export interface HistoryHttp {
 export function createHistoryHttp(history: History, clock: Clock): HistoryHttp {
 	return {
 		async list(viewer, { query }) {
-			if (!viewer.member) return errorResponse(notFound('household'));
+			if (!isMember(viewer)) return noHousehold();
 			const { timeZone } = viewer.member;
 			const input = parseInput(HistoryQuery, query);
 			if (!input.ok) return errorResponse(input.error);

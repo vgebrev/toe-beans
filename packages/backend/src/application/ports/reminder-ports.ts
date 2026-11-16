@@ -36,7 +36,7 @@ export interface PushDeviceRepository {
 	/** Removes all of the person's devices, for *Sign out everywhere*; returns how many. */
 	removeAllForUser(userId: Id): Promise<number>;
 	recordSuccess(id: Id, at: Date): Promise<void>;
-	recordFailure(id: Id, at: Date): Promise<void>;
+	recordFailure(id: Id): Promise<void>;
 	/** The push service said it's gone: nothing more is sent to it. */
 	disable(id: Id, at: Date): Promise<void>;
 }

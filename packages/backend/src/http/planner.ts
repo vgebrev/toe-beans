@@ -8,13 +8,12 @@ import {
 	type PlannedSession as SessionDto,
 	type PlannedSessions as SessionsDto
 } from '@toe-beans/contracts';
-import type { MemberViewer, Viewer } from '../application/auth/auth.js';
-import { notFound } from '../application/errors.js';
-import type { PlannerContext } from '../application/auth/auth.js';
+import type { PlannerContext, Viewer } from '../application/auth/auth.js';
 import type { Planner, SessionView } from '../application/planner/planner.js';
 import { zonedDateTime } from '../domain/calendar.js';
 import { etag, versionFromIfMatch } from './etag.js';
 import { errorResponse, json, noContent, respond, type HttpResponse } from './response.js';
+import { isMember, noHousehold } from './member.js';
 import { parseInput } from './validation.js';
 
 export interface PlannerHttp {
@@ -70,9 +69,6 @@ export const sessionDto = (
 		etag: etag(session.version)
 	};
 };
-
-const isMember = (viewer: Viewer): viewer is MemberViewer => viewer.member !== null;
-const noHousehold = () => errorResponse(notFound('household'));
 
 export function createPlannerHttp(planner: Planner): PlannerHttp {
 	const sessionResponse = (ctx: PlannerContext, status: number) => (view: SessionView) =>

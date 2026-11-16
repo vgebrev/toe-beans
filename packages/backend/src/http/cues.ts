@@ -6,11 +6,11 @@ import {
 	type Cue as CueDto,
 	type Cues as CuesDto
 } from '@toe-beans/contracts';
-import type { MemberViewer, Viewer } from '../application/auth/auth.js';
+import type { Viewer } from '../application/auth/auth.js';
 import type { CueView, Cues } from '../application/cues/cues.js';
-import { notFound } from '../application/errors.js';
 import { etag, versionFromIfMatch } from './etag.js';
 import { errorResponse, json, noContent, respond, type HttpResponse } from './response.js';
+import { isMember, noHousehold } from './member.js';
 import { parseInput } from './validation.js';
 
 export interface CuesHttp {
@@ -38,9 +38,6 @@ export const cueDto = ({ cue, updatedByName }: CueView): CueDto => ({
 
 const cueResponse = (status: number) => (view: CueView) =>
 	json(cueDto(view), status, { etag: etag(view.cue.version) });
-
-const isMember = (viewer: Viewer): viewer is MemberViewer => viewer.member !== null;
-const noHousehold = () => errorResponse(notFound('household'));
 
 export function createCuesHttp(cues: Cues): CuesHttp {
 	return {

@@ -10,11 +10,11 @@ import {
 	type ReminderSettings as SettingsDto,
 	type ReminderTest as TestDto
 } from '@toe-beans/contracts';
-import type { MemberViewer, Viewer } from '../application/auth/auth.js';
-import { notFound } from '../application/errors.js';
+import type { Viewer } from '../application/auth/auth.js';
 import type { ReminderSettings, TestView } from '../application/reminders/reminders.js';
 import type { PushDevice, ReminderPreference } from '../domain/reminders.js';
 import { errorResponse, json, noContent, respond, type HttpResponse } from './response.js';
+import { isMember, noHousehold } from './member.js';
 import { parseInput } from './validation.js';
 
 export interface RemindersHttp {
@@ -52,9 +52,6 @@ const testDto = ({ reminder: r, overdue }: TestView): TestDto => ({
 	...(r.receivedAt && { receivedAt: r.receivedAt.toISOString() }),
 	overdue
 });
-
-const isMember = (viewer: Viewer): viewer is MemberViewer => viewer.member !== null;
-const noHousehold = () => errorResponse(notFound('household'));
 
 export function createRemindersHttp(reminders: ReminderSettings): RemindersHttp {
 	return {

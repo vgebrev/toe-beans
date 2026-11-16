@@ -5,13 +5,12 @@ import {
 	UpdateBehaviourEvent,
 	type BehaviourEvent as BehaviourEventDto
 } from '@toe-beans/contracts';
-import type { MemberViewer, Viewer } from '../application/auth/auth.js';
-import { notFound } from '../application/errors.js';
+import type { PlannerContext, Viewer } from '../application/auth/auth.js';
 import type { BehaviourEvents, EventView } from '../application/journal/behaviour-events.js';
-import type { PlannerContext } from '../application/auth/auth.js';
 import { zonedDateTime } from '../domain/calendar.js';
 import { etag, versionFromIfMatch } from './etag.js';
 import { errorResponse, json, noContent, respond, type HttpResponse } from './response.js';
+import { isMember, noHousehold } from './member.js';
 import { parseInput } from './validation.js';
 
 export interface BehaviourEventsHttp {
@@ -48,9 +47,6 @@ export const behaviourEventDto = (
 		etag: etag(event.version)
 	};
 };
-
-const isMember = (viewer: Viewer): viewer is MemberViewer => viewer.member !== null;
-const noHousehold = () => errorResponse(notFound('household'));
 
 export function createBehaviourEventsHttp(events: BehaviourEvents): BehaviourEventsHttp {
 	const eventResponse = (ctx: PlannerContext, status: number) => (view: EventView) =>

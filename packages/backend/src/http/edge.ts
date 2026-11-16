@@ -9,7 +9,10 @@ import { errorResponse, type HttpResponse } from './response.js';
 /** The header the Cloudflare Worker adds to every request it forwards (architecture §8.4). */
 export const PROXY_SECRET_HEADER = 'x-toe-beans-proxy';
 
+/** Methods that change nothing: no cross-site check (auth.ts) and no write budget. */
 const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
+
+export const isSafeMethod = (method: string): boolean => SAFE_METHODS.has(method.toUpperCase());
 
 export interface EdgeHttpOptions {
 	/** e.g. `https://toebeans.co.za`. HSTS is sent only on https. */
@@ -66,7 +69,7 @@ export function createEdgeHttp({
 		},
 
 		checkWriteRate({ method, userId }) {
-			if (SAFE_METHODS.has(method.toUpperCase())) return null;
+			if (isSafeMethod(method)) return null;
 			const decision = writeRateLimit.take(userId);
 			if (decision.allowed) return null;
 			log.warn('write rate limited', { userId, retryAfterSeconds: decision.retryAfterSeconds });

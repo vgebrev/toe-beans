@@ -11,13 +11,14 @@ import {
 	type InvitationPreview,
 	type Invitations as InvitationsDto
 } from '@toe-beans/contracts';
-import type { MemberViewer, Viewer } from '../application/auth/auth.js';
-import { notFound, rateLimited } from '../application/errors.js';
+import type { Viewer } from '../application/auth/auth.js';
+import { rateLimited } from '../application/errors.js';
 import type { HouseholdView, Households } from '../application/household/household.js';
 import type { InvitationView, Invitations } from '../application/household/invitations.js';
 import type { Logger, RateLimiter } from '../application/ports/index.js';
 import { etag, versionFromIfMatch } from './etag.js';
 import { errorResponse, json, noContent, respond, type HttpResponse } from './response.js';
+import { isMember, noHousehold } from './member.js';
 import { parseInput } from './validation.js';
 
 export interface HouseholdHttpOptions {
@@ -80,9 +81,6 @@ const invitationDto = ({ invitation, invitedBy, canRevoke }: InvitationView): In
 	canRevoke,
 	etag: etag(invitation.version)
 });
-
-const isMember = (viewer: Viewer): viewer is MemberViewer => viewer.member !== null;
-const noHousehold = () => errorResponse(notFound('household'));
 
 export function createHouseholdHttp(
 	households: Households,

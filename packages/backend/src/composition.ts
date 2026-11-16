@@ -1,5 +1,5 @@
-// Composition root: wires infrastructure adapters into use cases (architecture §4.1). Later slices
-// add repositories, the push sender and the worker to `ports`.
+// Composition root: wires infrastructure adapters into use cases (architecture §4.1), and starts
+// the reminder tick's own loop where the host doesn't call it (§6.3).
 import type { ErrorReporter, Logger, Ports } from './application/ports/index.js';
 import type { Config } from './config.js';
 import { createPlanner } from './application/planner/planner.js';

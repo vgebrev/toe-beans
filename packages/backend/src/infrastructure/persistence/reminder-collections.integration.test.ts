@@ -58,7 +58,7 @@ describe('mongoPushDevices', () => {
 			label: 'A'
 		}))!;
 		expect(first).toMatchObject({ userId: sam, label: 'A', failureCount: 0, createdAt: at });
-		await devices().recordFailure(first.id, at);
+		await devices().recordFailure(first.id);
 		await devices().disable(first.id, at);
 		expect(await devices().listLive([sam])).toEqual([]);
 

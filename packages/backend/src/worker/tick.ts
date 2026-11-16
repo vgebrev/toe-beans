@@ -374,7 +374,7 @@ export function createWorker(
 				log.info('push device disabled', { deviceId: device.id, status: outcome.status });
 			} else {
 				problems.push(outcome.reason);
-				await pushDevices.recordFailure(device.id, now);
+				await pushDevices.recordFailure(device.id);
 			}
 		}
 		const attempts = r.attempts + 1;

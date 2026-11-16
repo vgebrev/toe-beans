@@ -5,13 +5,12 @@ import {
 	UpdateSessionLog,
 	type SessionLog as SessionLogDto
 } from '@toe-beans/contracts';
-import type { MemberViewer, Viewer } from '../application/auth/auth.js';
-import { notFound } from '../application/errors.js';
-import type { PlannerContext } from '../application/auth/auth.js';
+import type { PlannerContext, Viewer } from '../application/auth/auth.js';
 import type { LogView, SessionLogs } from '../application/training-log/session-logs.js';
 import { zonedDateTime } from '../domain/calendar.js';
 import { etag, versionFromIfMatch } from './etag.js';
 import { errorResponse, json, noContent, respond, type HttpResponse } from './response.js';
+import { isMember, noHousehold } from './member.js';
 import { parseInput } from './validation.js';
 
 export interface SessionLogsHttp {
@@ -56,9 +55,6 @@ export const sessionLogDto = (
 		etag: etag(log.version)
 	};
 };
-
-const isMember = (viewer: Viewer): viewer is MemberViewer => viewer.member !== null;
-const noHousehold = () => errorResponse(notFound('household'));
 
 export function createSessionLogsHttp(logs: SessionLogs): SessionLogsHttp {
 	const logResponse = (ctx: PlannerContext, status: number) => (view: LogView) =>

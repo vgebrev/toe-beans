@@ -1,8 +1,8 @@
 # Toe Beans — Code Review
 
-**Version:** 0.3
+**Version:** 0.4
 **Date:** 16 November 2026
-**Status:** Rounds 1–3 (domain, application, infrastructure) done; rounds 4–8 to do (S15.3).
+**Status:** Rounds 1–4 (the backend package) done; rounds 5–8 to do (S15.3).
 **Inputs:** `docs/architecture.md` v1.22 (§4.2 layering), the code at commit `d7dd854` (`develop`)
 
 **Changes in 0.1:** the review's split into eight rounds, one layer or boundary each, and round 1 (domain) with its fixes.
@@ -10,6 +10,8 @@
 **Changes in 0.2:** round 2 (application) with its fixes (§4), and the web's copy of History's types carried forward to round 5.
 
 **Changes in 0.3:** round 3 (infrastructure) with its fixes (§5).
+
+**Changes in 0.4:** round 4 (http, worker and wiring) with its fixes (§6).
 
 ---
 
@@ -28,7 +30,7 @@ Each round reports first, the owner decides, and only then are the fixes made.
 | 1 | Domain | `packages/backend/src/domain` | ✅ | A couple of small fixes, done |
 | 2 | Application | `packages/backend/src/application` | ✅ | A couple of small fixes, done |
 | 3 | Infrastructure | `packages/backend/src/infrastructure`, migrations included | ✅ | A couple of small fixes, done |
-| 4 | http, worker and wiring | `packages/backend/src/{http,worker}`, `composition.ts`, `config.ts` | ⬜ | |
+| 4 | http, worker and wiring | `packages/backend/src/{http,worker}`, `composition.ts`, `config.ts` | ✅ | A couple of small fixes, done |
 | 5 | Contracts | `packages/contracts`, and how it lines up with the domain and http | ⬜ | |
 | 6 | Web library | `apps/web/src/lib` (api-client, components, stores) | ⬜ | |
 | 7 | Web routes | `apps/web/src/routes`, hooks, the service worker | ⬜ | |
@@ -104,3 +106,27 @@ The four `as never` left in `household-collection.ts` are on update documents, w
 - `e instanceof Error ? e.name : 'unknown'` in the Mailpit, Resend and push adapters.
 - `sourceOf` in `auth-collections.ts` repeats the domain's email-local-part rule; it reads schema 1 and shouldn't follow later changes.
 - A long comment line in `exercise-files.ts`.
+
+## 6. Round 4: http, worker and wiring
+
+**Verdict:** a couple of small fixes. Every handler has the same shape (membership, the contracts' schema, If-Match, the use case, the DTO through `respond`); the tick is well structured and safe to run repeatedly; `config.ts` checks every variable once at startup.
+
+**Fixed:**
+
+| Finding | Problem | Fix |
+|---|---|---|
+| The "no household, 404" guard in ten places | `isMember` and `noHousehold` were copied into eight handler files, and History and Today wrote the check inline. It's what keeps someone outside a household from its data (§4.4). | `http/member.ts`, used by all ten. |
+| What counts as a write, in two places | `SAFE_METHODS` in `auth.ts` (the cross-site check) and `edge.ts` (the write budget), which must agree. | `isSafeMethod` in `edge.ts`, used by both. |
+| `recordFailure`'s unused time | The port took `(id, at)` and the worker passed it, but neither the Mongo adapter nor the fake used it. | The parameter is gone. |
+| Two imports from `auth.js` in four handlers | Left by round 2's move of `PlannerContext`. | Merged. |
+| Stale or misplaced comments | `composition.ts` said later slices would add repositories, the push sender and the worker, which are all there; `signOut` in `http/auth.ts` had two stacked doc comments, of which only the second showed. | Rewritten and merged. |
+
+Checked with the unit tests and `pnpm test:integration`.
+
+**Taste, left alone:**
+
+- `account.update` checks If-Match before the body; the other handlers parse the body first. Only which error wins when both are wrong differs.
+- `config.ts` has its prod-only checks in three places, one of them not through `required`.
+- The tick has `preferenceOf` and also an inline `?? defaultPreference(...)`.
+- `composition.ts` and `createHttp` each make a planner; it holds no state.
+- `sessionCookie` reads `Date.now()` rather than the clock.
