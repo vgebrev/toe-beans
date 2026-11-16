@@ -32,7 +32,7 @@ import {
 } from '../domain/dog.js';
 import { SKILL_AREAS } from '../domain/exercise.js';
 import { HOUSEHOLD_NAME_MAX, type Role as DomainRole } from '../domain/household.js';
-import { TIMES_MAX } from '../domain/planner.js';
+import { TIME_STEP_MIN, TIMES_MAX } from '../domain/planner.js';
 import { CARE_LEADS, TRAINING_LEADS } from '../domain/reminders.js';
 import {
 	DURATION_MAX_MIN,
@@ -61,6 +61,7 @@ describe('contracts and the domain', () => {
 			logNotes: LOG_NOTES_MAX,
 			logDurationMin: DURATION_MAX_MIN,
 			sessionTimes: TIMES_MAX,
+			timeStepMin: TIME_STEP_MIN,
 			householdName: HOUSEHOLD_NAME_MAX,
 			displayName: DISPLAY_NAME_MAX
 		});

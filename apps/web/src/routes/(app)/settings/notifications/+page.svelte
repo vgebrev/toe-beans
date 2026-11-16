@@ -12,6 +12,7 @@
 		ReminderSettings,
 		ReminderTest,
 		CareLead,
+		limits,
 		TrainingLead
 	} from '@toe-beans/contracts';
 	import NativeSelect from '#lib/components/form/NativeSelect.svelte';
@@ -408,7 +409,7 @@
 						<span class="text-sm text-muted-foreground">At</span>
 						<Input
 							type="time"
-							step={300}
+							step={limits.timeStepMin * 60}
 							aria-label="Care reminder time"
 							value={settings.preference.careTimeOfDay}
 							disabled={!settings.preference.care}

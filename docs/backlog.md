@@ -1,6 +1,6 @@
 # Toe Beans — Backlog
 
-**Version:** 0.45 (draft for iteration)
+**Version:** 0.46 (draft for iteration)
 **Date:** 16 November 2026
 **Inputs:** `docs/requirements.md` v1.0, `docs/architecture.md` v1.22, `docs/ui.md` v0.31
 
@@ -73,6 +73,8 @@
 **Changes in 0.44:** new S11.5: done care tasks in History, the owner's call before S15.3 (architecture 1.22 D35, ui 0.31 §4.4). It's built and the owner tried it on the phone, so S11 is done again. Inputs moved to architecture 1.22 and ui 0.31.
 
 **Changes in 0.45:** S15.3 started: the code review is tracked in its own `docs/code-review.md`, in eight rounds of one layer or boundary each. Round 1 (domain) is done, with its small fixes.
+
+**Changes in 0.46:** S15.3 done, and S15 with it: all eight rounds of the code review and a check of the whole branch afterwards (`docs/code-review.md` 0.10), without changing behaviour. S14 is next.
 
 **Changes in 0.21:** S2 and S3 done: the owner tested both on the phones in Chrome, including S3.5's photo flow and the Android share sheet. The installed PWA wasn't part of it; that's S13.
 
@@ -169,8 +171,9 @@ Work is organised as **vertical slices**: each delivers a usable end-to-end incr
 | 2026-11-16 | S15.2 done, tried by the owner on the phone: each finding of the audit (`docs/security-audit.md` v0.2) fixed or decided, on the owner's calls for F7, C3 and F2's subject. D32: the Worker's header secret, a write budget per person, photo limits and one decode at a time, up to 50 dogs, email invite caps counted in the database (migration 0013) with a fixed subject, and the CSP and security headers. D33: *Sign out everywhere*, and a device moves to someone else only with its keys. D34: accepted risks. The image defaults to `APP_ENV=prod`; adapter-node 6.0.1 for a new advisory. Unit, integration and e2e tests (259 e2e pass with the CSP on). |
 | 2026-11-16 | S6.5 done, closed by the owner on the Galaxy S23 FE: several times a day (architecture 1.20 D24, ui 0.29), from the owner's puppy-school question in S15.1. Each time is its own session; *This and following* from a midday session keeps the morning's; migration 0012 moves existing plans and keys. Unit, integration (the migration too) and e2e tests. The error reveal from S15.1 now scrolls at once: a smooth scroll let a quick tap land on the wrong chip, which the e2e suite caught. |
 | 2026-11-16 | S11.5 built, on the owner's call before S15.3 (D35): done care tasks are in History, each leading the day it was done (it has a day and no time), with *Any care* and each kind of care on *Show*, as for events; the two *Other* entries are now *Other event* and *Other care*, and lines divide the sheet's groups (a `divider` on the shared filter sheet's choices). `GET /api/v1/history` reads them as a third source on D29's cursor, which the care source reads as whole days. Migration 0014 adds the index, and the household-isolation suite covers the read. The card shows who marked the task done (`completedBy` on the care DTO), and the task's back link says *History* when it was opened from there. Cancelled and upcoming tasks stay on Care. 774 unit, 156 integration and 261 e2e tests. The owner tried it on the phone, with lines between *Show*'s groups, and S11.5 is done. |
+| 2026-11-16 | S15.3 done, closed by the owner: the code review in eight rounds, one layer or boundary each (domain, application, infrastructure, http and worker, contracts, web library, web routes, tests), and a check of the whole branch afterwards, all recorded with their fixes in `docs/code-review.md` 0.10. Shared helpers replaced copies, the web's form limits and choices now come from the contracts with a test holding them to the domain, and behaviour didn't change, bar one fix found on the way: Kit 3's `data-sveltekit-reset="false"` in place of the ignored `noscroll`. S15 is done. |
 
-**Next up:** S15.3, then S14.
+**Next up:** S14.
 
 ---
 
@@ -357,14 +360,14 @@ Work is organised as **vertical slices**: each delivers a usable end-to-end incr
 | S13.4 | Accessibility pass: an e2e check at 200% text size, and fixes for what it found. TalkBack is S13.5. | ✅ |
 | S13.5 | On both phones, installed: the install offer from Today and the onboarding step, the shortcuts on a long press, airplane mode (the banner, a failed save kept and retried, the offline page on opening the app), a cold start (the waking skeleton; note the time to Today from cold and warm on each phone, NFR-09), 200% font size and TalkBack on one phone through Today, logging a session and recording an event. Measure the Redmi's viewport for its e2e profile. Done on the Galaxy S23 FE (15 Nov); the owner closed it without the Redmi. | ✅ |
 
-### S15 Pre-release review 🟨
+### S15 Pre-release review ✅
 *Before S14: go-live prep starts from reviewed code. Numbered after S14 only because it was added later.*
 
 | # | Task | Status |
 |---|---|---|
 | S15.1 | The owner's snag list: small fixes and polish found while using the app. **Built (ui 0.28):** (a) Notifications lists *Your devices*, all of them, this one first and marked *This device*; (b) selects and date and time fields show the filter buttons' chevron 16 px in from the edge; (c) the exercise page's *Schedule* / *Log practice* bar sits flush on the bottom bar; (d) the "+" is on Care too and offers the page's own record first; (e) a list page's primary action leads it (Plan's *Schedule*, Dogs, the cue dictionary); (f) a failed submit brings the first message into view and focuses its field. **Open question, answered:** sessions several times a day (puppy school's "before each feeding") became S6.5. The owner closed all but (b) on the Galaxy S23 FE, which came back with two snags: Android still drew its own arrow beside the chevron on date and time fields (now `appearance: none`), and desktop Chrome's dark theme showed options light on grey (now the theme's surface). The owner then closed (b) on the phone, after a third fix: Android's leftover arrow margin clipped the date's last character. | ✅ |
 | S15.2 | Security audit of the whole app against architecture §7 and NFR-01/02: household isolation on every read and write (scenario 9), sign-in and sessions, invitations, uploads, push endpoints and the tick, headers and CSP, secrets and logging. Findings fixed or recorded with a decision. **Audit done (16 Nov):** `docs/security-audit.md` lists the findings with file and line, severity and fix: F1–F7 confirmed, C1–C4 worth checking. **Built (architecture 1.21, ui 0.30; audit v0.2 has each resolution):** F1 the app refuses requests without the Worker's header secret (`PROXY_SECRET`, required in prod; D32); F2 email invitations capped per person, per household and in total from the stored invitations, with a fixed subject (D32); F3 the CSP with nonces and the other security headers (D32); F4 the image defaults to `APP_ENV=prod`; F5 a photo budget per person, one decode at a time, up to 50 dogs (D32); F6 a device moves to someone else only with its keys (D33); F7 *Sign out everywhere* on More (D33); C3 a write budget per person (D32); C1, C2 and C4 accepted (D34), with adapter-node 6.0.1 for a new advisory. The owner tried it on the phone: pages under the CSP and *Sign out everywhere*. F1's address header and C1/C2's checks are S14.1's. | ✅ |
-| S15.3 | Code review and refactor: duplication, dead code, layer boundaries (architecture §4.2) and test gaps, without changing behaviour. Notable changes recorded in the architecture decision log. Tracked round by round in `docs/code-review.md`. | 🟨 |
+| S15.3 | Code review and refactor: duplication, dead code, layer boundaries (architecture §4.2) and test gaps, without changing behaviour. Notable changes recorded in the architecture decision log. Tracked round by round in `docs/code-review.md`. | ✅ |
 
 ### S14 Operations and release ⬜
 *NFR-05, 07, 10, 12, scenario 10.*

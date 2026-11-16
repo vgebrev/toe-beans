@@ -1,6 +1,7 @@
 // Dates for the planner on the device (ui.md §4.3, §5.4): weeks run Monday to Sunday, "today" is
 // the household's, and labels use the device's locale. Plain dates are `YYYY-MM-DD` strings,
 // handled as UTC midnights so no zone can move them.
+import { limits } from '@toe-beans/contracts';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const utc = (date: string) => Date.parse(`${date}T00:00:00Z`);
@@ -130,13 +131,14 @@ export function repeatSummary(
 		: `${which}${at}`;
 }
 
-/** Times are planned in 5-minute steps (ui.md J3): rounds to the nearest, keeping the hour valid. */
+/** Times are planned in steps (ui.md J3): rounds to the nearest, keeping the hour valid. */
 export function roundTime(value: string): string {
 	const match = /^(\d{2}):(\d{2})/.exec(value);
 	if (!match) return value;
+	const step = limits.timeStepMin;
 	const total = Math.min(
-		Number(match[1]) * 60 + Math.round(Number(match[2]) / 5) * 5,
-		23 * 60 + 55
+		Number(match[1]) * 60 + Math.round(Number(match[2]) / step) * step,
+		24 * 60 - step
 	);
 	return `${String(Math.floor(total / 60)).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}`;
 }

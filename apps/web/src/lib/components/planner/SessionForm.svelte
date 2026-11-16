@@ -199,7 +199,7 @@
 			<Input
 				id="session-time"
 				type="time"
-				step={300}
+				step={limits.timeStepMin * 60}
 				bind:value={values.times[0]}
 				oninput={() => clear('time')}
 				onchange={() => (values.times[0] = roundTime(values.times[0] ?? ''))}
@@ -209,7 +209,9 @@
 			{#if errors.time}
 				{@render error('time')}
 			{:else}
-				<p id="session-time-hint" class="text-sm text-muted-foreground">In 5-minute steps.</p>
+				<p id="session-time-hint" class="text-sm text-muted-foreground">
+					In {limits.timeStepMin}-minute steps.
+				</p>
 			{/if}
 		</div>
 	</div>
@@ -278,7 +280,7 @@
 									<Input
 										id="session-time-{i}"
 										type="time"
-										step={300}
+										step={limits.timeStepMin * 60}
 										aria-label="Time {i + 1}"
 										bind:value={values.times[i]}
 										oninput={() => clear(field)}

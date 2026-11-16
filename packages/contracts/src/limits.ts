@@ -20,6 +20,8 @@ export const limits = {
 	logDurationMin: 240,
 	/** Times a day a repeating session can have (architecture D24). */
 	sessionTimes: 6,
+	/** Times of day are picked in steps of this many minutes (ui.md J3). */
+	timeStepMin: 5,
 	householdName: 100,
 	displayName: 100
 } as const;

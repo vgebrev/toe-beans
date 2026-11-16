@@ -1,8 +1,8 @@
 # Toe Beans — Code Review
 
-**Version:** 0.9
+**Version:** 0.10
 **Date:** 16 November 2026
-**Status:** All eight rounds done (S15.3).
+**Status:** All eight rounds done and checked over (S15.3).
 **Inputs:** `docs/architecture.md` v1.22 (§4.2 layering), the code at commit `d7dd854` (`develop`)
 
 **Changes in 0.1:** the review's split into eight rounds, one layer or boundary each, and round 1 (domain) with its fixes.
@@ -22,6 +22,8 @@
 **Changes in 0.8:** a replaced Kit link option, found in the browser after round 7 (§9).
 
 **Changes in 0.9:** round 8 (tests) with its fixes (§10), which ends the review.
+
+**Changes in 0.10:** a check of the whole branch after the rounds (§11), with one fix: the time step joins the shared form limits.
 
 ---
 
@@ -235,3 +237,23 @@ Checked with the unit tests, `pnpm test:integration` (156 pass, 11 skipped) and 
 - `e2e/mock-sign-in.ts` now holds household, dog and date fixtures as well as sign-in.
 - A fixed instant `at` per test file: each suite's own clock, on purpose.
 - The onboarding spec picks Johannesburg in the UI rather than reading `ZONE`; it's what a person would choose there.
+
+## 11. After the rounds: the branch as a whole
+
+**Verdict:** one small fix. The whole diff against `develop` was read again by a second reviewer, and each pattern the rounds consolidated was searched for leftovers: none were found, and the branch introduced no dead code. The one inline status check left (`InviteActions`) reads the problem's fields next, which round 6 allows.
+
+**Fixed:**
+
+| Finding | Problem | Fix |
+|---|---|---|
+| The 5-minute time step typed out again in the web | Round 1 made `TIME_STEP_MIN` the backend's one step, but the web had it as `step={300}` on four time inputs (care, the session form twice, the care reminder time), twice in `roundTime` (with `23 * 60 + 55`), and in the session form's hint. A changed step would leave the forms offering times the API refuses, the gap round 5 closed for the other limits. | `limits.timeStepMin` in `contracts/limits.ts`, checked against the domain by `http/contracts.test.ts` and read by the inputs, `roundTime` and the hint. |
+
+Checked with `pnpm lint`, `pnpm check` and the unit tests.
+
+**Taste, left alone:**
+
+- `http/household.test.ts` keeps its own viewers, the same as `testing/viewers.ts` but for the owner's role.
+- `FUTURE_SLACK_MS` and `LOG_BACK_DAYS` are still exported, though only `pastProblem` reads them now.
+- A day's difference with a literal `86_400_000` in `cues/edited.ts` and `dogs/age.ts`, beside `DAY_MS` in `planner/dates.ts`.
+- `!(problemStatus(…) === 404)`, twice in the Notifications page.
+- e2e: three `schedule` helpers of different shapes (plan, reminders, today) and two identical `secondPerson`.

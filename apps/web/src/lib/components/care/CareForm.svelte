@@ -195,7 +195,7 @@
 			<Input
 				id="care-time"
 				type="time"
-				step={300}
+				step={limits.timeStepMin * 60}
 				bind:value={values.dueTime}
 				oninput={() => clear('dueTime')}
 				onchange={() => (values.dueTime = values.dueTime ? roundTime(values.dueTime) : '')}
