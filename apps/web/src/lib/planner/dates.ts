@@ -14,6 +14,20 @@ export const isPlainDate = (value: string | null): value is string =>
 
 export const addDays = (date: string, days: number): string => plain(utc(date) + days * DAY_MS);
 
+/**
+ * The same day `months` later (or earlier), or the month's last day when it's shorter: 31 January
+ * plus a month is 28 or 29 February.
+ */
+export function addMonths(date: string, months: number): string {
+	const [y, m, d] = date.split('-').map(Number) as [number, number, number];
+	const first = new Date(Date.UTC(y, m - 1 + months, 1));
+	const lastDay = new Date(
+		Date.UTC(first.getUTCFullYear(), first.getUTCMonth() + 1, 0)
+	).getUTCDate();
+	first.setUTCDate(Math.min(d, lastDay));
+	return first.toISOString().slice(0, 10);
+}
+
 /** ISO weekday: Monday is 1, Sunday 7. */
 export function weekdayOf(date: string): number {
 	const day = new Date(utc(date)).getUTCDay();
@@ -45,7 +59,11 @@ export function mondayOfIsoWeek(value: string | null): string | null {
 	return isoWeek(monday) === value ? monday : null;
 }
 
-export { todayIn } from '#lib/dogs/age.js';
+/** Today's date in a time zone, as `YYYY-MM-DD`: the household's, given its zone. */
+export const todayIn = (timeZone: string, now = new Date()): string =>
+	new Intl.DateTimeFormat('en-CA', { timeZone, year: 'numeric', month: '2-digit', day: '2-digit' })
+		.format(now)
+		.slice(0, 10);
 
 /** A plain date in the device's locale, e.g. "Tue 10 Nov". */
 export const formatDate = (

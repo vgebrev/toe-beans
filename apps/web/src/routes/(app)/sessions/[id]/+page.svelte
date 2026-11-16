@@ -15,10 +15,11 @@
 	import QuickLogSheet from '#lib/components/training-log/QuickLogSheet.svelte';
 	import { Button, buttonVariants } from '#lib/components/ui/button/index.js';
 	import * as Sheet from '#lib/components/ui/sheet/index.js';
-	import { createApiClient, type ApiError } from '#lib/api-client/index.js';
+	import { type ApiError, createApiClient, problemStatus } from '#lib/api-client/index.js';
 	import { dayName, dayPhrase, isoWeek, repeatSummary } from '#lib/planner/dates.js';
 	import { statusLabels } from '#lib/planner/status.js';
 	import type { PageProps } from './$types';
+	import { dogNameOf } from '#lib/dogs/name.js';
 
 	let { data }: PageProps = $props();
 
@@ -59,7 +60,7 @@
 
 	/** A 412 or 404 closes the sheet and reloads, saying what happened above the result. */
 	async function failed(error: ApiError, what: string) {
-		const code = error.kind === 'problem' ? error.problem.status : null;
+		const code = problemStatus(error);
 		if (code === 412) {
 			sheetOpen = false;
 			await invalidateAll();
@@ -145,7 +146,7 @@
 				<dt class="sr-only">Dog</dt>
 				<dd class="flex items-center gap-3 font-bold">
 					{#if dog}<DogAvatar {dog} size={48} />{/if}
-					{dog?.name ?? 'A dog no longer here'}
+					{dogNameOf(dog)}
 				</dd>
 			</div>
 			<div>

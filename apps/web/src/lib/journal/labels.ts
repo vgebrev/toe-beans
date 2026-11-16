@@ -3,15 +3,6 @@
 import type { EventCategory } from '@toe-beans/contracts';
 import type { IconName } from '#lib/components/icon/icons.js';
 
-export const CATEGORIES: readonly EventCategory[] = [
-	'barking',
-	'cat_interaction',
-	'fear',
-	'toileting_accident',
-	'visitor',
-	'other'
-];
-
 export const categoryLabels: Record<EventCategory, { label: string; icon: IconName }> = {
 	barking: { label: 'Barking', icon: 'event-barking' },
 	cat_interaction: { label: 'Cat interaction', icon: 'event-cat-interaction' },
@@ -20,6 +11,9 @@ export const categoryLabels: Record<EventCategory, { label: string; icon: IconNa
 	visitor: { label: 'Visitor', icon: 'event-visitor' },
 	other: { label: 'Other', icon: 'event-other' }
 };
+
+/** In the order the labels list them, so a new category is offered as soon as it's named. */
+export const CATEGORIES = Object.keys(categoryLabels) as EventCategory[];
 
 /** "Ripley's barking", or "an event for Ripley" for *Other*, for notices like "Recorded …". */
 export function eventPhrase(category: EventCategory, dogName: string | undefined): string {

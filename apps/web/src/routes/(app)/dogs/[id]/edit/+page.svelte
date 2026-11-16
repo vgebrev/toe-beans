@@ -6,7 +6,7 @@
 	import DogForm from '#lib/components/dogs/DogForm.svelte';
 	import Icon from '#lib/components/icon/Icon.svelte';
 	import PageHeader from '#lib/components/shell/PageHeader.svelte';
-	import { todayIn } from '#lib/dogs/age.js';
+	import { todayIn } from '#lib/planner/dates.js';
 	import type { PageProps } from './$types';
 
 	let { data }: PageProps = $props();

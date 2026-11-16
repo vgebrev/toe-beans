@@ -1,12 +1,7 @@
 // A dog's age and time since adoption in words (ui.md §4.5, §5.4): "4 months", "about 2 years".
 // Dates are plain `YYYY-MM-DD` in the household's time zone, so no clock or zone maths is needed.
 import type { BirthDate } from '@toe-beans/contracts';
-
-/** Today's date in a time zone, as `YYYY-MM-DD`. */
-export const todayIn = (timeZone: string, now = new Date()): string =>
-	new Intl.DateTimeFormat('en-CA', { timeZone, year: 'numeric', month: '2-digit', day: '2-digit' })
-		.format(now)
-		.slice(0, 10);
+import { addMonths } from '#lib/planner/dates.js';
 
 const parts = (date: string) => date.split('-').map(Number) as [number, number, number];
 
@@ -46,13 +41,4 @@ export function adoptedText(adoptionDate: string, today: string): string {
 }
 
 /** The date `months` before `today`, for "Approximate: months old" (ui.md J1). */
-export function monthsAgo(months: number, today: string): string {
-	const [y, m, d] = parts(today);
-	const target = new Date(Date.UTC(y, m - 1 - months, 1));
-	// Clamp the day to the target month's length: 3 months before 31 May is 28 or 29 Feb.
-	const lastDay = new Date(
-		Date.UTC(target.getUTCFullYear(), target.getUTCMonth() + 1, 0)
-	).getUTCDate();
-	target.setUTCDate(Math.min(d, lastDay));
-	return target.toISOString().slice(0, 10);
-}
+export const monthsAgo = (months: number, today: string): string => addMonths(today, -months);

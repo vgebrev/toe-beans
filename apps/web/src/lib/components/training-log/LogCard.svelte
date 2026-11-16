@@ -5,6 +5,7 @@
 	import type { Dog, SessionLog } from '@toe-beans/contracts';
 	import DogAvatar from '#lib/components/dogs/DogAvatar.svelte';
 	import OutcomeBadge from './OutcomeBadge.svelte';
+	import { dogNameOf } from '#lib/dogs/name.js';
 
 	interface Props {
 		log: SessionLog;
@@ -27,7 +28,7 @@
 	<span class="flex min-w-0 flex-1 flex-col gap-0.5">
 		<span class="font-bold break-words">{log.exercise.title}</span>
 		<span class="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted-foreground">
-			<span>{dog?.name ?? 'A dog no longer here'}</span>
+			<span>{dogNameOf(dog)}</span>
 			<OutcomeBadge outcome={log.outcome} short />
 			<span>by {log.caregiver}</span>
 		</span>

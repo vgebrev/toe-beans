@@ -6,7 +6,7 @@
 	import Icon from '#lib/components/icon/Icon.svelte';
 	import { Button } from '#lib/components/ui/button/index.js';
 	import * as Sheet from '#lib/components/ui/sheet/index.js';
-	import { createApiClient } from '#lib/api-client/index.js';
+	import { createApiClient, problemStatus } from '#lib/api-client/index.js';
 	import { recordPath, type Deleted } from '#lib/history/deleted.js';
 
 	interface Props {
@@ -51,7 +51,7 @@
 			ondeleted(result.etag ?? etag);
 			return;
 		}
-		const code = result.error.kind === 'problem' ? result.error.problem.status : null;
+		const code = problemStatus(result.error);
 		if (code === 404) {
 			status = 'idle';
 			open = false;

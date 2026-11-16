@@ -8,6 +8,7 @@
 	import DogAvatar from '#lib/components/dogs/DogAvatar.svelte';
 	import Icon from '#lib/components/icon/Icon.svelte';
 	import { careLabels } from '#lib/care/labels.js';
+	import { dogNameOf } from '#lib/dogs/name.js';
 
 	interface Props {
 		task: CareTask;
@@ -38,7 +39,7 @@
 	<span class="flex min-w-0 flex-1 flex-col gap-0.5">
 		<span class="font-bold break-words">{task.title}</span>
 		<span class="flex flex-wrap items-center gap-x-2 text-sm text-muted-foreground">
-			<span>{dog?.name ?? 'A dog no longer here'}</span>
+			<span>{dogNameOf(dog)}</span>
 			{#if task.completedBy}<span>by {task.completedBy}</span>{/if}
 			{@render done('hidden @max-[18rem]:inline')}
 		</span>

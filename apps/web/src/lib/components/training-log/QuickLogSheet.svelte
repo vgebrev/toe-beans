@@ -20,7 +20,7 @@
 	import { Label } from '#lib/components/ui/label/index.js';
 	import * as Sheet from '#lib/components/ui/sheet/index.js';
 	import { Textarea } from '#lib/components/ui/textarea/index.js';
-	import { createApiClient, type ApiError } from '#lib/api-client/index.js';
+	import { type ApiError, createApiClient, problemStatus } from '#lib/api-client/index.js';
 	import {
 		MOODS,
 		moodLabels,
@@ -233,7 +233,7 @@
 			status = 'conflict';
 			return;
 		}
-		const gone = latest.error.kind === 'problem' && latest.error.problem.status === 404;
+		const gone = problemStatus(latest.error) === 404;
 		status = gone ? 'gone' : 'failed';
 	}
 

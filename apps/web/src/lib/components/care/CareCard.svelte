@@ -8,6 +8,7 @@
 	import Icon from '#lib/components/icon/Icon.svelte';
 	import { careLabels } from '#lib/care/labels.js';
 	import { dayName, dayPhrase } from '#lib/planner/dates.js';
+	import { dogNameOf } from '#lib/dogs/name.js';
 
 	interface Props {
 		task: CareTask;
@@ -63,7 +64,7 @@
 			{task.title}
 		</span>
 		<span class="flex flex-wrap items-center gap-x-2 text-sm text-muted-foreground">
-			<span>{dog?.name ?? 'A dog no longer here'}</span>
+			<span>{dogNameOf(dog)}</span>
 			<span class={['tabular-nums', task.overdue && 'font-bold text-warn']}>{when}</span>
 			{@render status('hidden @max-[18rem]:inline')}
 		</span>

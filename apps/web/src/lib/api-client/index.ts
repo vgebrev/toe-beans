@@ -22,6 +22,13 @@ export type ApiError =
 	/** No response: offline, DNS failure, connection dropped. */
 	| { kind: 'network' };
 
+/**
+ * The status of the problem the API answered with, or null: a gateway error page or no response
+ * at all has none a form can act on.
+ */
+export const problemStatus = (error: ApiError): number | null =>
+	error.kind === 'problem' ? error.problem.status : null;
+
 export type ApiResult<T> =
 	| { ok: true; data: T; /** The aggregate version, for If-Match (NFR-13). */ etag?: string }
 	| { ok: false; error: ApiError };

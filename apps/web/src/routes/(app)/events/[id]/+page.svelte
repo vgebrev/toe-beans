@@ -16,6 +16,7 @@
 	import { categoryLabels, eventPhrase } from '#lib/journal/labels.js';
 	import { dayName, dayPhrase } from '#lib/planner/dates.js';
 	import type { PageProps } from './$types';
+	import { dogNameOf } from '#lib/dogs/name.js';
 
 	let { data }: PageProps = $props();
 
@@ -80,7 +81,7 @@
 				<dt class="sr-only">Dog</dt>
 				<dd class="flex items-center gap-3 font-bold">
 					{#if dog}<DogAvatar {dog} size={48} />{/if}
-					{dog?.name ?? 'A dog no longer here'}
+					{dogNameOf(dog)}
 				</dd>
 			</div>
 			<div>

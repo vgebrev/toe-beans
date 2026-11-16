@@ -22,7 +22,7 @@
 	import { Input } from '#lib/components/ui/input/index.js';
 	import * as Sheet from '#lib/components/ui/sheet/index.js';
 	import { Switch } from '#lib/components/ui/switch/index.js';
-	import { createApiClient } from '#lib/api-client/index.js';
+	import { createApiClient, problemStatus } from '#lib/api-client/index.js';
 	import { roundTime } from '#lib/planner/dates.js';
 	import {
 		currentSubscription,
@@ -155,10 +155,7 @@
 		if (thisDeviceId) {
 			const removed = await api.send('DELETE', `/reminders/devices/${thisDeviceId}`);
 			// Already gone counts as removed.
-			if (
-				!removed.ok &&
-				!(removed.error.kind === 'problem' && removed.error.problem.status === 404)
-			) {
+			if (!removed.ok && !(problemStatus(removed.error) === 404)) {
 				stopFailed = true;
 				return void (phase = 'on');
 			}
@@ -218,10 +215,7 @@
 		removing = 'working';
 		const removed = await api.send('DELETE', `/reminders/devices/${sheet.id}`);
 		// Already gone counts as removed.
-		if (
-			!removed.ok &&
-			!(removed.error.kind === 'problem' && removed.error.problem.status === 404)
-		) {
+		if (!removed.ok && !(problemStatus(removed.error) === 404)) {
 			return void (removing = 'failed');
 		}
 		sheetOpen = false;

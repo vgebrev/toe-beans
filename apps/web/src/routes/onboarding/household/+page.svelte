@@ -10,7 +10,7 @@
 	import { Button } from '#lib/components/ui/button/index.js';
 	import { Input } from '#lib/components/ui/input/index.js';
 	import { Label } from '#lib/components/ui/label/index.js';
-	import { createApiClient } from '#lib/api-client/index.js';
+	import { createApiClient, problemStatus } from '#lib/api-client/index.js';
 	import type { PageProps } from './$types';
 	import { revealErrors } from '#lib/forms/reveal-errors.js';
 
@@ -35,8 +35,7 @@
 	async function rejoin() {
 		rejoining = 'saving';
 		const result = await api.send('POST', '/household/former', { schema: Household });
-		const taken =
-			!result.ok && result.error.kind === 'problem' && result.error.problem.status === 409;
+		const taken = !result.ok && problemStatus(result.error) === 409;
 		if (result.ok || taken) {
 			await goto(resolve('/(app)'), { invalidateAll: true });
 			return;

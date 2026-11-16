@@ -8,7 +8,7 @@
 	import Icon from '#lib/components/icon/Icon.svelte';
 	import SessionForm from '#lib/components/planner/SessionForm.svelte';
 	import PageHeader from '#lib/components/shell/PageHeader.svelte';
-	import { createApiClient } from '#lib/api-client/index.js';
+	import { createApiClient, problemStatus } from '#lib/api-client/index.js';
 	import {
 		outcomeOf,
 		repeatBody,
@@ -57,7 +57,7 @@
 	async function conflict(): Promise<SaveOutcome> {
 		const latest = await api.get(`/planned-sessions/${session!.id}`, PlannedSession);
 		if (!latest.ok) {
-			const code = latest.error.kind === 'problem' ? latest.error.problem.status : null;
+			const code = problemStatus(latest.error);
 			return code === 404 ? gone : { kind: 'failed' };
 		}
 		return {
@@ -105,7 +105,7 @@
 			};
 		}
 		if (!result.ok) {
-			const code = result.error.kind === 'problem' ? result.error.problem.status : null;
+			const code = problemStatus(result.error);
 			if (code === 412) return conflict();
 			if (code === 404) return gone;
 			if (code === 409) {

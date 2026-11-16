@@ -11,7 +11,7 @@
 	import { Label } from '#lib/components/ui/label/index.js';
 	import * as Sheet from '#lib/components/ui/sheet/index.js';
 	import { Textarea } from '#lib/components/ui/textarea/index.js';
-	import { createApiClient, type ApiError } from '#lib/api-client/index.js';
+	import { type ApiError, createApiClient, problemStatus } from '#lib/api-client/index.js';
 	import { revealErrors } from '#lib/forms/reveal-errors.js';
 
 	interface Props {
@@ -142,7 +142,7 @@
 			status = 'conflict';
 			return;
 		}
-		const gone = latest.error.kind === 'problem' && latest.error.problem.status === 404;
+		const gone = problemStatus(latest.error) === 404;
 		status = gone ? 'gone' : 'failed';
 	}
 
@@ -178,7 +178,7 @@
 			await finish(`Deleted “${base.label}”.`);
 			return;
 		}
-		const code = result.error.kind === 'problem' ? result.error.problem.status : null;
+		const code = problemStatus(result.error);
 		if (code === 404) return finish(`“${base.label}” was already deleted.`);
 		if (code === 412) return conflicted();
 		if (code === 401) {

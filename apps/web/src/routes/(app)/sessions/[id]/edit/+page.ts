@@ -2,7 +2,7 @@
 // the rest of its series.
 import { error } from '@sveltejs/kit';
 import { Exercises, PlannedSession } from '@toe-beans/contracts';
-import { createApiClient } from '#lib/api-client/index.js';
+import { createApiClient, problemStatus } from '#lib/api-client/index.js';
 import { todayIn } from '#lib/planner/dates.js';
 
 export async function load({ fetch, params, parent, url }) {
@@ -12,7 +12,7 @@ export async function load({ fetch, params, parent, url }) {
 		api.get(`/planned-sessions/${params.id}`, PlannedSession),
 		api.get('/exercises', Exercises)
 	]);
-	if (!session.ok && session.error.kind === 'problem' && session.error.problem.status === 404) {
+	if (!session.ok && problemStatus(session.error) === 404) {
 		error(404, 'Not found');
 	}
 	const scope = url.searchParams.get('scope') === 'following' ? 'following' : 'this';

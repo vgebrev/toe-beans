@@ -4,15 +4,6 @@ import type { CareCategory, CareHistoryEntry, CareTask } from '@toe-beans/contra
 import type { IconName } from '#lib/components/icon/icons.js';
 import { dayPhrase, formatDate } from '#lib/planner/dates.js';
 
-export const CARE_CATEGORIES: readonly CareCategory[] = [
-	'vaccination',
-	'parasite_prevention',
-	'vet_appointment',
-	'puppy_school',
-	'sterilisation_consult',
-	'other'
-];
-
 export const careLabels: Record<CareCategory, { label: string; icon: IconName; title: string }> = {
 	vaccination: { label: 'Vaccination', icon: 'vaccination', title: 'Vaccination' },
 	parasite_prevention: {
@@ -29,6 +20,9 @@ export const careLabels: Record<CareCategory, { label: string; icon: IconName; t
 	},
 	other: { label: 'Other', icon: 'care', title: '' }
 };
+
+/** In the order the labels list them, so a new category is offered as soon as it's named. */
+export const CARE_CATEGORIES = Object.keys(careLabels) as CareCategory[];
 
 /** "today at 09:30", "tomorrow", "Tue 17 Nov". */
 export function duePhrase(
@@ -65,14 +59,3 @@ export const NEXT_CHOICES = [
 	{ months: 3, label: 'In 3 months' },
 	{ months: 12, label: 'In a year' }
 ] as const;
-
-/** The same day `months` later, or the month's last day when it's shorter. */
-export function addMonths(date: string, months: number): string {
-	const [y, m, d] = date.split('-').map(Number) as [number, number, number];
-	const first = new Date(Date.UTC(y, m - 1 + months, 1));
-	const lastDay = new Date(
-		Date.UTC(first.getUTCFullYear(), first.getUTCMonth() + 1, 0)
-	).getUTCDate();
-	first.setUTCDate(Math.min(d, lastDay));
-	return first.toISOString().slice(0, 10);
-}

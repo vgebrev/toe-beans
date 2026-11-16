@@ -1,5 +1,6 @@
 // What the session form edits, and how a save turned out (ui.md J3, §5.2).
 import type { ApiError } from '#lib/api-client/index.js';
+import { saveOutcomeOf, type SaveOutcome as FormSaveOutcome } from '#lib/forms/save-outcome.js';
 import { EVERY_DAY, WEEKDAYS } from './dates.js';
 
 export type RepeatChoice = 'never' | 'daily' | 'weekdays' | 'custom';
@@ -24,15 +25,7 @@ export type FieldName =
 /** The field of the time at `index`. */
 export const timeField = (index: number): FieldName => (index === 0 ? 'time' : `time-${index}`);
 
-export type SaveOutcome =
-	| { kind: 'saved' }
-	| { kind: 'invalid'; fields: Partial<Record<FieldName, string>>; message?: string }
-	| { kind: 'failed' }
-	| { kind: 'signed-out' }
-	/** Changed elsewhere: the form offers to load the latest. */
-	| { kind: 'conflict'; message: string }
-	/** Gone elsewhere: nothing to save into. */
-	| { kind: 'gone'; message: string };
+export type SaveOutcome = FormSaveOutcome<FieldName>;
 
 /** The repeat choice for a series' days. */
 export function repeatChoice(days: readonly number[]): RepeatChoice {
@@ -107,19 +100,4 @@ function fieldOf(key: string): FieldName | undefined {
 }
 
 /** How a failed save reads, for anything but a conflict or a missing item, which callers word. */
-export function outcomeOf(error: ApiError): SaveOutcome {
-	if (error.kind !== 'problem') return { kind: 'failed' };
-	const { status, errors, detail, title } = error.problem;
-	if (status === 401) return { kind: 'signed-out' };
-	if (status === 400) {
-		const fields: Partial<Record<FieldName, string>> = {};
-		for (const [key, messages] of Object.entries(errors ?? {})) {
-			const name = fieldOf(key);
-			if (name && messages[0]) fields[name] = messages[0];
-		}
-		return Object.keys(fields).length > 0
-			? { kind: 'invalid', fields }
-			: { kind: 'invalid', fields: {}, message: detail ?? title };
-	}
-	return { kind: 'failed' };
-}
+export const outcomeOf = (error: ApiError): SaveOutcome => saveOutcomeOf(error, fieldOf);

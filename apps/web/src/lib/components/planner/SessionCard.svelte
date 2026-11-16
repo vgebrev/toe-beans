@@ -10,6 +10,7 @@
 	import Icon from '#lib/components/icon/Icon.svelte';
 	import OutcomeBadge from '#lib/components/training-log/OutcomeBadge.svelte';
 	import { statusLabels } from '#lib/planner/status.js';
+	import { dogNameOf } from '#lib/dogs/name.js';
 
 	interface Props {
 		session: PlannedSession;
@@ -53,7 +54,7 @@
 			<span class="hidden font-bold text-foreground tabular-nums @max-[18rem]:inline"
 				>{session.time}</span
 			>
-			<span>{dog?.name ?? 'A dog no longer here'}</span>
+			<span>{dogNameOf(dog)}</span>
 			{#if day}<span class="font-bold text-warn">{day}</span>{/if}
 			{#if session.plan}
 				<span class="inline-flex items-center gap-1">

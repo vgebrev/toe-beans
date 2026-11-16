@@ -7,7 +7,7 @@
 	import Icon from '#lib/components/icon/Icon.svelte';
 	import Logo from '#lib/components/Logo.svelte';
 	import { Button } from '#lib/components/ui/button/index.js';
-	import { createApiClient } from '#lib/api-client/index.js';
+	import { createApiClient, problemStatus } from '#lib/api-client/index.js';
 	import type { PageProps } from './$types';
 
 	let { data }: PageProps = $props();
@@ -32,7 +32,7 @@
 			await goto(resolve('/(app)'), { invalidateAll: true });
 			return;
 		}
-		const code = result.error.kind === 'problem' ? result.error.problem.status : 0;
+		const code = problemStatus(result.error);
 		if (code === 409 || code === 404) {
 			// It changed since the page loaded; the preview says how.
 			status = 'idle';

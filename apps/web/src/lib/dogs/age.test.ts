@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { adoptedText, ageText, monthsAgo, monthsBetween, todayIn } from './age.js';
+import { adoptedText, ageText, monthsAgo, monthsBetween } from './age.js';
 
 describe('monthsBetween', () => {
 	it('counts whole months', () => {
@@ -46,13 +46,5 @@ describe('monthsAgo', () => {
 		expect(ageText({ date: monthsAgo(4, '2026-11-08'), precision: 'month' }, '2026-11-08')).toBe(
 			'about 4 months'
 		);
-	});
-});
-
-describe('todayIn', () => {
-	it('is the date in that time zone', () => {
-		const late = new Date('2026-11-08T23:30:00Z');
-		expect(todayIn('UTC', late)).toBe('2026-11-08');
-		expect(todayIn('Africa/Johannesburg', late)).toBe('2026-11-09');
 	});
 });

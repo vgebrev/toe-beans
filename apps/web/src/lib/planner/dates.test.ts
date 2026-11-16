@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
 	addDays,
+	addMonths,
 	dayName,
 	isoWeek,
 	isPlainDate,
@@ -48,6 +49,14 @@ describe('days', () => {
 		expect(isPlainDate('2026-02-29')).toBe(false);
 		expect(isPlainDate('2028-02-29')).toBe(true);
 		expect(addDays('2026-12-31', 1)).toBe('2027-01-01');
+	});
+
+	it('add months, keeping to the month’s last day', () => {
+		expect(addMonths('2026-11-09', 1)).toBe('2026-12-09');
+		expect(addMonths('2026-01-31', 1)).toBe('2026-02-28');
+		expect(addMonths('2026-11-30', 3)).toBe('2027-02-28');
+		expect(addMonths('2026-11-09', 12)).toBe('2027-11-09');
+		expect(addMonths('2026-05-31', -3)).toBe('2026-02-28');
 	});
 
 	it('are today on the household’s clocks', () => {

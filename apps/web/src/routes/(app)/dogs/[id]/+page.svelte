@@ -12,7 +12,8 @@
 	import { Button } from '#lib/components/ui/button/index.js';
 	import * as Sheet from '#lib/components/ui/sheet/index.js';
 	import { createApiClient } from '#lib/api-client/index.js';
-	import { adoptedText, ageText, todayIn } from '#lib/dogs/age.js';
+	import { adoptedText, ageText } from '#lib/dogs/age.js';
+	import { todayIn } from '#lib/planner/dates.js';
 	import type { PageProps } from './$types';
 
 	let { data }: PageProps = $props();

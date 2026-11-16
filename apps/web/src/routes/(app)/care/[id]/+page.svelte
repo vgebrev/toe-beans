@@ -15,10 +15,11 @@
 	import { Input } from '#lib/components/ui/input/index.js';
 	import { Label } from '#lib/components/ui/label/index.js';
 	import * as Sheet from '#lib/components/ui/sheet/index.js';
-	import { createApiClient, type ApiError } from '#lib/api-client/index.js';
-	import { addMonths, careLabels, duePhrase, historyLine, NEXT_CHOICES } from '#lib/care/labels.js';
-	import { dayName, dayPhrase, formatDate } from '#lib/planner/dates.js';
+	import { type ApiError, createApiClient, problemStatus } from '#lib/api-client/index.js';
+	import { careLabels, duePhrase, historyLine, NEXT_CHOICES } from '#lib/care/labels.js';
+	import { addMonths, dayName, dayPhrase, formatDate } from '#lib/planner/dates.js';
 	import type { PageProps } from './$types';
+	import { dogNameOf } from '#lib/dogs/name.js';
 
 	let { data }: PageProps = $props();
 
@@ -56,7 +57,7 @@
 
 	/** A 412, 404 or 409 closes the sheet and reloads, saying what happened above the result. */
 	async function failed(error: ApiError, what: string) {
-		const code = error.kind === 'problem' ? error.problem.status : null;
+		const code = problemStatus(error);
 		if (code === 400 && error.kind === 'problem') {
 			const [key, messages] = Object.entries(error.problem.errors ?? {})[0] ?? [];
 			fieldError = {
@@ -165,7 +166,7 @@
 				<dt class="sr-only">Dog</dt>
 				<dd class="flex items-center gap-3 font-bold">
 					{#if dog}<DogAvatar {dog} size={48} />{/if}
-					{dog?.name ?? 'A dog no longer here'}
+					{dogNameOf(dog)}
 				</dd>
 			</div>
 			<div>

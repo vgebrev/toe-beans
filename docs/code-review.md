@@ -1,8 +1,8 @@
 # Toe Beans — Code Review
 
-**Version:** 0.5
+**Version:** 0.6
 **Date:** 16 November 2026
-**Status:** Rounds 1–5 (the backend package and the contracts) done; rounds 6–8 to do (S15.3).
+**Status:** Rounds 1–6 (the backend, the contracts and the web library) done; rounds 7–8 to do (S15.3).
 **Inputs:** `docs/architecture.md` v1.22 (§4.2 layering), the code at commit `d7dd854` (`develop`)
 
 **Changes in 0.1:** the review's split into eight rounds, one layer or boundary each, and round 1 (domain) with its fixes.
@@ -14,6 +14,8 @@
 **Changes in 0.4:** round 4 (http, worker and wiring) with its fixes (§6).
 
 **Changes in 0.5:** round 5 (contracts) with its fixes (§7), which settle both items carried forward.
+
+**Changes in 0.6:** round 6 (web library) with its fixes (§8); the status helper also reached the routes, ahead of round 7.
 
 ---
 
@@ -34,7 +36,7 @@ Each round reports first, the owner decides, and only then are the fixes made.
 | 3 | Infrastructure | `packages/backend/src/infrastructure`, migrations included | ✅ | A couple of small fixes, done |
 | 4 | http, worker and wiring | `packages/backend/src/{http,worker}`, `composition.ts`, `config.ts` | ✅ | A couple of small fixes, done |
 | 5 | Contracts | `packages/contracts`, and how it lines up with the domain and http | ✅ | Worth a round, done |
-| 6 | Web library | `apps/web/src/lib` (api-client, components, stores) | ⬜ | |
+| 6 | Web library | `apps/web/src/lib` (api-client, components, stores) | ✅ | Worth a round, done |
 | 7 | Web routes | `apps/web/src/routes`, hooks, the service worker | ⬜ | |
 | 8 | Tests | unit, integration and e2e helpers (duplication only, not coverage) | ⬜ | |
 
@@ -153,3 +155,26 @@ Checked with the unit tests and `pnpm test:integration`.
 - `Weekday` has no exported type, unlike the other schemas.
 - `z.string().max(100)` for an ID, repeated across the inputs.
 - The input caps (a dog name up to 500) sit far above the domain's limits; they're a ceiling against abuse, not the rule.
+
+## 8. Round 6: Web library
+
+**Verdict:** worth a round. The API client returns every outcome as a value and throws only on a broken contract; `reveal-errors`, the theme and the caching rules are small and tested; the label maps are `Record`s, so every value has a label. What drifted was small helpers copied across the forms, and a second copy of the date helpers.
+
+**Fixed:**
+
+| Finding | Problem | Fix |
+|---|---|---|
+| A problem's status read inline about 24 times | `x.error.kind === 'problem' ? x.error.problem.status : null` in 12 places and `… && … .status === 404` in a dozen more, across sheets, detail pages' loads and routes. They must agree that a gateway error has no status; two already said `0` where the rest said `null`. | `problemStatus(error)` in `api-client`, routes included. Where the problem's own fields are read next, the inline narrowing stays. |
+| A failed save read twice | `careOutcomeOf` (`care/form.ts`) and `outcomeOf` (`planner/form.ts`) had the same 401, per-field 400 and fallback, and identical outcome unions. | `saveOutcomeOf(error, fieldOf)` and `SaveOutcome<F>` in `forms/save-outcome.ts`; each form keeps only its field mapping. |
+| The household's today and a month's clamping, twice each | `todayIn` (`dogs/age.ts`, re-exported by `planner/dates.ts`) was `dayIn` in `cues/edited.ts`; `addMonths` (`care/labels.ts`) and `monthsAgo` (`dogs/age.ts`) clamped to a shorter month separately. | Both in `planner/dates.ts`; `monthsAgo` is `addMonths(today, -months)` and `editedWhen` uses `todayIn`. |
+| Five choice lists typed beside their label maps | Event and care categories, outcomes, moods and places: the compiler forces a label for a new value, but nothing put it in the list the form offers. | Each list is `Object.keys` of its labels, as `skillAreas` already was. |
+| "A dog no longer here" in nine places | Five cards and four detail pages, the web's counterpart of the backend's former-member name. | `dogNameOf(dog)` in `dogs/name.ts`. |
+| Dead file | `lib/index.ts` was SvelteKit's placeholder, imported by nothing. | Removed. |
+
+**Taste, left alone:**
+
+- The save notices ("Couldn't save — check your connection.", "You've been signed out…") in about a dozen components, with deliberate differences in wording.
+- The conflict flow (`conflicted`, `seeTheirs`, `overwrite`) in the cue, event and log sheets; it's tied into each sheet's state.
+- `LogCard`, `EventCard` and `CareEntryCard` share their card markup.
+- `madeWithKey` (`push/browser.ts`) exported but used only in its file.
+- `planner/dates.ts` is the app's date module under a planner name.

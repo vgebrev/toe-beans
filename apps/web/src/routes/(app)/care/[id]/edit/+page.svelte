@@ -8,7 +8,7 @@
 	import CareForm from '#lib/components/care/CareForm.svelte';
 	import Icon from '#lib/components/icon/Icon.svelte';
 	import PageHeader from '#lib/components/shell/PageHeader.svelte';
-	import { createApiClient } from '#lib/api-client/index.js';
+	import { createApiClient, problemStatus } from '#lib/api-client/index.js';
 	import {
 		careBody,
 		careOutcomeOf,
@@ -49,7 +49,7 @@
 			schema: CareTask
 		});
 		if (!result.ok) {
-			const code = result.error.kind === 'problem' ? result.error.problem.status : null;
+			const code = problemStatus(result.error);
 			if (code === 404) return gone;
 			if (code === 412) {
 				const latest = await api.get(`/care-tasks/${task.id}`, CareTask);

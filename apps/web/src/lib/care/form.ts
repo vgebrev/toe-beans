@@ -1,6 +1,7 @@
 // What the care form edits, and how a save turned out (ui.md J6, §5.2).
 import type { CareCategory, CareTask } from '@toe-beans/contracts';
 import type { ApiError } from '#lib/api-client/index.js';
+import { saveOutcomeOf, type SaveOutcome } from '#lib/forms/save-outcome.js';
 import { careLabels } from './labels.js';
 
 export interface CareValues {
@@ -15,15 +16,7 @@ export interface CareValues {
 
 export type CareField = 'dogId' | 'category' | 'title' | 'dueDate' | 'dueTime' | 'notes';
 
-export type CareSaveOutcome =
-	| { kind: 'saved' }
-	| { kind: 'invalid'; fields: Partial<Record<CareField, string>>; message?: string }
-	| { kind: 'failed' }
-	| { kind: 'signed-out' }
-	/** Changed elsewhere: the form offers to load the latest. */
-	| { kind: 'conflict'; message: string }
-	/** Gone elsewhere: nothing to save into. */
-	| { kind: 'gone'; message: string };
+export type CareSaveOutcome = SaveOutcome<CareField>;
 
 export const valuesOf = (task: CareTask): CareValues => ({
 	dogId: task.dogId,
@@ -66,20 +59,7 @@ export function careBody(values: CareValues, initial?: CareValues): Record<strin
 const FIELDS: readonly CareField[] = ['dogId', 'category', 'title', 'dueDate', 'dueTime', 'notes'];
 
 /** How a failed save reads, for anything but a conflict or a missing task, which callers word. */
-export function careOutcomeOf(error: ApiError): CareSaveOutcome {
-	if (error.kind !== 'problem') return { kind: 'failed' };
-	const { status, errors, detail, title } = error.problem;
-	if (status === 401) return { kind: 'signed-out' };
-	if (status === 400) {
-		const fields: Partial<Record<CareField, string>> = {};
-		for (const [key, messages] of Object.entries(errors ?? {})) {
-			if ((FIELDS as readonly string[]).includes(key) && messages[0]) {
-				fields[key as CareField] = messages[0];
-			}
-		}
-		return Object.keys(fields).length > 0
-			? { kind: 'invalid', fields }
-			: { kind: 'invalid', fields: {}, message: detail ?? title };
-	}
-	return { kind: 'failed' };
-}
+export const careOutcomeOf = (error: ApiError): CareSaveOutcome =>
+	saveOutcomeOf(error, (key) =>
+		(FIELDS as readonly string[]).includes(key) ? (key as CareField) : undefined
+	);

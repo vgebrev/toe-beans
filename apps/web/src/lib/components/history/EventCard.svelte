@@ -7,6 +7,7 @@
 	import DogAvatar from '#lib/components/dogs/DogAvatar.svelte';
 	import Icon from '#lib/components/icon/Icon.svelte';
 	import { categoryLabels } from '#lib/journal/labels.js';
+	import { dogNameOf } from '#lib/dogs/name.js';
 
 	interface Props {
 		event: BehaviourEvent;
@@ -36,7 +37,7 @@
 			<span class="truncate text-sm">{event.trigger}</span>
 		{/if}
 		<span class="flex flex-wrap items-center gap-x-2 text-sm text-muted-foreground">
-			<span>{dog?.name ?? 'A dog no longer here'}</span>
+			<span>{dogNameOf(dog)}</span>
 			<span>by {event.recordedBy}</span>
 		</span>
 	</span>
