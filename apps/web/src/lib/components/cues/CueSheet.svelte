@@ -12,6 +12,7 @@
 	import * as Sheet from '#lib/components/ui/sheet/index.js';
 	import { Textarea } from '#lib/components/ui/textarea/index.js';
 	import { createApiClient, type ApiError } from '#lib/api-client/index.js';
+	import { revealErrors } from '#lib/forms/reveal-errors.js';
 
 	interface Props {
 		open: boolean;
@@ -321,7 +322,7 @@
 					each of you.
 				</Sheet.Description>
 			</Sheet.Header>
-			<form class="flex flex-col gap-5" onsubmit={save} novalidate>
+			<form class="flex flex-col gap-5" onsubmit={save} novalidate {@attach revealErrors}>
 				{#if status === 'theirs' && base}
 					<p aria-live="polite" class="rounded-2xl border border-border bg-soft px-4 py-3">
 						This is {base.updatedBy}'s version. Change it and save, or close to keep it.

@@ -120,6 +120,30 @@ test('scheduling a session from Plan, then skipping, cancelling and putting it b
 	).toBeVisible();
 });
 
+test('Schedule leads Plan, above the week, and the "+" offers it first', async ({
+	page,
+	baseURL
+}) => {
+	const [rosie] = await household(page, baseURL!);
+	const tomorrow = dateIn(1);
+	// A full day doesn't push Schedule out of sight (S15.1).
+	for (const time of ['07:00', '09:00', '11:00', '13:00', '15:00', '17:00', '19:00'])
+		await schedule(page, baseURL!, { dogId: rosie!.id, date: tomorrow, time });
+	await page.goto(`/plan?week=${isoWeek(tomorrow)}&day=${tomorrow}`);
+	const button = (await page.getByRole('link', { name: 'Schedule', exact: true }).boundingBox())!;
+	const week = (await page.getByRole('navigation', { name: 'Week' }).boundingBox())!;
+	expect(button.y).toBeLessThan(week.y);
+	await expect(page.getByRole('link', { name: 'Schedule', exact: true })).toBeInViewport();
+
+	await page.getByRole('button', { name: 'Add', exact: true }).click();
+	await expect(page.getByRole('dialog', { name: 'Add' }).getByRole('listitem')).toHaveText([
+		/Schedule session/,
+		/Log training/,
+		/Record event/,
+		/Add care task/
+	]);
+});
+
 test('the library’s Schedule button starts with that exercise', async ({ page, baseURL }) => {
 	await household(page, baseURL!);
 	await page.goto('/library/recall-basics');

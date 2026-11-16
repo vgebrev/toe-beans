@@ -20,6 +20,7 @@
 	} from '#lib/care/form.js';
 	import { CARE_CATEGORIES, careLabels } from '#lib/care/labels.js';
 	import { roundTime } from '#lib/planner/dates.js';
+	import { revealErrors } from '#lib/forms/reveal-errors.js';
 
 	interface Props {
 		/** The household's dogs still here; the task's own dog too when editing, if archived. */
@@ -88,7 +89,7 @@
 	{/if}
 {/snippet}
 
-<form class="flex flex-col gap-6" onsubmit={submit} novalidate>
+<form class="flex flex-col gap-6" onsubmit={submit} novalidate {@attach revealErrors}>
 	<fieldset class="flex flex-col gap-2" aria-describedby={describedBy('dogId')}>
 		<legend class="mb-2 font-bold">Dog</legend>
 		{#if dogs.length === 1}

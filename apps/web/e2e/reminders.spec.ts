@@ -306,7 +306,7 @@ test('blocked, unsupported and failed states say what to do', async ({ page, bas
 	await expect(old.getByRole('switch', { name: /Push notifications/ })).toBeDisabled();
 });
 
-test('the switch turns this device off, and other devices can be removed', async ({
+test('every device is listed, this one marked; the switch turns it off, and others can be removed', async ({
 	page,
 	baseURL
 }) => {
@@ -327,10 +327,18 @@ test('the switch turns this device off, and other devices can be removed', async
 	await page.getByRole('switch', { name: /Push notifications/ }).click();
 	await expect(page.getByText(/On for this device/)).toBeVisible();
 
+	// Every device is listed, this one first and marked (S15.1).
+	const list = page.getByRole('region', { name: 'Your devices' }).getByRole('listitem');
+	await expect(list).toHaveCount(2);
+	await expect(list.first()).toContainText('This device');
+	await expect(list.nth(1)).toContainText('Old tablet · Chrome');
+	await expect(list.nth(1)).not.toContainText('This device');
+
 	await page.getByRole('button', { name: 'Remove Old tablet · Chrome' }).click();
 	await expect(page.getByRole('heading', { name: 'Remove Old tablet · Chrome?' })).toBeVisible();
 	await page.getByRole('button', { name: 'Remove device' }).click();
-	await expect(page.getByText('Your other devices')).toHaveCount(0);
+	await expect(list).toHaveCount(1);
+	await expect(page.getByText('Old tablet · Chrome')).toHaveCount(0);
 
 	await page.getByRole('switch', { name: /Push notifications/ }).click();
 	await expect(page.getByText('Off on this device')).toBeVisible();

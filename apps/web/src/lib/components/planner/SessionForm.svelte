@@ -19,6 +19,7 @@
 		type SessionValues
 	} from '#lib/planner/form.js';
 	import ExercisePicker from './ExercisePicker.svelte';
+	import { revealErrors } from '#lib/forms/reveal-errors.js';
 
 	interface Props {
 		/** Scheduling anew, changing this session only, or this and the rest of its series. */
@@ -100,7 +101,7 @@
 	{/if}
 {/snippet}
 
-<form class="flex flex-col gap-6" onsubmit={submit} novalidate>
+<form class="flex flex-col gap-6" onsubmit={submit} novalidate {@attach revealErrors}>
 	{#if mode === 'new'}
 		<fieldset class="flex flex-col gap-2" aria-describedby={describedBy('dogId')}>
 			<legend class="mb-2 font-bold">Dog</legend>

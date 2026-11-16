@@ -1,8 +1,8 @@
 # Toe Beans — Backlog
 
-**Version:** 0.39 (draft for iteration)
-**Date:** 15 November 2026
-**Inputs:** `docs/requirements.md` v1.0, `docs/architecture.md` v1.19, `docs/ui.md` v0.27
+**Version:** 0.40 (draft for iteration)
+**Date:** 16 November 2026
+**Inputs:** `docs/requirements.md` v1.0, `docs/architecture.md` v1.19, `docs/ui.md` v0.28
 
 **Changes in 0.3:** spike results S-1.0 to S-1.4 and S0.1–S0.2 recorded as they landed (see Current progress). S-1.4b dropped as not needed, S-1.5 parked, S-1.4a retargeted to `toebeans.co.za`.
 
@@ -61,6 +61,8 @@
 **Changes in 0.38:** S11 done: the owner closed S11.4. S13.1–S13.4 built (architecture 1.19 D31, ui 0.27 §5.2, §6.1, §6.3, §7), with offline as the shell only, the owner's call. S13.3's timings on the phones and S13.4's TalkBack pass move to a new S13.5, trying S13 on the phones, as for earlier slices, which also measures the Redmi's viewport. Inputs moved to architecture 1.19 and ui 0.27.
 
 **Changes in 0.39:** S13 done: the owner tried S13.5 on the Galaxy S23 FE and closed it without the Redmi Note 12 Pro. Added S15, a pre-release review (the owner's snag list, a security audit, and a code review with refactoring), which comes before S14 despite its number, so S14 starts from reviewed code.
+
+**Changes in 0.40:** S15.1 done: the owner's snag list is under S15, and the fixes follow `ui.md` 0.28 (§2.1, §4.6, §5.1, J7). Inputs moved to ui 0.28.
 
 **Changes in 0.21:** S2 and S3 done: the owner tested both on the phones in Chrome, including S3.5's photo flow and the Android share sheet. The installed PWA wasn't part of it; that's S13.
 
@@ -157,7 +159,9 @@ Work is organised as **vertical slices**: each delivers a usable end-to-end incr
 
 | 2026-11-15 | S13 done. The owner tried S13.5 on the Galaxy S23 FE and closed it without the Redmi Note 12 Pro, whose e2e viewport stays an estimate. S15 added before S14: the owner's snag list, a security audit, and a code review and refactor, each in its own session. |
 
-**Next up:** S15, then S14.
+| 2026-11-16 | S15.1 done, closed by the owner on the Galaxy S23 FE: the snag list below, with e2e checks for each. `pnpm check` also failed on `develop` already: Kit's `page.url` is now a read-only URL type, so `AddMenu` copies it by its `href`. The owner's open question on sessions several times a day stays with the owner (see S15.1). |
+
+**Next up:** S15.2, S15.3, then S14.
 
 ---
 
@@ -342,12 +346,12 @@ Work is organised as **vertical slices**: each delivers a usable end-to-end incr
 | S13.4 | Accessibility pass: an e2e check at 200% text size, and fixes for what it found. TalkBack is S13.5. | ✅ |
 | S13.5 | On both phones, installed: the install offer from Today and the onboarding step, the shortcuts on a long press, airplane mode (the banner, a failed save kept and retried, the offline page on opening the app), a cold start (the waking skeleton; note the time to Today from cold and warm on each phone, NFR-09), 200% font size and TalkBack on one phone through Today, logging a session and recording an event. Measure the Redmi's viewport for its e2e profile. Done on the Galaxy S23 FE (15 Nov); the owner closed it without the Redmi. | ✅ |
 
-### S15 Pre-release review ⬜
+### S15 Pre-release review 🟨
 *Before S14: go-live prep starts from reviewed code. Numbered after S14 only because it was added later.*
 
 | # | Task | Status |
 |---|---|---|
-| S15.1 | The owner's snag list: small fixes and polish found while using the app. The items are listed here when the session starts. | ⬜ |
+| S15.1 | The owner's snag list: small fixes and polish found while using the app. **Built (ui 0.28):** (a) Notifications lists *Your devices*, all of them, this one first and marked *This device*; (b) selects and date and time fields show the filter buttons' chevron 16 px in from the edge; (c) the exercise page's *Schedule* / *Log practice* bar sits flush on the bottom bar; (d) the "+" is on Care too and offers the page's own record first; (e) a list page's primary action leads it (Plan's *Schedule*, Dogs, the cue dictionary); (f) a failed submit brings the first message into view and focuses its field. **Open, the owner's call:** sessions several times a day (puppy school's "before each feeding"), today three plans at different times. The owner closed all but (b) on the Galaxy S23 FE, which came back with two snags: Android still drew its own arrow beside the chevron on date and time fields (now `appearance: none`), and desktop Chrome's dark theme showed options light on grey (now the theme's surface). The owner then closed (b) on the phone, after a third fix: Android's leftover arrow margin clipped the date's last character. | ✅ |
 | S15.2 | Security audit of the whole app against architecture §7 and NFR-01/02: household isolation on every read and write (scenario 9), sign-in and sessions, invitations, uploads, push endpoints and the tick, headers and CSP, secrets and logging. Findings fixed or recorded with a decision. | ⬜ |
 | S15.3 | Code review and refactor: duplication, dead code, layer boundaries (architecture §4.2) and test gaps, without changing behaviour. Notable changes recorded in the architecture decision log. | ⬜ |
 

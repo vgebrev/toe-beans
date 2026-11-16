@@ -10,9 +10,10 @@
 </script>
 
 <script lang="ts">
-	// The floating "+" on Today, Plan and History (ui.md §2.1): a chooser sheet with *Log
+	// The floating "+" on Today, Plan, History and Care (ui.md §2.1): a chooser sheet with *Log
 	// training* (J4: pick an exercise, then the quick log), *Record event* (J5), *Add care task*
-	// (J6, its own page) and *Schedule session* (J3). New records start with the switcher's dog.
+	// (J6, its own page) and *Schedule session* (J3), the page's own kind of record first
+	// (`first`). New records start with the switcher's dog.
 	// Once one is saved, a snackbar says so with a link to it (§5.2), and the page reloads its
 	// data so it shows up. The page can put its own message in the same snackbar, such as
 	// History's *Undo* after a delete (J8). The home screen icon's shortcuts (ui.md §6.3) open
@@ -47,9 +48,19 @@
 		scheduleHref?: string | undefined;
 		/** What the snackbar says, if anything; the page can set it too. */
 		snack?: Snack | null;
+		/** The choice that leads the list: what the page is about (Plan: schedule, Care: care). */
+		first?: Choice;
 	}
 
-	let { dogs, timeZone, scheduleHref, snack = $bindable(null) }: Props = $props();
+	type Choice = 'log' | 'event' | 'care' | 'schedule';
+
+	let { dogs, timeZone, scheduleHref, snack = $bindable(null), first = 'log' }: Props = $props();
+
+	/** The usual order, with the page's own choice moved to the top. */
+	const order = $derived<Choice[]>([
+		first,
+		...(['log', 'event', 'care', 'schedule'] as const).filter((c) => c !== first)
+	]);
 
 	const api = createApiClient((input, init) => fetch(input, init));
 	const active = getActiveDog();
@@ -95,7 +106,7 @@
 	onMount(() => {
 		const add = page.url.searchParams.get('add');
 		if (add === null) return;
-		const url = new URL(page.url);
+		const url = new URL(page.url.href);
 		url.searchParams.delete('add');
 		// The same page, so there's no route to resolve.
 		// eslint-disable-next-line svelte/no-navigation-without-resolve
@@ -209,40 +220,48 @@
 				<Sheet.Description class="sr-only">Choose what to add.</Sheet.Description>
 			</Sheet.Header>
 			<ul class="flex flex-col gap-2">
-				{@render choice(
-					'log',
-					loading ? 'Opening the library…' : 'Log training',
-					logTraining,
-					'A practice, planned or not'
-				)}
-				{@render choice(
-					'event',
-					'Record event',
-					() => next(() => (eventOpen = true)),
-					'Barking, a visitor, an accident…'
-				)}
-				<li>
-					<a href={resolve('/(app)/care/new')} class={row}>
-						<Icon name="vaccination" size={24} class="text-primary" />
-						<span class="flex flex-1 flex-col">
-							Add care task
-							<span class="text-sm font-normal text-muted-foreground"
-								>A vaccination, deworming, a vet visit…</span
-							>
-						</span>
-					</a>
-				</li>
-				<li>
-					<!-- scheduleHref, when given, is resolved by the page. -->
-					<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -->
-					<a href={scheduleHref ?? resolve('/(app)/plan/new')} class={row}>
-						<Icon name="schedule" size={24} class="text-primary" />
-						<span class="flex flex-1 flex-col">
-							Schedule session
-							<span class="text-sm font-normal text-muted-foreground">Plan one or a repeat</span>
-						</span>
-					</a>
-				</li>
+				{#each order as kind (kind)}
+					{#if kind === 'log'}
+						{@render choice(
+							'log',
+							loading ? 'Opening the library…' : 'Log training',
+							logTraining,
+							'A practice, planned or not'
+						)}
+					{:else if kind === 'event'}
+						{@render choice(
+							'event',
+							'Record event',
+							() => next(() => (eventOpen = true)),
+							'Barking, a visitor, an accident…'
+						)}
+					{:else if kind === 'care'}
+						<li>
+							<a href={resolve('/(app)/care/new')} class={row}>
+								<Icon name="vaccination" size={24} class="text-primary" />
+								<span class="flex flex-1 flex-col">
+									Add care task
+									<span class="text-sm font-normal text-muted-foreground"
+										>A vaccination, deworming, a vet visit…</span
+									>
+								</span>
+							</a>
+						</li>
+					{:else}
+						<li>
+							<!-- scheduleHref, when given, is resolved by the page. -->
+							<!-- eslint-disable-next-line svelte/no-navigation-without-resolve -->
+							<a href={scheduleHref ?? resolve('/(app)/plan/new')} class={row}>
+								<Icon name="schedule" size={24} class="text-primary" />
+								<span class="flex flex-1 flex-col">
+									Schedule session
+									<span class="text-sm font-normal text-muted-foreground">Plan one or a repeat</span
+									>
+								</span>
+							</a>
+						</li>
+					{/if}
+				{/each}
 			</ul>
 			{#if loadFailed}
 				<p role="alert" class="rounded-2xl border border-border bg-soft px-4 py-3">

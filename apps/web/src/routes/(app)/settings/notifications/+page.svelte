@@ -1,8 +1,8 @@
 <script lang="ts">
 	// Notifications (ui.md J7, FR-12): one *Push notifications* switch for this browser, with what
 	// stops it (unsupported, blocked, failed) said under it; once on, what to be reminded of and
-	// when, folded *Reminder tips* (battery steps and the delayed test), and the person's other
-	// devices. Permission is asked for only when the switch is turned on. Saves say whether they
+	// when, folded *Reminder tips* (battery steps and the delayed test), and all the person's
+	// devices, this one marked. Permission is asked for only when the switch is turned on. Saves say whether they
 	// worked (NFR-04). Wording names no browser or device: reminders work wherever push does.
 	import { onMount } from 'svelte';
 	import { resolve } from '$app/paths';
@@ -14,10 +14,12 @@
 		type CareLead,
 		type TrainingLead
 	} from '@toe-beans/contracts';
+	import NativeSelect from '#lib/components/form/NativeSelect.svelte';
 	import Icon from '#lib/components/icon/Icon.svelte';
 	import InstallOffer from '#lib/components/shell/InstallOffer.svelte';
 	import PageHeader from '#lib/components/shell/PageHeader.svelte';
 	import { Button } from '#lib/components/ui/button/index.js';
+	import { Input } from '#lib/components/ui/input/index.js';
 	import * as Sheet from '#lib/components/ui/sheet/index.js';
 	import { Switch } from '#lib/components/ui/switch/index.js';
 	import { createApiClient } from '#lib/api-client/index.js';
@@ -52,7 +54,8 @@
 	let stopFailed = $state(false);
 	let saving = $state<'idle' | 'saving' | 'saved' | 'failed'>('idle');
 	let testing = $state<'idle' | 'starting' | 'failed'>('idle');
-	let sheet = $state<{ id: string; label: string } | null>(null);
+	/** The device to remove; `here` is this one, which removing turns off, like the switch. */
+	let sheet = $state<{ id: string; label: string; here: boolean } | null>(null);
 	let sheetOpen = $state(false);
 	let removing = $state<'idle' | 'working' | 'failed'>('idle');
 
@@ -91,7 +94,12 @@
 	};
 
 	const thisDevice = $derived(settings?.devices.find((d) => d.id === thisDeviceId));
-	const others = $derived(settings?.devices.filter((d) => d.id !== thisDeviceId) ?? []);
+	/** This device first, then the rest as the server lists them. */
+	const devices = $derived(
+		[...(settings?.devices ?? [])].sort(
+			(a, b) => Number(b.id === thisDeviceId) - Number(a.id === thisDeviceId)
+		)
+	);
 	const test = $derived(
 		settings?.test && (!settings.test.deviceId || settings.test.deviceId === thisDeviceId)
 			? settings.test
@@ -200,6 +208,13 @@
 
 	async function remove() {
 		if (!sheet || removing === 'working') return;
+		if (sheet.here) {
+			removing = 'working';
+			await turnOff();
+			removing = stopFailed ? 'failed' : 'idle';
+			if (!stopFailed) sheetOpen = false;
+			return;
+		}
 		removing = 'working';
 		const removed = await api.send('DELETE', `/reminders/devices/${sheet.id}`);
 		// Already gone counts as removed.
@@ -355,8 +370,7 @@
 				</div>
 				<label class="flex flex-col gap-1">
 					<span class="text-sm text-muted-foreground">Remind me</span>
-					<select
-						class="min-h-12 max-w-full rounded-2xl border border-border bg-card px-3"
+					<NativeSelect
 						aria-label="Remind me of training sessions"
 						value={settings.preference.trainingLeadMin}
 						disabled={!settings.preference.training}
@@ -366,7 +380,7 @@
 						{#each leads as lead (lead.value)}
 							<option value={lead.value}>{lead.label}</option>
 						{/each}
-					</select>
+					</NativeSelect>
 				</label>
 				<div class="flex min-h-12 items-center justify-between gap-4 pt-2">
 					<label for="care" class="flex-1 font-bold">Care tasks</label>
@@ -381,8 +395,7 @@
 				<div class="grid grid-cols-[repeat(auto-fit,minmax(min(100%,9rem),1fr))] gap-3">
 					<label class="flex min-w-0 flex-col gap-1">
 						<span class="text-sm text-muted-foreground">Remind me</span>
-						<select
-							class="min-h-12 w-full min-w-0 rounded-2xl border border-border bg-card px-3"
+						<NativeSelect
 							aria-label="Remind me of care tasks"
 							value={settings.preference.careLeadDays}
 							disabled={!settings.preference.care}
@@ -392,14 +405,13 @@
 							{#each careLeads as lead (lead.value)}
 								<option value={lead.value}>{lead.label}</option>
 							{/each}
-						</select>
+						</NativeSelect>
 					</label>
 					<label class="flex min-w-0 flex-col gap-1">
 						<span class="text-sm text-muted-foreground">At</span>
-						<input
+						<Input
 							type="time"
 							step={300}
-							class="min-h-12 w-full min-w-0 rounded-2xl border border-border bg-card px-3"
 							aria-label="Care reminder time"
 							value={settings.preference.careTimeOfDay}
 							disabled={!settings.preference.care}
@@ -446,14 +458,11 @@
 						</p>
 						<label class="flex flex-col gap-1">
 							<span class="text-sm text-muted-foreground">Your device</span>
-							<select
-								class="min-h-12 max-w-full rounded-2xl border border-border bg-card px-3"
-								bind:value={maker}
-							>
+							<NativeSelect bind:value={maker}>
 								{#each Object.entries(steps) as [value, step] (value)}
 									<option {value}>{step.name}</option>
 								{/each}
-							</select>
+							</NativeSelect>
 						</label>
 						<p>
 							{steps[maker].path.join(' → ')} → <strong>{steps[maker].setting}</strong>
@@ -510,20 +519,22 @@
 			</details>
 		{/if}
 
-		{#if others.length > 0}
-			<section aria-labelledby="others" class="flex flex-col gap-3">
+		{#if devices.length > 0}
+			<section aria-labelledby="devices" class="flex flex-col gap-3">
 				<h2
-					id="others"
+					id="devices"
 					class="text-sm font-extrabold tracking-wide text-muted-foreground uppercase"
 				>
-					Your other devices
+					Your devices
 				</h2>
 				<ul class="flex flex-col gap-2">
-					{#each others as device (device.id)}
+					{#each devices as device (device.id)}
+						{@const here = device.id === thisDeviceId}
 						<li class="flex items-center gap-3 rounded-2xl border border-border px-4 py-2">
 							<span class="flex min-w-0 flex-1 flex-col">
 								<span class="truncate font-bold">{device.label}</span>
 								<span class="text-sm text-muted-foreground">
+									{#if here}<strong class="text-foreground">This device</strong> ·{/if}
 									{device.disabled
 										? 'Stopped: reminders no longer reach it'
 										: device.lastSuccessAt
@@ -535,7 +546,7 @@
 								variant="ghost"
 								size="icon"
 								aria-label={`Remove ${device.label}`}
-								onclick={() => confirmRemove({ id: device.id, label: device.label })}
+								onclick={() => confirmRemove({ id: device.id, label: device.label, here })}
 							>
 								<Icon name="delete" />
 							</Button>
@@ -556,9 +567,13 @@
 	<Sheet.Content side="bottom" class="mx-auto flex max-w-xl flex-col gap-4 px-4 pt-6 pb-4">
 		{#if sheet}
 			<Sheet.Header class="p-0 pr-12 text-left">
-				<Sheet.Title class="font-display text-xl font-semibold">Remove {sheet.label}?</Sheet.Title>
+				<Sheet.Title class="font-display text-xl font-semibold"
+					>Remove {sheet.here ? 'this device' : sheet.label}?</Sheet.Title
+				>
 				<Sheet.Description class="text-base">
-					It stops getting reminders. Turn them on there again to bring it back.
+					{sheet.here
+						? 'It stops getting reminders, like turning off Push notifications. Turn them on again to bring it back.'
+						: 'It stops getting reminders. Turn them on there again to bring it back.'}
 				</Sheet.Description>
 			</Sheet.Header>
 			{#if removing === 'failed'}

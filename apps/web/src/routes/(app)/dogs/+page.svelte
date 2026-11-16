@@ -49,15 +49,15 @@
 			Couldn't load your dogs — check your connection, then reload.
 		</p>
 	{:else}
+		<Button href={resolve('/(app)/dogs/new')} class="w-full">
+			<Icon name="add" />
+			Add a dog
+		</Button>
 		<ul class="flex flex-col gap-3">
 			{#each current as dog (dog.id)}
 				{@render row(dog)}
 			{/each}
 		</ul>
-		<Button href={resolve('/(app)/dogs/new')} class="w-full">
-			<Icon name="add" />
-			Add a dog
-		</Button>
 		{#if archived.length > 0}
 			<section aria-labelledby="archived" class="flex flex-col gap-3">
 				<h2

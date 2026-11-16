@@ -165,8 +165,10 @@
 				{/each}
 			</ul>
 		</section>
+		<!-- Flush on the bottom bar: its height (BottomNav) plus its 1 px border, so nothing scrolls
+		     past in a gap between them. -->
 		<div
-			class="sticky bottom-[calc(5rem+env(safe-area-inset-bottom))] -mx-4 bg-background/95 px-4 py-3"
+			class="sticky bottom-[calc(min(4rem,88px)+1px+env(safe-area-inset-bottom))] -mx-4 bg-background px-4 py-3"
 		>
 			<!-- The query names the exercise; the route is resolved. -->
 			<!-- eslint-disable svelte/no-navigation-without-resolve -->

@@ -5,12 +5,14 @@
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { Household } from '@toe-beans/contracts';
+	import NativeSelect from '#lib/components/form/NativeSelect.svelte';
 	import Icon from '#lib/components/icon/Icon.svelte';
 	import { Button } from '#lib/components/ui/button/index.js';
 	import { Input } from '#lib/components/ui/input/index.js';
 	import { Label } from '#lib/components/ui/label/index.js';
 	import { createApiClient } from '#lib/api-client/index.js';
 	import type { PageProps } from './$types';
+	import { revealErrors } from '#lib/forms/reveal-errors.js';
 
 	let { data }: PageProps = $props();
 
@@ -118,7 +120,7 @@
 	</section>
 {/if}
 
-<form class="flex flex-col gap-5" onsubmit={save} novalidate>
+<form class="flex flex-col gap-5" onsubmit={save} novalidate {@attach revealErrors}>
 	<div class="flex flex-col gap-2">
 		<Label for="household-name" class="font-bold">Household name</Label>
 		<Input
@@ -136,18 +138,17 @@
 
 	<div class="flex flex-col gap-2">
 		<Label for="time-zone" class="font-bold">Time zone</Label>
-		<select
+		<NativeSelect
 			id="time-zone"
 			bind:value={timeZone}
 			disabled={zones.length === 0}
 			aria-invalid={errors.timeZone ? 'true' : undefined}
 			aria-describedby={errors.timeZone ? 'time-zone-error' : 'time-zone-hint'}
-			class="h-12 w-full min-w-0 rounded-xl border border-input bg-background px-4 text-base outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
 		>
 			{#each zones as zone (zone)}
 				<option value={zone}>{zone.replaceAll('_', ' ')}</option>
 			{/each}
-		</select>
+		</NativeSelect>
 		{#if errors.timeZone}
 			<p id="time-zone-error" class="text-sm text-destructive">{errors.timeZone}</p>
 		{:else}

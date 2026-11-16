@@ -49,6 +49,9 @@ test('scenario 7: a vaccination for one dog shows on Care and Today, and is mark
 	await expect(page.getByText('Choose a dog.')).toBeVisible();
 	await expect(page.getByText('Choose what kind of care it is.')).toBeVisible();
 	await expect(page.getByText('Choose a date.')).toBeVisible();
+	// The first message, at the top of the form, is brought into view with its field focused.
+	await expect(page.getByText('Choose a dog.')).toBeInViewport();
+	await expect(page.getByRole('radio', { name: 'Rosie' })).toBeFocused();
 
 	await page.getByRole('radio', { name: 'Miso' }).check({ force: true });
 	await page.getByRole('radio', { name: 'Vaccination' }).check({ force: true });
@@ -194,4 +197,21 @@ test('scenario 9: another household’s task can’t be reached by its ID', asyn
 	await other.goto(`/care/${task.id}`);
 	await expect(other.getByRole('heading', { level: 1 })).toHaveText("We couldn't find that");
 	await other.close();
+});
+
+test('the "+" on Care offers Add care task first, below the page\'s own button', async ({
+	page,
+	baseURL
+}) => {
+	await household(page, baseURL!);
+	await page.goto('/care');
+	await expect(page.getByRole('link', { name: 'Add care task' })).toBeVisible();
+	await page.getByRole('button', { name: 'Add', exact: true }).click();
+	const choices = page.getByRole('dialog', { name: 'Add' }).getByRole('listitem');
+	await expect(choices).toHaveText([
+		/Add care task/,
+		/Log training/,
+		/Record event/,
+		/Schedule session/
+	]);
 });

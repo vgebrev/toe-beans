@@ -6,6 +6,7 @@
 	import { Input } from '#lib/components/ui/input/index.js';
 	import { Label } from '#lib/components/ui/label/index.js';
 	import * as Sheet from '#lib/components/ui/sheet/index.js';
+	import { revealErrors } from '#lib/forms/reveal-errors.js';
 
 	interface Props {
 		open: boolean;
@@ -44,7 +45,7 @@
 				>Leave one blank to leave that end open.</Sheet.Description
 			>
 		</Sheet.Header>
-		<form class="flex flex-col gap-5" onsubmit={choose} novalidate>
+		<form class="flex flex-col gap-5" onsubmit={choose} novalidate {@attach revealErrors}>
 			<div class="flex flex-col gap-2">
 				<Label for="history-from">From (optional)</Label>
 				<Input id="history-from" type="date" max={today} bind:value={start} />

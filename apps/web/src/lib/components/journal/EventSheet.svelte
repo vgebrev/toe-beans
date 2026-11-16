@@ -17,6 +17,7 @@
 	import { createApiClient, type ApiError } from '#lib/api-client/index.js';
 	import { CATEGORIES, categoryLabels } from '#lib/journal/labels.js';
 	import { practisedAt, whenLabels, zonedParts, type WhenChoice } from '#lib/training-log/when.js';
+	import { revealErrors } from '#lib/forms/reveal-errors.js';
 
 	interface Props {
 		open: boolean;
@@ -278,7 +279,7 @@
 			</Sheet.Description>
 		</Sheet.Header>
 
-		<form class="flex flex-col gap-5" onsubmit={save} novalidate>
+		<form class="flex flex-col gap-5" onsubmit={save} novalidate {@attach revealErrors}>
 			{#if status === 'theirs' && base}
 				<p aria-live="polite" class={noticeClass}>
 					This is {base.updatedBy}'s version. Change it and save, or close to keep it.

@@ -25,6 +25,7 @@
 		placeLabels
 	} from '#lib/training-log/labels.js';
 	import { practisedAt, whenLabels, zonedParts, type WhenChoice } from '#lib/training-log/when.js';
+	import { revealErrors } from '#lib/forms/reveal-errors.js';
 
 	type Target =
 		| { kind: 'session'; session: PlannedSession }
@@ -340,7 +341,7 @@
 			</Sheet.Description>
 		</Sheet.Header>
 
-		<form class="flex flex-col gap-5" onsubmit={save} novalidate>
+		<form class="flex flex-col gap-5" onsubmit={save} novalidate {@attach revealErrors}>
 			{#if status === 'theirs' && base}
 				<p aria-live="polite" class={noticeClass}>
 					This is {base.updatedBy}'s version. Change it and save, or close to keep it.

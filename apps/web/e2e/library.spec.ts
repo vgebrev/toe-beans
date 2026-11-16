@@ -66,6 +66,15 @@ test('an exercise shows its full instructions and further reading', async ({ pag
 		await expect(page.getByRole('heading', { level: 2, name: section })).toBeVisible();
 	}
 	await expect(page.getByText(/\d+ min/)).toBeVisible();
+
+	// Schedule and Log practice sit flush on the bottom bar, with no gap for the page to show
+	// through as it scrolls (S15.1).
+	const actions = (await page
+		.getByRole('link', { name: 'Schedule', exact: true })
+		.locator('xpath=../..')
+		.boundingBox())!;
+	const bar = (await page.getByRole('navigation', { name: 'Main' }).boundingBox())!;
+	expect(Math.abs(actions.y + actions.height - bar.y)).toBeLessThanOrEqual(1);
 	expect(
 		await page.getByRole('region', { name: 'Steps' }).getByRole('listitem').count()
 	).toBeGreaterThan(1);

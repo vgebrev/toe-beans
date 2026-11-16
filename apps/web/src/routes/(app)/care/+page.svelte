@@ -2,7 +2,8 @@
 	// Care (ui.md §2.1, J6, FR-10, scenario 7): the switcher's dog's care tasks, or every dog's.
 	// *Overdue* (still upcoming on a day that's gone), *Coming up* soonest first, then *Done and
 	// cancelled*, folded. Each card opens its task. Tasks of an archived dog wait, out of sight,
-	// until the dog comes back (architecture D30).
+	// until the dog comes back (architecture D30). *Add care task* leads the page, and the "+"
+	// offers it first.
 	import { onMount } from 'svelte';
 	import { invalidateAll } from '$app/navigation';
 	import { resolve } from '$app/paths';
@@ -10,6 +11,7 @@
 	import type { CareTask, Dog } from '@toe-beans/contracts';
 	import CareCard from '#lib/components/care/CareCard.svelte';
 	import Icon from '#lib/components/icon/Icon.svelte';
+	import AddMenu from '#lib/components/shell/AddMenu.svelte';
 	import EmptyState from '#lib/components/shell/EmptyState.svelte';
 	import PageHeader from '#lib/components/shell/PageHeader.svelte';
 	import { Button } from '#lib/components/ui/button/index.js';
@@ -124,3 +126,5 @@
 		{/if}
 	</div>
 {/if}
+
+<AddMenu dogs={data.dogs} timeZone={data.household.timeZone} first="care" />

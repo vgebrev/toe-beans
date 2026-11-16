@@ -10,6 +10,7 @@
 	import { Input } from '#lib/components/ui/input/index.js';
 	import { Label } from '#lib/components/ui/label/index.js';
 	import { createApiClient, type ApiError } from '#lib/api-client/index.js';
+	import { revealErrors } from '#lib/forms/reveal-errors.js';
 
 	interface Props {
 		displayName: string;
@@ -110,7 +111,7 @@
 	}
 </script>
 
-<form class="flex flex-col gap-2" onsubmit={save} novalidate>
+<form class="flex flex-col gap-2" onsubmit={save} novalidate {@attach revealErrors}>
 	<Label for="display-name" class="font-bold">Your name</Label>
 	<Input
 		id="display-name"

@@ -59,6 +59,10 @@
 			Couldn't load the cues — check your connection, then reload.
 		</p>
 	{:else}
+		<Button class="w-full" aria-haspopup="dialog" onclick={() => openSheet(null)}>
+			<Icon name="add" />
+			Add a cue
+		</Button>
 		{#if data.cues.length === 0}
 			<EmptyState
 				icon="cues"
@@ -112,10 +116,6 @@
 				{/each}
 			</ul>
 		{/if}
-		<Button class="w-full" aria-haspopup="dialog" onclick={() => openSheet(null)}>
-			<Icon name="add" />
-			Add a cue
-		</Button>
 	{/if}
 </div>
 

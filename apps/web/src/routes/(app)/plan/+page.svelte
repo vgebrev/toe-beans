@@ -1,7 +1,8 @@
 <script lang="ts">
 	// Plan (ui.md §4.3, FR-05): a week strip, Monday to Sunday, with a dot on days that have
-	// sessions and arrows to change week, then the chosen day's sessions in time order and
-	// Schedule. A repeating session shows ↻; tapping one opens it to move, skip or cancel.
+	// sessions and arrows to change week, then the chosen day's sessions in time order. Schedule
+	// leads the page, so a full day never pushes it out of sight (ui.md §5.1), and the "+" offers
+	// it first. A repeating session shows ↻; tapping one opens it to move, skip or cancel.
 	import { resolve } from '$app/paths';
 	import { page } from '$app/state';
 	import type { PlannedSession } from '@toe-beans/contracts';
@@ -79,6 +80,17 @@
 
 	<!-- planHref and scheduleHref resolve the route; the rule can't see through the query string. -->
 	<!-- eslint-disable svelte/no-navigation-without-resolve -->
+	{#if shownDogs.length > 0}
+		<a href={scheduleHref} class={buttonVariants({ class: 'w-full' })}>
+			<Icon name="schedule" />
+			Schedule
+		</a>
+	{:else if data.dogs}
+		<p class="text-muted-foreground">
+			Add your dog first, then plan their training here.
+			<a href={resolve('/(app)/dogs/new')} class="font-bold text-primary underline">Add a dog</a>
+		</p>
+	{/if}
 	<nav aria-label="Week" class="flex flex-col gap-3">
 		<div class="flex items-center justify-between gap-2">
 			<a
@@ -169,19 +181,8 @@
 				{/each}
 			</ul>
 		{/if}
-		{#if shownDogs.length > 0}
-			<a href={scheduleHref} class={buttonVariants({ class: 'w-full' })}>
-				<Icon name="schedule" />
-				Schedule
-			</a>
-		{:else if data.dogs}
-			<p class="text-muted-foreground">
-				Add your dog first, then plan their training here.
-				<a href={resolve('/(app)/dogs/new')} class="font-bold text-primary underline">Add a dog</a>
-			</p>
-		{/if}
 	</section>
 	<!-- eslint-enable svelte/no-navigation-without-resolve -->
 </div>
 
-<AddMenu dogs={data.dogs} timeZone={data.household.timeZone} {scheduleHref} />
+<AddMenu dogs={data.dogs} timeZone={data.household.timeZone} {scheduleHref} first="schedule" />
