@@ -1,30 +1,25 @@
 import type { RequestEvent } from '@sveltejs/kit';
 import type { Handle, HandleServerError, ServerInit } from '@sveltejs/kit/hooks';
-import {
-	errorResponse,
-	PROXY_SECRET_HEADER,
-	REQUEST_ID_HEADER,
-	requestIdFrom
-} from '@toe-beans/backend';
+import { PROXY_SECRET_HEADER, REQUEST_ID_HEADER, requestIdFrom } from '@toe-beans/backend';
 import { backend, startBackend } from '#lib/server/backend.js';
-import { toResponse } from '#lib/server/respond.js';
+import { toResponse, unauthenticated } from '#lib/server/respond.js';
 
 export const init: ServerInit = async () => {
 	await startBackend();
 };
 
 /**
- * Headers the API client reads in universal loads (architecture §3.3). Kit serialises a server
- * render's fetch responses for hydration and makes every header it should keep explicit; reading
- * any other throws. `content-type` tells a problem from a gateway error, so without it every API
- * error in a server render would become a 500.
- */
-/**
  * The Latin fonts start loading with the CSS instead of after it, so they're usually in before
  * first paint and the text doesn't visibly swap (ui.md §6.4). Only Latin: the other subsets have
  * a unicode-range that keeps phones from downloading them, and preloading would defeat that.
  */
 const latinFont = /-latin-wght-normal\.[\w-]+\.woff2$/;
+/**
+ * Headers the API client reads in universal loads (architecture §3.3). Kit serialises a server
+ * render's fetch responses for hydration and makes every header it should keep explicit; reading
+ * any other throws. `content-type` tells a problem from a gateway error, so without it every API
+ * error in a server render would become a 500.
+ */
 const serializedHeaders = new Set(['content-type', 'etag', REQUEST_ID_HEADER]);
 const resolveOptions = {
 	filterSerializedResponseHeaders: (name: string) => serializedHeaders.has(name),
@@ -115,7 +110,7 @@ async function authenticated(
 	}
 	const isApi = event.url.pathname.startsWith('/api/');
 	if (!viewer && !publicApiRoutes.has(route) && isApi) {
-		return toResponse(errorResponse({ kind: 'unauthenticated' }));
+		return unauthenticated();
 	}
 	if (viewer && isApi) {
 		const userId = viewer.auth.userId;

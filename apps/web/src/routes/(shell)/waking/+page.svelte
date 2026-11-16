@@ -5,7 +5,8 @@
 	// page that was asked for (the address bar still shows it). The service worker lets that
 	// load through without waiting, so this can't come round again.
 	import { onMount } from 'svelte';
-	import LoadingSkeleton from '#lib/components/shell/LoadingSkeleton.svelte';
+	import LoadingSkeleton, { WAKE_AFTER_MS } from '#lib/components/shell/LoadingSkeleton.svelte';
+	import { WAKING_AFTER_MS } from '#lib/offline/caching.js';
 
 	let message = $state<string | null>(null);
 
@@ -50,4 +51,4 @@
 <svelte:head><title>Toe Beans</title></svelte:head>
 
 <!-- The service worker waited a second already, so the waking message comes 3 s from the tap. -->
-<LoadingSkeleton wakeAfterMs={2000} {message} />
+<LoadingSkeleton wakeAfterMs={WAKE_AFTER_MS - WAKING_AFTER_MS} {message} />

@@ -11,8 +11,8 @@
 		ReminderPreference,
 		ReminderSettings,
 		ReminderTest,
-		type CareLead,
-		type TrainingLead
+		CareLead,
+		TrainingLead
 	} from '@toe-beans/contracts';
 	import NativeSelect from '#lib/components/form/NativeSelect.svelte';
 	import Icon from '#lib/components/icon/Icon.svelte';
@@ -59,21 +59,24 @@
 	let sheetOpen = $state(false);
 	let removing = $state<'idle' | 'working' | 'failed'>('idle');
 
-	const leads: { value: TrainingLead; label: string }[] = [
-		{ value: 0, label: 'At the session time' },
-		{ value: 5, label: '5 minutes before' },
-		{ value: 10, label: '10 minutes before' },
-		{ value: 15, label: '15 minutes before' },
-		{ value: 30, label: '30 minutes before' },
-		{ value: 60, label: '1 hour before' }
-	];
-	const careLeads: { value: CareLead; label: string }[] = [
-		{ value: 0, label: 'On the day' },
-		{ value: 1, label: 'The day before' },
-		{ value: 2, label: '2 days before' },
-		{ value: 3, label: '3 days before' },
-		{ value: 7, label: 'A week before' }
-	];
+	// Every lead the API takes, so each must have a label.
+	const leadLabels: Record<TrainingLead, string> = {
+		0: 'At the session time',
+		5: '5 minutes before',
+		10: '10 minutes before',
+		15: '15 minutes before',
+		30: '30 minutes before',
+		60: '1 hour before'
+	};
+	const careLeadLabels: Record<CareLead, string> = {
+		0: 'On the day',
+		1: 'The day before',
+		2: '2 days before',
+		3: '3 days before',
+		7: 'A week before'
+	};
+	const leads = TrainingLead.options.map(({ value }) => ({ value, label: leadLabels[value] }));
+	const careLeads = CareLead.options.map(({ value }) => ({ value, label: careLeadLabels[value] }));
 	// The two acceptance makers have known paths; anything else gets the general advice.
 	const steps: Record<Maker, { name: string; path: string[]; setting: string }> = {
 		samsung: {

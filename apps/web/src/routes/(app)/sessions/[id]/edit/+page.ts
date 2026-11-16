@@ -1,8 +1,8 @@
 // Changing a session (ui.md §4.3): `?scope=this` for this session only, `following` for this and
 // the rest of its series.
-import { error } from '@sveltejs/kit';
 import { Exercises, PlannedSession } from '@toe-beans/contracts';
-import { createApiClient, problemStatus } from '#lib/api-client/index.js';
+import { found } from '#lib/api-client/found.js';
+import { createApiClient } from '#lib/api-client/index.js';
 import { todayIn } from '#lib/planner/dates.js';
 
 export async function load({ fetch, params, parent, url }) {
@@ -12,15 +12,13 @@ export async function load({ fetch, params, parent, url }) {
 		api.get(`/planned-sessions/${params.id}`, PlannedSession),
 		api.get('/exercises', Exercises)
 	]);
-	if (!session.ok && problemStatus(session.error) === 404) {
-		error(404, 'Not found');
-	}
+	const planned = found(session);
 	const scope = url.searchParams.get('scope') === 'following' ? 'following' : 'this';
 	return {
 		today: todayIn(household.timeZone),
-		session: session.ok ? session.data : null,
+		session: planned,
 		exercises: exercises.ok ? exercises.data.exercises : null,
 		// Only a session of a series has following ones.
-		scope: session.ok && !session.data.plan ? ('this' as const) : scope
+		scope: planned && !planned.plan ? ('this' as const) : scope
 	};
 }

@@ -1,8 +1,8 @@
 // One planned session (ui.md §2.3), also where a reminder's tap will land (J7). Another
 // household's session, or one that's gone, is a 404 page (architecture §4.4).
-import { error } from '@sveltejs/kit';
 import { PlannedSession } from '@toe-beans/contracts';
-import { createApiClient, problemStatus } from '#lib/api-client/index.js';
+import { found } from '#lib/api-client/found.js';
+import { createApiClient } from '#lib/api-client/index.js';
 import { todayIn } from '#lib/planner/dates.js';
 
 export async function load({ fetch, params, parent }) {
@@ -11,8 +11,5 @@ export async function load({ fetch, params, parent }) {
 		`/planned-sessions/${params.id}`,
 		PlannedSession
 	);
-	if (!session.ok && problemStatus(session.error) === 404) {
-		error(404, 'Not found');
-	}
-	return { today: todayIn(household.timeZone), session: session.ok ? session.data : null };
+	return { today: todayIn(household.timeZone), session: found(session) };
 }

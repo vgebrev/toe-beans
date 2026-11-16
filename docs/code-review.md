@@ -1,8 +1,8 @@
 # Toe Beans — Code Review
 
-**Version:** 0.6
+**Version:** 0.7
 **Date:** 16 November 2026
-**Status:** Rounds 1–6 (the backend, the contracts and the web library) done; rounds 7–8 to do (S15.3).
+**Status:** Rounds 1–7 (the backend, the contracts and the web app) done; round 8 to do (S15.3).
 **Inputs:** `docs/architecture.md` v1.22 (§4.2 layering), the code at commit `d7dd854` (`develop`)
 
 **Changes in 0.1:** the review's split into eight rounds, one layer or boundary each, and round 1 (domain) with its fixes.
@@ -16,6 +16,8 @@
 **Changes in 0.5:** round 5 (contracts) with its fixes (§7), which settle both items carried forward.
 
 **Changes in 0.6:** round 6 (web library) with its fixes (§8); the status helper also reached the routes, ahead of round 7.
+
+**Changes in 0.7:** round 7 (web routes, hooks and the service worker) with its fixes (§9).
 
 ---
 
@@ -37,7 +39,7 @@ Each round reports first, the owner decides, and only then are the fixes made.
 | 4 | http, worker and wiring | `packages/backend/src/{http,worker}`, `composition.ts`, `config.ts` | ✅ | A couple of small fixes, done |
 | 5 | Contracts | `packages/contracts`, and how it lines up with the domain and http | ✅ | Worth a round, done |
 | 6 | Web library | `apps/web/src/lib` (api-client, components, stores) | ✅ | Worth a round, done |
-| 7 | Web routes | `apps/web/src/routes`, hooks, the service worker | ⬜ | |
+| 7 | Web routes | `apps/web/src/routes`, hooks, the service worker | ✅ | Worth a round, done |
 | 8 | Tests | unit, integration and e2e helpers (duplication only, not coverage) | ⬜ | |
 
 **Carried forward** (both settled in round 5):
@@ -178,3 +180,27 @@ Checked with the unit tests and `pnpm test:integration`.
 - `LogCard`, `EventCard` and `CareEntryCard` share their card markup.
 - `madeWithKey` (`push/browser.ts`) exported but used only in its file.
 - `planner/dates.ts` is the app's date module under a planner name.
+
+## 9. Round 7: Web routes, hooks and the service worker
+
+**Verdict:** worth a round. The routes are the thin adapters the architecture asks for (each API route hands its request to `backend().http`, each load fetches through the API client), the hooks order the proxy, origin, session and write-budget checks sensibly, and the service worker caches only what it should. What repeated was the adapters' boilerplate and one more choice list.
+
+**Fixed:**
+
+| Finding | Problem | Fix |
+|---|---|---|
+| Two lines in every API route | 54 handlers in 35 `+server.ts` files answered a missing viewer with `toResponse(errorResponse({ kind: 'unauthenticated' }))`, which the hook also does, and 21 read the body with `request.json().catch(() => undefined)`, a rule each had to keep: an unreadable body is undefined, and the contract says why. | `unauthenticated()` and `jsonBody(request)` in `lib/server/respond.ts`, used by the routes and the hook. The routes keep their check, which also narrows the viewer. |
+| "Missing is a 404" in nine loads | Each `[id]` page's load checked for a 404 and then unwrapped the result. | `found(result)` in `lib/api-client/found.ts`. |
+| The reminder leads listed by hand | The Notifications page's `leads` and `careLeads` were `{ value, label }` lists, so a lead the contract gained wouldn't be offered (the gap round 6 closed for the other choices). | Labels are `Record`s over the leads, and the lists come from the contract's options. |
+| A doc comment on nothing | In `hooks.server.ts` the serialised-headers comment sat straight above the fonts comment, so it documented neither, and `serializedHeaders` had none. | Moved to `serializedHeaders`. |
+| The waking delay in three places | `LoadingSkeleton` waited 3 s by default; the app layout passed `3000 - SLOW_AFTER_MS` and the waking page `2000` (3 s less the service worker's second) to keep the message 3 s after the tap. | `WAKE_AFTER_MS` exported from `LoadingSkeleton`; both pages subtract their own head start from it. |
+
+Checked with the unit tests and `pnpm test:e2e --project=galaxy-s23-fe` (131 pass), which also covers round 6.
+
+**Taste, left alone:**
+
+- Detail pages show a notice in a soft box; Household, Cues and the dog page in muted text.
+- `app.d.ts` keeps SvelteKit's template comments.
+- The `(app)` layout keeps the query in `returnTo`; onboarding doesn't, and needn't.
+- The service worker saves a renewed subscription with its own `fetch` rather than the API client.
+- One comment line past the wrap width in the Notifications page.

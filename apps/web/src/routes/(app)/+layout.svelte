@@ -6,7 +6,7 @@
 	import { onMount } from 'svelte';
 	import { navigating } from '$app/state';
 	import BottomNav from '#lib/components/shell/BottomNav.svelte';
-	import LoadingSkeleton from '#lib/components/shell/LoadingSkeleton.svelte';
+	import LoadingSkeleton, { WAKE_AFTER_MS } from '#lib/components/shell/LoadingSkeleton.svelte';
 	import { ActiveDog, setActiveDog } from '#lib/dogs/active-dog.svelte.js';
 	import type { LayoutProps } from './$types';
 
@@ -32,7 +32,7 @@
 	<!-- Bottom padding: the bar's 4 rem plus the phone's gesture/button area. -->
 	<main class="flex-1 pb-[calc(5rem+env(safe-area-inset-bottom))]">
 		{#if slow}
-			<LoadingSkeleton wakeAfterMs={3000 - SLOW_AFTER_MS} />
+			<LoadingSkeleton wakeAfterMs={WAKE_AFTER_MS - SLOW_AFTER_MS} />
 		{/if}
 		<!-- Hidden rather than removed, so the page keeps its state if the navigation stays on it. -->
 		<div class={slow ? 'hidden' : 'contents'}>

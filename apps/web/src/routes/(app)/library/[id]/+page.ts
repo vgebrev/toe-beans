@@ -1,12 +1,9 @@
 // One exercise's instructions (ui.md §4.6). An unknown ID is a 404 page.
-import { error } from '@sveltejs/kit';
 import { Exercise } from '@toe-beans/contracts';
-import { createApiClient, problemStatus } from '#lib/api-client/index.js';
+import { found } from '#lib/api-client/found.js';
+import { createApiClient } from '#lib/api-client/index.js';
 
 export async function load({ fetch, params }) {
 	const exercise = await createApiClient(fetch).get(`/exercises/${params.id}`, Exercise);
-	if (!exercise.ok && problemStatus(exercise.error) === 404) {
-		error(404, 'Not found');
-	}
-	return { exercise: exercise.ok ? exercise.data : null };
+	return { exercise: found(exercise) };
 }

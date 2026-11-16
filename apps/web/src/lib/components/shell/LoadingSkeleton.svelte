@@ -1,3 +1,8 @@
+<script lang="ts" module>
+	/** From the tap to the waking message: long enough to be a cold start (ui.md §5.2). */
+	export const WAKE_AFTER_MS = 3000;
+</script>
+
 <script lang="ts">
 	// A page still loading (ui.md §5.2, NFR-09): a header and cards in outline straight away, then
 	// "Waking up Toe Beans…" once it's taking long enough to be a cold start (3 s from the tap).
@@ -13,7 +18,7 @@
 		message?: string | null;
 	}
 
-	let { wakeAfterMs = 3000, message = null }: Props = $props();
+	let { wakeAfterMs = WAKE_AFTER_MS, message = null }: Props = $props();
 
 	let waking = $state(false);
 	onMount(() => {
