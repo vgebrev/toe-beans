@@ -10,7 +10,7 @@
 	import { createApiClient } from '#lib/api-client/index.js';
 	import { getActiveDog } from '#lib/dogs/active-dog.svelte.js';
 	import { dayPhrase, isoWeek } from '#lib/planner/dates.js';
-	import { outcomeOf, repeatBody, type SessionValues } from '#lib/planner/form.js';
+	import { outcomeOf, repeatBody, timesBody, type SessionValues } from '#lib/planner/form.js';
 	import type { PageProps } from './$types';
 
 	let { data }: PageProps = $props();
@@ -24,7 +24,7 @@
 		dogId: active.among(dogs)?.id ?? '',
 		exerciseId: known(data.exerciseId) ? data.exerciseId : null,
 		date: data.date,
-		time: '',
+		times: [''],
 		repeat: 'never',
 		days: [],
 		until: ''
@@ -36,7 +36,7 @@
 				dogId: values.dogId,
 				exerciseId: values.exerciseId,
 				date: values.date,
-				time: values.time,
+				times: timesBody(values),
 				repeat: repeatBody(values)
 			},
 			schema: PlannedSession
@@ -45,12 +45,13 @@
 		const session = result.data;
 		const dog = dogs.find((d) => d.id === session.dogId);
 		const when = `${dayPhrase(session.date, data.today)} at ${session.time}`;
+		const times = session.plan?.times.length ?? 1;
 		// The route is resolved; the query picks the week and day.
 		// eslint-disable-next-line svelte/no-navigation-without-resolve
 		await goto(`${resolve('/(app)/plan')}?week=${isoWeek(session.date)}&day=${session.date}`, {
 			invalidateAll: true,
 			state: {
-				notice: `Planned ${session.exercise.title} for ${dog?.name ?? 'your dog'}, ${session.plan ? 'starting ' : ''}${when}.`
+				notice: `Planned ${session.exercise.title} for ${dog?.name ?? 'your dog'}, ${session.plan ? 'starting ' : ''}${when}${times > 1 ? `, ${times} times a day` : ''}.`
 			}
 		});
 		return { kind: 'saved' as const };

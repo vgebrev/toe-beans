@@ -66,7 +66,7 @@ test("at 200% text size, Today's cards keep their titles wide, beside Log and Ov
 	for (const [path, body] of [
 		[
 			'/api/v1/planned-sessions',
-			{ dogId: dog.id, exerciseId: 'recall-basics', date: dayFromToday(0), time: '00:00' }
+			{ dogId: dog.id, exerciseId: 'recall-basics', date: dayFromToday(0), times: ['00:00'] }
 		],
 		['/api/v1/care-tasks', { dogId: dog.id, category: 'vaccination', dueDate: dayFromToday(-2) }]
 	] as const) {

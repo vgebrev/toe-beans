@@ -40,10 +40,12 @@ interface Session {
 	plan?: { id: string; etag: string };
 }
 
+/** `time` is the one time, `times` several (with a repeat). */
 async function schedule(page: Page, baseURL: string, body: Record<string, unknown>) {
+	const { time = '17:30', ...rest } = body;
 	const response = await page.request.post('/api/v1/planned-sessions', {
 		headers: json(baseURL),
-		data: JSON.stringify({ exerciseId: 'recall-basics', time: '17:30', ...body })
+		data: JSON.stringify({ exerciseId: 'recall-basics', times: [time], ...rest })
 	});
 	expect(response.status()).toBe(201);
 	return (await response.json()) as Session;
@@ -82,7 +84,7 @@ test('scheduling a session from Plan, then skipping, cancelling and putting it b
 	await picker.getByRole('button', { name: /Settle on a mat/ }).click();
 	await expect(picker).toBeHidden();
 	await expect(page.getByRole('button', { name: /Exercise Settle on a mat/ })).toBeVisible();
-	await page.getByLabel('Time').fill('07:02');
+	await page.getByLabel('Time', { exact: true }).fill('07:02');
 	await page.getByLabel('Time').blur();
 	await expect(page.getByLabel('Time')).toHaveValue('07:00');
 	await page.getByRole('button', { name: 'Schedule' }).click();
@@ -155,6 +157,59 @@ test('the library’s Schedule button starts with that exercise', async ({ page,
 	await expect(page.getByRole('group', { name: 'Dog' }).getByRole('radio')).toHaveCount(0);
 });
 
+test('several times a day: each time is its own session, and a change from midday keeps the morning', async ({
+	page,
+	baseURL
+}) => {
+	await household(page, baseURL!);
+	const start = dateIn(1);
+	await page.goto('/plan/new');
+	await page.getByRole('button', { name: /Exercise/ }).click();
+	await page
+		.getByRole('dialog', { name: 'Choose an exercise' })
+		.getByRole('button', { name: /The name game/ })
+		.click();
+	await page.getByLabel('Date').fill(start);
+	await page.getByLabel('Time', { exact: true }).fill('07:00');
+	// Only a repeat offers more times.
+	await expect(page.getByRole('button', { name: 'Add a time' })).toHaveCount(0);
+	await page.getByText('Daily', { exact: true }).click();
+	await page.getByRole('button', { name: 'Add a time' }).click();
+	await expect(page.getByLabel('Time 2', { exact: true })).toBeFocused();
+	await page.getByLabel('Time 2', { exact: true }).fill('07:00');
+	await page.getByRole('button', { name: 'Add a time' }).click();
+	await page.getByLabel('Time 3', { exact: true }).fill('18:00');
+	await page.getByRole('button', { name: 'Schedule' }).click();
+	await expect(page.getByText('That time is already in.')).toBeVisible();
+	await expect(page.getByLabel('Time 2', { exact: true })).toBeFocused();
+	await page.getByLabel('Time 2', { exact: true }).fill('12:00');
+	await page.getByRole('button', { name: 'Schedule' }).click();
+
+	await expect(
+		page.getByText(/Planned The name game for Rosie, starting .+ at 07:00, 3 times a day\./)
+	).toBeVisible();
+	const cards = page.getByRole('list', { name: 'Sessions' }).getByRole('link');
+	await expect(cards).toHaveCount(3);
+	await expect(cards.nth(0)).toContainText('07:00');
+	await expect(cards.nth(1)).toContainText('12:00');
+	await expect(cards.nth(2)).toContainText('18:00');
+
+	// From the midday session on: the morning stays as it was.
+	await cards.nth(1).click();
+	await expect(page.getByText('Every day at 07:00, 12:00 and 18:00')).toBeVisible();
+	await page.getByRole('button', { name: 'Change' }).click();
+	await page.getByRole('link', { name: 'This and following' }).click();
+	await expect(page.getByLabel('Time 2', { exact: true })).toHaveValue('12:00');
+	await page.getByRole('button', { name: 'Remove 18:00' }).click();
+	await page.getByRole('button', { name: 'Save' }).click();
+	await expect(page.getByText('Saved this and the following sessions.')).toBeVisible();
+	const day = await sessionsOn(page, start);
+	expect(day.map((s) => s.time)).toEqual(['07:00', '12:00']);
+	const next = await sessionsOn(page, dateIn(2));
+	expect(next.map((s) => s.time)).toEqual(['07:00', '12:00']);
+	expect(day[0]!.plan!.id).not.toBe(day[1]!.plan!.id);
+});
+
 test('a repeating plan: this and following, then cancelling the rest', async ({
 	page,
 	baseURL
@@ -168,7 +223,7 @@ test('a repeating plan: this and following, then cancelling the rest', async ({
 		.getByRole('button', { name: /Recall basics/ })
 		.click();
 	await page.getByLabel('Date').fill(start);
-	await page.getByLabel('Time').fill('17:30');
+	await page.getByLabel('Time', { exact: true }).fill('17:30');
 	await page.getByText('Daily', { exact: true }).click();
 	await page.getByRole('button', { name: 'Schedule' }).click();
 	await expect(
@@ -189,7 +244,7 @@ test('a repeating plan: this and following, then cancelling the rest', async ({
 	await page.getByRole('button', { name: 'Change' }).click();
 	await page.getByRole('link', { name: 'This and following' }).click();
 	await expect(page.getByRole('heading', { name: 'Change this and following' })).toBeVisible();
-	await page.getByLabel('Time').fill('18:30');
+	await page.getByLabel('Time', { exact: true }).fill('18:30');
 	await page.getByText('Weekdays', { exact: true }).click();
 	await page.getByRole('button', { name: 'Save' }).click();
 	await expect(page.getByText('Saved this and the following sessions.')).toBeVisible();
@@ -206,7 +261,7 @@ test('a repeating plan: this and following, then cancelling the rest', async ({
 	await page.goto(`/sessions/${moved.id}`);
 	await page.getByRole('button', { name: 'Change' }).click();
 	await page.getByRole('link', { name: 'This session only' }).click();
-	await page.getByLabel('Time').fill('06:45');
+	await page.getByLabel('Time', { exact: true }).fill('06:45');
 	await page.getByRole('button', { name: 'Save' }).click();
 	await expect(page.getByText('Saved.', { exact: true })).toBeVisible();
 	await expect(page.getByText(/at 06:45/)).toBeVisible();
@@ -236,7 +291,7 @@ test('a change made elsewhere is never overwritten', async ({ page, baseURL }) =
 		data: JSON.stringify({ time: '09:00' })
 	});
 	expect(meanwhile.status()).toBe(200);
-	await page.getByLabel('Time').fill('10:00');
+	await page.getByLabel('Time', { exact: true }).fill('10:00');
 	await page.getByRole('button', { name: 'Save' }).click();
 	await expect(
 		page.getByText('Test owner changed this a moment ago, so nothing was saved.')
@@ -323,7 +378,7 @@ test("another household can't see or change a session by its ID (scenario 9)", a
 		}),
 		outsider.request.patch(`/api/v1/training-plans/${session.plan!.id}`, {
 			headers: { ...headers, 'if-match': session.plan!.etag },
-			data: JSON.stringify({ fromSessionId: session.id, time: '06:00' })
+			data: JSON.stringify({ fromSessionId: session.id, times: ['06:00'] })
 		}),
 		outsider.request.post(`/api/v1/training-plans/${session.plan!.id}/end`, {
 			headers: { ...headers, 'if-match': session.plan!.etag },
@@ -339,7 +394,7 @@ test("another household can't see or change a session by its ID (scenario 9)", a
 			dogId: rosie!.id,
 			exerciseId: 'recall-basics',
 			date: dateIn(1),
-			time: '07:00'
+			times: ['07:00']
 		})
 	});
 	expect(theirDog.status()).toBe(400);

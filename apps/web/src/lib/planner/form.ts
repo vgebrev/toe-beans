@@ -4,11 +4,15 @@ import { EVERY_DAY, WEEKDAYS } from './dates.js';
 
 export type RepeatChoice = 'never' | 'daily' | 'weekdays' | 'custom';
 
+/** Times a day a repeat can have (architecture D24). */
+export const TIMES_MAX = 6;
+
 export interface SessionValues {
 	dogId: string;
 	exerciseId: string | null;
 	date: string;
-	time: string;
+	/** The first is *Time*; the rest, *Also at*, only count with a repeat. */
+	times: string[];
 	repeat: RepeatChoice;
 	/** For `custom`. */
 	days: number[];
@@ -16,7 +20,12 @@ export interface SessionValues {
 	until: string;
 }
 
-export type FieldName = 'dogId' | 'exerciseId' | 'date' | 'time' | 'days' | 'until';
+/** `time` is the first time, `time-1`… the others, `times` the list as a whole. */
+export type FieldName =
+	'dogId' | 'exerciseId' | 'date' | 'time' | `time-${number}` | 'times' | 'days' | 'until';
+
+/** The field of the time at `index`. */
+export const timeField = (index: number): FieldName => (index === 0 ? 'time' : `time-${index}`);
 
 export type SaveOutcome =
 	| { kind: 'saved' }
@@ -43,6 +52,13 @@ export function repeatDays(values: Pick<SessionValues, 'repeat' | 'days'>): numb
 	return [...values.days].sort((a, b) => a - b);
 }
 
+/**
+ * The API's times for the values: the first alone unless it repeats. In the form's order, so an
+ * error the server keys `times.2` is the third row's; the server sorts them.
+ */
+export const timesBody = (values: SessionValues): string[] =>
+	values.repeat === 'never' ? values.times.slice(0, 1) : [...values.times];
+
 /** The API's repeat for the values, or null for once. */
 export const repeatBody = (values: SessionValues) =>
 	values.repeat === 'never'
@@ -59,7 +75,16 @@ export function checkValues(
 	if (!values.exerciseId) errors.exerciseId = 'Choose an exercise.';
 	if (!values.date) errors.date = 'Choose a date.';
 	else if (values.date < today) errors.date = 'Choose today or a later date.';
-	if (!values.time) errors.time = 'Choose a time.';
+	if (!values.times[0]) errors.time = 'Choose a time.';
+	if (values.repeat !== 'never') {
+		values.times.forEach((time, i) => {
+			if (i === 0 || !time) {
+				if (i > 0) errors[timeField(i)] = 'Choose a time, or remove it.';
+				return;
+			}
+			if (values.times.indexOf(time) < i) errors[timeField(i)] = 'That time is already in.';
+		});
+	}
 	if (values.repeat === 'custom' && values.days.length === 0)
 		errors.days = 'Choose at least one day.';
 	if (values.repeat !== 'never' && values.until && values.date && values.until < values.date) {
@@ -73,9 +98,16 @@ const FIELD_KEYS: Record<string, FieldName> = {
 	exerciseId: 'exerciseId',
 	date: 'date',
 	time: 'time',
+	times: 'times',
 	'repeat.days': 'days',
 	'repeat.until': 'until'
 };
+
+/** The form's field for an API error key: `times.2` is the third time's. */
+function fieldOf(key: string): FieldName | undefined {
+	const index = /^times\.(\d+)$/.exec(key)?.[1];
+	return index === undefined ? FIELD_KEYS[key] : timeField(Number(index));
+}
 
 /** How a failed save reads, for anything but a conflict or a missing item, which callers word. */
 export function outcomeOf(error: ApiError): SaveOutcome {
@@ -85,7 +117,7 @@ export function outcomeOf(error: ApiError): SaveOutcome {
 	if (status === 400) {
 		const fields: Partial<Record<FieldName, string>> = {};
 		for (const [key, messages] of Object.entries(errors ?? {})) {
-			const name = FIELD_KEYS[key];
+			const name = fieldOf(key);
 			if (name && messages[0]) fields[name] = messages[0];
 		}
 		return Object.keys(fields).length > 0

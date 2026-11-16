@@ -1,6 +1,7 @@
 // The training planner (architecture §5.2, D24, FR-05). Any member can schedule a session for one
-// of the household's dogs, once or on a weekly pattern, then move, skip or cancel one session, or
-// change or end a series from a session on (*This and following*). Every change carries the
+// of the household's dogs, once or on a weekly pattern at one or more times a day, then move, skip
+// or cancel one session, or change or end a series from a session on (*This and following*: that
+// session and every one after it, so an earlier one the same day stays as it was). Every change carries the
 // version it was based on, so a change made elsewhere is never silently overwritten (NFR-13).
 //
 // A series materialises its sessions over a rolling horizon. Reading a week extends it, so the
@@ -22,10 +23,13 @@ import { isId, type Id } from '../../domain/id.js';
 import {
 	checkSchedule,
 	HORIZON_DAYS,
+	keyDate,
+	keyTime,
 	MAX_AHEAD_DAYS,
 	MAX_RANGE_DAYS,
-	occurrenceDates,
+	occurrences,
 	PLANS_MAX,
+	type Occurrence,
 	type PlannedSession,
 	type Schedule,
 	type ScheduleInput,
@@ -81,7 +85,7 @@ export interface SeriesChanges {
 	exerciseId?: string | undefined;
 	/** Where the changed series starts: the session's own date unless moved. */
 	date?: string | undefined;
-	time?: string | undefined;
+	times?: readonly string[] | undefined;
 	repeat?: { days: number[]; until?: string | undefined } | undefined;
 }
 
@@ -164,27 +168,27 @@ export function createPlanner({
 
 	const occurrence = (
 		plan: TrainingPlan,
-		date: PlainDate,
+		{ date, time, key }: Occurrence,
 		timeZone: string
 	): NewPlannedSession => ({
 		id: ids.next(),
 		householdId: plan.householdId,
 		dogId: plan.dogId,
 		exerciseId: plan.exerciseId,
-		scheduledAt: instantAt(date, plan.time, timeZone),
+		scheduledAt: instantAt(date, time, timeZone),
 		status: 'planned',
 		planId: plan.id,
-		occurrenceKey: date,
+		occurrenceKey: key,
 		updatedBy: plan.updatedBy
 	});
 
 	/** Adds the series' sessions after its horizon, up to `through`. Call inside a transaction. */
 	async function materialise(plan: TrainingPlan, through: PlainDate, timeZone: string) {
 		if (plan.horizon >= through) return;
-		const dates = occurrenceDates(plan, addDays(plan.horizon, 1), through);
+		const found = occurrences(plan, addDays(plan.horizon, 1), through);
 		await sessions.insertOccurrences(
 			plan.householdId,
-			dates.map((d) => occurrence(plan, d, timeZone))
+			found.map((o) => occurrence(plan, o, timeZone))
 		);
 		await plans.advanceHorizon(plan.householdId, plan.id, plan.horizon, through);
 	}
@@ -205,11 +209,15 @@ export function createPlanner({
 		}
 	}
 
-	/** Inserts a series and its first sessions, and returns the first. Call inside a transaction. */
+	/**
+	 * Inserts a series and its first sessions, and returns the first. `startTime` leaves out the
+	 * first day's earlier times. Call inside a transaction.
+	 */
 	async function startSeries(
 		ctx: PlannerContext,
 		{ dogId, exerciseId }: { dogId: Id; exerciseId: string },
-		schedule: Schedule & { repeat: NonNullable<Schedule['repeat']> }
+		schedule: Schedule & { repeat: NonNullable<Schedule['repeat']> },
+		startTime?: PlainTime
 	): Promise<Result<PlannedSession, Invalid>> {
 		const plan = await plans.insert({
 			id: ids.next(),
@@ -217,7 +225,8 @@ export function createPlanner({
 			dogId,
 			exerciseId,
 			startDate: schedule.date,
-			time: schedule.time,
+			...(startTime && { startTime }),
+			times: schedule.times,
 			days: schedule.repeat.days,
 			...(schedule.repeat.until && { until: schedule.repeat.until }),
 			horizon: addDays(schedule.date, -1),
@@ -293,7 +302,7 @@ export function createPlanner({
 					householdId: ctx.householdId,
 					dogId,
 					exerciseId,
-					scheduledAt: instantAt(schedule.date, schedule.time, ctx.timeZone),
+					scheduledAt: instantAt(schedule.date, schedule.times[0]!, ctx.timeZone),
 					status: 'planned',
 					updatedBy: ctx.userId
 				});
@@ -335,11 +344,16 @@ export function createPlanner({
 			if (date !== undefined || time !== undefined) {
 				const current = zonedDateTime(session.scheduledAt, ctx.timeZone);
 				const checked = checkSchedule(
-					{ date: date ?? current.date, time: time ?? current.time },
+					{ date: date ?? current.date, times: [time ?? current.time] },
 					today(ctx)
 				);
-				if (!checked.ok) Object.assign(fields, checked.fields);
-				else scheduledAt = instantAt(checked.value.date, checked.value.time, ctx.timeZone);
+				if (!checked.ok) {
+					// One session has one time, so its error is the `time` field's.
+					const { 'times.0': timeError, ...rest } = checked.fields;
+					Object.assign(fields, rest, timeError && { time: timeError });
+				} else {
+					scheduledAt = instantAt(checked.value.date, checked.value.times[0]!, ctx.timeZone);
+				}
 			}
 			if (Object.keys(fields).length > 0) return invalid(fields);
 
@@ -360,8 +374,9 @@ export function createPlanner({
 
 		/**
 		 * *This and following*: the series ends the day before `fromSessionId`'s date, its unlogged
-		 * sessions from then on go, and a new series with the changes starts in their place. Returns
-		 * the new series' first session.
+		 * sessions from that one on go (earlier ones that day stay), and a new series with the
+		 * changes starts in their place, on that day from that session's time unless it's moved to
+		 * another day. Returns the new series' first session.
 		 */
 		async updateSeries(
 			ctx: PlannerContext,
@@ -377,13 +392,14 @@ export function createPlanner({
 			if (!plan) return err(notFound('plan'));
 			if (!from || from.planId !== plan.id || !from.occurrenceKey) return err(notFound('session'));
 			const fromKey = from.occurrenceKey;
+			const fromDate = keyDate(fromKey);
 			const { changes } = input;
 			const repeat = changes.repeat ?? {
 				days: plan.days,
 				...(plan.until && { until: plan.until })
 			};
 			const checked = checkSchedule(
-				{ date: changes.date ?? fromKey, time: changes.time ?? plan.time, repeat },
+				{ date: changes.date ?? fromDate, times: changes.times ?? plan.times, repeat },
 				today(ctx)
 			);
 			const exerciseId = changes.exerciseId ?? plan.exerciseId;
@@ -393,15 +409,17 @@ export function createPlanner({
 			};
 			if (!checked.ok || Object.keys(fields).length > 0) return invalid(fields);
 			const schedule = { ...checked.value, repeat: checked.value.repeat! };
+			// The same day: from this session's time, as the earlier ones stay with the old series.
+			const startTime = schedule.date === fromDate ? keyTime(fromKey) : undefined;
 
 			const first = await uow.run<PlannedSession, Invalid | WriteFailure>(async () => {
 				const ended = await plans.update(ctx.householdId, plan.id, input.expectedVersion, {
-					until: addDays(fromKey, -1),
+					until: addDays(fromDate, -1),
 					updatedBy: ctx.userId
 				});
 				if (!ended.ok) return ended;
 				await sessions.deleteUnloggedFrom(ctx.householdId, plan.id, fromKey);
-				return startSeries(ctx, { dogId: plan.dogId, exerciseId }, schedule);
+				return startSeries(ctx, { dogId: plan.dogId, exerciseId }, schedule, startTime);
 			});
 			if (!first.ok) return first;
 			log.info('series changed', {
@@ -412,7 +430,10 @@ export function createPlanner({
 			return ok(await view(ctx, first.value));
 		},
 
-		/** *Cancel this and following*: the series ends before this session, whose unlogged ones go. */
+		/**
+		 * *Cancel this and following*: the series ends before this session; its unlogged sessions
+		 * from this one on go, and earlier ones the same day stay.
+		 */
 		async endSeries(
 			ctx: PlannerContext,
 			input: { planId: string; expectedVersion: number; fromSessionId: string }
@@ -424,7 +445,7 @@ export function createPlanner({
 			const fromKey = from.occurrenceKey;
 			const ended = await uow.run<void, WriteFailure>(async () => {
 				const updated = await plans.update(ctx.householdId, plan.id, input.expectedVersion, {
-					until: addDays(fromKey, -1),
+					until: addDays(keyDate(fromKey), -1),
 					updatedBy: ctx.userId
 				});
 				if (!updated.ok) return updated;

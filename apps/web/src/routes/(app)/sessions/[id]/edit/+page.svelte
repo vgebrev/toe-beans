@@ -13,6 +13,7 @@
 		outcomeOf,
 		repeatBody,
 		repeatChoice,
+		timesBody,
 		type SaveOutcome,
 		type SessionValues
 	} from '#lib/planner/form.js';
@@ -32,7 +33,7 @@
 						dogId: session.dogId,
 						exerciseId: session.plan.exerciseId,
 						date: session.date,
-						time: session.plan.time,
+						times: [...session.plan.times],
 						repeat: repeatChoice(session.plan.days),
 						days: session.plan.days,
 						until: session.plan.until ?? ''
@@ -41,7 +42,7 @@
 						dogId: session.dogId,
 						exerciseId: session.exercise.id,
 						date: session.date,
-						time: session.time,
+						times: [session.time],
 						repeat: 'never',
 						days: [],
 						until: ''
@@ -76,7 +77,7 @@
 							fromSessionId: session.id,
 							exerciseId: values.exerciseId,
 							date: values.date,
-							time: values.time,
+							times: timesBody(values),
 							repeat: repeatBody(values)
 						},
 						ifMatch: session.plan.etag,
@@ -87,7 +88,7 @@
 						const body = {
 							...(values.exerciseId !== initial.exerciseId && { exerciseId: values.exerciseId }),
 							...(values.date !== initial.date && { date: values.date }),
-							...(values.time !== initial.time && { time: values.time })
+							...(values.times[0] !== initial.times[0] && { time: values.times[0] })
 						};
 						if (Object.keys(body).length === 0) return null;
 						return api.send('PATCH', `/planned-sessions/${session.id}`, {

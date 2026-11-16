@@ -116,7 +116,7 @@ export function memoryPlannedSessions(
 			structuredClone(
 				own(householdId)
 					.filter((s) => s.planId === planId && s.occurrenceKey! >= from)
-					.sort((a, b) => a.occurrenceKey!.localeCompare(b.occurrenceKey!))
+					.sort((a, b) => (a.occurrenceKey! < b.occurrenceKey! ? -1 : 1))
 			),
 		update: async (householdId, id, expectedVersion, changes) =>
 			store.update(householdId, id, expectedVersion, changes),

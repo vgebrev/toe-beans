@@ -65,9 +65,19 @@ describe('days', () => {
 
 describe('repeats', () => {
 	it('are summed up in words', () => {
-		expect(repeatSummary([1, 2, 3, 4, 5, 6, 7], undefined, 'en-GB')).toBe('Every day');
-		expect(repeatSummary([1, 2, 3, 4, 5], '2026-12-01', 'en-GB')).toBe('Weekdays until 1 Dec');
-		expect(repeatSummary([1, 3, 5], undefined, 'en-GB')).toBe('Every Mon, Wed, Fri');
+		expect(repeatSummary({ days: [1, 2, 3, 4, 5, 6, 7], times: ['07:00'] }, 'en-GB')).toBe(
+			'Every day'
+		);
+		expect(repeatSummary({ days: [1, 2, 3, 4, 5], until: '2026-12-01' }, 'en-GB')).toBe(
+			'Weekdays until 1 Dec'
+		);
+		expect(repeatSummary({ days: [1, 3, 5] }, 'en-GB')).toBe('Every Mon, Wed, Fri');
+		expect(
+			repeatSummary(
+				{ days: [1, 2, 3, 4, 5, 6, 7], times: ['07:00', '12:00', '18:00'], until: '2026-12-01' },
+				'en-GB'
+			)
+		).toBe('Every day at 07:00, 12:00 and 18:00 until 1 Dec');
 	});
 });
 

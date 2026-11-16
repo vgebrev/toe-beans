@@ -57,7 +57,7 @@ export const sessionDto = (
 				id: plan.id,
 				exerciseId: plan.exerciseId,
 				startDate: plan.startDate,
-				time: plan.time,
+				times: plan.times,
 				days: plan.days,
 				...(plan.until && { until: plan.until }),
 				etag: etag(plan.version)

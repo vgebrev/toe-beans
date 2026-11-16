@@ -85,17 +85,31 @@ export const weekdayNames = (style: 'short' | 'long' = 'short', locale?: string)
 const same = (a: readonly number[], b: readonly number[]) =>
 	a.length === b.length && a.every((d, i) => d === b[i]);
 
-/** "Every day", "Weekdays" or "Mon, Wed, Fri", then "until 1 Dec" when it ends. */
-export function repeatSummary(days: readonly number[], until?: string, locale?: string): string {
+/**
+ * "Every day", "Weekdays" or "Mon, Wed, Fri", then "at 07:00, 12:00 and 18:00" when it's
+ * several times a day, then "until 1 Dec" when it ends.
+ */
+export function repeatSummary(
+	{
+		days,
+		until,
+		times = []
+	}: { days: readonly number[]; until?: string; times?: readonly string[] },
+	locale?: string
+): string {
 	const names = weekdayNames('short', locale);
 	const which = same(days, EVERY_DAY)
 		? 'Every day'
 		: same(days, WEEKDAYS)
 			? 'Weekdays'
 			: `Every ${days.map((d) => names[d - 1]).join(', ')}`;
+	const at =
+		times.length > 1
+			? ` at ${new Intl.ListFormat(locale ?? 'en-GB', { type: 'conjunction' }).format(times)}`
+			: '';
 	return until
-		? `${which} until ${formatDate(until, { day: 'numeric', month: 'short' }, locale)}`
-		: which;
+		? `${which}${at} until ${formatDate(until, { day: 'numeric', month: 'short' }, locale)}`
+		: `${which}${at}`;
 }
 
 /** Times are planned in 5-minute steps (ui.md J3): rounds to the nearest, keeping the hour valid. */

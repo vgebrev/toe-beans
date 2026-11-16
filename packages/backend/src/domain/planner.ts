@@ -1,6 +1,7 @@
 // The training planner (architecture §5.2, FR-05): sessions planned for one dog at a date and
-// time, once or on a weekly pattern. A recurring plan is a series that materialises its sessions
-// over a rolling horizon, so each one can then be moved, skipped or cancelled on its own.
+// time, once or on a weekly pattern at one or more times of day. A recurring plan is a series
+// that materialises its sessions over a rolling horizon, so each one can then be moved, skipped
+// or cancelled on its own.
 import {
 	addDays,
 	daysBetween,
@@ -28,6 +29,20 @@ export interface Repeat {
 	until?: PlainDate;
 }
 
+/**
+ * Where a session falls in its series: the date and time of day, as `2026-11-16T07:00`. Keys
+ * sort in time order, so "this session and the ones after it" is every key from its own.
+ */
+export type OccurrenceKey = `${PlainDate}T${PlainTime}`;
+
+export const occurrenceKey = (date: PlainDate, time: PlainTime): OccurrenceKey => `${date}T${time}`;
+
+/** The date of a key (a key from before D24's times was the date alone). */
+export const keyDate = (key: string): PlainDate => key.slice(0, 10) as PlainDate;
+
+/** The time of day of a key. */
+export const keyTime = (key: OccurrenceKey): PlainTime => key.slice(11) as PlainTime;
+
 /** A recurring series (architecture §5.2 TrainingPlan). */
 export interface TrainingPlan {
 	id: Id;
@@ -36,8 +51,13 @@ export interface TrainingPlan {
 	exerciseId: string;
 	/** The first date it can fall on. */
 	startDate: PlainDate;
-	/** On the household's clocks. */
-	time: PlainTime;
+	/**
+	 * On `startDate` only, the earliest time it falls at: a series changed from a midday
+	 * session on leaves that morning's session to the series before it (D24).
+	 */
+	startTime?: PlainTime;
+	/** The times of day it falls at, on the household's clocks: ascending, no duplicates. */
+	times: PlainTime[];
 	days: Weekday[];
 	until?: PlainDate;
 	/** Set while its dog is archived: no new sessions until the dog is back (D24). */
@@ -63,9 +83,9 @@ export interface PlannedSession {
 	/** UTC, from the date and time on the household's clocks. */
 	scheduledAt: Date;
 	status: SessionStatus;
-	/** The series it came from, and the date it fell on there (even if since moved). */
+	/** The series it came from, and where it fell there (even if since moved). */
 	planId?: Id;
-	occurrenceKey?: PlainDate;
+	occurrenceKey?: OccurrenceKey;
 	/** Set by the quick log (S7). */
 	sessionLogId?: Id;
 	/** Cancelled by archiving its dog, so bringing the dog back plans it again (D24). */
@@ -87,23 +107,35 @@ export const MAX_RANGE_DAYS = 42;
 export const PLANS_MAX = 100;
 /** Times are picked in 5-minute steps, matching the reminder tick (ui.md J3). */
 export const TIME_STEP_MIN = 5;
+/** Times a day a series can fall at: enough for before each meal and a bit more. */
+export const TIMES_MAX = 6;
 
 export const WEEKDAYS: readonly Weekday[] = [1, 2, 3, 4, 5, 6, 7];
 
-/** The dates a series falls on from `from` to `through`, both inclusive. */
-export function occurrenceDates(
-	plan: Pick<TrainingPlan, 'startDate' | 'days' | 'until'>,
+export interface Occurrence {
+	date: PlainDate;
+	time: PlainTime;
+	key: OccurrenceKey;
+}
+
+/** Where a series falls on the dates from `from` to `through`, both inclusive, in time order. */
+export function occurrences(
+	plan: Pick<TrainingPlan, 'startDate' | 'startTime' | 'times' | 'days' | 'until'>,
 	from: PlainDate,
 	through: PlainDate
-): PlainDate[] {
+): Occurrence[] {
 	const first = maxDate(from, plan.startDate);
 	const last = plan.until ? minDate(through, plan.until) : through;
-	const dates: PlainDate[] = [];
+	const found: Occurrence[] = [];
 	for (let i = 0, n = daysBetween(first, last); i <= n; i++) {
 		const date = addDays(first, i);
-		if (plan.days.includes(weekday(date))) dates.push(date);
+		if (!plan.days.includes(weekday(date))) continue;
+		for (const time of plan.times) {
+			if (date === plan.startDate && plan.startTime && time < plan.startTime) continue;
+			found.push({ date, time, key: occurrenceKey(date, time) });
+		}
 	}
-	return dates;
+	return found;
 }
 
 /** Whether the series can still fall on `date` or later. */
@@ -113,19 +145,31 @@ export const runsOnOrAfter = (plan: Pick<TrainingPlan, 'until'>, date: PlainDate
 /** What a person picks when scheduling (ui.md J3). */
 export interface ScheduleInput {
 	date: string;
-	time: string;
+	/** Several only with a repeat. */
+	times: readonly string[];
 	repeat?: { days: number[]; until?: string | undefined } | null | undefined;
 }
 
 export interface Schedule {
 	date: PlainDate;
-	time: PlainTime;
+	/** Ascending, no duplicates; one unless it repeats. */
+	times: PlainTime[];
 	repeat: Repeat | null;
 }
 
+/** Why a time can't be used, if it can't. */
+function timeProblem(time: string): string | null {
+	if (!isPlainTime(time)) return 'Choose a time.';
+	if (Number(time.slice(3)) % TIME_STEP_MIN !== 0) {
+		return `Choose a time in ${TIME_STEP_MIN}-minute steps.`;
+	}
+	return null;
+}
+
 /**
- * Checks a date, time and repeat rule against the household's today. Field errors are keyed
- * `date`, `time`, `repeat.days` and `repeat.until`.
+ * Checks a date, times and repeat rule against the household's today. Field errors are keyed
+ * `date`, `times` (the list), `times.0`, `times.1`… (one of them), `repeat.days` and
+ * `repeat.until`.
  */
 export function checkSchedule(
 	input: ScheduleInput,
@@ -138,10 +182,17 @@ export function checkSchedule(
 	else if (input.date < today) fields.date = ['Choose today or a later date.'];
 	else if (input.date > latest) fields.date = ['Choose a date within the next year.'];
 
-	if (!isPlainTime(input.time)) fields.time = ['Choose a time.'];
-	else if (Number(input.time.slice(3)) % TIME_STEP_MIN !== 0) {
-		fields.time = [`Choose a time in ${TIME_STEP_MIN}-minute steps.`];
+	if (input.times.length === 0) fields.times = ['Choose a time.'];
+	else if (input.times.length > TIMES_MAX) {
+		fields.times = [`Choose up to ${TIMES_MAX} times a day.`];
+	} else if (input.times.length > 1 && !input.repeat) {
+		fields.times = ['Choose how it repeats to plan several times a day.'];
 	}
+	input.times.forEach((time, i) => {
+		const problem = timeProblem(time);
+		if (problem) fields[`times.${i}`] = [problem];
+		else if (input.times.indexOf(time) < i) fields[`times.${i}`] = ['That time is already in.'];
+	});
 
 	let repeat: Repeat | null = null;
 	if (input.repeat) {
@@ -165,7 +216,11 @@ export function checkSchedule(
 	if (Object.keys(fields).length > 0) return { ok: false, fields };
 	return {
 		ok: true,
-		value: { date: input.date as PlainDate, time: input.time as PlainTime, repeat }
+		value: {
+			date: input.date as PlainDate,
+			times: [...(input.times as PlainTime[])].sort(),
+			repeat
+		}
 	};
 }
 

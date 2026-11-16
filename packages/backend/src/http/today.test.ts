@@ -110,7 +110,7 @@ describe('today http', () => {
 		const schedule = async (time: string) =>
 			(
 				await planner.create(viewer, {
-					body: { dogId: dog.id, exerciseId: 'recall-basics', date: '2026-11-10', time }
+					body: { dogId: dog.id, exerciseId: 'recall-basics', date: '2026-11-10', times: [time] }
 				})
 			).body as { id: string };
 		const missed = await schedule('16:30');
@@ -144,7 +144,7 @@ describe('today http', () => {
 	it('is empty for another household', async () => {
 		const { http, planner, dog } = await setup();
 		await planner.create(viewer, {
-			body: { dogId: dog.id, exerciseId: 'recall-basics', date: '2026-11-10', time: '18:00' }
+			body: { dogId: dog.id, exerciseId: 'recall-basics', date: '2026-11-10', times: ['18:00'] }
 		});
 		expect((await http.get(outsider)).body).toEqual({
 			date: '2026-11-10',

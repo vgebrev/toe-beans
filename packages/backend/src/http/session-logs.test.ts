@@ -124,7 +124,7 @@ describe('session logs http', () => {
 		const { http, planner, dog } = await setup();
 		const session = (
 			await planner.create(viewer, {
-				body: { dogId: dog.id, exerciseId: 'recall-basics', date: '2026-11-10', time: '16:30' }
+				body: { dogId: dog.id, exerciseId: 'recall-basics', date: '2026-11-10', times: ['16:30'] }
 			})
 		).body as { id: string };
 		const created = await http.create(viewer, {

@@ -91,7 +91,7 @@ async function setup() {
 					dogId: dog.id,
 					exerciseId: 'recall-basics',
 					date: '2026-11-10',
-					time: '17:30',
+					times: ['17:30'],
 					repeat
 				}
 			})
@@ -103,7 +103,7 @@ describe('planner http', () => {
 	it('schedules a session and answers with it on the household’s clocks', async () => {
 		const { http, dog } = await setup();
 		const created = await http.create(viewer, {
-			body: { dogId: dog.id, exerciseId: 'recall-basics', date: '2026-11-10', time: '17:30' }
+			body: { dogId: dog.id, exerciseId: 'recall-basics', date: '2026-11-10', times: ['17:30'] }
 		});
 		expect(created).toEqual({
 			status: 201,
@@ -130,7 +130,7 @@ describe('planner http', () => {
 			id: expect.any(String),
 			exerciseId: 'recall-basics',
 			startDate: '2026-11-10',
-			time: '17:30',
+			times: ['17:30'],
 			days: [3],
 			etag: '"1"'
 		});
@@ -179,7 +179,7 @@ describe('planner http', () => {
 		const changed = await http.updateSeries(viewer, {
 			id: plan.id,
 			ifMatch: plan.etag,
-			body: { fromSessionId: first.id, time: '18:00' }
+			body: { fromSessionId: first.id, times: ['18:00'] }
 		});
 		expect(changed).toMatchObject({ status: 200, body: { time: '18:00', date: '2026-11-11' } });
 		const next = changed.body as { id: string; plan: { id: string; etag: string } };

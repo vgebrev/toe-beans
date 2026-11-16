@@ -44,7 +44,7 @@ test('scenario 3: a planned session logged in under 30 seconds, then Done with i
 			dogId: rosie!.id,
 			exerciseId: 'recall-basics',
 			date: today(),
-			time: '00:00'
+			times: ['00:00']
 		})
 	});
 	const session = (await scheduled.json()) as { id: string };
@@ -188,7 +188,7 @@ test("another household can't read, change or log against a household's data (sc
 			dogId: rosie!.id,
 			exerciseId: 'recall-basics',
 			date: today(),
-			time: '23:55'
+			times: ['23:55']
 		})
 	});
 	const session = (await scheduled.json()) as { id: string };

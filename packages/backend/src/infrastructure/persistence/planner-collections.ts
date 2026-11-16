@@ -1,21 +1,22 @@
 // Mongo adapters for training plans and planned sessions (architecture §3.5, §4.4, §5.2), on
 // HouseholdCollection so every call is scoped to the household. Indexes are created by migration
-// 0006, including the unique (planId, occurrenceKey) that makes materialising idempotent.
+// 0006, including the unique (planId, occurrenceKey) that makes materialising idempotent. Schema 2
+// (migration 0012): a plan's `time` became `times`, and a key gained its time of day.
 import type { Db } from 'mongodb';
 import type {
 	Clock,
 	PlannedSessionRepository,
 	TrainingPlanRepository
 } from '../../application/ports/index.js';
-import type { PlannedSession, TrainingPlan } from '../../domain/planner.js';
+import type { OccurrenceKey, PlannedSession, TrainingPlan } from '../../domain/planner.js';
 import { ok } from '../../domain/result.js';
 import { HouseholdCollection, type HouseholdDocument } from './household-collection.js';
 
 export const TRAINING_PLANS = 'trainingPlans';
 export const PLANNED_SESSIONS = 'plannedSessions';
 
-const PLAN_SCHEMA = 1;
-const SESSION_SCHEMA = 1;
+const PLAN_SCHEMA = 2;
+const SESSION_SCHEMA = 2;
 
 type Stored<T> = Omit<T, 'id' | 'householdId' | 'version' | 'createdAt' | 'updatedAt'>;
 type PlanDoc = HouseholdDocument & Stored<TrainingPlan>;
@@ -106,7 +107,8 @@ export function mongoPlannedSessions(db: Db, clock: Clock): PlannedSessionReposi
 		async listFrom(householdId, planId, from) {
 			const docs = await sessions.find(
 				householdId,
-				{ planId, occurrenceKey: { $gte: from } },
+				// A date alone sorts before that day's keys, so it means "from that day".
+				{ planId, occurrenceKey: { $gte: from as OccurrenceKey } },
 				{ sort: { occurrenceKey: 1 } }
 			);
 			return docs.map(toSession);
@@ -130,7 +132,7 @@ export function mongoPlannedSessions(db: Db, clock: Clock): PlannedSessionReposi
 		deleteUnloggedFrom: (householdId, planId, from) =>
 			sessions.deleteWhere(householdId, {
 				planId,
-				occurrenceKey: { $gte: from },
+				occurrenceKey: { $gte: from as OccurrenceKey },
 				status: { $ne: 'completed' }
 			}),
 		// Across households, for the reminder tick (D27): the raw collection, read only. Uses the

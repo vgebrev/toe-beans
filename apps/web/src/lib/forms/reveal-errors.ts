@@ -20,8 +20,8 @@ export function revealFirstError(form: HTMLElement): boolean {
 	const field = owner?.matches('fieldset')
 		? owner.querySelector<HTMLElement>('input:not([disabled]), select, textarea, button')
 		: owner;
-	const smooth = !matchMedia('(prefers-reduced-motion: reduce)').matches;
-	(owner ?? message).scrollIntoView({ block: 'center', behavior: smooth ? 'smooth' : 'auto' });
+	// At once, not smoothly: a tap made while the page glides would land on whatever slid under it.
+	(owner ?? message).scrollIntoView({ block: 'center' });
 	field?.focus({ preventScroll: true });
 	return true;
 }

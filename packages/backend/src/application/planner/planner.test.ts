@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { Exercise } from '../../domain/exercise.js';
 import { createIdGenerator, type Id } from '../../domain/id.js';
+import { keyDate } from '../../domain/planner.js';
 import type { User } from '../../domain/user.js';
 import { directUnitOfWork, memoryUsers } from '../../testing/auth.js';
 import { manualClock } from '../../testing/clock.js';
@@ -104,7 +105,7 @@ async function setup() {
 			dogId: dog.id,
 			exerciseId: 'recall-basics',
 			date: '2026-11-10',
-			time: '17:30',
+			times: ['17:30'],
 			...input
 		});
 		if (!created.ok) throw new Error(JSON.stringify(created.error));
@@ -113,7 +114,7 @@ async function setup() {
 	const dates = () =>
 		sessions
 			.all()
-			.map((s) => `${s.occurrenceKey ?? '-'} ${s.status}`)
+			.map((s) => `${s.occurrenceKey ? keyDate(s.occurrenceKey) : '-'} ${s.status}`)
 			.sort();
 	return { clock, plans, sessions, planner, dogs, ids, dog, archived, schedule, dates };
 }
@@ -144,7 +145,7 @@ describe('scheduling one session', () => {
 
 	it('refuses an archived dog, another household’s dog and an unknown exercise', async () => {
 		const { planner, archived, dog } = await setup();
-		const input = { date: '2026-11-10', time: '17:30' };
+		const input = { date: '2026-11-10', times: ['17:30'] };
 		expect(
 			await planner.schedule(sam, { ...input, dogId: archived.id, exerciseId: 'nope' })
 		).toEqual({
@@ -169,7 +170,7 @@ describe('scheduling one session', () => {
 			dogId: dog.id,
 			exerciseId: 'recall-basics',
 			date: '2026-11-09',
-			time: '17:30'
+			times: ['17:30']
 		});
 		expect(result).toMatchObject({
 			ok: false,
@@ -182,10 +183,10 @@ describe('scheduling a series', () => {
 	it('materialises its sessions three weeks ahead', async () => {
 		const { schedule, dates, plans } = await setup();
 		const first = await schedule({ repeat: { days: [1, 3, 5] } });
-		expect(first.session.occurrenceKey).toBe('2026-11-11');
+		expect(first.session.occurrenceKey).toBe('2026-11-11T17:30');
 		expect(first.plan).toMatchObject({
 			startDate: '2026-11-10',
-			time: '17:30',
+			times: ['17:30'],
 			days: [1, 3, 5],
 			horizon: '2026-12-01'
 		});
@@ -215,7 +216,7 @@ describe('scheduling a series', () => {
 			dogId: dog.id,
 			exerciseId: 'recall-basics',
 			date: '2026-11-10',
-			time: '17:30',
+			times: ['17:30'],
 			repeat: { days: [6], until: '2026-11-13' }
 		});
 		expect(result).toMatchObject({
@@ -230,15 +231,17 @@ describe('scheduling a series', () => {
 		const { schedule, planner, sessions } = await setup();
 		await schedule({ repeat: { days: [1] } });
 		const listed = await planner.list(alex, { from: '2026-12-14', to: '2026-12-20' });
-		expect(listed.ok && listed.value.map((v) => v.session.occurrenceKey)).toEqual(['2026-12-14']);
+		expect(listed.ok && listed.value.map((v) => v.session.occurrenceKey)).toEqual([
+			'2026-12-14T17:30'
+		]);
 		const again = await planner.list(alex, { from: '2026-12-14', to: '2026-12-20' });
 		expect(again.ok && again.value).toHaveLength(1);
 		expect(sessions.all().map((s) => s.occurrenceKey)).toEqual([
-			'2026-11-16',
-			'2026-11-23',
-			'2026-11-30',
-			'2026-12-07',
-			'2026-12-14'
+			'2026-11-16T17:30',
+			'2026-11-23T17:30',
+			'2026-11-30T17:30',
+			'2026-12-07T17:30',
+			'2026-12-14T17:30'
 		]);
 	});
 
@@ -248,16 +251,16 @@ describe('scheduling a series', () => {
 		expect(sessions.all()).toHaveLength(4); // 10, 17, 24 Nov and 1 Dec
 		clock.set(new Date('2026-11-20T06:00:00Z'));
 		await planner.list(sam, { from: '2026-11-16', to: '2026-11-22' });
-		expect(sessions.all().map((s) => s.occurrenceKey)).toContain('2026-12-08');
+		expect(sessions.all().map((s) => s.occurrenceKey)).toContain('2026-12-08T17:30');
 	});
 });
 
 describe('listing', () => {
 	it('lists the household’s sessions on the dates, on its clocks, in time order', async () => {
 		const { schedule, planner } = await setup();
-		await schedule({ time: '17:30' });
-		await schedule({ time: '07:00' });
-		await schedule({ date: '2026-11-11', time: '00:00' });
+		await schedule({ times: ['17:30'] });
+		await schedule({ times: ['07:00'] });
+		await schedule({ date: '2026-11-11', times: ['00:00'] });
 		const listed = await planner.list(alex, { from: '2026-11-10', to: '2026-11-10' });
 		expect(listed.ok && listed.value.map((v) => v.session.scheduledAt.toISOString())).toEqual([
 			'2026-11-10T05:00:00.000Z',
@@ -322,8 +325,8 @@ describe('changing one session', () => {
 			changes: { time: '09:00', exerciseId: 'settle-mat' }
 		});
 		const [moved, next] = sessions.all();
-		expect(moved).toMatchObject({ occurrenceKey: '2026-11-11', exerciseId: 'settle-mat' });
-		expect(next).toMatchObject({ occurrenceKey: '2026-11-18', exerciseId: 'recall-basics' });
+		expect(moved).toMatchObject({ occurrenceKey: '2026-11-11T17:30', exerciseId: 'settle-mat' });
+		expect(next).toMatchObject({ occurrenceKey: '2026-11-18T17:30', exerciseId: 'recall-basics' });
 	});
 
 	it('refuses a stale version, another household and a logged session', async () => {
@@ -367,13 +370,16 @@ describe('changing a series from a session on', () => {
 			planId: first.plan!.id,
 			expectedVersion: 1,
 			fromSessionId: third.id,
-			changes: { time: '18:00', repeat: { days: [2, 4] } }
+			changes: { times: ['18:00'], repeat: { days: [2, 4] } }
 		});
 		expect(changed).toMatchObject({
 			ok: true,
 			value: {
-				session: { occurrenceKey: '2026-11-17', scheduledAt: new Date('2026-11-17T16:00:00Z') },
-				plan: { startDate: '2026-11-16', time: '18:00', days: [2, 4], updatedBy: 'alex' }
+				session: {
+					occurrenceKey: '2026-11-17T18:00',
+					scheduledAt: new Date('2026-11-17T16:00:00Z')
+				},
+				plan: { startDate: '2026-11-16', times: ['18:00'], days: [2, 4], updatedBy: 'alex' }
 			}
 		});
 		const [old] = plans.all();
@@ -400,7 +406,7 @@ describe('changing a series from a session on', () => {
 			fromSessionId: first.session.id,
 			changes: { exerciseId: 'settle-mat' }
 		});
-		const on11 = sessions.all().filter((s) => s.occurrenceKey === '2026-11-11');
+		const on11 = sessions.all().filter((s) => (s.occurrenceKey as string) === '2026-11-11T17:30');
 		expect(on11.map((s) => [s.status, s.exerciseId])).toEqual([
 			['completed', 'recall-basics'],
 			['planned', 'settle-mat']
@@ -522,13 +528,15 @@ describe('archiving a dog and bringing it back', () => {
 		const ofSeries = sessions.all().filter((s) => s.planId === series.plan!.id);
 		const planned = ofSeries.filter((s) => s.status === 'planned').map((s) => s.occurrenceKey);
 		// Nothing for the days it was away; every day from today for three weeks.
-		expect(planned[0]).toBe('2026-12-10');
-		expect(planned).toContain('2026-12-31');
+		expect(planned[0]).toBe('2026-12-10T17:30');
+		expect(planned).toContain('2026-12-31T17:30');
 		expect(
 			ofSeries.filter((s) => s.occurrenceKey! < '2026-12-10' && s.status === 'planned')
 		).toEqual([]);
 		expect(
-			ofSeries.filter((s) => s.occurrenceKey! > '2026-12-01' && s.occurrenceKey! < '2026-12-10')
+			ofSeries.filter(
+				(s) => keyDate(s.occurrenceKey!) > '2026-12-01' && s.occurrenceKey! < '2026-12-10'
+			)
 		).toEqual([]);
 	});
 
@@ -542,5 +550,106 @@ describe('archiving a dog and bringing it back', () => {
 			version: 3
 		});
 		expect(sessions.all()[0]).not.toHaveProperty('cancelledWithDog');
+	});
+});
+
+describe('several times a day', () => {
+	const meals = { times: ['18:00', '07:00', '12:00'], repeat: { days: [1, 2, 3, 4, 5, 6, 7] } };
+	const keysOf = (sessions: { all(): { occurrenceKey?: string; status: string }[] }) =>
+		sessions
+			.all()
+			.map((s) => `${s.occurrenceKey} ${s.status}`)
+			.sort();
+
+	it('plans a session at each time, each with its own instant', async () => {
+		const { schedule, sessions } = await setup();
+		const first = await schedule(meals);
+		expect(first.plan).toMatchObject({ times: ['07:00', '12:00', '18:00'] });
+		// Every time on the first day, even 07:00, already past at 08:00: a date, not an instant, starts it.
+		expect(first.session.occurrenceKey).toBe('2026-11-10T07:00');
+		expect(keysOf(sessions).slice(0, 4)).toEqual([
+			'2026-11-10T07:00 planned',
+			'2026-11-10T12:00 planned',
+			'2026-11-10T18:00 planned',
+			'2026-11-11T07:00 planned'
+		]);
+		expect(sessions.all()[1]!.scheduledAt).toEqual(new Date('2026-11-10T10:00:00Z'));
+	});
+
+	it('refuses several times without a repeat', async () => {
+		const { planner, dog } = await setup();
+		expect(
+			await planner.schedule(sam, {
+				dogId: dog.id,
+				exerciseId: 'recall-basics',
+				date: '2026-11-10',
+				times: ['07:00', '12:00']
+			})
+		).toMatchObject({
+			ok: false,
+			error: { fields: { times: ['Choose how it repeats to plan several times a day.'] } }
+		});
+	});
+
+	it('changes from a midday session on, leaving that morning’s as it was', async () => {
+		const { schedule, planner, sessions } = await setup();
+		const first = await schedule({ ...meals, date: '2026-11-11' });
+		const midday = sessions.all().find((s) => (s.occurrenceKey as string) === '2026-11-12T12:00')!;
+		const changed = await planner.updateSeries(alex, {
+			planId: first.plan!.id,
+			expectedVersion: 1,
+			fromSessionId: midday.id,
+			changes: { times: ['07:00', '13:00'] }
+		});
+		expect(changed).toMatchObject({
+			ok: true,
+			value: {
+				session: { occurrenceKey: '2026-11-12T13:00' },
+				plan: { startDate: '2026-11-12', startTime: '12:00', times: ['07:00', '13:00'] }
+			}
+		});
+		const on12and13 = keysOf(sessions).filter((k) => k < '2026-11-14');
+		expect(on12and13).toEqual([
+			'2026-11-11T07:00 planned',
+			'2026-11-11T12:00 planned',
+			'2026-11-11T18:00 planned',
+			'2026-11-12T07:00 planned',
+			'2026-11-12T13:00 planned',
+			'2026-11-13T07:00 planned',
+			'2026-11-13T13:00 planned'
+		]);
+		// The morning session stayed with the old series; the rest are the new one's.
+		const morning = sessions.all().find((s) => (s.occurrenceKey as string) === '2026-11-12T07:00')!;
+		expect(morning.planId).toBe(first.plan!.id);
+	});
+
+	it('cancels from a midday session on, leaving that morning’s', async () => {
+		const { schedule, planner, sessions } = await setup();
+		const first = await schedule({ ...meals, date: '2026-11-11' });
+		const midday = sessions.all().find((s) => (s.occurrenceKey as string) === '2026-11-12T12:00')!;
+		expect(
+			await planner.endSeries(sam, {
+				planId: first.plan!.id,
+				expectedVersion: 1,
+				fromSessionId: midday.id
+			})
+		).toEqual({ ok: true, value: undefined });
+		expect(keysOf(sessions)).toEqual([
+			'2026-11-11T07:00 planned',
+			'2026-11-11T12:00 planned',
+			'2026-11-11T18:00 planned',
+			'2026-11-12T07:00 planned'
+		]);
+	});
+
+	it('says a bad time for one session under `time`', async () => {
+		const { schedule, planner } = await setup();
+		const { session } = await schedule();
+		expect(
+			await planner.update(sam, { id: session.id, expectedVersion: 1, changes: { time: '07:03' } })
+		).toMatchObject({
+			ok: false,
+			error: { fields: { time: ['Choose a time in 5-minute steps.'] } }
+		});
 	});
 });

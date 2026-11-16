@@ -160,7 +160,7 @@
 					<dt class="text-sm text-muted-foreground">Repeats</dt>
 					<dd class="flex items-center gap-2 font-bold">
 						<Icon name="repeat" size={20} />
-						{repeatSummary(session.plan.days, session.plan.until)}
+						{repeatSummary(session.plan)}
 					</dd>
 				</div>
 			{/if}
@@ -288,7 +288,7 @@
 						>Change which sessions?</Sheet.Title
 					>
 					<Sheet.Description class="text-base">
-						It's part of a repeating plan: {repeatSummary(session.plan.days, session.plan.until)}.
+						It's part of a repeating plan: {repeatSummary(session.plan)}.
 					</Sheet.Description>
 				</Sheet.Header>
 				<a href={editHref('this')} class={buttonVariants({ variant: 'outline' })}

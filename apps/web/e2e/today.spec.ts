@@ -25,9 +25,10 @@ async function schedule(
 	baseURL: string,
 	body: { dogId: string; exerciseId: string; time: string }
 ) {
+	const { time, ...rest } = body;
 	const response = await page.request.post('/api/v1/planned-sessions', {
 		headers: json(baseURL),
-		data: JSON.stringify({ date: today(), ...body })
+		data: JSON.stringify({ date: today(), times: [time], ...rest })
 	});
 	expect(response.status()).toBe(201);
 	return (await response.json()) as { id: string; etag: string };

@@ -116,7 +116,7 @@ async function setup() {
 			dogId: dog.id,
 			exerciseId: exercise.id,
 			date,
-			time,
+			times: [time],
 			...(repeat && { repeat })
 		});
 		if (!made.ok) throw new Error(JSON.stringify(made.error));

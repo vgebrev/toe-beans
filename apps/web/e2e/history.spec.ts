@@ -201,7 +201,7 @@ test('J8: deleting a planned session’s log puts it back in the plan, and Undo 
 			dogId: rosie!.id,
 			exerciseId: 'recall-basics',
 			date: today(),
-			time: '00:00'
+			times: ['00:00']
 		})
 	});
 	const session = (await scheduled.json()) as Saved;

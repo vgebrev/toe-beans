@@ -108,7 +108,7 @@ async function setup() {
 			dogId,
 			exerciseId,
 			date,
-			time,
+			times: [time],
 			...(days && { repeat: { days } })
 		});
 		if (!created.ok) throw new Error(JSON.stringify(created.error));
@@ -169,8 +169,8 @@ describe('Today', () => {
 		// Well past the 21-day horizon the series was first materialised to.
 		clock.set('2026-12-15T10:00:00Z');
 		const view = await read(today);
-		expect(view.planned.map((v) => v.session.occurrenceKey)).toEqual(['2026-12-15']);
-		expect(view.overdue.map((v) => v.session.occurrenceKey)).toEqual(['2026-12-14']);
+		expect(view.planned.map((v) => v.session.occurrenceKey)).toEqual(['2026-12-15T18:00']);
+		expect(view.overdue.map((v) => v.session.occurrenceKey)).toEqual(['2026-12-14T18:00']);
 	});
 
 	it('lists every practice logged today as done, planned or ad hoc, with who practised', async () => {

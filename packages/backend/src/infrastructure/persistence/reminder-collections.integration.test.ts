@@ -235,7 +235,7 @@ describe('the tick’s reads across households', () => {
 				dogId: ids.next(),
 				exerciseId: 'recall-basics',
 				startDate: '2040-01-01' as never,
-				time: '17:00' as never,
+				times: ['17:00' as never],
 				days: [1],
 				horizon: horizon as never,
 				updatedBy: ids.next(),

@@ -57,7 +57,12 @@ async function household(page: Page, baseURL: string) {
 async function schedule(page: Page, baseURL: string, dogId: string, at: Date) {
 	const response = await page.request.post('/api/v1/planned-sessions', {
 		headers: json(baseURL),
-		data: JSON.stringify({ dogId, exerciseId: 'recall-basics', ...onClock(at) })
+		data: JSON.stringify({
+			dogId,
+			exerciseId: 'recall-basics',
+			date: onClock(at).date,
+			times: [onClock(at).time]
+		})
 	});
 	expect(response.status()).toBe(201);
 	return (await response.json()) as { id: string; etag: string; time: string };

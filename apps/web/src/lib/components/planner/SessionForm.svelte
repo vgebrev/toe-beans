@@ -1,9 +1,10 @@
 <script lang="ts">
 	// Scheduling or changing a session (ui.md J3, §5.1, §5.2): the dog (when scheduling), the
-	// exercise from a picker sheet, the date, the time in 5-minute steps, and how it repeats.
+	// exercise from a picker sheet, the date, the time in 5-minute steps, and how it repeats,
+	// with *Also at* for more times a day (architecture D24).
 	// Saving keeps everything typed on a failure; a change made elsewhere offers the latest
 	// version, never an overwrite (sessions aren't simple records like cues).
-	import { untrack } from 'svelte';
+	import { tick, untrack } from 'svelte';
 	import type { Dog, ExerciseSummary } from '@toe-beans/contracts';
 	import DogAvatar from '#lib/components/dogs/DogAvatar.svelte';
 	import Icon from '#lib/components/icon/Icon.svelte';
@@ -13,6 +14,8 @@
 	import { roundTime, weekdayNames } from '#lib/planner/dates.js';
 	import {
 		checkValues,
+		timeField,
+		TIMES_MAX,
 		type FieldName,
 		type RepeatChoice,
 		type SaveOutcome,
@@ -65,7 +68,7 @@
 	async function submit(event: SubmitEvent) {
 		event.preventDefault();
 		if (busy || problem?.kind === 'conflict' || problem?.kind === 'gone') return;
-		values.time = roundTime(values.time);
+		values.times = values.times.map(roundTime);
 		errors = checkValues(values, today);
 		if (Object.values(errors).some(Boolean)) return;
 		status = 'saving';
@@ -80,6 +83,22 @@
 			problem = { kind: outcome.kind, message: outcome.message };
 			status = 'idle';
 		} else status = outcome.kind;
+	}
+
+	async function addTime() {
+		values.times = [...values.times, ''];
+		clear('times');
+		await tick();
+		document.getElementById(`session-time-${values.times.length - 1}`)?.focus();
+	}
+
+	function removeTime(index: number) {
+		values.times = values.times.filter((_, i) => i !== index);
+		// The rows after it move up, so their messages would sit by the wrong time.
+		errors = Object.fromEntries(
+			Object.entries(errors).filter(([field]) => !field.startsWith('time-'))
+		);
+		clear('times');
 	}
 
 	function toggleDay(day: number) {
@@ -182,9 +201,9 @@
 				id="session-time"
 				type="time"
 				step={300}
-				bind:value={values.time}
+				bind:value={values.times[0]}
 				oninput={() => clear('time')}
-				onchange={() => (values.time = roundTime(values.time))}
+				onchange={() => (values.times[0] = roundTime(values.times[0] ?? ''))}
 				aria-invalid={errors.time ? 'true' : undefined}
 				aria-describedby={describedBy('time', 'session-time-hint')}
 			/>
@@ -243,6 +262,61 @@
 				{@render error('days')}
 			{/if}
 			{#if values.repeat !== 'never'}
+				<div
+					class="flex flex-col gap-2"
+					role="group"
+					aria-labelledby="session-also-label"
+					aria-describedby={describedBy('times')}
+				>
+					<span id="session-also-label" class="font-bold">
+						Also at <span class="font-normal text-muted-foreground">(optional)</span>
+					</span>
+					{#each values.times as _, i (i)}
+						{#if i > 0}
+							{@const field = timeField(i)}
+							<div class="flex items-start gap-2">
+								<div class="flex min-w-0 flex-1 flex-col gap-1">
+									<Input
+										id="session-time-{i}"
+										type="time"
+										step={300}
+										aria-label="Time {i + 1}"
+										bind:value={values.times[i]}
+										oninput={() => clear(field)}
+										onchange={() => (values.times[i] = roundTime(values.times[i] ?? ''))}
+										aria-invalid={errors[field] ? 'true' : undefined}
+										aria-describedby={describedBy(field)}
+									/>
+									{@render error(field)}
+								</div>
+								<Button
+									type="button"
+									variant="ghost"
+									size="icon"
+									aria-label={values.times[i]
+										? `Remove ${values.times[i]}`
+										: `Remove time ${i + 1}`}
+									onclick={() => removeTime(i)}
+								>
+									<Icon name="close" />
+								</Button>
+							</div>
+						{/if}
+					{/each}
+					{#if values.times.length < TIMES_MAX}
+						<Button type="button" variant="outline" class="self-start" onclick={addTime}>
+							<Icon name="add" />
+							Add a time
+						</Button>
+					{/if}
+					{#if errors.times}
+						{@render error('times')}
+					{:else}
+						<p class="text-sm text-muted-foreground">
+							To practise more than once a day, like before each meal. Each time is its own session.
+						</p>
+					{/if}
+				</div>
 				<div class="flex flex-col gap-2">
 					<Label for="session-until" class="font-bold">
 						End date <span class="font-normal text-muted-foreground">(optional)</span>

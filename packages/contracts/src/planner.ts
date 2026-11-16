@@ -14,7 +14,8 @@ export const TrainingPlan = z.object({
 	id: z.string(),
 	exerciseId: z.string(),
 	startDate: z.iso.date(),
-	time: z.string(),
+	/** The times of day each date has a session at, earliest first (D24). */
+	times: z.array(z.string()).min(1),
 	/** Every day is daily; Monday to Friday is weekdays. */
 	days: z.array(Weekday),
 	/** The last date it can fall on. */
@@ -60,12 +61,15 @@ const RepeatInput = z.strictObject({
 	until: date.optional()
 });
 
+/** Several only with a repeat: a session a day at each (D24). The backend checks the rest. */
+const times = z.array(time).min(1).max(24);
+
 /** Shape only; the backend checks the dates against the household's today. */
 export const ScheduleSession = z.strictObject({
 	dogId: z.string().max(100),
 	exerciseId,
 	date,
-	time,
+	times,
 	/** Null or left out: once. */
 	repeat: RepeatInput.nullish()
 });
@@ -87,7 +91,7 @@ export const UpdateTrainingPlan = z.strictObject({
 	exerciseId: exerciseId.optional(),
 	/** Where the changed series starts; the session's own date if left out. */
 	date: date.optional(),
-	time: time.optional(),
+	times: times.optional(),
 	repeat: RepeatInput.optional()
 });
 export type UpdateTrainingPlan = z.infer<typeof UpdateTrainingPlan>;

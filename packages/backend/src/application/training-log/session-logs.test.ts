@@ -94,7 +94,7 @@ async function setup() {
 			dogId: dog.id,
 			exerciseId: recall.id,
 			date: '2026-11-10',
-			time
+			times: [time]
 		});
 		if (!created.ok) throw new Error(JSON.stringify(created.error));
 		return created.value.session;

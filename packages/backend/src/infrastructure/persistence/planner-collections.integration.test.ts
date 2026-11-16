@@ -34,7 +34,7 @@ const newPlan = (householdId: Id, overrides: Partial<NewTrainingPlan> = {}): New
 	dogId: ids.next(),
 	exerciseId: 'recall-basics',
 	startDate: d('2026-11-10'),
-	time: '17:30' as never,
+	times: ['17:30' as never],
 	days: [1, 3, 5],
 	horizon: d('2026-11-09'),
 	updatedBy: ids.next(),
@@ -59,7 +59,7 @@ const occurrences = (householdId: Id, planId: Id, dates: string[]) =>
 	dates.map((date) =>
 		newSession(householdId, {
 			planId,
-			occurrenceKey: d(date),
+			occurrenceKey: `${d(date)}T17:30` as never,
 			scheduledAt: new Date(`${date}T15:30:00Z`)
 		})
 	);
@@ -74,7 +74,7 @@ describe('mongoTrainingPlans', () => {
 		expect(await plans().findByIds(household, [plan.id, ids.next()])).toEqual([inserted]);
 		expect(
 			await db.mongo.db.collection(TRAINING_PLANS).findOne({ _id: plan.id as never })
-		).toMatchObject({ schemaVersion: 1 });
+		).toMatchObject({ schemaVersion: 2 });
 	});
 
 	it('lists the series still running on a date', async () => {
@@ -121,7 +121,11 @@ describe('mongoPlannedSessions', () => {
 			occurrences(household, planId, ['2026-11-11', '2026-11-13', '2026-11-16'])
 		);
 		const listed = await sessions().listFrom(household, planId, d('2026-11-01'));
-		expect(listed.map((s) => s.occurrenceKey)).toEqual(['2026-11-11', '2026-11-13', '2026-11-16']);
+		expect(listed.map((s) => s.occurrenceKey)).toEqual([
+			'2026-11-11T17:30',
+			'2026-11-13T17:30',
+			'2026-11-16T17:30'
+		]);
 		expect(listed[0]).toMatchObject({ version: 1, status: 'planned', householdId: household });
 	});
 
@@ -172,9 +176,31 @@ describe('mongoPlannedSessions', () => {
 		expect(await sessions().deleteUnloggedFrom(household, planId, d('2026-11-13'))).toBe(2);
 		const left = await sessions().listFrom(household, planId, d('2026-11-01'));
 		expect(left.map((s) => [s.occurrenceKey, s.status])).toEqual([
-			['2026-11-11', 'planned'],
-			['2026-11-16', 'completed']
+			['2026-11-11T17:30', 'planned'],
+			['2026-11-16T17:30', 'completed']
 		]);
+	});
+
+	it('deletes from a time of day on, keeping that day’s earlier sessions', async () => {
+		const household = ids.next();
+		const planId = ids.next();
+		const at = (key: string) =>
+			newSession(household, {
+				planId,
+				occurrenceKey: key as never,
+				scheduledAt: new Date(`${key}:00Z`)
+			});
+		await sessions().insertOccurrences(household, [
+			at('2026-11-11T07:00'),
+			at('2026-11-11T12:00'),
+			at('2026-11-11T18:00'),
+			at('2026-11-12T07:00')
+		]);
+		expect(
+			await sessions().deleteUnloggedFrom(household, planId, '2026-11-11T12:00' as never)
+		).toBe(3);
+		const left = await sessions().listFrom(household, planId, d('2026-11-11'));
+		expect(left.map((s) => s.occurrenceKey)).toEqual(['2026-11-11T07:00']);
 	});
 
 	it('cancels a dog’s planned sessions as an edit, and nothing else', async () => {
