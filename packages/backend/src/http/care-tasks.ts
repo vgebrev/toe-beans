@@ -11,7 +11,7 @@ import {
 import type { MemberViewer, Viewer } from '../application/auth/auth.js';
 import type { CareTasks, CareView } from '../application/care/care-tasks.js';
 import { notFound } from '../application/errors.js';
-import type { PlannerContext } from '../application/planner/planner.js';
+import type { PlannerContext } from '../application/auth/auth.js';
 import type { Clock } from '../application/ports/index.js';
 import { todayIn, type PlainDate } from '../domain/calendar.js';
 import { isOverdue, type CareHistoryEntry } from '../domain/care-task.js';

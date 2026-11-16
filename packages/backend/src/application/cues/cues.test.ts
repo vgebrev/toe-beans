@@ -5,7 +5,8 @@ import { memoryUsers } from '../../testing/auth.js';
 import { manualClock } from '../../testing/clock.js';
 import { memoryCues } from '../../testing/cues.js';
 import type { MemberContext } from '../auth/auth.js';
-import { createCues, FORMER_MEMBER } from './cues.js';
+import { FORMER_MEMBER } from '../names.js';
+import { createCues } from './cues.js';
 
 const at = new Date('2026-11-09T08:00:00Z');
 const silent = { debug() {}, info() {}, warn() {}, error() {}, child: () => silent };

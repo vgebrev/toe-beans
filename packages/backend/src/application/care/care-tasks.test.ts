@@ -5,7 +5,7 @@ import { directUnitOfWork, memoryUsers } from '../../testing/auth.js';
 import { memoryCareTasks } from '../../testing/care-tasks.js';
 import { manualClock } from '../../testing/clock.js';
 import { memoryDogs } from '../../testing/dogs.js';
-import type { PlannerContext } from '../planner/planner.js';
+import type { PlannerContext } from '../auth/auth.js';
 import { createCareTasks } from './care-tasks.js';
 
 // Tuesday 10 November 2026, 17:00 in Johannesburg.

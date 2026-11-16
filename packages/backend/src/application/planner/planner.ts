@@ -12,6 +12,7 @@ import {
 	instantAt,
 	isPlainDate,
 	maxDate,
+	startOfDay,
 	todayIn,
 	zonedDateTime,
 	type PlainDate,
@@ -38,8 +39,8 @@ import {
 } from '../../domain/planner.js';
 import { err, ok, type Result } from '../../domain/result.js';
 import type { SessionLog } from '../../domain/session-log.js';
-import type { MemberContext } from '../auth/auth.js';
-import { FORMER_MEMBER } from '../cues/cues.js';
+import type { PlannerContext } from '../auth/auth.js';
+import { CHOOSE_DOG, currentDog } from '../dogs/current-dog.js';
 import {
 	notFound,
 	staleVersion,
@@ -48,10 +49,8 @@ import {
 	type StaleVersionError,
 	type ValidationError
 } from '../errors.js';
+import { namesOf } from '../names.js';
 import type { NewPlannedSession, Ports } from '../ports/index.js';
-
-/** Planning happens on the household's clocks, so the use cases need its time zone. */
-export type PlannerContext = MemberContext & { timeZone: string };
 
 /** A household and its clocks, for work nobody in particular asked for (the reminder tick). */
 export type HouseholdClock = Pick<PlannerContext, 'householdId' | 'timeZone'>;
@@ -90,7 +89,6 @@ export interface SeriesChanges {
 }
 
 type Invalid = ValidationError;
-const MIDNIGHT = '00:00' as PlainTime;
 type WriteFailure = NotFoundError | StaleVersionError;
 
 export type Planner = ReturnType<typeof createPlanner>;
@@ -127,20 +125,22 @@ export function createPlanner({
 	async function views(ctx: PlannerContext, list: PlannedSession[]): Promise<SessionView[]> {
 		const planIds = [...new Set(list.flatMap((s) => (s.planId ? [s.planId] : [])))];
 		const logIds = list.flatMap((s) => (s.sessionLogId ? [s.sessionLogId] : []));
-		const [planList, logList, people] = await Promise.all([
+		const [planList, logList, name] = await Promise.all([
 			planIds.length > 0 ? plans.findByIds(ctx.householdId, planIds) : [],
 			logIds.length > 0 ? sessionLogs.findByIds(ctx.householdId, logIds) : [],
-			users.findByIds([...new Set(list.map((s) => s.updatedBy))])
+			namesOf(
+				users,
+				list.map((s) => s.updatedBy)
+			)
 		]);
 		const byId = new Map(planList.map((p) => [p.id, p]));
 		const logsById = new Map(logList.map((l) => [l.id, l]));
-		const names = new Map(people.map((u) => [u.id, u.displayName]));
 		return list.map((session) => ({
 			session,
 			plan: (session.planId && byId.get(session.planId)) || null,
 			exercise: exercises.get(session.exerciseId),
 			log: (session.sessionLogId && logsById.get(session.sessionLogId)) || null,
-			updatedByName: names.get(session.updatedBy) ?? FORMER_MEMBER
+			updatedByName: name(session.updatedBy)
 		}));
 	}
 	const view = async (ctx: PlannerContext, s: PlannedSession) => (await views(ctx, [s]))[0]!;
@@ -156,9 +156,8 @@ export function createPlanner({
 		{ dogId, exerciseId }: { dogId?: string | undefined; exerciseId?: string | undefined }
 	): Promise<Record<string, string[]>> {
 		const fields: Record<string, string[]> = {};
-		if (dogId !== undefined) {
-			const dog = isId(dogId) ? await dogs.findById(ctx.householdId, dogId) : null;
-			if (!dog || dog.archivedAt) fields.dogId = ['Choose one of your dogs.'];
+		if (dogId !== undefined && !(await currentDog(dogs, ctx.householdId, dogId))) {
+			fields.dogId = [CHOOSE_DOG];
 		}
 		if (exerciseId !== undefined && !exercises.get(exerciseId)) {
 			fields.exerciseId = ['Choose an exercise from the library.'];
@@ -270,8 +269,8 @@ export function createPlanner({
 			await extend(ctx, maxDate(to, addDays(now, HORIZON_DAYS)));
 			const found = await sessions.listBetween(
 				ctx.householdId,
-				instantAt(from, MIDNIGHT, ctx.timeZone),
-				instantAt(addDays(to, 1), MIDNIGHT, ctx.timeZone)
+				startOfDay(from, ctx.timeZone),
+				startOfDay(addDays(to, 1), ctx.timeZone)
 			);
 			return ok(await views(ctx, found));
 		},

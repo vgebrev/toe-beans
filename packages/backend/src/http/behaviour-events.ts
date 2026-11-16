@@ -8,7 +8,7 @@ import {
 import type { MemberViewer, Viewer } from '../application/auth/auth.js';
 import { notFound } from '../application/errors.js';
 import type { BehaviourEvents, EventView } from '../application/journal/behaviour-events.js';
-import type { PlannerContext } from '../application/planner/planner.js';
+import type { PlannerContext } from '../application/auth/auth.js';
 import { zonedDateTime } from '../domain/calendar.js';
 import { etag, versionFromIfMatch } from './etag.js';
 import { errorResponse, json, noContent, respond, type HttpResponse } from './response.js';

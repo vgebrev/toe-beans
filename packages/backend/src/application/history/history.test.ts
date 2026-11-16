@@ -11,7 +11,7 @@ import { manualClock } from '../../testing/clock.js';
 import { memorySessionLogs } from '../../testing/session-logs.js';
 import { createCareTasks } from '../care/care-tasks.js';
 import { createBehaviourEvents } from '../journal/behaviour-events.js';
-import type { PlannerContext } from '../planner/planner.js';
+import type { PlannerContext } from '../auth/auth.js';
 import { createSessionLogs } from '../training-log/session-logs.js';
 import { careAt, createHistory, decodeCursor, encodeCursor, type HistoryEntry } from './history.js';
 

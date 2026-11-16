@@ -4,7 +4,7 @@ import { directUnitOfWork } from '../../testing/auth.js';
 import { manualClock } from '../../testing/clock.js';
 import { fakePhoto, fakePhotoProcessor, memoryDogs, memoryPhotoStore } from '../../testing/dogs.js';
 import { ok } from '../../domain/result.js';
-import type { PlannerContext } from '../planner/planner.js';
+import type { PlannerContext } from '../auth/auth.js';
 import type { RateLimiter } from '../ports/index.js';
 import { createDogs, MAX_DOGS, PHOTO_MAX_BYTES } from './dogs.js';
 

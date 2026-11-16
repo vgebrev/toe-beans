@@ -5,7 +5,7 @@ import { memoryUsers } from '../../testing/auth.js';
 import { memoryBehaviourEvents } from '../../testing/behaviour-events.js';
 import { manualClock } from '../../testing/clock.js';
 import { memoryDogs } from '../../testing/dogs.js';
-import type { PlannerContext } from '../planner/planner.js';
+import type { PlannerContext } from '../auth/auth.js';
 import { createBehaviourEvents } from './behaviour-events.js';
 
 // Tuesday 10 November 2026, 17:00 in Johannesburg.

@@ -28,6 +28,7 @@ import {
 	type UnavailableError,
 	type ValidationError
 } from '../errors.js';
+import { namesOf } from '../names.js';
 import type { Ports } from '../ports/index.js';
 
 export const JOIN_PATH = '/join/';
@@ -204,11 +205,13 @@ export function createInvitations(
 		/** Invitations that can still be used. */
 		async listOpen(ctx: MemberContext): Promise<InvitationView[]> {
 			const open = await invitations.findOpen(ctx.householdId, clock.now());
-			const people = await users.findByIds([...new Set(open.map((i) => i.createdBy))]);
-			const names = new Map(people.map((u) => [u.id, u.displayName]));
+			const name = await namesOf(
+				users,
+				open.map((i) => i.createdBy)
+			);
 			return open.map((invitation) => ({
 				invitation,
-				invitedBy: names.get(invitation.createdBy) ?? 'A former member',
+				invitedBy: name(invitation.createdBy),
 				canRevoke: canRevoke(invitation, ctx)
 			}));
 		},

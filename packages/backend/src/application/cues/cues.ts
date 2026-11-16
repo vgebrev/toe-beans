@@ -18,6 +18,7 @@ import {
 	type StaleVersionError,
 	type ValidationError
 } from '../errors.js';
+import { namesOf } from '../names.js';
 import type { Ports } from '../ports/index.js';
 
 /** What a person sends. In an update, a missing field stays as it was and null clears it. */
@@ -34,9 +35,6 @@ export interface CueView {
 	cue: Cue;
 	updatedByName: string;
 }
-
-/** Shown for someone who has since left the household, or whose account is gone. */
-export const FORMER_MEMBER = 'A former member';
 
 export type Cues = ReturnType<typeof createCues>;
 
@@ -55,9 +53,11 @@ export function createCues({
 		isId(id) ? cues.findById(ctx.householdId, id) : null;
 
 	async function views(list: Cue[]): Promise<CueView[]> {
-		const people = await users.findByIds([...new Set(list.map((c) => c.updatedBy))]);
-		const names = new Map(people.map((u) => [u.id, u.displayName]));
-		return list.map((cue) => ({ cue, updatedByName: names.get(cue.updatedBy) ?? FORMER_MEMBER }));
+		const name = await namesOf(
+			users,
+			list.map((c) => c.updatedBy)
+		);
+		return list.map((cue) => ({ cue, updatedByName: name(cue.updatedBy) }));
 	}
 	const view = async (cue: Cue): Promise<CueView> => (await views([cue]))[0]!;
 

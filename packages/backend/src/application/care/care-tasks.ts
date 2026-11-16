@@ -22,7 +22,8 @@ import {
 import { conflictError, validationError, type ConflictError } from '../../domain/errors.js';
 import { isId, type Id } from '../../domain/id.js';
 import { err, ok, type Result } from '../../domain/result.js';
-import { FORMER_MEMBER } from '../cues/cues.js';
+import type { PlannerContext } from '../auth/auth.js';
+import { CHOOSE_DOG, currentDog } from '../dogs/current-dog.js';
 import {
 	notFound,
 	staleVersion,
@@ -30,7 +31,7 @@ import {
 	type StaleVersionError,
 	type ValidationError
 } from '../errors.js';
-import type { PlannerContext } from '../planner/planner.js';
+import { namesOf } from '../names.js';
 import type { Ports } from '../ports/index.js';
 
 /** A task with the names of everyone its page mentions. */
@@ -81,7 +82,7 @@ export function createCareTasks({
 	logger
 }: Pick<Ports, 'careTasks' | 'dogs' | 'users' | 'uow' | 'clock' | 'ids' | 'logger'>) {
 	const log = logger.child({ component: 'care-tasks' });
-	const chooseDog = { dogId: ['Choose one of your dogs.'] };
+	const chooseDog = { dogId: [CHOOSE_DOG] };
 
 	/** One lookup for every name the tasks need. */
 	async function views(entries: readonly CareTask[]): Promise<CareView[]> {
@@ -91,9 +92,8 @@ export function createCareTasks({
 			wanted.add(t.createdBy).add(t.updatedBy);
 			for (const h of t.history) wanted.add(h.by);
 		}
-		const people = await users.findByIds([...wanted]);
-		const known = new Map(people.map((u) => [u.id, u.displayName]));
-		const names = Object.fromEntries([...wanted].map((id) => [id, known.get(id) ?? FORMER_MEMBER]));
+		const name = await namesOf(users, wanted);
+		const names = Object.fromEntries([...wanted].map((id) => [id, name(id)]));
 		return entries.map((task) => ({ task, names }));
 	}
 	const view = async (task: CareTask) => (await views([task]))[0]!;
@@ -103,13 +103,6 @@ export function createCareTasks({
 		return new Set(
 			(await dogs.list(ctx.householdId)).filter((d) => !d.archivedAt).map((d) => d.id)
 		);
-	}
-
-	/** One of the household's current dogs, so nothing is added for an archived one. */
-	async function currentDog(ctx: PlannerContext, dogId: string | undefined): Promise<Id | null> {
-		if (dogId === undefined || !isId(dogId)) return null;
-		const dog = await dogs.findById(ctx.householdId, dogId);
-		return dog && !dog.archivedAt ? dog.id : null;
 	}
 
 	const find = async (ctx: PlannerContext, id: string) =>
@@ -161,7 +154,7 @@ export function createCareTasks({
 		): Promise<Result<CareView, ValidationError>> {
 			const now = clock.now();
 			const details = cleanCareDetails(input, {}, todayIn(now, ctx.timeZone));
-			const dogId = await currentDog(ctx, input.dogId);
+			const dogId = (await currentDog(dogs, ctx.householdId, input.dogId))?.id;
 			if (!details.ok || !dogId) return invalid(details, !!dogId);
 			const task = await tasks.insert({
 				id: ids.next(),
@@ -197,7 +190,9 @@ export function createCareTasks({
 			const details = cleanCareDetails(changes, task, todayIn(now, ctx.timeZone));
 			const wanted = changes.dogId;
 			const dogId =
-				wanted === undefined || wanted === task.dogId ? task.dogId : await currentDog(ctx, wanted);
+				wanted === undefined || wanted === task.dogId
+					? task.dogId
+					: (await currentDog(dogs, ctx.householdId, wanted))?.id;
 			if (!details.ok || !dogId) return invalid(details, !!dogId);
 			if (status === 'cancelled' && task.status === 'completed') {
 				return err(conflictError("This task is done, so it can't be cancelled."));

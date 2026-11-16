@@ -13,8 +13,8 @@ import {
 import { validationError } from '../../domain/errors.js';
 import { isId, type Id } from '../../domain/id.js';
 import { err, ok, type Result } from '../../domain/result.js';
-import type { MemberContext } from '../auth/auth.js';
-import type { Planner, PlannerContext } from '../planner/planner.js';
+import type { MemberContext, PlannerContext } from '../auth/auth.js';
+import type { Planner } from '../planner/planner.js';
 import {
 	notFound,
 	rateLimited,
@@ -85,7 +85,8 @@ export function createDogs(
 	/** Field errors for the photo, before any decoding: there must be one, and not too large. */
 	const photoProblem = (photo: Uint8Array | null): string | null => {
 		if (!photo || photo.byteLength === 0) return 'Add a photo of your dog.';
-		if (photo.byteLength > PHOTO_MAX_BYTES) return 'Choose a photo under 10 MB.';
+		if (photo.byteLength > PHOTO_MAX_BYTES)
+			return `Choose a photo under ${PHOTO_MAX_BYTES / 1024 / 1024} MB.`;
 		return null;
 	};
 	/** Each upload is decoded, the costly part, so each person has a budget (D32). */

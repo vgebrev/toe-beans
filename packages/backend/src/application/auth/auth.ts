@@ -24,6 +24,9 @@ export interface MemberContext extends AuthContext {
 	role: Role;
 }
 
+/** A member acting on their household's clocks: dates and times of day are worked out in its zone. */
+export type PlannerContext = MemberContext & { timeZone: string };
+
 /** The signed-in person, as the app shows them. */
 export interface Viewer {
 	auth: AuthContext;

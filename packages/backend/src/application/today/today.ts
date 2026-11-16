@@ -13,7 +13,8 @@ import { addDays, todayIn, zonedDateTime, type PlainDate } from '../../domain/ca
 import { ok, type Result } from '../../domain/result.js';
 import type { CareTasks, CareView } from '../care/care-tasks.js';
 import type { ValidationError } from '../errors.js';
-import type { Planner, PlannerContext, SessionView } from '../planner/planner.js';
+import type { PlannerContext } from '../auth/auth.js';
+import type { Planner, SessionView } from '../planner/planner.js';
 import type { Ports } from '../ports/index.js';
 import type { LogView, SessionLogs } from '../training-log/session-logs.js';
 

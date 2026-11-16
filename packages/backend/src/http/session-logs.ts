@@ -7,7 +7,7 @@ import {
 } from '@toe-beans/contracts';
 import type { MemberViewer, Viewer } from '../application/auth/auth.js';
 import { notFound } from '../application/errors.js';
-import type { PlannerContext } from '../application/planner/planner.js';
+import type { PlannerContext } from '../application/auth/auth.js';
 import type { LogView, SessionLogs } from '../application/training-log/session-logs.js';
 import { zonedDateTime } from '../domain/calendar.js';
 import { etag, versionFromIfMatch } from './etag.js';

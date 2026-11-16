@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { createCareTasks } from '../application/care/care-tasks.js';
-import { createPlanner, type PlannerContext } from '../application/planner/planner.js';
+import type { PlannerContext } from '../application/auth/auth.js';
+import { createPlanner } from '../application/planner/planner.js';
 import type { Exercise } from '../domain/exercise.js';
 import type { Household } from '../domain/household.js';
 import { createIdGenerator, type Id } from '../domain/id.js';

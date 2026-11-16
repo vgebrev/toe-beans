@@ -9,7 +9,8 @@ import { memoryDogs } from '../../testing/dogs.js';
 import { memoryPlannedSessions, memoryTrainingPlans } from '../../testing/planner.js';
 import { memorySessionLogs } from '../../testing/session-logs.js';
 import { createCareTasks } from '../care/care-tasks.js';
-import { createPlanner, type PlannerContext } from '../planner/planner.js';
+import type { PlannerContext } from '../auth/auth.js';
+import { createPlanner } from '../planner/planner.js';
 import { createSessionLogs } from '../training-log/session-logs.js';
 import { createToday } from './today.js';
 

@@ -126,3 +126,7 @@ export function instantAt(date: PlainDate, time: PlainTime, timeZone: string): D
 	// In the gap: the clock as it read before the change, carried over it.
 	return new Date(wall - before);
 }
+
+/** The instant `date` begins on the household's clocks; the next day's start is where it ends. */
+export const startOfDay = (date: PlainDate, timeZone: string): Date =>
+	instantAt(date, '00:00' as PlainTime, timeZone);

@@ -10,7 +10,8 @@ import {
 } from '@toe-beans/contracts';
 import type { MemberViewer, Viewer } from '../application/auth/auth.js';
 import { notFound } from '../application/errors.js';
-import type { Planner, PlannerContext, SessionView } from '../application/planner/planner.js';
+import type { PlannerContext } from '../application/auth/auth.js';
+import type { Planner, SessionView } from '../application/planner/planner.js';
 import { zonedDateTime } from '../domain/calendar.js';
 import { etag, versionFromIfMatch } from './etag.js';
 import { errorResponse, json, noContent, respond, type HttpResponse } from './response.js';

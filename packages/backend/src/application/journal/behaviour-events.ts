@@ -9,9 +9,10 @@ import {
 	type BehaviourEvent,
 	type EventDetailsInput
 } from '../../domain/behaviour-event.js';
-import { isId, type Id } from '../../domain/id.js';
+import { isId } from '../../domain/id.js';
 import { err, ok, type Result } from '../../domain/result.js';
-import { FORMER_MEMBER } from '../cues/cues.js';
+import type { MemberContext } from '../auth/auth.js';
+import { CHOOSE_DOG, currentDog } from '../dogs/current-dog.js';
 import {
 	notFound,
 	staleVersion,
@@ -20,7 +21,7 @@ import {
 	type StaleVersionError,
 	type ValidationError
 } from '../errors.js';
-import type { PlannerContext } from '../planner/planner.js';
+import { namesOf } from '../names.js';
 import type { Ports } from '../ports/index.js';
 
 /** An event with the names of who recorded it and who changed it last. */
@@ -46,50 +47,42 @@ export function createBehaviourEvents({
 	logger
 }: Pick<Ports, 'behaviourEvents' | 'dogs' | 'users' | 'clock' | 'ids' | 'logger'>) {
 	const log = logger.child({ component: 'behaviour-events' });
-	const chooseDog = { dogId: ['Choose one of your dogs.'] };
+	const chooseDog = { dogId: [CHOOSE_DOG] };
 
 	/** One lookup for every name the events need. */
 	async function views(entries: readonly BehaviourEvent[]): Promise<EventView[]> {
-		if (entries.length === 0) return [];
-		const people = await users.findByIds([
-			...new Set(entries.flatMap((e) => [e.recordedBy, e.updatedBy]))
-		]);
-		const names = new Map(people.map((u) => [u.id, u.displayName]));
+		const name = await namesOf(
+			users,
+			entries.flatMap((e) => [e.recordedBy, e.updatedBy])
+		);
 		return entries.map((event) => ({
 			event,
-			recordedByName: names.get(event.recordedBy) ?? FORMER_MEMBER,
-			updatedByName: names.get(event.updatedBy) ?? FORMER_MEMBER
+			recordedByName: name(event.recordedBy),
+			updatedByName: name(event.updatedBy)
 		}));
 	}
 	const view = async (event: BehaviourEvent) => (await views([event]))[0]!;
 
-	/** One of the household's current dogs, so nothing is recorded against an archived one. */
-	async function currentDog(ctx: PlannerContext, dogId: string | undefined): Promise<Id | null> {
-		if (dogId === undefined || !isId(dogId)) return null;
-		const dog = await dogs.findById(ctx.householdId, dogId);
-		return dog && !dog.archivedAt ? dog.id : null;
-	}
-
-	const find = async (ctx: PlannerContext, id: string) =>
+	const find = async (ctx: MemberContext, id: string) =>
 		isId(id) ? events.findById(ctx.householdId, id) : null;
 
 	return {
 		/** Events with their names, in one lookup (History, architecture §5.1). */
 		views,
 
-		async get(ctx: PlannerContext, id: string): Promise<Result<EventView, NotFoundError>> {
+		async get(ctx: MemberContext, id: string): Promise<Result<EventView, NotFoundError>> {
 			const event = await find(ctx, id);
 			return event ? ok(await view(event)) : err(notFound('event'));
 		},
 
 		/** Records an event. It happened now unless `occurredAt` says otherwise. */
 		async create(
-			ctx: PlannerContext,
+			ctx: MemberContext,
 			input: EventRequest
 		): Promise<Result<EventView, ValidationError>> {
 			const now = clock.now();
 			const details = cleanEventDetails(input, { occurredAt: now }, now);
-			const dogId = await currentDog(ctx, input.dogId);
+			const dogId = (await currentDog(dogs, ctx.householdId, input.dogId))?.id;
 			if (!details.ok || !dogId) {
 				const fields = { ...(details.ok ? {} : details.error.fields), ...(!dogId && chooseDog) };
 				return err(validationError('The event is not valid.', fields));
@@ -112,7 +105,7 @@ export function createBehaviourEvents({
 
 		/** Changes what happened, when, the text or the dog (to another current dog). */
 		async update(
-			ctx: PlannerContext,
+			ctx: MemberContext,
 			input: { id: string; expectedVersion: number; changes: EventRequest }
 		): Promise<Result<EventView, ValidationError | NotFoundError | StaleVersionError>> {
 			const event = await find(ctx, input.id);
@@ -123,7 +116,7 @@ export function createBehaviourEvents({
 			const dogId =
 				wanted === undefined || wanted === event.dogId
 					? event.dogId
-					: await currentDog(ctx, wanted);
+					: (await currentDog(dogs, ctx.householdId, wanted))?.id;
 			if (!details.ok || !dogId) {
 				const fields = { ...(details.ok ? {} : details.error.fields), ...(!dogId && chooseDog) };
 				return err(validationError('The event is not valid.', fields));
@@ -145,7 +138,7 @@ export function createBehaviourEvents({
 
 		/** Soft-deletes the event (§5.3). The result carries the version `restore` needs. */
 		async remove(
-			ctx: PlannerContext,
+			ctx: MemberContext,
 			input: { id: string; expectedVersion: number }
 		): Promise<Result<BehaviourEvent, NotFoundError | StaleVersionError>> {
 			if (!isId(input.id)) return err(notFound('event'));
@@ -162,7 +155,7 @@ export function createBehaviourEvents({
 
 		/** Brings a deleted event back: the snackbar's *Undo* (ui.md J8). */
 		async restore(
-			ctx: PlannerContext,
+			ctx: MemberContext,
 			input: { id: string; expectedVersion: number }
 		): Promise<Result<EventView, NotFoundError | StaleVersionError>> {
 			if (!isId(input.id)) return err(notFound('event'));

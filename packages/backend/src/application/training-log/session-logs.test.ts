@@ -7,7 +7,8 @@ import { manualClock } from '../../testing/clock.js';
 import { memoryDogs } from '../../testing/dogs.js';
 import { memoryPlannedSessions, memoryTrainingPlans } from '../../testing/planner.js';
 import { memorySessionLogs } from '../../testing/session-logs.js';
-import { createPlanner, type PlannerContext } from '../planner/planner.js';
+import type { PlannerContext } from '../auth/auth.js';
+import { createPlanner } from '../planner/planner.js';
 import { createSessionLogs } from './session-logs.js';
 
 // Tuesday 10 November 2026, 17:00 in Johannesburg.

@@ -13,18 +13,18 @@ import { EVENT_CATEGORIES, type EventCategory } from '../../domain/behaviour-eve
 import { CARE_CATEGORIES, type CareCategory } from '../../domain/care-task.js';
 import {
 	addDays,
-	instantAt,
 	isPlainDate,
+	startOfDay,
 	todayIn,
-	type PlainDate,
-	type PlainTime
+	type PlainDate
 } from '../../domain/calendar.js';
 import { isId, type Id } from '../../domain/id.js';
 import { err, ok, type Result } from '../../domain/result.js';
 import { validationError, type ValidationError } from '../errors.js';
+import type { PlannerContext } from '../auth/auth.js';
 import type { CareTasks, CareView } from '../care/care-tasks.js';
+import { CHOOSE_DOG } from '../dogs/current-dog.js';
 import type { BehaviourEvents, EventView } from '../journal/behaviour-events.js';
-import type { PlannerContext } from '../planner/planner.js';
 import type { Ports, TimelineCursor, TimelineQuery } from '../ports/index.js';
 import type { LogView, SessionLogs } from '../training-log/session-logs.js';
 
@@ -66,8 +66,6 @@ export interface HistoryPage {
 	next?: string;
 }
 
-const MIDNIGHT = '00:00' as PlainTime;
-
 /** Opaque to the client: when the last entry happened, in milliseconds, and its ID. */
 export const encodeCursor = ({ at, id }: TimelineCursor) => `${at.getTime()}.${id}`;
 
@@ -79,7 +77,7 @@ export function decodeCursor(cursor: string): TimelineCursor | null {
 
 /** Where a care task done on `date` sorts: the last millisecond of that day, heading it. */
 export const careAt = (date: PlainDate, timeZone: string) =>
-	new Date(instantAt(addDays(date, 1), MIDNIGHT, timeZone).getTime() - 1);
+	new Date(startOfDay(addDays(date, 1), timeZone).getTime() - 1);
 
 /** The cursor in the care source's terms: earlier days, and its own day if it's a care entry's. */
 function careBefore({ at, id }: TimelineCursor, timeZone: string) {
@@ -123,7 +121,7 @@ export function createHistory(
 		): Promise<Result<HistoryPage, ValidationError>> {
 			const fields: Record<string, string[]> = {};
 			const { dogId, type, exerciseId, from, to, cursor } = filter;
-			if (dogId !== undefined && !isId(dogId)) fields.dog = ['Choose one of your dogs.'];
+			if (dogId !== undefined && !isId(dogId)) fields.dog = [CHOOSE_DOG];
 			if (type !== undefined && !(HISTORY_TYPES as readonly string[]).includes(type)) {
 				fields.type = ['Choose training, events, care, or one kind of event or care.'];
 			}
@@ -140,10 +138,9 @@ export function createHistory(
 
 			const query: TimelineQuery = {
 				...(dogId !== undefined && { dogId: dogId as Id }),
-				...(from !== undefined &&
-					isPlainDate(from) && { from: instantAt(from, MIDNIGHT, ctx.timeZone) }),
+				...(from !== undefined && isPlainDate(from) && { from: startOfDay(from, ctx.timeZone) }),
 				...(to !== undefined &&
-					isPlainDate(to) && { to: instantAt(addDays(to, 1), MIDNIGHT, ctx.timeZone) }),
+					isPlainDate(to) && { to: startOfDay(addDays(to, 1), ctx.timeZone) }),
 				...(before && { before }),
 				limit: limit + 1
 			};

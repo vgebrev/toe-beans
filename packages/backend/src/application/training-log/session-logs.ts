@@ -4,7 +4,7 @@
 // never asks anyone to claim success. Editing carries the version it was based on (NFR-13).
 // Deleting is a soft delete that can be undone until the purge (§5.3, FR-09); deleting a planned
 // session's log puts the session back in the plan, and undoing it completes the session again.
-import { addDays, instantAt, type PlainDate, type PlainTime } from '../../domain/calendar.js';
+import { addDays, startOfDay, type PlainDate } from '../../domain/calendar.js';
 import { conflictError, validationError } from '../../domain/errors.js';
 import type { Exercise } from '../../domain/exercise.js';
 import { isId, type Id } from '../../domain/id.js';
@@ -16,7 +16,8 @@ import {
 	type LogDetailsInput,
 	type SessionLog
 } from '../../domain/session-log.js';
-import { FORMER_MEMBER } from '../cues/cues.js';
+import type { PlannerContext } from '../auth/auth.js';
+import { CHOOSE_DOG, currentDog } from '../dogs/current-dog.js';
 import {
 	notFound,
 	staleVersion,
@@ -25,7 +26,7 @@ import {
 	type StaleVersionError,
 	type ValidationError
 } from '../errors.js';
-import type { PlannerContext } from '../planner/planner.js';
+import { namesOf } from '../names.js';
 import type { Ports } from '../ports/index.js';
 
 /** A log with its exercise and the names of who practised and who changed it last. */
@@ -45,7 +46,6 @@ export interface LogRequest extends LogDetailsInput {
 }
 
 type WriteFailure = NotFoundError | StaleVersionError;
-const MIDNIGHT = '00:00' as PlainTime;
 
 export type SessionLogs = ReturnType<typeof createSessionLogs>;
 
@@ -77,16 +77,15 @@ export function createSessionLogs({
 
 	/** One lookup for every name the logs need. */
 	async function views(entries: readonly SessionLog[]): Promise<LogView[]> {
-		if (entries.length === 0) return [];
-		const people = await users.findByIds([
-			...new Set(entries.flatMap((e) => [e.caregiverId, e.updatedBy]))
-		]);
-		const names = new Map(people.map((u) => [u.id, u.displayName]));
+		const name = await namesOf(
+			users,
+			entries.flatMap((e) => [e.caregiverId, e.updatedBy])
+		);
 		return entries.map((entry) => ({
 			log: entry,
 			exercise: exercises.get(entry.exerciseId),
-			caregiverName: names.get(entry.caregiverId) ?? FORMER_MEMBER,
-			updatedByName: names.get(entry.updatedBy) ?? FORMER_MEMBER
+			caregiverName: name(entry.caregiverId),
+			updatedByName: name(entry.updatedBy)
 		}));
 	}
 	const view = async (entry: SessionLog) => (await views([entry]))[0]!;
@@ -128,8 +127,8 @@ export function createSessionLogs({
 		async listOn(ctx: PlannerContext, date: PlainDate): Promise<LogView[]> {
 			const found = await logs.listPractisedBetween(
 				ctx.householdId,
-				instantAt(date, MIDNIGHT, ctx.timeZone),
-				instantAt(addDays(date, 1), MIDNIGHT, ctx.timeZone)
+				startOfDay(date, ctx.timeZone),
+				startOfDay(addDays(date, 1), ctx.timeZone)
 			);
 			return views(found);
 		},
@@ -194,9 +193,8 @@ export function createSessionLogs({
 				);
 			} else {
 				const { dogId, exerciseId } = input;
-				const dog =
-					dogId !== undefined && isId(dogId) ? await dogs.findById(ctx.householdId, dogId) : null;
-				if (!dog || dog.archivedAt) fields.dogId = ['Choose one of your dogs.'];
+				const dog = await currentDog(dogs, ctx.householdId, dogId);
+				if (!dog) fields.dogId = [CHOOSE_DOG];
 				const exercise = exerciseId === undefined ? undefined : exercises.get(exerciseId);
 				if (!exercise) fields.exerciseId = ['Choose an exercise from the library.'];
 				if (!dog || !exercise) return invalid(fields);

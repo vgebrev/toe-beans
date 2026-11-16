@@ -8,7 +8,8 @@ import { manualClock } from '../../testing/clock.js';
 import { memoryDogs } from '../../testing/dogs.js';
 import { memoryPlannedSessions, memoryTrainingPlans } from '../../testing/planner.js';
 import { memorySessionLogs } from '../../testing/session-logs.js';
-import { createPlanner, type PlannerContext } from './planner.js';
+import type { PlannerContext } from '../auth/auth.js';
+import { createPlanner } from './planner.js';
 
 // Tuesday 10 November 2026, 08:00 in Johannesburg.
 const at = new Date('2026-11-10T06:00:00Z');

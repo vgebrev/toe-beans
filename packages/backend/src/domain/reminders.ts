@@ -6,6 +6,7 @@ import {
 	addDays,
 	daysBetween,
 	instantAt,
+	startOfDay,
 	weekday,
 	type PlainDate,
 	type PlainTime
@@ -173,7 +174,10 @@ export const trainingDueAt = (scheduledAt: Date, leadMin: number): Date =>
 export const careSubjectAt = (
 	task: Pick<CareTask, 'dueDate' | 'dueTime'>,
 	timeZone: string
-): Date => instantAt(task.dueDate, task.dueTime ?? ('00:00' as PlainTime), timeZone);
+): Date =>
+	task.dueTime
+		? instantAt(task.dueDate, task.dueTime, timeZone)
+		: startOfDay(task.dueDate, timeZone);
 
 /**
  * When a care reminder is due for someone (D30): at their care time, `careLeadDays` before the
