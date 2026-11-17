@@ -124,7 +124,7 @@ exists gc iam workload-identity-pools describe "$POOL" --location=global ||
 # Without the condition any GitHub repo could get a token (D15). The repo is pinned by its numeric
 # ID, which survives a rename and can't be reused by someone else's repo.
 CONDITION="assertion.repository_id == '$GITHUB_REPO_ID' && assertion.environment == 'production' && assertion.ref == 'refs/heads/main'"
-MAPPING="google.subject=assertion.sub,attribute.repository=assertion.repository,attribute.environment=assertion.environment,attribute.ref=assertion.ref"
+MAPPING="google.subject=assertion.sub,attribute.repository_id=assertion.repository_id,attribute.repository=assertion.repository,attribute.environment=assertion.environment,attribute.ref=assertion.ref"
 if exists gc iam workload-identity-pools providers describe "$PROVIDER" --location=global --workload-identity-pool="$POOL"; then
 	gc iam workload-identity-pools providers update-oidc "$PROVIDER" --location=global \
 		--workload-identity-pool="$POOL" --attribute-mapping="$MAPPING" --attribute-condition="$CONDITION" >/dev/null
@@ -133,11 +133,19 @@ else
 		--workload-identity-pool="$POOL" --issuer-uri=https://token.actions.githubusercontent.com \
 		--attribute-mapping="$MAPPING" --attribute-condition="$CONDITION"
 fi
-# Only the production environment's jobs of this repo may act as the deploy account.
+# This repo's tokens may act as the deploy account; the condition above has already limited them to
+# the production environment on main. Bound by repository ID, not by the token's subject: GitHub's
+# subject format can differ from the documented default (the first deploy, 17 Nov 2026, was refused
+# with a subject binding), and the ID survives a rename.
 POOL_ID="projects/$PROJECT_NUMBER/locations/global/workloadIdentityPools/$POOL"
 gc iam service-accounts add-iam-policy-binding "$(sa toe-beans-deploy)" \
 	--role=roles/iam.workloadIdentityUser \
-	--member="principal://iam.googleapis.com/$POOL_ID/subject/repo:$GITHUB_REPO:environment:production" >/dev/null
+	--member="principalSet://iam.googleapis.com/$POOL_ID/attribute.repository_id/$GITHUB_REPO_ID" >/dev/null
+# The first version's subject binding, if it's still there.
+gc iam service-accounts remove-iam-policy-binding "$(sa toe-beans-deploy)" \
+	--role=roles/iam.workloadIdentityUser \
+	--member="principal://iam.googleapis.com/$POOL_ID/subject/repo:$GITHUB_REPO:environment:production" \
+	>/dev/null 2>&1 || true
 
 say "Cloud Scheduler tick"
 # Every 5 minutes (D27), signed as toe-beans-tick for the service's URL. Created paused: it resumes
