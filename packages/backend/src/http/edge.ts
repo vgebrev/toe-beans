@@ -50,9 +50,10 @@ export function createEdgeHttp({
 	const headers: Record<string, string> = {
 		'referrer-policy': 'same-origin',
 		'x-content-type-options': 'nosniff',
-		// Only the photo picker's camera; notifications aren't a Permissions-Policy feature.
+		// Only the photo picker's camera; notifications aren't a Permissions-Policy feature. No
+		// bluetooth: Chrome doesn't know it as one and warns on every page.
 		'permissions-policy':
-			'camera=(self), microphone=(), geolocation=(), payment=(), usb=(), bluetooth=(), serial=()',
+			'camera=(self), microphone=(), geolocation=(), payment=(), usb=(), serial=()',
 		'cross-origin-opener-policy': 'same-origin',
 		...(publicOrigin.startsWith('https:') && {
 			// Two years. No includeSubDomains: other hosts on the domain aren't this app's to commit.

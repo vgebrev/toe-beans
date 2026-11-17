@@ -18,6 +18,11 @@ if (existsSync(rootEnv)) process.loadEnvFile(rootEnv);
 
 const port = 4173;
 
+// Production refuses requests without the Cloudflare Worker's secret header (architecture §8.4),
+// so the tests send it like the Worker does. Server renders call the API in-process without it,
+// and that has to keep working (hooks.server.ts).
+const PROXY_SECRET = 'e2e-proxy-secret-at-least-thirty-two-chars';
+
 // A VAPID pair for the run. Tests read the public key from the API, so a reused server with an
 // older pair still works.
 const vapid = createECDH('prime256v1');
@@ -52,6 +57,7 @@ export default defineConfig({
 	reporter: process.env.CI ? [['list'], ['html', { open: 'never' }]] : 'list',
 	use: {
 		baseURL: `http://localhost:${port}`,
+		extraHTTPHeaders: { 'x-toe-beans-proxy': PROXY_SECRET },
 		trace: 'retain-on-failure'
 	},
 	projects: [
@@ -105,7 +111,8 @@ export default defineConfig({
 			VAPID_PRIVATE_KEY: vapid.getPrivateKey().toString('base64url'),
 			PUSH_SERVICE_ORIGINS: PUSH_SERVICE_ORIGIN,
 			WORKER_MODE: 'http',
-			TICK_SECRET
+			TICK_SECRET,
+			PROXY_SECRET
 		}
 	}
 });
