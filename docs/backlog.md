@@ -1,7 +1,7 @@
 # Toe Beans — Backlog
 
-**Version:** 0.47 (draft for iteration)
-**Date:** 16 November 2026
+**Version:** 0.48 (draft for iteration)
+**Date:** 17 November 2026
 **Inputs:** `docs/requirements.md` v1.0, `docs/architecture.md` v1.22, `docs/ui.md` v0.32
 
 **Changes in 0.3:** spike results S-1.0 to S-1.4 and S0.1–S0.2 recorded as they landed (see Current progress). S-1.4b dropped as not needed, S-1.5 parked, S-1.4a retargeted to `toebeans.co.za`.
@@ -77,6 +77,8 @@
 **Changes in 0.46:** S15.3 done, and S15 with it: all eight rounds of the code review and a check of the whole branch afterwards (`docs/code-review.md` 0.10), without changing behaviour. S14 is next.
 
 **Changes in 0.47:** S15.1 gains (g), the pointer cursor on everything clickable (ui 0.32 §6.4), from the owner's snag list; the owner's Android time-picker snag turned out to be the dial's inner ring for 13–00, so nothing changed there. Inputs moved to ui 0.32.
+
+**Changes in 0.48:** S14.1 started: GCP is provisioned by `infra/gcp/provision.sh` (README there), and the prod Auth0 tenant and its Google client are set up, with Google's consent screen left in Testing until S16's policy links exist. Added S16, the compliance and go-live prep that the owner deferred until development was done: a data inventory, a privacy policy and terms of service, public pages for them, the Information Regulator registration, and personal data deletion, moved there from S14.5. S16 comes before S14.7 and before anyone outside the owner's household is invited.
 
 **Changes in 0.21:** S2 and S3 done: the owner tested both on the phones in Chrome, including S3.5's photo flow and the Android share sheet. The installed PWA wasn't part of it; that's S13.
 
@@ -176,7 +178,9 @@ Work is organised as **vertical slices**: each delivers a usable end-to-end incr
 | 2026-11-16 | S15.3 done, closed by the owner: the code review in eight rounds, one layer or boundary each (domain, application, infrastructure, http and worker, contracts, web library, web routes, tests), and a check of the whole branch afterwards, all recorded with their fixes in `docs/code-review.md` 0.10. Shared helpers replaced copies, the web's form limits and choices now come from the contracts with a test holding them to the domain, and behaviour didn't change, bar one fix found on the way: Kit 3's `data-sveltekit-reset="false"` in place of the ignored `noscroll`. S15 is done. |
 | 2026-11-16 | S15.1 (g) done, tried by the owner: with a mouse, everything clickable shows the pointer and text fields keep the text cursor (ui 0.32 §6.4), one base rule in `app.css` with an e2e check. The owner's other late snag, Android's time dial offering only 1–12, was the dial's inner ring for 13–00, so nothing changed. S15 stays done. |
 
-**Next up:** S14.
+| 2026-11-17 | S14.1 started. `infra/gcp/provision.sh` (idempotent, never reads a secret back) made the deploy service account, the Artifact Registry repo `toe-beans`, the Cloud Run service `toe-beans` on a placeholder image (deploy rights scoped to it), Workload Identity Federation pinned to the repo's ID, the `production` environment and `main`, the secrets (a fresh prod VAPID pair and the proxy secret generated; four left for the owner's values), the paused `toe-beans-tick` job and a US$1 budget. Log retention is 30 days and only the owner holds a project role (D34). The owner set up the prod Auth0 tenant and its own Google OAuth client; the consent screen stays in Testing, with the household as test users, until S16.4. S16 added for compliance before release. |
+
+**Next up:** S14.1 (deploy workflow and the Worker), then S16 alongside the rest of S14.
 
 ---
 
@@ -377,13 +381,25 @@ Work is organised as **vertical slices**: each delivers a usable end-to-end incr
 
 | # | Task | Status |
 |---|---|---|
-| S14.1 | Production environment provisioned (the platform chosen in S-1). Secrets in the platform store, including `RESEND_API_KEY` and `VAPID_PRIVATE_KEY`, which prod won't start without (generate the pair once with `pnpm vapid`). The Cloud Scheduler job `toe-beans-tick` POSTs `/internal/tick` every 5 minutes with an OIDC token for its service account (`TICK_AUDIENCE`, `TICK_INVOKER`), as the spike's did. Budget alert. Deploy workflow per architecture D15: Workload Identity Federation with an attribute condition pinning this repo and the `production` environment, a least-privilege deploy service account, a `production` environment (main only, owner approval), images in Artifact Registry deployed by digest. The client address for rate limits (architecture §7): the Worker forwards `CF-Connecting-IP`, `ADDRESS_HEADER`/`XFF_DEPTH` are set to match, and a sign-in from a phone confirms the app sees the phone's address. The Worker sends `x-toe-beans-proxy` with `PROXY_SECRET` (Secret Manager on both sides; prod won't start without it, D32), and a request to `run.app` directly gets 403. The audit's checks on deployed settings (D34): Cloud Run's and Cloudflare's request logs are readable by the owner only, with known retention (they hold invite tokens); the prod Auth0 tenant has only Google and the database connection on. | ⬜ |
+| S14.1 | Production environment provisioned (the platform chosen in S-1). Secrets in the platform store, including `RESEND_API_KEY` and `VAPID_PRIVATE_KEY`, which prod won't start without (generate the pair once with `pnpm vapid`). The Cloud Scheduler job `toe-beans-tick` POSTs `/internal/tick` every 5 minutes with an OIDC token for its service account (`TICK_AUDIENCE`, `TICK_INVOKER`), as the spike's did. Budget alert. Deploy workflow per architecture D15: Workload Identity Federation with an attribute condition pinning this repo and the `production` environment, a least-privilege deploy service account, a `production` environment (main only, owner approval), images in Artifact Registry deployed by digest. The client address for rate limits (architecture §7): the Worker forwards `CF-Connecting-IP`, `ADDRESS_HEADER`/`XFF_DEPTH` are set to match, and a sign-in from a phone confirms the app sees the phone's address. The Worker sends `x-toe-beans-proxy` with `PROXY_SECRET` (Secret Manager on both sides; prod won't start without it, D32), and a request to `run.app` directly gets 403. The audit's checks on deployed settings (D34): Cloud Run's and Cloudflare's request logs are readable by the owner only, with known retention (they hold invite tokens); the prod Auth0 tenant has only Google and the database connection on. **Provisioned (17 Nov):** `infra/gcp/provision.sh` (GCP side, README beside it); the prod Auth0 tenant and Google client set up by the owner. Left: the owner's four secret values, the deploy workflow, the Worker, the first deploy and the checks above. | 🟨 |
 | S14.2 | Nightly encrypted `mongodump` to R2, photo bucket copy, retention | ⬜ |
 | S14.3 | Restore runbook written **and tested** (`docs/runbooks/restore.md`) | ⬜ |
 | S14.4 | Uptime monitor. Sentry alerts. Accounts inventory (`docs/runbooks/accounts.md`). | ⬜ |
-| S14.5 | Personal data deletion use case (user and household) | ⬜ |
+| S14.5 | Moved to S16.5. | ➡️ |
 | S14.6 | Durability check: redeploy or restart and verify all data persists (scenario 10) | ⬜ |
-| S14.7 | Release acceptance: run scenarios 1–10 on both physical phones and record Android/Chrome versions | ⬜ |
+| S14.7 | Release acceptance: run scenarios 1–10 on both physical phones and record Android/Chrome versions. Waits for S16. | ⬜ |
+
+### S16 Compliance and go-live prep ⬜
+*POPIA, before S14.7 and before anyone outside the owner's household is invited. Deferred until development was done (owner, 1 Nov). Drafts are not legal advice: the owner gets them read by someone who knows POPIA before other households join.*
+
+| # | Task | Status |
+|---|---|---|
+| S16.1 | Data inventory: each kind of personal data the app holds (accounts, household and members, dog profiles and photos, sessions, events, care, invitations, push devices, the reminder ledger, sessions and logs), where it lives (Atlas Cape Town, R2 Europe, Auth0 EU, Resend, Sentry, Cloud Run and Cloudflare logs), why, and how long it's kept. The source for S16.2 and the accounts inventory (S14.4). Cross-border transfers (POPIA §72) noted per processor, starting from architecture §3.4's Auth0 note. | ⬜ |
+| S16.2 | Privacy policy: the responsible party and Information Officer, what is collected and why, the processors and where they are, transfers abroad, retention, security in outline, people's rights (access, correction, deletion, objection, complaint to the Information Regulator), cookies (essential only, so no consent banner; recorded as a decision). | ⬜ |
+| S16.3 | Terms of service: what the service is, accounts and households, acceptable use, training and care content as guidance, not veterinary advice (NFR-14), no warranty, ending an account, changes to the terms. | ⬜ |
+| S16.4 | Public `/privacy` and `/terms` pages (no sign-in, under the app's CSP), linked from the sign-in page and More. The links go into Google's consent screen, which then moves from Testing to In production, and into Auth0's Universal Login. | ⬜ |
+| S16.5 | Personal data deletion (was S14.5): a person deletes their account, and the last member deletes the household with its dogs, photos and history, without touching other households (NFR-01, NFR-02). What happens to the Auth0 user, backups (aged out by S14.2's retention) and logs is decided and stated in the policy. | ⬜ |
+| S16.6 | The owner registers as Information Officer with the Information Regulator, and the policy names the contact. | ⬜ |
 
 ---
 
@@ -415,9 +431,10 @@ See `requirements.md` §3 "Explicitly deferred". Highlights: AI recommendations,
 
 ```
 S-1 spikes ─┐
-S0 ─────────┴─► S1 ─► S2 ─► S3 ─► S4 ─► S6 ─► S7 ─► S8 ─► S12 ─► S13 ─► S15 ─► S14
+S0 ─────────┴─► S1 ─► S2 ─► S3 ─► S4 ─► S6 ─► S7 ─► S8 ─► S12 ─► S13 ─► S15 ─► S14.1–6 ─► S14.7
                                    └─► S5      └─► S9 ─► S10
                                                └─► S11 ──────┘
+                                                                            └─► S16 ────┘
 ```
 
-The first usable checkpoint ("we can train with it") is the end of S8, without push or care. The P0 MVP is complete at S14.
+The first usable checkpoint ("we can train with it") is the end of S8, without push or care. The P0 MVP is complete at S14.7, after S16.

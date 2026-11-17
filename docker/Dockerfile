@@ -18,6 +18,9 @@ COPY packages/contracts/package.json packages/contracts/
 RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store pnpm install --frozen-lockfile
 
 COPY . .
+# The build's name (architecture §9, S0.8): the deploy sets it to the commit, so browser and server
+# errors share a release. Unset, the build falls back to git or a timestamp.
+ARG APP_RELEASE
 RUN pnpm build
 # apps/web's `dependencies` are exactly what the bundle imports at runtime; everything else,
 # the workspace packages included, is bundled and so a devDependency.
