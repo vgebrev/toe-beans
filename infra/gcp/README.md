@@ -1,0 +1,51 @@
+# Production on GCP
+
+The prod setup for S14.1 (architecture §8, D9, D15): project `toe-beans-co-za`, Cloud Run in
+`africa-south1`, the tick's Cloud Scheduler job in `me-central1` (the nearest region that has it).
+This file is public; it names resources, never secret values.
+
+## `provision.sh`
+
+Run once by the project owner (`gcloud auth login` first); safe to re-run, as each step creates only
+what's missing. It never prints or reads back a secret value.
+
+| Step | What it makes | Why |
+|---|---|---|
+| APIs | Run, Artifact Registry, Secret Manager, Scheduler, IAM, IAM Credentials, STS, Billing Budgets | What the steps below use |
+| Service accounts | `toe-beans-run` (the app's identity), `toe-beans-tick` (signs the tick's OIDC token, holds no roles), `toe-beans-deploy` (GitHub Actions, no key ever) | One identity per job, each with only its own grants |
+| Artifact Registry | Docker repo `toe-beans` in `africa-south1`, keeping the newest 5 images; `toe-beans-deploy` may push to it | Images deployed by digest (D15); 0.5 GB free |
+| Secrets | `mongodb-uri`, `oidc-client-secret`, `resend-api-key`, `r2-secret-access-key` (empty, for the owner), `proxy-secret` (generated), `vapid-public-key` + `vapid-private-key` (a fresh prod pair, generated; the spike's private key version is disabled, not destroyed). All in `africa-south1`, readable only by `toe-beans-run` | Runtime secrets stay in GCP; GitHub holds none (D15) |
+| Cloud Run | Service `toe-beans` on Cloud Run's sample image: public with no invoker IAM check, 0–1 instances, 512 MiB, startup CPU boost. `toe-beans-deploy` gets `run.developer` on this service only, and may act as `toe-beans-run` | The service exists before the first deploy, so the deploy account is scoped to it. Public because the app refuses requests without the Worker's header secret (D32), and the tick checks its own token |
+| Workload Identity Federation | Pool `github`, provider `toe-beans-github`, accepting only tokens from repo ID 1441749392 (`vgebrev/toe-beans`), environment `production`, ref `main`. Only `repo:vgebrev/toe-beans:environment:production` may act as `toe-beans-deploy` | Keyless deploys; without the condition any GitHub repo could get a token (D15) |
+| Scheduler | Job `toe-beans-tick`, `*/5 * * * *` UTC, POST `/internal/tick` with an OIDC token from `toe-beans-tick`, audience the service URL. **Created paused** | Resume it after the first real deploy |
+| Budget | `toe-beans`, US$1 (`BUDGET_USD`), mails at 50% and 100% of spend and 100% forecast | Cost alarm on the billing account |
+| Checks | Prints log retention, who holds project roles, and which secrets are still empty | Audit D34: request logs (which can hold invite tokens) readable by the owner only, retention known (30 days) |
+
+App settings that come out of it: `TICK_AUDIENCE=https://toe-beans-1047834821273.africa-south1.run.app`,
+`TICK_INVOKER=toe-beans-tick@toe-beans-co-za.iam.gserviceaccount.com`.
+
+## Filling a secret
+
+```sh
+infra/gcp/set-secret.sh mongodb-uri
+```
+
+It prompts without echoing, adds a version and disables the older ones.
+
+| Secret | Value |
+|---|---|
+| `mongodb-uri` | Atlas `mongodb+srv://toe-beans-app:…@…/?retryWrites=true&w=majority` (the app picks the database with `MONGODB_DB`) |
+| `oidc-client-secret` | The prod Auth0 application's client secret (`docs/runbooks/auth0.md` §2) |
+| `resend-api-key` | A Resend key with sending access only, for `toebeans.co.za` |
+| `r2-secret-access-key` | The R2 API token's secret access key, scoped to the photo bucket |
+
+## After the first deploy
+
+```sh
+gcloud scheduler jobs resume toe-beans-tick --location me-central1
+```
+
+## Spike leftovers
+
+`toe-beans-build` (with `roles/run.builder` on the project) is from S-1.3 and unused by prod.
+Delete it once prod runs. The spike's secret `atlas-app-password` was deleted on 17 Nov 2026.

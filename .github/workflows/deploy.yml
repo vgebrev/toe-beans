@@ -1,0 +1,130 @@
+# Deploy to Cloud Run (architecture §8, D15; backlog S14.1). Runs on pushes to main, which only
+# move by pull request after CI passes, and by hand. The job runs in the `production` environment
+# (main only, owner approval), the one place with `id-token: write`. It gets GCP credentials by
+# Workload Identity Federation, pinned to this repo's ID, that environment and main
+# (infra/gcp/provision.sh). GitHub holds no secrets: the runtime secrets stay in Secret Manager and
+# Cloud Run mounts them.
+#
+# Non-secret settings come from the production environment's variables:
+#   OIDC_CLIENT_ID     the prod Auth0 application's client ID
+#   R2_ACCOUNT_ID      the Cloudflare account ID, for the R2 endpoint
+#   R2_ACCESS_KEY_ID   the R2 token's access key ID (its secret is in Secret Manager)
+#   SENTRY_DSN         optional; unset turns error reports off
+#
+# Third-party actions are pinned to commit SHAs (the tag is in the comment).
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy
+  # A deploy in flight finishes; the next one waits.
+  cancel-in-progress: false
+
+env:
+  PROJECT: toe-beans-co-za
+  REGION: africa-south1
+  SERVICE: toe-beans
+  IMAGE: africa-south1-docker.pkg.dev/toe-beans-co-za/toe-beans/app
+
+jobs:
+  deploy:
+    name: Build and deploy
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    environment:
+      name: production
+      url: https://toebeans.co.za
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - id: auth
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3.0.0
+        with:
+          workload_identity_provider: projects/1047834821273/locations/global/workloadIdentityPools/github/providers/toe-beans-github
+          service_account: toe-beans-deploy@toe-beans-co-za.iam.gserviceaccount.com
+
+      - name: Sign Docker in to Artifact Registry
+        run: gcloud auth configure-docker africa-south1-docker.pkg.dev --quiet
+
+      - name: Release name
+        id: release
+        run: echo "name=${GITHUB_SHA::12}" >> "$GITHUB_OUTPUT"
+
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+
+      - id: build
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          file: docker/Dockerfile
+          push: true
+          tags: ${{ env.IMAGE }}:${{ steps.release.outputs.name }}
+          build-args: APP_RELEASE=${{ steps.release.outputs.name }}
+          # main's own cache scope; PR builds never write to it.
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          provenance: false
+
+      # Deployed by digest, never by tag (D15). --set-env-vars and --set-secrets replace the
+      # service's whole set each time, so this step is the full record of prod's configuration.
+      - name: Deploy to Cloud Run
+        env:
+          DIGEST: ${{ steps.build.outputs.digest }}
+          RELEASE: ${{ steps.release.outputs.name }}
+          OIDC_CLIENT_ID: ${{ vars.OIDC_CLIENT_ID }}
+          R2_ACCOUNT_ID: ${{ vars.R2_ACCOUNT_ID }}
+          R2_ACCESS_KEY_ID: ${{ vars.R2_ACCESS_KEY_ID }}
+          SENTRY_DSN: ${{ vars.SENTRY_DSN }}
+        run: |
+          for name in OIDC_CLIENT_ID R2_ACCOUNT_ID R2_ACCESS_KEY_ID; do
+            [ -n "${!name}" ] || { echo "::error::Set $name in the production environment's variables"; exit 1; }
+          done
+          url="https://$SERVICE-1047834821273.$REGION.run.app"
+          vars=(
+            "APP_RELEASE=$RELEASE"
+            "LOG_LEVEL=info"
+            "PUBLIC_BASE_URL=https://toebeans.co.za"
+            "OIDC_ISSUER=https://auth.toebeans.co.za/"
+            "OIDC_CLIENT_ID=$OIDC_CLIENT_ID"
+            "MONGODB_DB=toe-beans"
+            "S3_ENDPOINT=https://$R2_ACCOUNT_ID.r2.cloudflarestorage.com"
+            "S3_BUCKET=toe-beans-photos"
+            "S3_ACCESS_KEY_ID=$R2_ACCESS_KEY_ID"
+            "TICK_AUDIENCE=$url"
+            "TICK_INVOKER=toe-beans-tick@$PROJECT.iam.gserviceaccount.com"
+            # The Worker puts the phone's address (CF-Connecting-IP) here; requests without the
+            # Worker's header secret are refused, so it can't be forged (architecture §7, D32).
+            "ADDRESS_HEADER=x-toe-beans-client"
+          )
+          [ -z "$SENTRY_DSN" ] || vars+=("SENTRY_DSN=$SENTRY_DSN")
+          secrets=(
+            "MONGODB_URI=mongodb-uri:latest"
+            "OIDC_CLIENT_SECRET=oidc-client-secret:latest"
+            "RESEND_API_KEY=resend-api-key:latest"
+            "S3_SECRET_ACCESS_KEY=r2-secret-access-key:latest"
+            "PROXY_SECRET=proxy-secret:latest"
+            "VAPID_PUBLIC_KEY=vapid-public-key:latest"
+            "VAPID_PRIVATE_KEY=vapid-private-key:latest"
+          )
+          # Values can hold commas (none do today); ^|^ makes | the list separator instead.
+          gcloud run deploy "$SERVICE" --project "$PROJECT" --region "$REGION" --quiet \
+            --image "$IMAGE@$DIGEST" \
+            --set-env-vars "^|^$(IFS='|'; echo "${vars[*]}")" \
+            --set-secrets "$(IFS=','; echo "${secrets[*]}")"
+
+      - name: Check it's ready
+        run: |
+          url="https://$SERVICE-1047834821273.$REGION.run.app"
+          curl --fail --silent --show-error --retry 5 --retry-all-errors "$url/readyz"
