@@ -3,16 +3,17 @@
 	// dog is shared by every page under it (§2.2). A navigation that takes a while shows a
 	// skeleton in place of the page, then "Waking up Toe Beans…" (§5.2, NFR-09): with the app
 	// left open, the server may have gone to sleep since the last tap. It keeps the trail of pages
-	// visited, so a back link leads where the person came from (§2.1).
+	// visited, so a back link leads where the person came from (§2.1). And it fetches the page's
+	// data again whenever it may be out of date (§5.2, NFR-13).
 	import { onMount } from 'svelte';
-	import { onNavigate } from '$app/navigation';
+	import { invalidateAll, onNavigate } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { navigating, page } from '$app/state';
 	import BottomNav from '#lib/components/shell/BottomNav.svelte';
 	import LoadingSkeleton, { WAKE_AFTER_MS } from '#lib/components/shell/LoadingSkeleton.svelte';
 	import { tabs } from '#lib/components/shell/nav.js';
 	import { ActiveDog, setActiveDog } from '#lib/dogs/active-dog.svelte.js';
-	import { setTrail, Trail } from '#lib/navigation/trail.svelte.js';
+	import { isForm, setTrail, Trail } from '#lib/navigation/trail.svelte.js';
 	import type { LayoutProps } from './$types';
 
 	let { children }: LayoutProps = $props();
@@ -32,6 +33,27 @@
 		if (!navigation.to || navigation.willUnload) return;
 		trail.leave(document.title);
 		visit(navigation.to.url, navigation.to.route.id);
+	});
+
+	// Fresh data on coming back to the front (another phone may have changed things meanwhile),
+	// and on Back to a page Chrome kept whole in its back/forward cache, as after a reminder's tap
+	// opened its item as a new page in the app's window. Never on a form or with a sheet open, so
+	// nothing being entered is lost.
+	onMount(() => {
+		const refresh = () => {
+			if (document.visibilityState !== 'visible' || isForm(page.route.id)) return;
+			if (document.querySelector('[role="dialog"]')) return;
+			void invalidateAll();
+		};
+		const restored = (event: PageTransitionEvent) => {
+			if (event.persisted) refresh();
+		};
+		document.addEventListener('visibilitychange', refresh);
+		window.addEventListener('pageshow', restored);
+		return () => {
+			document.removeEventListener('visibilitychange', refresh);
+			window.removeEventListener('pageshow', restored);
+		};
 	});
 
 	/** A quick navigation just swaps pages; only a slow one shows the skeleton. */

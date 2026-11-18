@@ -1,9 +1,9 @@
 # Toe Beans — UI and Interaction Design
 
-**Version:** 0.34 (draft for iteration)
+**Version:** 0.35 (draft for iteration)
 **Date:** 18 November 2026
 **Status:** Proposed. Review-round decisions in §8 are accepted.
-**Inputs:** `docs/requirements.md` v1.0, `docs/architecture.md` v1.22
+**Inputs:** `docs/requirements.md` v1.0, `docs/architecture.md` v1.23
 
 **Changes in 0.7:** the logo landed (S0.9). The mark is now a **TB monogram** with four toe beans above it and a heart-shaped bean in the B, from the AI-assisted design board (Monogram Iteration B), replacing the placeholder paw. It was traced from the board and cleaned up rather than redrawn by hand; the variants are the brown-on-cream mark, a cream-on-brown app-icon tile (favicon and maskable) and a white badge. The wordmark uses Fredoka Bold to match the board (§6.4 Logo).
 
@@ -48,6 +48,8 @@
 **Changes in 0.32:** §6.4 gains the cursor convention from the owner's S15.1 snag list: on a pointer device everything clickable shows the pointer (Tailwind 4 gives buttons the arrow), while fields you type into keep the text cursor.
 
 **Changes in 0.33:** From the owner's use of the live app (backlog S15.1 (h), (i)). §2.1: a page's back link leads to the page the person came from, as they left it, named by its title; a page loaded afresh (a reload, a reminder's tap) goes to its parent as before, and a form isn't somewhere to go back to once saved. This replaces 0.31's *History* back link on a care task, which now follows from the rule. J6: Care's *Coming up* holds the same 7 days as Today's, and tasks further off wait under *Later (n)*, folded. §5.4: a date outside the current year shows its year.
+
+**Changes in 0.35:** §5.2: *Fresh data*, from the owner (backlog S15.1 (k)). Every screen fetches its data again when the app comes back to the front, which only Today did, and when Back returns to a page Chrome kept whole in its back/forward cache. That second case is the one the owner hit: a reminder's tap opens its item as a new page, so after marking it done, Android's Back showed Today as it had been. Neither happens on a form or with a sheet open. Live updates stay out (NFR-13): a WebSocket would keep a server instance running while any phone has the app open, which the free tier can't absorb. The offline banner's check after a failure backs off from 1 s (architecture 1.23 D31). Inputs moved to architecture 1.23.
 
 **Changes in 0.34:** §5.2: a *New version* banner, from the owner (backlog S15.1 (j)). Once a new build is deployed, the top banner says "A new version of Toe Beans is ready." with *Refresh*, which reloads the page. It uses SvelteKit's own version check (`updated` from `$app/state`), and gives way to the offline banner, since reloading then would only find the offline page.
 
@@ -392,11 +394,13 @@ On More as **Household & invites**, showing the household's name; the page keeps
 | Validation (400/422) | Inline field errors from problem+json `errors`. |
 | Forbidden / not found | A "Not found" page. There's never a hint that the item exists in another household. |
 | Offline | Persistent top banner "You're offline. Changes can't be saved right now." Save buttons stay enabled but fail fast with the offline message. |
+| Back to the app, or Back to a page | The page's data is fetched again, unless a form or sheet is open (NFR-13: no live updates). |
 | New version deployed | The top banner "A new version of Toe Beans is ready." with **Refresh**. The page keeps working meanwhile. |
 | Cold start (slow first load) | Skeleton screens immediately. After 3 s: "Waking up Toe Beans…" (NFR-09). |
 
 *As built (S13):*
-- **Offline banner:** at the top of every screen, over the page as it scrolls, light text on the dark text colour. "You're offline. Changes can't be saved right now." while the phone says it's offline; "Can't reach Toe Beans. Changes can't be saved right now." after a request got no answer although the phone says it's online, until one does (it checks every 15 s). A save while offline fails at once, without a request, so the form shows its usual "Couldn't save — check your connection." with **Retry** and everything kept (scenario 8).
+- **Offline banner:** at the top of every screen, over the page as it scrolls, light text on the dark text colour. "You're offline. Changes can't be saved right now." while the phone says it's offline; "Can't reach Toe Beans. Changes can't be saved right now." after a request got no answer although the phone says it's online, until one does (it checks again after 1, 2, 4 and 8 s, then every 15 s). A save while offline fails at once, without a request, so the form shows its usual "Couldn't save — check your connection." with **Retry** and everything kept (scenario 8).
+- **Fresh data** (S15.1 (k)): the app shell fetches the page's data again (`invalidateAll`) when the app comes back to the front, and on `pageshow` from Chrome's back/forward cache, as when Back follows a reminder that opened its item as a new page. Not on an add or change form, nor while a sheet or dialog is open, so nothing being entered is lost. History's timeline is fetched by the page itself and isn't refreshed this way; it's fetched afresh on each visit.
 - **New version banner** (S15.1 (j)): the same strip as the offline banner, with the refresh icon and *Refresh* (a 48 px target) at its end. It shows once SvelteKit sees that a newer build is live: when the app comes back to the front or gets focus, on Kit's hourly poll, and from page data responses. *Refresh* reloads the page; nothing reloads by itself, so nothing typed is lost. While offline or unable to reach Toe Beans the offline banner shows instead.
 - **Skeleton:** a header and grey card shapes, pulsing unless reduced motion is on, with "Loading…" for screen readers, then "Waking up Toe Beans…" 3 s from the tap. In the app it replaces the page when a navigation takes over 0.4 s. On a first load the service worker shows it when the server hasn't answered within a second after a quiet minute (architecture D31); it loads the page itself once the server answers, says when the phone is offline, and after 20 s that it's taking longer than usual.
 - **Fallback pages** (no bottom bar, the logo and one button, *Try again*): *You're offline* ("…It opens again as soon as you're back online", which it does once the server answers, checking for half a minute after the phone says it's back) for a page load with no answer, and *Can't reach Toe Beans* for a gateway error. *Try again* first checks the server answers ("Checking…"); if not, "Still can't reach Toe Beans. Try again in a moment." rather than the same page again, since the connection takes a few seconds to come back after airplane mode. It's a plain link to the page too, so it works before the app's code has loaded. A page opened in the app while offline still opens, from the cached code, with its own "Couldn't load …" line.
