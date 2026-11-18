@@ -1,6 +1,6 @@
 # Toe Beans — Backlog
 
-**Version:** 0.58 (draft for iteration)
+**Version:** 0.59 (draft for iteration)
 **Date:** 18 November 2026
 **Inputs:** `docs/requirements.md` v1.0, `docs/architecture.md` v1.26, `docs/ui.md` v0.35
 
@@ -95,6 +95,8 @@
 **Changes in 0.57:** S14.4 set up: the owner's Better Stack monitor and both heartbeats are *Up* on prod, with the monitor's real load recorded: a check about every 30 s from at least 4 locations, whatever the regions (architecture 1.26 D37) and its status badge in the README. S14.4 done: the Sentry alert mailed for a new and a regressed test error, and the owner checked the accounts inventory. Inputs moved to architecture 1.26.
 
 **Changes in 0.58:** S17 gets its first two items from the owner, each numbered on its own rather than lettered under S17.1: S17.1, browser error reports through the app's own origin, since ad blockers drop them on the way to Sentry (found in S14.4's check); S17.2, the installed app stuck on *Waking up Toe Beans* after a deploy, asking for the old build's files.
+
+**Changes in 0.59:** S17.3 from the owner: block scanners' probes at the edge. Cloudflare's analytics show bots asking for `.env` files, `.git`, PHP pages and admin consoles. Spot checks on prod found nothing exposed: they get 404s, the API gives 401 and the tick's POST without its token gives 401. The item is about cost, noise and the `security.txt` contact, not a leak.
 
 **Changes in 0.51:** S15.1 gains (k), fresh data on coming back to the app and on Back to a page Chrome kept whole (ui 0.35 §5.2), from the owner, after Today stayed stale behind a reminder. Live updates over WebSockets were considered and left out for cost. The offline banner's check backs off from 1 s (architecture 1.23 D31), found through a flaky e2e check. Built with e2e checks and closed by the owner, so S15.1 stays done. Inputs moved to architecture 1.23 and ui 0.35.
 
@@ -439,6 +441,7 @@ Work is organised as **vertical slices**: each delivers a usable end-to-end incr
 |---|---|---|
 | S17.1 | **Browser errors past ad blockers:** ad blockers' lists block `*.ingest.sentry.io`, so a household member with one never reports browser errors (found in S14.4's check). Send them through the app's own origin with the SDK's `tunnel` option: a small route that forwards only envelopes for our DSN's project to Sentry's EU ingest, rate limited, and keeps the CSP's `connect-src` to `'self'` (architecture §9, §7). | ⬜ |
 | S17.2 | **Stuck after a deploy:** after a new deployment, the installed app asks for the old build's files, gets 404s and stays on *Waking up Toe Beans* with loading skeletons. The update banner does come up (S15.1 (j)), so *Refresh* gets the person out, but the app shouldn't get stuck. Find out why from the service worker's handling of an old build's chunks and the waking page's retry (architecture D31). | ⬜ |
+| S17.3 | **Scanners stopped at the edge:** Cloudflare's analytics show bots probing for `/.env*`, `/.git/config`, `*.php`, `/wp-*`, `/actuator/*`, `/graphql`, `/v2/_catalog` and similar. Spot checks on 18 Nov found nothing exposed: the image holds only the build, `node_modules` and the exercises; unknown paths give 404, the API 401, and the tick's POST without its token 401. Each probe still wakes Cloud Run and renders the 13 KB app shell. (a) A free Cloudflare WAF custom rule blocks the obvious patterns before they reach the Worker. (b) A short plain 404 for paths outside the app's routes and assets, in place of the app shell. (c) `/.well-known/security.txt` with a contact and expiry. The full defensive review waits for the v1.0.0 release (architecture §7, D32). | ⬜ |
 
 ## P1 — Phase 1 follow-on
 
