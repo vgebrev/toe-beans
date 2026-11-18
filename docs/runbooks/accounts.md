@@ -18,7 +18,7 @@ service account keys anywhere: GitHub reaches GCP through Workload Identity Fede
 | **GoDaddy** | The domain's registration | `toebeans.co.za`, registered 31 Oct 2026 for two years; nameservers point at Cloudflare | Paid yearly | — | — |
 | **Auth0** | Sign-in | Tenants `toe-beans` (prod, custom domain `auth.toebeans.co.za`) and `toe-beans-dev`; application *Toe Beans* in each; Google and database connections only | Free | EU | `auth0.md` |
 | **Resend** | Email: invitations from the app, and Auth0's verification and password mails | Domain `toebeans.co.za` (its DNS records in Cloudflare); two API keys (below) | Free | — | — |
-| **Sentry** | Error reports | Organization and project `toe-beans` | Developer (free) | EU (Frankfurt) | `sentry.md` |
+| **Sentry** | Error reports | The owner's organization; project `toe-beans` | Developer (free) | EU (Frankfurt) | `sentry.md` |
 | **GitHub** | Code, CI, deploys, nightly backups | Public repo `vgebrev/toe-beans`; ruleset on `main`; environments `production` (main only, owner approval) and `backups` (main only); Dependabot | Free | — | `CLAUDE.md`, architecture §10 |
 | **Better Stack** | Uptime and heartbeats | Monitor `toe-beans`, heartbeats `toe-beans-tick` and `toe-beans-backup` | Free | — | `monitoring.md` |
 
