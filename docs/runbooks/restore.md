@@ -68,7 +68,7 @@ an S17 item, fixed before anything else.
 
 | Date | Dump | Result | By |
 |---|---|---|---|
-| | | | |
+| 18 Nov 2026 | The first prod dump, 18 Nov | Restored into a scratch database on the owner's machine; `compare.sh` matched prod. Copy, dump and key file cleared up afterwards | Owner |
 
 ## 5. A real restore into prod
 
