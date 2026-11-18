@@ -215,3 +215,64 @@ test('the "+" on Care offers Add care task first, below the page\'s own button',
 		/Schedule session/
 	]);
 });
+
+test('back to a page Chrome kept whole, as after a reminder opened a task, shows the latest (NFR-13)', async ({
+	page,
+	baseURL
+}) => {
+	const [rosie] = await ownHousehold(page, baseURL!);
+	const task = await addCare(page, baseURL!, { dogId: rosie!.id, dueDate: dayFromToday(2) });
+	await page.goto('/');
+	const card = page.getByRole('region', { name: 'Coming up' }).getByRole('link', {
+		name: new RegExp(task.title)
+	});
+	await expect(card).toBeVisible();
+
+	// A reminder's tap opens the task as a new page in the app's window (navigate-existing), where
+	// it's marked done; Android's Back then brings Today back from Chrome's back/forward cache, as
+	// it was. Chrome under test keeps no such cache, so the restore is the event alone.
+	const response = await page.request.post(`/api/v1/care-tasks/${task.id}/complete`, {
+		headers: { ...jsonHeaders(baseURL!), 'if-match': task.etag },
+		data: JSON.stringify({ completedOn: dayFromToday(0) })
+	});
+	expect(response.status()).toBe(200);
+	await page.evaluate(() =>
+		window.dispatchEvent(new PageTransitionEvent('pageshow', { persisted: true }))
+	);
+	await expect(card).toBeHidden();
+	await expect(page.getByRole('heading', { name: 'Nothing planned today' })).toBeVisible();
+});
+
+test('coming back to the front fetches the page again, but not over a sheet in use (NFR-13)', async ({
+	page,
+	baseURL
+}) => {
+	const [rosie] = await ownHousehold(page, baseURL!);
+	const task = await addCare(page, baseURL!, { dogId: rosie!.id, dueDate: dayFromToday(2) });
+	await page.goto(`/care/${task.id}`);
+	await expect(page.getByRole('heading', { level: 1 })).toHaveText(task.title);
+	const backToFront = () =>
+		page.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));
+	const rename = async (title: string, etag: string) => {
+		const response = await page.request.patch(`/api/v1/care-tasks/${task.id}`, {
+			headers: { ...jsonHeaders(baseURL!), 'if-match': etag },
+			data: JSON.stringify({ title })
+		});
+		expect(response.status()).toBe(200);
+		return (await response.json()) as { etag: string };
+	};
+
+	// Changed on the other phone while this one was in a pocket.
+	const renamed = await rename('Booster', task.etag);
+	await backToFront();
+	await expect(page.getByRole('heading', { level: 1 })).toHaveText('Booster');
+
+	// With the Mark done sheet open, what's being entered stays as it is.
+	await page.getByRole('button', { name: 'Mark done' }).click();
+	const sheet = page.getByRole('dialog', { name: /Mark Booster done/ });
+	await sheet.getByRole('radio', { name: 'In a year' }).check({ force: true });
+	await rename('Second booster', renamed.etag);
+	await backToFront();
+	await expect(sheet.getByRole('radio', { name: 'In a year' })).toBeChecked();
+	await expect(page.getByRole('heading', { level: 1 })).toHaveText('Booster');
+});

@@ -1,6 +1,6 @@
 // The PWA around the pages (S13; NFR-03, NFR-04, NFR-09; ui.md §5.2, §6.1, §6.3): the offline
-// banner and fallback pages, saves while offline (scenario 8), the loading skeleton, installing
-// and the home screen shortcuts. Each test brings its own household.
+// and new-version banners, the fallback pages, saves while offline (scenario 8), the loading
+// skeleton, installing and the home screen shortcuts. Each test brings its own household.
 import { expect, test, type Page } from '@playwright/test';
 import { blockMockFonts, ownHousehold } from './mock-sign-in.js';
 
@@ -37,6 +37,38 @@ test('the offline banner shows while the phone is offline, and goes when it is b
 
 	await context.setOffline(false);
 	await expect(banner(page)).toBeHidden();
+});
+
+test('a new deployment shows Refresh, which loads it; never while offline', async ({
+	page,
+	context,
+	baseURL
+}) => {
+	await ownHousehold(page, baseURL!);
+	await page.goto('/');
+	const update = page.getByText('A new version of Toe Beans is ready.');
+	await expect(page.getByRole('heading', { level: 1 })).toHaveText('Today');
+	await expect(update).toBeHidden();
+
+	// Kit checks _app/version.json when the app comes back to the front.
+	await page.route('**/_app/version.json', (route) =>
+		route.fulfill({ json: { version: 'a-newer-build' } })
+	);
+	await page.evaluate(() => window.dispatchEvent(new Event('focus')));
+	await expect(update).toBeVisible();
+	expect((await update.boundingBox())!.y).toBeLessThan(60);
+
+	await context.setOffline(true);
+	await expect(banner(page)).toBeVisible();
+	await expect(update).toBeHidden();
+	await context.setOffline(false);
+	await expect(update).toBeVisible();
+
+	await page.unroute('**/_app/version.json');
+	await page.getByRole('button', { name: 'Refresh' }).click();
+	await expect(page.getByRole('heading', { level: 1 })).toHaveText('Today');
+	await page.evaluate(() => window.dispatchEvent(new Event('focus')));
+	await expect(update).toBeHidden();
 });
 
 test('scenario 8: a save offline fails at once, keeps everything, and Retry saves it once back', async ({

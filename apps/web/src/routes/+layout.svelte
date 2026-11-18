@@ -2,7 +2,7 @@
 	import '../app.css';
 	import { page } from '$app/state';
 	import favicon from '#lib/assets/brand/favicon.svg';
-	import ConnectionBanner from '#lib/components/shell/ConnectionBanner.svelte';
+	import StatusBanner from '#lib/components/shell/StatusBanner.svelte';
 	import type { LayoutProps } from './$types';
 
 	let { children }: LayoutProps = $props();
@@ -15,5 +15,5 @@
 	<link rel="icon" href={favicon} type="image/svg+xml" />
 </svelte:head>
 
-{#if !fallback}<ConnectionBanner />{/if}
+{#if !fallback}<StatusBanner />{/if}
 {@render children()}

@@ -1,17 +1,21 @@
 // Whether saves can reach Toe Beans right now (ui.md §6.1, NFR-04), for the offline banner. The
 // device's own online flag is the first sign; requests are the second, since a phone can say
 // it's online with no way out (a captive portal, a dead mobile signal). After a request fails,
-// /healthz is asked every 15 s until one gets through.
+// /healthz is asked again after 1, 2, 4 and 8 s, then every 15 s, until one gets through: the
+// phone's `online` comes a moment before its network works, so the first check often fails.
 import { observeConnection } from '#lib/api-client/index.js';
 
 export type ConnectionState = 'online' | 'offline' | 'unreachable';
 
+const RETRY_AFTER_MS = [1_000, 2_000, 4_000, 8_000];
 const PROBE_EVERY_MS = 15_000;
 
 class Connection {
 	#deviceOnline = $state(true);
 	#failing = $state(false);
-	#probe: ReturnType<typeof setInterval> | undefined;
+	#probe: ReturnType<typeof setTimeout> | undefined;
+	/** Checks failed since the last answer, for the back-off. */
+	#misses = 0;
 
 	get state(): ConnectionState {
 		if (!this.#deviceOnline) return 'offline';
@@ -32,13 +36,19 @@ class Connection {
 	#reached(reached: boolean): void {
 		this.#failing = !reached;
 		if (reached) {
-			clearInterval(this.#probe);
+			clearTimeout(this.#probe);
 			this.#probe = undefined;
+			this.#misses = 0;
 		} else {
-			this.#probe ??= setInterval(() => void this.#check(), PROBE_EVERY_MS);
+			// One check waiting at a time, however many requests fail meanwhile.
+			this.#probe ??= setTimeout(() => {
+				this.#probe = undefined;
+				void this.#check();
+			}, RETRY_AFTER_MS[this.#misses++] ?? PROBE_EVERY_MS);
 		}
 	}
 
+	/** Not while the phone says it's offline: its `online` event checks again. */
 	async #check(): Promise<void> {
 		if (!navigator.onLine) return;
 		try {

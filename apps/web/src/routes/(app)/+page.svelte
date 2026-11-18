@@ -3,9 +3,9 @@
 	// (today's and yesterday's still planned), Planned by time, Done (every practice logged today,
 	// with how it went and who practised), Skipped collapsed, and Coming up: care tasks overdue or
 	// due within a week (architecture D30). A planned card opens the session;
-	// *Log* opens the quick log (§4.2) straight away. There are no live updates (NFR-13): the day
-	// is fetched again whenever the app comes back to the front, so it's never a morning stale.
-	import { onMount } from 'svelte';
+	// *Log* opens the quick log (§4.2) straight away. There are no live updates (NFR-13): the app
+	// shell fetches the day again whenever the app comes back to the front, so it's never a
+	// morning stale.
 	import { invalidateAll } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import type { Dog, PlannedSession } from '@toe-beans/contracts';
@@ -65,14 +65,6 @@
 		notice = `Logged. ${logging?.exercise.title ?? 'The session'} is done.`;
 		await invalidateAll();
 	}
-
-	onMount(() => {
-		const refresh = () => {
-			if (document.visibilityState === 'visible' && !logOpen) void invalidateAll();
-		};
-		document.addEventListener('visibilitychange', refresh);
-		return () => document.removeEventListener('visibilitychange', refresh);
-	});
 
 	const scheduleHref = $derived(
 		day ? `${resolve('/(app)/plan/new')}?date=${day.date}` : resolve('/(app)/plan/new')
