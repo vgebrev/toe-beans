@@ -1,6 +1,6 @@
 # Toe Beans — Backlog
 
-**Version:** 0.51 (draft for iteration)
+**Version:** 0.52 (draft for iteration)
 **Date:** 18 November 2026
 **Inputs:** `docs/requirements.md` v1.0, `docs/architecture.md` v1.23, `docs/ui.md` v0.35
 
@@ -81,6 +81,8 @@
 **Changes in 0.48:** S14.1 started: GCP is provisioned by `infra/gcp/provision.sh` (README there), and the prod Auth0 tenant and its Google client are set up, with Google's consent screen left in Testing until S16's policy links exist. Added S16, the compliance and go-live prep that the owner deferred until development was done: a data inventory, a privacy policy and terms of service, public pages for them, the Information Regulator registration, and personal data deletion, moved there from S14.5. S16 comes before S14.7 and before anyone outside the owner's household is invited.
 
 **Changes in 0.49:** S15.1 gains (h), back links to where the person came from, and (i), Care's *Coming up* capped at 7 days with *Later* for the rest and a year on dates outside this one (ui 0.33 §2.1, J6, §5.4), from the owner's use of the live app before S16. Built and tried by the owner, so S15.1 stays done. Inputs moved to ui 0.33.
+
+**Changes in 0.52:** S14.1 done, closed by the owner on the live app: prod has served `toebeans.co.za` since 17 Nov, deployed from `main` through the Worker, with fixes (b)–(d) from going live. S17 *Refinements* added, the owner's running list of small fixes and polish from here on, as S15.1 was before release. Next up: the rest of S14 and S16.
 
 **Changes in 0.51:** S15.1 gains (k), fresh data on coming back to the app and on Back to a page Chrome kept whole (ui 0.35 §5.2), from the owner, after Today stayed stale behind a reminder. Live updates over WebSockets were considered and left out for cost. The offline banner's check backs off from 1 s (architecture 1.23 D31), found through a flaky e2e check. Built with e2e checks and closed by the owner, so S15.1 stays done. Inputs moved to architecture 1.23 and ui 0.35.
 
@@ -189,7 +191,9 @@ Work is organised as **vertical slices**: each delivers a usable end-to-end incr
 | 2026-11-18 | S15.1 (j) built: once a new version is deployed, the top banner says "A new version of Toe Beans is ready." with *Refresh* (ui 0.34 §5.2), on SvelteKit's `updated` from `$app/state` (checked on focus, on return to the front, hourly and from page data responses). It gives way to the offline banner, and nothing reloads by itself. `ConnectionBanner` became `StatusBanner` to hold both. An e2e check fakes a newer `_app/version.json`. Seen only across a real deploy, so the owner tries it on prod after the next one. |
 | 2026-11-18 | S15.1 (k) done, closed by the owner: Today stayed stale after a reminder's tap. The tap opens its item as a new page in the app's window (`launch_handler` `navigate-existing`), and Android's Back after marking it done brought Today back from Chrome's back/forward cache untouched. The `(app)` layout now calls `invalidateAll` on `pageshow` from that cache and when the app comes back to the front (Today's own check moved there), except on a form or with a dialog open. Chrome under Playwright keeps no back/forward cache (`BackForwardCacheDisabledForDelegate`; the page itself has no blockers), so the e2e check fires the restore event itself; a second check covers coming back to the front and a sheet in use. The full suite also showed a flaky step in (j)'s check, about 1 run in 5, which was a real bug: the `online` event comes before the network works, so the first `/healthz` check failed and *Can't reach Toe Beans* stayed up for 15 s. Checks now back off from 1 s (architecture 1.23 D31). Live updates (WebSockets or SSE) were considered and left out: they'd keep a Cloud Run instance running while a phone has the app open. |
 
-**Next up:** S14.1 (deploy workflow and the Worker), then S16 alongside the rest of S14.
+| 2026-11-18 | S14.1 done, closed by the owner: prod live since 17 Nov (deploy from `main`, the `toe-beans-edge` Worker, the tick resumed, the holding page's Worker gone), with fixes (b)–(d) from going live. S17 *Refinements* opened for snags from here on. |
+
+**Next up:** S14.2–S14.6 and S16, then S14.7. Snags from using the app go to S17.
 
 ---
 
@@ -385,12 +389,12 @@ Work is organised as **vertical slices**: each delivers a usable end-to-end incr
 | S15.2 | Security audit of the whole app against architecture §7 and NFR-01/02: household isolation on every read and write (scenario 9), sign-in and sessions, invitations, uploads, push endpoints and the tick, headers and CSP, secrets and logging. Findings fixed or recorded with a decision. **Audit done (16 Nov):** `docs/security-audit.md` lists the findings with file and line, severity and fix: F1–F7 confirmed, C1–C4 worth checking. **Built (architecture 1.21, ui 0.30; audit v0.2 has each resolution):** F1 the app refuses requests without the Worker's header secret (`PROXY_SECRET`, required in prod; D32); F2 email invitations capped per person, per household and in total from the stored invitations, with a fixed subject (D32); F3 the CSP with nonces and the other security headers (D32); F4 the image defaults to `APP_ENV=prod`; F5 a photo budget per person, one decode at a time, up to 50 dogs (D32); F6 a device moves to someone else only with its keys (D33); F7 *Sign out everywhere* on More (D33); C3 a write budget per person (D32); C1, C2 and C4 accepted (D34), with adapter-node 6.0.1 for a new advisory. The owner tried it on the phone: pages under the CSP and *Sign out everywhere*. F1's address header and C1/C2's checks are S14.1's. | ✅ |
 | S15.3 | Code review and refactor: duplication, dead code, layer boundaries (architecture §4.2) and test gaps, without changing behaviour. Notable changes recorded in the architecture decision log. Tracked round by round in `docs/code-review.md`. | ✅ |
 
-### S14 Operations and release ⬜
+### S14 Operations and release 🟨
 *NFR-05, 07, 10, 12, scenario 10.*
 
 | # | Task | Status |
 |---|---|---|
-| S14.1 | Production environment provisioned (the platform chosen in S-1). Secrets in the platform store, including `RESEND_API_KEY` and `VAPID_PRIVATE_KEY`, which prod won't start without (generate the pair once with `pnpm vapid`). The Cloud Scheduler job `toe-beans-tick` POSTs `/internal/tick` every 5 minutes with an OIDC token for its service account (`TICK_AUDIENCE`, `TICK_INVOKER`), as the spike's did. Budget alert. Deploy workflow per architecture D15: Workload Identity Federation with an attribute condition pinning this repo and the `production` environment, a least-privilege deploy service account, a `production` environment (main only, owner approval), images in Artifact Registry deployed by digest. The client address for rate limits (architecture §7): the Worker forwards `CF-Connecting-IP`, `ADDRESS_HEADER`/`XFF_DEPTH` are set to match, and a sign-in from a phone confirms the app sees the phone's address. The Worker sends `x-toe-beans-proxy` with `PROXY_SECRET` (Secret Manager on both sides; prod won't start without it, D32), and a request to `run.app` directly gets 403. The audit's checks on deployed settings (D34): Cloud Run's and Cloudflare's request logs are readable by the owner only, with known retention (they hold invite tokens); the prod Auth0 tenant has only Google and the database connection on. **Provisioned (17 Nov):** `infra/gcp/provision.sh` (GCP side, README beside it); the prod Auth0 tenant and Google client set up by the owner. Left: the owner's four secret values, the deploy workflow, the Worker, the first deploy and the checks above. | 🟨 |
+| S14.1 | Production environment provisioned (the platform chosen in S-1). Secrets in the platform store, including `RESEND_API_KEY` and `VAPID_PRIVATE_KEY`, which prod won't start without (generate the pair once with `pnpm vapid`). The Cloud Scheduler job `toe-beans-tick` POSTs `/internal/tick` every 5 minutes with an OIDC token for its service account (`TICK_AUDIENCE`, `TICK_INVOKER`), as the spike's did. Budget alert. Deploy workflow per architecture D15: Workload Identity Federation with an attribute condition pinning this repo and the `production` environment, a least-privilege deploy service account, a `production` environment (main only, owner approval), images in Artifact Registry deployed by digest. The client address for rate limits (architecture §7): the Worker forwards `CF-Connecting-IP`, `ADDRESS_HEADER`/`XFF_DEPTH` are set to match, and a sign-in from a phone confirms the app sees the phone's address. The Worker sends `x-toe-beans-proxy` with `PROXY_SECRET` (Secret Manager on both sides; prod won't start without it, D32), and a request to `run.app` directly gets 403. The audit's checks on deployed settings (D34): Cloud Run's and Cloudflare's request logs are readable by the owner only, with known retention (they hold invite tokens); the prod Auth0 tenant has only Google and the database connection on. **Provisioned (17 Nov):** `infra/gcp/provision.sh` (GCP side, README beside it); the prod Auth0 tenant and Google client set up by the owner. **Live (17 Nov):** the deploy workflow runs from `main`, the `toe-beans-edge` Worker serves `toebeans.co.za`, the tick job is resumed and the holding page's Worker is deleted. Fixes from going live: (b) the deploy account bound by repository ID, not the token's subject; (c) server renders reach the API past the proxy check; (d) no CSP violations from dog photos or Zod's eval probe. Closed by the owner (18 Nov). | ✅ |
 | S14.2 | Nightly encrypted `mongodump` to R2, photo bucket copy, retention | ⬜ |
 | S14.3 | Restore runbook written **and tested** (`docs/runbooks/restore.md`) | ⬜ |
 | S14.4 | Uptime monitor. Sentry alerts. Accounts inventory (`docs/runbooks/accounts.md`). | ⬜ |
@@ -411,6 +415,13 @@ Work is organised as **vertical slices**: each delivers a usable end-to-end incr
 | S16.6 | The owner registers as Information Officer with the Information Regulator, and the policy names the contact. | ⬜ |
 
 ---
+
+### S17 Refinements ⬜
+*Open-ended, after go-live: the owner's running list of small fixes and polish found while using the live app, as S15.1 was before release. Each lands as a lettered item with its e2e check and is closed by the owner on a phone. Anything bigger becomes its own slice, and anything on the P2 list stays there.*
+
+| # | Task | Status |
+|---|---|---|
+| S17.1 | The owner's snag list after go-live. Nothing yet. | ⬜ |
 
 ## P1 — Phase 1 follow-on
 
