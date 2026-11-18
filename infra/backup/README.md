@@ -18,6 +18,9 @@ resources but never secret values.
 - **The photo sync stops** rather than move more than 50 photos out of `photos/current/` in one run,
   in case the source has been emptied by mistake. The run fails, and a failed run sends mail.
   After a real mass deletion, run it by hand with a higher `MAX_PHOTO_MOVES`.
+- **A night with no run** (a schedule GitHub turned off, say) sends no mail of its own. After each
+  run that worked, the workflow calls Better Stack's `toe-beans-backup` heartbeat, which alerts when
+  a day passes without one (`docs/runbooks/monitoring.md` §4).
 - **What 30 days means:** anything deleted in the app is gone from backups after 30 days. The
   privacy policy (S16.2) relies on that.
 

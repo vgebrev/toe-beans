@@ -26,3 +26,11 @@ export interface ReminderTick {
 export interface TickAuthenticator {
 	verify(authorization: string | null): Promise<boolean>;
 }
+
+/**
+ * Tells an outside monitor that a tick ran (backlog S14.4). The monitor alerts after a silence,
+ * which catches what an uptime check can't: a scheduler that stopped calling. Never throws.
+ */
+export interface Heartbeat {
+	beat(): Promise<void>;
+}

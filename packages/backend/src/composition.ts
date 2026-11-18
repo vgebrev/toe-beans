@@ -7,6 +7,7 @@ import { createIdGenerator } from './domain/id.js';
 import { createHttp, type Http } from './http/index.js';
 import { oidcIdentityProvider } from './infrastructure/auth/oidc-provider.js';
 import { tickAuthenticator } from './infrastructure/auth/tick-auth.js';
+import { httpHeartbeat, noHeartbeat } from './infrastructure/monitoring/http-heartbeat.js';
 import {
 	createSentryReporter,
 	noopErrorReporter
@@ -49,6 +50,7 @@ import { memoryRateLimiter } from './infrastructure/rate-limit/memory-rate-limit
 import { withRequestContext, type RequestContext } from './infrastructure/request-context.js';
 import { systemClock } from './infrastructure/system-clock.js';
 import { createWorker } from './worker/tick.js';
+import { withHeartbeat } from './worker/heartbeat.js';
 import type { ReminderTick } from './application/ports/tick.js';
 
 export type { RequestContext } from './infrastructure/request-context.js';
@@ -153,9 +155,12 @@ export async function createBackend(
 		reminders: overrides.reminders ?? mongoReminders(mongo.db, clock),
 		push: overrides.push ?? webPushSender({ vapid: vapidKeys(config, logger) })
 	};
-	const worker = createWorker(ports, createPlanner(ports), {
-		intervalMs: config.worker.intervalMs
-	});
+	const worker = withHeartbeat(
+		createWorker(ports, createPlanner(ports), { intervalMs: config.worker.intervalMs }),
+		config.worker.heartbeatUrl
+			? httpHeartbeat({ url: config.worker.heartbeatUrl, logger })
+			: noHeartbeat
+	);
 	// Always-on hosts tick themselves (architecture §6.3). The first tick waits a full interval, so
 	// a crash-looping server doesn't send on every start.
 	const loop =
@@ -171,6 +176,7 @@ export async function createBackend(
 		photoStore: config.photos.kind,
 		workerMode: config.worker.mode,
 		tickIntervalMin: config.worker.intervalMs / 60_000,
+		tickHeartbeat: Boolean(config.worker.heartbeatUrl),
 		exercises: exercises.all().length,
 		publicOrigin: config.publicOrigin,
 		oidcIssuer: config.oidc.issuer,

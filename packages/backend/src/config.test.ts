@@ -115,6 +115,15 @@ describe('loadConfig', () => {
 			expect(loadConfig({ ...noTick, WORKER_MODE: 'inline' }).worker.mode).toBe('inline');
 		});
 
+		it('take an https heartbeat URL for the tick', () => {
+			const url = 'https://uptime.example/api/v1/heartbeat/token';
+			expect(loadConfig({ TICK_HEARTBEAT_URL: url }).worker.heartbeatUrl).toBe(url);
+			expect(loadConfig({}).worker.heartbeatUrl).toBeUndefined();
+			expect(() => loadConfig({ TICK_HEARTBEAT_URL: 'http://uptime.example/x' })).toThrow(
+				/TICK_HEARTBEAT_URL/
+			);
+		});
+
 		it('take both VAPID keys or neither, and both scheduler settings or neither', () => {
 			expect(() => loadConfig({ VAPID_PUBLIC_KEY: vapid.VAPID_PUBLIC_KEY })).toThrow(
 				/VAPID_PRIVATE_KEY: set both/
