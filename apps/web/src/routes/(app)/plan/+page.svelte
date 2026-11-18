@@ -102,7 +102,9 @@
 				<Icon name="back" />
 			</a>
 			<div class="flex flex-col items-center">
-				<h2 class="font-display text-xl font-semibold">{weekRange(data.monday)}</h2>
+				<h2 class="font-display text-xl font-semibold">
+					{weekRange(data.monday, undefined, data.today)}
+				</h2>
 				{#if !thisWeek}
 					<a href={resolve('/(app)/plan')} class="text-sm font-bold text-primary underline"
 						>Back to this week</a

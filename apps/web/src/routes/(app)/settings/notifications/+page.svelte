@@ -18,6 +18,7 @@
 	import NativeSelect from '#lib/components/form/NativeSelect.svelte';
 	import Icon from '#lib/components/icon/Icon.svelte';
 	import InstallOffer from '#lib/components/shell/InstallOffer.svelte';
+	import BackLink from '#lib/components/shell/BackLink.svelte';
 	import PageHeader from '#lib/components/shell/PageHeader.svelte';
 	import { Button } from '#lib/components/ui/button/index.js';
 	import { Input } from '#lib/components/ui/input/index.js';
@@ -112,8 +113,13 @@
 
 	const time = (iso: string) =>
 		new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+	// With its year when that isn't this one.
 	const day = (iso: string) =>
-		new Date(iso).toLocaleDateString([], { day: 'numeric', month: 'short' });
+		new Date(iso).toLocaleDateString([], {
+			day: 'numeric',
+			month: 'short',
+			...(new Date(iso).getFullYear() !== new Date().getFullYear() && { year: 'numeric' })
+		});
 
 	async function refresh() {
 		const fresh = await api.get('/reminders', ReminderSettings);
@@ -252,10 +258,7 @@
 <svelte:head><title>Notifications · Toe Beans</title></svelte:head>
 
 <PageHeader title="Notifications">
-	<a href={resolve('/(app)/more')} class="flex min-h-12 items-center gap-1 self-start font-bold">
-		<Icon name="back" />
-		More
-	</a>
+	<BackLink href={resolve('/(app)/more')} label="More" />
 </PageHeader>
 
 <div class="flex flex-col gap-6 px-4 pt-2 pb-8">

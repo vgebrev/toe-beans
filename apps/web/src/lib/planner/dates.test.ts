@@ -1,8 +1,9 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
 	addDays,
 	addMonths,
 	dayName,
+	formatDate,
 	isoWeek,
 	isPlainDate,
 	mondayOf,
@@ -38,9 +39,12 @@ describe('weeks', () => {
 	it('are labelled by their dates', () => {
 		// ICU's spacing around the dash varies by version, so only the order is checked.
 		const plain = (s: string) => s.replace(/\s+/g, ' ');
-		expect(plain(weekRange('2026-11-09', 'en-GB'))).toMatch(/^9 ?– ?15 Nov$/);
-		expect(plain(weekRange('2026-11-09', 'en-US'))).toMatch(/^Nov 9 ?– ?15$/);
-		expect(plain(weekRange('2026-12-28', 'en-GB'))).toMatch(/^28 Dec( 2026)? – 3 Jan( 2027)?$/);
+		expect(plain(weekRange('2026-11-09', 'en-US', '2026-11-18'))).toMatch(/^Nov 9 ?– ?15$/);
+		expect(plain(weekRange('2026-11-09', 'en-GB', '2026-11-18'))).toMatch(/^9 ?– ?15 Nov$/);
+		expect(plain(weekRange('2026-11-09', 'en-GB', '2027-01-02'))).toMatch(/^9 ?– ?15 Nov 2026$/);
+		expect(plain(weekRange('2026-12-28', 'en-GB', '2026-12-30'))).toMatch(
+			/^28 Dec 2026 ?– ?3 Jan 2027$/
+		);
 	});
 });
 
@@ -70,9 +74,27 @@ describe('days', () => {
 		expect(dayName('2026-11-11', '2026-11-10')).toBe('Tomorrow');
 		expect(dayName('2026-11-13', '2026-11-10', 'en-GB')).toBe('Fri 13 Nov');
 	});
+
+	it('say their year when it isn’t this one', () => {
+		expect(dayName('2027-11-18', '2026-11-18', 'en-GB')).toBe('Thu, 18 Nov 2027');
+		expect(dayName('2025-12-30', '2026-01-02', 'en-GB')).toBe('Tue, 30 Dec 2025');
+		expect(formatDate('2027-11-18', undefined, 'en-GB', '2026-11-18')).toBe('Thu, 18 Nov 2027');
+		expect(
+			formatDate('2027-11-18', { day: 'numeric', month: 'short' }, 'en-GB', '2027-01-01')
+		).toBe('18 Nov');
+		// Only a date naming its month: a weekday alone stays one.
+		expect(formatDate('2027-11-18', { weekday: 'short' }, 'en-GB', '2026-11-18')).toBe('Thu');
+	});
 });
 
 describe('repeats', () => {
+	// An end date says its year when it isn't this one, so this year is fixed.
+	beforeEach(() => {
+		vi.useFakeTimers({ toFake: ['Date'] });
+		vi.setSystemTime(new Date('2026-11-18T12:00:00Z'));
+	});
+	afterEach(() => vi.useRealTimers());
+
 	it('are summed up in words', () => {
 		expect(repeatSummary({ days: [1, 2, 3, 4, 5, 6, 7], times: ['07:00'] }, 'en-GB')).toBe(
 			'Every day'

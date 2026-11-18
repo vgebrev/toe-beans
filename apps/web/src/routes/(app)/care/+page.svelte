@@ -1,14 +1,14 @@
 <script lang="ts">
 	// Care (ui.md §2.1, J6, FR-10, scenario 7): the switcher's dog's care tasks, or every dog's.
-	// *Overdue* (still upcoming on a day that's gone), *Coming up* soonest first, then *Done and
-	// cancelled*, folded. Each card opens its task. Tasks of an archived dog wait, out of sight,
+	// *Overdue* (still upcoming on a day that's gone), *Coming up* in the next week soonest first,
+	// then *Later* and *Done and cancelled*, folded. Each card opens its task. Tasks of an archived dog wait, out of sight,
 	// until the dog comes back (architecture D30). *Add care task* leads the page, and the "+"
 	// offers it first.
 	import { onMount } from 'svelte';
 	import { invalidateAll } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { page } from '$app/state';
-	import type { CareTask, Dog } from '@toe-beans/contracts';
+	import { COMING_UP_DAYS, type CareTask, type Dog } from '@toe-beans/contracts';
 	import CareCard from '#lib/components/care/CareCard.svelte';
 	import Icon from '#lib/components/icon/Icon.svelte';
 	import AddMenu from '#lib/components/shell/AddMenu.svelte';
@@ -16,6 +16,7 @@
 	import PageHeader from '#lib/components/shell/PageHeader.svelte';
 	import { Button } from '#lib/components/ui/button/index.js';
 	import { getActiveDog } from '#lib/dogs/active-dog.svelte.js';
+	import { addDays } from '#lib/planner/dates.js';
 	import type { PageProps } from './$types';
 
 	let { data }: PageProps = $props();
@@ -29,9 +30,14 @@
 		list.filter((t) => !selectedDog || t.dogId === selectedDog.id);
 
 	const overdue = $derived(mine(data.care?.upcoming ?? []).filter((t) => t.overdue));
-	const upcoming = $derived(mine(data.care?.upcoming ?? []).filter((t) => !t.overdue));
+	// The same week ahead as Today's *Coming up*; anything further off is *Later*.
+	const horizon = $derived(addDays(data.today, COMING_UP_DAYS));
+	const upcoming = $derived(
+		mine(data.care?.upcoming ?? []).filter((t) => !t.overdue && t.dueDate <= horizon)
+	);
+	const later = $derived(mine(data.care?.upcoming ?? []).filter((t) => t.dueDate > horizon));
 	const closed = $derived(mine(data.care?.closed ?? []));
-	const nothing = $derived(overdue.length + upcoming.length + closed.length === 0);
+	const nothing = $derived(overdue.length + upcoming.length + later.length + closed.length === 0);
 	const notice = $derived(page.state.notice ?? null);
 
 	onMount(() => {
@@ -97,7 +103,7 @@
 				<h2 id="care-upcoming-heading" class="font-display text-lg font-semibold">Coming up</h2>
 				{#if upcoming.length === 0}
 					<p class="text-muted-foreground">
-						Nothing coming up{selectedDog ? ` for ${selectedDog.name}` : ''}.
+						Nothing coming up this week{selectedDog ? ` for ${selectedDog.name}` : ''}.
 					</p>
 				{:else}
 					<ul class="flex flex-col gap-3">
@@ -107,6 +113,22 @@
 					</ul>
 				{/if}
 			</section>
+
+			{#if later.length > 0}
+				<details class="group">
+					<summary
+						class="flex min-h-12 cursor-pointer list-none items-center gap-2 font-display text-lg font-semibold"
+					>
+						<Icon name="forward" size={20} class="transition-transform group-open:rotate-90" />
+						Later ({later.length})
+					</summary>
+					<ul class="flex flex-col gap-3 pt-3">
+						{#each later as task (task.id)}
+							<li><CareCard {task} dog={dogOf(task.dogId)} today={data.today} /></li>
+						{/each}
+					</ul>
+				</details>
+			{/if}
 
 			{#if closed.length > 0}
 				<details class="group">

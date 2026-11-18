@@ -5,7 +5,7 @@
 	import { resolve } from '$app/paths';
 	import { CareTask } from '@toe-beans/contracts';
 	import CareForm from '#lib/components/care/CareForm.svelte';
-	import Icon from '#lib/components/icon/Icon.svelte';
+	import BackLink from '#lib/components/shell/BackLink.svelte';
 	import PageHeader from '#lib/components/shell/PageHeader.svelte';
 	import { createApiClient } from '#lib/api-client/index.js';
 	import { careBody, careOutcomeOf, type CareValues } from '#lib/care/form.js';
@@ -49,10 +49,7 @@
 <svelte:head><title>Add care task · Toe Beans</title></svelte:head>
 
 <PageHeader title="Add care task">
-	<a href={resolve('/(app)/care')} class="flex min-h-12 items-center gap-1 self-start font-bold">
-		<Icon name="back" />
-		Care
-	</a>
+	<BackLink href={resolve('/(app)/care')} label="Care" />
 </PageHeader>
 
 <div class="px-4 pt-2">

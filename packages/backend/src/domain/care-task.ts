@@ -213,5 +213,5 @@ export function changesFrom(
 export const isOverdue = (task: Pick<CareTask, 'status' | 'dueDate'>, today: PlainDate) =>
 	task.status === 'upcoming' && task.dueDate < today;
 
-/** How far ahead Today's *Coming up* looks (ui.md J6). */
+/** How far ahead *Coming up* looks (ui.md J6); the contracts' copy is Care's. */
 export const COMING_UP_DAYS = 7;

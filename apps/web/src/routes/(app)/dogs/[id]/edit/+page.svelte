@@ -4,7 +4,7 @@
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import DogForm from '#lib/components/dogs/DogForm.svelte';
-	import Icon from '#lib/components/icon/Icon.svelte';
+	import BackLink from '#lib/components/shell/BackLink.svelte';
 	import PageHeader from '#lib/components/shell/PageHeader.svelte';
 	import { todayIn } from '#lib/planner/dates.js';
 	import type { PageProps } from './$types';
@@ -16,13 +16,7 @@
 
 <PageHeader title={data.dog ? `Edit ${data.dog.name}` : 'Edit dog'}>
 	{#if data.dog}
-		<a
-			href={resolve('/(app)/dogs/[id]', { id: data.dog.id })}
-			class="flex min-h-12 items-center gap-1 self-start font-bold"
-		>
-			<Icon name="back" />
-			{data.dog.name}
-		</a>
+		<BackLink href={resolve('/(app)/dogs/[id]', { id: data.dog.id })} label={data.dog.name} />
 	{/if}
 </PageHeader>
 

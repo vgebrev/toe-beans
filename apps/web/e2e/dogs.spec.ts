@@ -137,6 +137,32 @@ test('changing the photo, editing and archiving, from the profile', async ({ pag
 	await expect(page.getByText('Rosie Posie is back.')).toBeVisible();
 });
 
+test('a back link leads where the person came from', async ({ page, baseURL }) => {
+	const [rosie] = await ownHousehold(page, baseURL!);
+	const back = (name: string) => page.getByRole('main').getByRole('link', { name, exact: true });
+
+	// The one dog, opened from Care's switcher, leads back to Care, not Dogs.
+	await page.goto('/care');
+	await page
+		.getByRole('main')
+		.getByRole('link', { name: new RegExp(rosie!.name) })
+		.click();
+	await expect(page).toHaveURL(new RegExp(`/dogs/${rosie!.id}$`));
+	await expect(back('Care')).toBeVisible();
+
+	// Still so after changing the details: the form isn't somewhere to go back to.
+	await page.getByRole('link', { name: 'Edit details' }).click();
+	await expect(back(rosie!.name)).toBeVisible();
+	await page.getByRole('button', { name: 'Save' }).click();
+	await expect(page).toHaveURL(new RegExp(`/dogs/${rosie!.id}$`));
+	await back('Care').click();
+	await expect(page).toHaveURL(/\/care$/);
+
+	// Loaded afresh, it leads to the dog's place under More.
+	await page.goto(`/dogs/${rosie!.id}`);
+	await expect(back('Dogs')).toBeVisible();
+});
+
 test('an edit made elsewhere is not overwritten (NFR-13)', async ({ page, baseURL }) => {
 	await ownHousehold(page, baseURL!, { dogs: [] });
 	const dog = await addDog(page, baseURL!);
@@ -259,4 +285,26 @@ test('J2: the invitation names the dogs to help care for', async ({ page, browse
 	);
 	await expect(invitee.getByText('to help care for Rosie and Milo')).toBeVisible();
 	await context.close();
+});
+
+test('a page with dog photos breaks no CSP rule (architecture §7)', async ({ page, baseURL }) => {
+	// Two ways it has: an `onerror` on an image, for which Svelte's server render adds an inline
+	// handler, and Zod probing for `new Function`. Only the first is a console error; both raise
+	// a violation event.
+	await ownHousehold(page, baseURL!);
+	await page.addInitScript(() => {
+		const seen: string[] = [];
+		Object.assign(window, { cspViolations: seen });
+		document.addEventListener('securitypolicyviolation', (e) =>
+			seen.push(`${e.effectiveDirective} ${e.blockedURI}`)
+		);
+	});
+	const errors: string[] = [];
+	page.on('console', (m) => m.type() === 'error' && errors.push(m.text()));
+	await page.goto('/dogs');
+	await expect(page.getByRole('link', { name: /Rosie/ }).locator('img')).toBeVisible();
+	expect(errors).toEqual([]);
+	expect(await page.evaluate(() => (window as { cspViolations?: string[] }).cspViolations)).toEqual(
+		[]
+	);
 });

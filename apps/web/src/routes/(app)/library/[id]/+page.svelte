@@ -7,6 +7,7 @@
 	import type { SessionLog } from '@toe-beans/contracts';
 	import { Button, buttonVariants } from '#lib/components/ui/button/index.js';
 	import Icon from '#lib/components/icon/Icon.svelte';
+	import BackLink from '#lib/components/shell/BackLink.svelte';
 	import PageHeader from '#lib/components/shell/PageHeader.svelte';
 	import QuickLogSheet from '#lib/components/training-log/QuickLogSheet.svelte';
 	import { getActiveDog } from '#lib/dogs/active-dog.svelte.js';
@@ -36,10 +37,7 @@
 {/snippet}
 
 <PageHeader title={data.exercise?.title ?? 'Exercise'}>
-	<a href={resolve('/(app)/library')} class="flex min-h-12 items-center gap-1 self-start font-bold">
-		<Icon name="back" />
-		Library
-	</a>
+	<BackLink href={resolve('/(app)/library')} label="Library" />
 </PageHeader>
 
 <div class="flex flex-col gap-6 px-4 pt-2 pb-8">

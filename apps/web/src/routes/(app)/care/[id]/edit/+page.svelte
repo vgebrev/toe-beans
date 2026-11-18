@@ -6,7 +6,7 @@
 	import { resolve } from '$app/paths';
 	import { CareTask } from '@toe-beans/contracts';
 	import CareForm from '#lib/components/care/CareForm.svelte';
-	import Icon from '#lib/components/icon/Icon.svelte';
+	import BackLink from '#lib/components/shell/BackLink.svelte';
 	import PageHeader from '#lib/components/shell/PageHeader.svelte';
 	import { createApiClient, problemStatus } from '#lib/api-client/index.js';
 	import {
@@ -77,13 +77,10 @@
 <svelte:head><title>Change {task?.title ?? 'care task'} · Toe Beans</title></svelte:head>
 
 <PageHeader title="Change care task">
-	<a
+	<BackLink
 		href={task ? resolve('/(app)/care/[id]', { id: task.id }) : resolve('/(app)/care')}
-		class="flex min-h-12 items-center gap-1 self-start font-bold"
-	>
-		<Icon name="back" />
-		{task?.title ?? 'Care'}
-	</a>
+		label={task?.title ?? 'Care'}
+	/>
 </PageHeader>
 
 <div class="px-4 pt-2">
