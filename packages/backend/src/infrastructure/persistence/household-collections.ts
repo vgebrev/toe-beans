@@ -4,6 +4,7 @@
 import type { Collection, Db } from 'mongodb';
 import type {
 	Clock,
+	HouseholdData,
 	HouseholdRepository,
 	InvitationRepository
 } from '../../application/ports/index.js';
@@ -60,13 +61,31 @@ export function mongoHouseholds(db: Db): HouseholdRepository {
 			return docs.map(toHousehold);
 		},
 		findForMember: (userId) => one({ 'memberships.userId': userId }),
-		async findDeactivatedBy(userId) {
+		async findDeactivatedBy(userId, since) {
 			const [doc] = await households
-				.find({ 'deactivated.by': userId }, { session: currentSession() })
+				.find(
+					{ 'deactivated.by': userId, 'deactivated.at': { $gt: since } },
+					{ session: currentSession() }
+				)
 				.sort({ 'deactivated.at': -1 })
 				.limit(1)
 				.toArray();
 			return doc ? toHousehold(doc) : null;
+		},
+		async listDeactivatedBy(userId) {
+			const docs = await households
+				.find({ 'deactivated.by': userId }, { session: currentSession() })
+				.toArray();
+			return docs.map(toHousehold);
+		},
+		async findDeactivatedBefore(before, limit) {
+			// On migration 0015's index.
+			const docs = await households
+				.find({ 'deactivated.at': { $lt: before } }, { session: currentSession() })
+				.sort({ 'deactivated.at': 1 })
+				.limit(limit)
+				.toArray();
+			return docs.map(toHousehold);
 		},
 		async addMember(id, membership: Membership, at) {
 			try {
@@ -102,10 +121,10 @@ export function mongoHouseholds(db: Db): HouseholdRepository {
 			);
 			return matchedCount === 1 ? ok(undefined) : err(staleVersion);
 		},
-		async reactivate(id, owner, at) {
+		async reactivate(id, owner, at, since) {
 			try {
 				const { matchedCount } = await households.updateOne(
-					{ _id: id, deactivated: { $exists: true } },
+					{ _id: id, 'deactivated.at': { $gt: since } },
 					{
 						$set: { memberships: [owner], updatedAt: at },
 						$unset: { deactivated: '' },
@@ -118,6 +137,31 @@ export function mongoHouseholds(db: Db): HouseholdRepository {
 				if (isDuplicateKey(e)) return err(alreadyInOne);
 				throw e;
 			}
+		}
+	};
+}
+
+/**
+ * Every collection's documents with the household's ID, then the household. Collections are
+ * listed outside the transaction (listing isn't allowed in one); the deletes join it.
+ */
+export function mongoHouseholdData(db: Db): HouseholdData {
+	return {
+		async erase(householdId) {
+			const session = currentSession();
+			const collections = await db
+				.listCollections({ type: 'collection' }, { nameOnly: true })
+				.toArray();
+			let erased = 0;
+			for (const { name } of collections) {
+				if (name === HOUSEHOLDS || name.startsWith('system.')) continue;
+				const { deletedCount } = await db.collection(name).deleteMany({ householdId }, { session });
+				erased += deletedCount;
+			}
+			const { deletedCount } = await db
+				.collection<HouseholdDoc>(HOUSEHOLDS)
+				.deleteOne({ _id: householdId }, { session });
+			return erased + deletedCount;
 		}
 	};
 }

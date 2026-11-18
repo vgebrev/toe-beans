@@ -1,9 +1,12 @@
-// Creating a household, seeing who's in it, and people leaving it (architecture §5.2, FR-01, D18).
+// Creating a household, seeing who's in it, people leaving it, and deleting it (architecture §5.2,
+// FR-01, D18, D38).
 import { validationError } from '../../domain/errors.js';
 import {
 	HOUSEHOLD_NAME_MAX,
 	cleanHouseholdName,
 	cleanTimeZone,
+	deactivatedCutoff,
+	keptUntil,
 	membersAfterLeaving,
 	ownerCount,
 	type Household,
@@ -16,6 +19,7 @@ import {
 	conflictError,
 	forbidden,
 	notFound,
+	staleVersion,
 	type ConflictError,
 	type ForbiddenError,
 	type NotFoundError,
@@ -23,6 +27,7 @@ import {
 	type ValidationError
 } from '../errors.js';
 import type { Ports } from '../ports/index.js';
+import { createErasure } from './erasure.js';
 
 export interface MemberView {
 	id: Id;
@@ -45,16 +50,24 @@ export interface HouseholdView {
 
 export type Households = ReturnType<typeof createHouseholds>;
 
-export function createHouseholds({
-	households,
-	invitations,
-	users,
-	uow,
-	clock,
-	ids,
-	logger
-}: Pick<Ports, 'households' | 'invitations' | 'users' | 'uow' | 'clock' | 'ids' | 'logger'>) {
+export function createHouseholds(
+	ports: Pick<
+		Ports,
+		| 'households'
+		| 'householdData'
+		| 'invitations'
+		| 'users'
+		| 'photos'
+		| 'uow'
+		| 'clock'
+		| 'ids'
+		| 'logger'
+		| 'errors'
+	>
+) {
+	const { households, invitations, users, uow, clock, ids, logger } = ports;
 	const log = logger.child({ component: 'household' });
+	const erasure = createErasure(ports);
 
 	async function viewOf(household: Household, userId: Id): Promise<HouseholdView> {
 		const people = await users.findByIds(household.memberships.map((m) => m.userId));
@@ -204,23 +217,97 @@ export function createHouseholds({
 			return saved;
 		},
 
-		/** The name of the household this person can bring back, if there is one. */
-		async findReactivatable(ctx: AuthContext): Promise<Result<{ name: string }, NotFoundError>> {
-			const household = await households.findDeactivatedBy(ctx.userId);
-			return household ? ok({ name: household.name }) : err(notFound('household'));
+		/**
+		 * Deletes the household with its dogs, photos and history (D38). Only its one member can,
+		 * so nobody loses data they're still using; anyone else leaves instead.
+		 */
+		async delete(
+			ctx: MemberContext,
+			input: { expectedVersion: number }
+		): Promise<Result<void, NotFoundError | ConflictError | StaleVersionError>> {
+			const { householdId, userId } = ctx;
+			type Failure = NotFoundError | ConflictError | StaleVersionError;
+			const check = async (): Promise<Result<void, Failure>> => {
+				const household = await households.find(householdId);
+				if (!household) return err(notFound('household'));
+				if (household.version !== input.expectedVersion) return err(staleVersion);
+				if (household.memberships.length !== 1 || household.memberships[0]!.userId !== userId) {
+					return err(conflictError('Others are still in the household.'));
+				}
+				return ok(undefined);
+			};
+			const checked = await check();
+			if (!checked.ok) return checked;
+			// Nobody can join from here on, which is what makes deleting the photos safe. Revoking
+			// changes only the invitations, not the household's version.
+			await invitations.revokeOpen(householdId, clock.now());
+			const photoCount = await erasure.erasePhotos(householdId);
+			const erased = await uow.run<number, Failure>(async () => {
+				const stillAlone = await check();
+				return stillAlone.ok ? ok(await erasure.eraseRecords(householdId)) : stillAlone;
+			});
+			if (!erased.ok) return erased;
+			log.info('household deleted', {
+				householdId,
+				userId,
+				documents: erased.value,
+				photos: photoCount
+			});
+			return ok(undefined);
+		},
+
+		/**
+		 * The household this person can bring back, if there is one, and until when: after that
+		 * it's deleted (D18, D38).
+		 */
+		async findReactivatable(
+			ctx: AuthContext
+		): Promise<Result<{ name: string; keptUntil: Date }, NotFoundError>> {
+			const household = await households.findDeactivatedBy(
+				ctx.userId,
+				deactivatedCutoff(clock.now())
+			);
+			if (!household?.deactivated) return err(notFound('household'));
+			return ok({ name: household.name, keptUntil: keptUntil(household.deactivated.at) });
+		},
+
+		/** Deletes the household they were the last to leave now, rather than when it runs out. */
+		async deleteFormer(ctx: AuthContext): Promise<Result<void, NotFoundError>> {
+			const household = await households.findDeactivatedBy(
+				ctx.userId,
+				deactivatedCutoff(clock.now())
+			);
+			if (!household) return err(notFound('household'));
+			// Deactivating it revoked its invitations, and only this person can bring it back.
+			const photoCount = await erasure.erasePhotos(household.id);
+			const erased = await uow.run<number, NotFoundError>(async () => {
+				const current = await households.findDeactivatedBy(ctx.userId, new Date(0));
+				if (current?.id !== household.id) return err(notFound('household'));
+				return ok(await erasure.eraseRecords(household.id));
+			});
+			if (!erased.ok) return erased;
+			log.info('household deleted', {
+				householdId: household.id,
+				userId: ctx.userId,
+				documents: erased.value,
+				photos: photoCount
+			});
+			return ok(undefined);
 		},
 
 		/** Brings back the household they were the last to leave, with them as its owner. */
 		async reactivate(
 			ctx: AuthContext
 		): Promise<Result<HouseholdView, NotFoundError | ConflictError>> {
-			const household = await households.findDeactivatedBy(ctx.userId);
-			if (!household) return err(notFound('household'));
 			const now = clock.now();
+			const since = deactivatedCutoff(now);
+			const household = await households.findDeactivatedBy(ctx.userId, since);
+			if (!household) return err(notFound('household'));
 			const reactivated = await households.reactivate(
 				household.id,
 				{ userId: ctx.userId, role: 'owner', joinedAt: now },
-				now
+				now,
+				since
 			);
 			if (!reactivated.ok) return reactivated;
 			log.info('household reactivated', { householdId: household.id, userId: ctx.userId });

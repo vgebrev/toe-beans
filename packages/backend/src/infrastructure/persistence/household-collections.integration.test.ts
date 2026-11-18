@@ -14,6 +14,7 @@ import { mongoDogs } from './dog-collection.js';
 import {
 	HOUSEHOLDS,
 	INVITATIONS,
+	mongoHouseholdData,
 	mongoHouseholds,
 	mongoInvitations
 } from './household-collections.js';
@@ -26,6 +27,7 @@ const ids = createIdGenerator(Date.now);
 const at = new Date('2026-11-06T08:00:00Z');
 const later = new Date('2026-11-13T08:00:00Z');
 const clock = manualClock(at);
+const epoch = new Date(0);
 
 beforeAll(async () => {
 	await migrate(db.mongo.db, migrations, { clock: manualClock() });
@@ -287,7 +289,7 @@ describe('leaving a household (D18)', () => {
 			deactivated: { at, by: first.by },
 			version: 2
 		});
-		expect((await households().findDeactivatedBy(second.by))?.id).toBe(second.household.id);
+		expect((await households().findDeactivatedBy(second.by, epoch))?.id).toBe(second.household.id);
 		expect(await households().findForMember(first.by)).toBeNull();
 	});
 
@@ -305,22 +307,44 @@ describe('leaving a household (D18)', () => {
 		const newer = newHousehold(by);
 		await households().insert(newer);
 		await households().deactivate(newer.id, by, { expectedVersion: 1, at: later });
-		expect((await households().findDeactivatedBy(by))?.id).toBe(newer.id);
+		expect((await households().findDeactivatedBy(by, epoch))?.id).toBe(newer.id);
+		expect(await households().findDeactivatedBy(by, later)).toBeNull();
+		expect((await households().listDeactivatedBy(by)).map((h) => h.id).sort()).toEqual(
+			[older.id, newer.id].sort()
+		);
 	});
 
 	it('brings one back, once, and frees it of its deactivated state', async () => {
 		const { household, by } = await deactivated();
-		expect((await households().reactivate(household.id, owner(by), later)).ok).toBe(true);
+		expect((await households().reactivate(household.id, owner(by), later, epoch)).ok).toBe(true);
 		const back = await households().find(household.id);
 		expect(back).toMatchObject({ memberships: [owner(by)], version: 3 });
 		expect(back?.deactivated).toBeUndefined();
-		expect((await households().reactivate(household.id, owner(by), later)).ok).toBe(false);
+		expect((await households().reactivate(household.id, owner(by), later, epoch)).ok).toBe(false);
 	});
 
 	it("won't bring one back for someone now in another", async () => {
 		const { household, by } = await deactivated();
 		await households().insert(newHousehold(by));
-		expect((await households().reactivate(household.id, owner(by), later)).ok).toBe(false);
+		expect((await households().reactivate(household.id, owner(by), later, epoch)).ok).toBe(false);
+	});
+
+	it("won't bring one back deactivated before `since` (D38)", async () => {
+		const { household, by } = await deactivated();
+		expect((await households().reactivate(household.id, owner(by), later, at)).ok).toBe(false);
+		expect((await households().find(household.id))?.deactivated).toBeDefined();
+	});
+
+	it('finds those deactivated before a time, oldest first', async () => {
+		const before = new Date(at.getTime() + 1);
+		const found = await households().findDeactivatedBefore(before, 1000);
+		const { household } = await deactivated();
+		const again = await households().findDeactivatedBefore(before, 1000);
+		expect(again.map((h) => h.id)).toContain(household.id);
+		expect(again).toHaveLength(found.length + 1);
+		expect(await households().findDeactivatedBefore(at, 1000)).not.toContainEqual(
+			expect.objectContaining({ id: household.id })
+		);
 	});
 
 	it("won't add a member to a deactivated household", async () => {
@@ -359,5 +383,66 @@ describe('leaving a household (D18)', () => {
 
 		await invitations().revokeOpen(householdId, at);
 		expect(await invitations().findOpen(householdId, at)).toEqual([]);
+	});
+});
+
+describe('mongoHouseholdData (D38)', () => {
+	// Every collection that holds household data today, and one no code knows yet.
+	const collections = [
+		'dogs',
+		'cues',
+		'trainingPlans',
+		'plannedSessions',
+		'sessionLogs',
+		'behaviourEvents',
+		'careTasks',
+		'invitations',
+		'reminders',
+		'notYetInvented'
+	];
+	const count = (householdId: Id) =>
+		Promise.all(
+			[...collections, HOUSEHOLDS].map((name) =>
+				db.mongo.db
+					.collection(name)
+					.countDocuments(name === HOUSEHOLDS ? { _id: householdId as never } : { householdId })
+			)
+		);
+
+	it("erases the household and every document with its ID, in a transaction, and no other's", async () => {
+		const [gone, kept] = [newHousehold(), newHousehold()];
+		for (const household of [gone, kept]) {
+			await households().insert(household);
+			for (const name of collections) {
+				// Unique keys, for the collections whose indexes need them (invitations, reminders).
+				const doc = () => ({ householdId: household.id, tokenHash: ids.next(), key: ids.next() });
+				await db.mongo.db.collection(name).insertMany([doc(), doc()]);
+			}
+		}
+		const userCount = await db.mongo.db.collection('users').countDocuments();
+
+		const erased = await mongoUnitOfWork(db.mongo.client).run(async () =>
+			ok(await mongoHouseholdData(db.mongo.db).erase(gone.id))
+		);
+
+		expect(erased).toEqual(ok(collections.length * 2 + 1));
+		expect(await count(gone.id)).toEqual([...collections, HOUSEHOLDS].map(() => 0));
+		expect(await count(kept.id)).toEqual([...collections.map(() => 2), 1]);
+		expect(await db.mongo.db.collection('users').countDocuments()).toBe(userCount);
+	});
+
+	it('rolls back with the transaction', async () => {
+		const household = newHousehold();
+		await households().insert(household);
+		await db.mongo.db.collection('dogs').insertOne({ householdId: household.id });
+		const failed = await mongoUnitOfWork(db.mongo.client).run(async () => {
+			await mongoHouseholdData(db.mongo.db).erase(household.id);
+			return { ok: false as const, error: 'stop' };
+		});
+		expect(failed.ok).toBe(false);
+		expect(await db.mongo.db.collection('dogs').countDocuments({ householdId: household.id })).toBe(
+			1
+		);
+		expect(await households().find(household.id)).not.toBeNull();
 	});
 });

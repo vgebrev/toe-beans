@@ -7,6 +7,7 @@
 #
 # Non-secret settings come from the production environment's variables:
 #   OIDC_CLIENT_ID     the prod Auth0 application's client ID
+#   AUTH0_MANAGEMENT_CLIENT_ID  the prod account-deletion application's client ID (auth0.md §8)
 #   R2_ACCOUNT_ID      the Cloudflare account ID, for the R2 endpoint
 #   R2_ACCESS_KEY_ID   the R2 token's access key ID (its secret is in Secret Manager)
 #   SENTRY_DSN         optional; unset turns error reports off
@@ -84,11 +85,12 @@ jobs:
           DIGEST: ${{ steps.build.outputs.digest }}
           RELEASE: ${{ steps.release.outputs.name }}
           OIDC_CLIENT_ID: ${{ vars.OIDC_CLIENT_ID }}
+          AUTH0_MANAGEMENT_CLIENT_ID: ${{ vars.AUTH0_MANAGEMENT_CLIENT_ID }}
           R2_ACCOUNT_ID: ${{ vars.R2_ACCOUNT_ID }}
           R2_ACCESS_KEY_ID: ${{ vars.R2_ACCESS_KEY_ID }}
           SENTRY_DSN: ${{ vars.SENTRY_DSN }}
         run: |
-          for name in OIDC_CLIENT_ID R2_ACCOUNT_ID R2_ACCESS_KEY_ID; do
+          for name in OIDC_CLIENT_ID AUTH0_MANAGEMENT_CLIENT_ID R2_ACCOUNT_ID R2_ACCESS_KEY_ID; do
             [ -n "${!name}" ] || { echo "::error::Set $name in the production environment's variables"; exit 1; }
           done
           url="https://$SERVICE-1047834821273.$REGION.run.app"
@@ -98,6 +100,9 @@ jobs:
             "PUBLIC_BASE_URL=https://toebeans.co.za"
             "OIDC_ISSUER=https://auth.toebeans.co.za/"
             "OIDC_CLIENT_ID=$OIDC_CLIENT_ID"
+            # Deleting an account deletes its Auth0 users through the tenant's own domain (D38).
+            "AUTH0_DOMAIN=toe-beans.eu.auth0.com"
+            "AUTH0_MANAGEMENT_CLIENT_ID=$AUTH0_MANAGEMENT_CLIENT_ID"
             "MONGODB_DB=toe-beans"
             "S3_ENDPOINT=https://$R2_ACCOUNT_ID.r2.cloudflarestorage.com"
             "S3_BUCKET=toe-beans-photos"
@@ -112,6 +117,7 @@ jobs:
           secrets=(
             "MONGODB_URI=mongodb-uri:latest"
             "OIDC_CLIENT_SECRET=oidc-client-secret:latest"
+            "AUTH0_MANAGEMENT_CLIENT_SECRET=auth0-management-client-secret:latest"
             "RESEND_API_KEY=resend-api-key:latest"
             "S3_SECRET_ACCESS_KEY=r2-secret-access-key:latest"
             "PROXY_SECRET=proxy-secret:latest"

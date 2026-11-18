@@ -74,6 +74,9 @@ export function memoryReminderPreferences(): ReminderPreferenceRepository {
 		async save(pref) {
 			prefs.set(pref.userId, structuredClone(pref));
 			return structuredClone(pref);
+		},
+		async delete(userId) {
+			prefs.delete(userId);
 		}
 	};
 }
@@ -132,6 +135,11 @@ export function memoryReminders(now: () => Date): ReminderRepository & { all(): 
 			if (r?.userId !== userId) return false;
 			r.receivedAt ??= at;
 			return true;
+		},
+		async deleteForUser(userId) {
+			const mine = [...ledger.values()].filter((r) => r.userId === userId);
+			for (const r of mine) ledger.delete(r.id);
+			return mine.length;
 		}
 	};
 }

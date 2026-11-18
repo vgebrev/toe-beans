@@ -4,11 +4,13 @@
 // 2. works out from the planned sessions and the care tasks which reminders fall due before the
 //    next tick, for every member who wants them and has a device, and claims each by inserting it
 //    into the ledger under a unique key, so concurrent ticks never send one twice;
-// 3. takes up what's left: retries, tests that are due, and claims a dead tick left behind.
+// 3. takes up what's left: retries, tests that are due, and claims a dead tick left behind;
+// 4. deletes a few households deactivated longer ago than anyone can bring them back (D38).
 //
 // Before sending, the subject is read again: a session or care task moved, done, skipped or
 // cancelled since isn't reminded of (scenario 5). Safe to run at any time and at the same time as itself, so the
 // trigger can be Cloud Scheduler's POST, an in-process loop, or both (§6.3).
+import type { Erasure } from '../application/household/erasure.js';
 import type { Planner } from '../application/planner/planner.js';
 import type { Ports } from '../application/ports/index.js';
 import type { ReminderTick, TickReport } from '../application/ports/tick.js';
@@ -90,6 +92,7 @@ export function createWorker(
 		| 'errors'
 	>,
 	planner: Pick<Planner, 'extendHorizon'>,
+	erasure: Pick<Erasure, 'sweep'>,
 	{ intervalMs }: WorkerOptions
 ): ReminderTick {
 	const log = logger.child({ component: 'worker' });
@@ -417,7 +420,8 @@ export function createWorker(
 			sent: 0,
 			retrying: 0,
 			skipped: 0,
-			failed: 0
+			failed: 0,
+			erased: 0
 		};
 		const count = (outcome: Outcome) => void report[outcome]++;
 		const attempt = async (r: Reminder, claim: string) => {
@@ -451,6 +455,11 @@ export function createWorker(
 			if (!r) break;
 			await attempt(r, claim);
 		}
+		try {
+			report.erased = await erasure.sweep(now);
+		} catch (err) {
+			failed('could not delete deactivated households', err);
+		}
 		return report;
 	}
 
@@ -464,7 +473,7 @@ export function createWorker(
 		tick(): Promise<TickReport> {
 			running ??= run()
 				.then((report) => {
-					const busy = report.claimed > 0 || report.extended > 0;
+					const busy = report.claimed > 0 || report.extended > 0 || report.erased > 0;
 					(busy ? log.info : log.debug)('tick', { ...report });
 					return report;
 				})

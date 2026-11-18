@@ -150,6 +150,9 @@ export function mongoUsers(db: Db): UserRepository {
 			if (doc) return ok(toUser(doc));
 			const exists = await users.countDocuments(live, { limit: 1, session: currentSession() });
 			return err(exists ? staleVersion : notFound('user'));
+		},
+		async delete(id) {
+			await users.deleteOne({ _id: id }, { session: currentSession() });
 		}
 	};
 }
@@ -184,7 +187,7 @@ export function mongoSessions(db: Db): SessionRepository {
 		},
 		async deleteForUser(userId) {
 			// On migration 0001's userId index.
-			const { deletedCount } = await sessions.deleteMany({ userId });
+			const { deletedCount } = await sessions.deleteMany({ userId }, { session: currentSession() });
 			return deletedCount;
 		}
 	};

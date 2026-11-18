@@ -1,8 +1,8 @@
 # Toe Beans — Backlog
 
-**Version:** 0.60 (draft for iteration)
+**Version:** 0.61 (draft for iteration)
 **Date:** 18 November 2026
-**Inputs:** `docs/requirements.md` v1.0, `docs/architecture.md` v1.26, `docs/ui.md` v0.35
+**Inputs:** `docs/requirements.md` v1.0, `docs/architecture.md` v1.27, `docs/ui.md` v0.36
 
 **Changes in 0.3:** spike results S-1.0 to S-1.4 and S0.1–S0.2 recorded as they landed (see Current progress). S-1.4b dropped as not needed, S-1.5 parked, S-1.4a retargeted to `toebeans.co.za`.
 
@@ -99,6 +99,8 @@
 **Changes in 0.59:** S17.3 from the owner: block scanners' probes at the edge. Cloudflare's analytics show bots asking for `.env` files, `.git`, PHP pages and admin consoles. Spot checks on prod found nothing exposed: they get 404s, the API gives 401 and the tick's POST without its token gives 401. The item is about cost, noise and the `security.txt` contact, not a leak.
 
 **Changes in 0.60:** S14.6 done: `docs/runbooks/durability.md` and `infra/backup/counts.sh` (document counts only), around a redeploy from the Deploy workflow, run by the owner on prod. S16.1 drafted: `docs/data-inventory.md`, with the open points S16.2 and S16.5 have to settle (deleting accounts and households). Resend sends from Ireland; operator log retention confirmed (Auth0 1 day, Resend and Cloudflare 30 days), so every operator holding personal data abroad is in the EU.
+
+**Changes in 0.61:** S16.5 done (architecture 1.27 D38, ui 0.36), tried by the owner against the dev tenant: deleting an account, a household, and a household its last member left, with deactivated households deleted by the tick after 30 days. Deleting an account deletes the person's Auth0 users through a new machine-to-machine application, whose client ID and secret prod needs before this release reaches `main` (`auth0.md` §8). `docs/data-inventory.md` 0.2 closes its open points 1–4. Inputs moved to architecture 1.27 and ui 0.36.
 
 **Changes in 0.51:** S15.1 gains (k), fresh data on coming back to the app and on Back to a page Chrome kept whole (ui 0.35 §5.2), from the owner, after Today stayed stale behind a reminder. Live updates over WebSockets were considered and left out for cost. The offline banner's check backs off from 1 s (architecture 1.23 D31), found through a flaky e2e check. Built with e2e checks and closed by the owner, so S15.1 stays done. Inputs moved to architecture 1.23 and ui 0.35.
 
@@ -213,6 +215,7 @@ Work is organised as **vertical slices**: each delivers a usable end-to-end incr
 | 2026-11-18 | S14.4 built (D37): Better Stack's uptime check on `/readyz` and heartbeats from the tick and the backup, the monitoring runbook and the accounts inventory. The owner set up Better Stack and filled both secrets; the heartbeats are tried on prod after the next deploy. |
 | 2026-11-18 | S14.4 done: the monitor (about a check every 30 s from at least 4 locations, whatever the regions) and both heartbeats *Up* after the deploy, status badge in the README; Sentry's `New or regressed issue` alert on `prod` mailed for a browser test error, new and regressed; accounts inventory checked by the owner. |
 | 2026-11-18 | S14.6 done: the durability runbook and a count script; the owner redeployed prod (`00007` → `00008`), and the counts, the photo, History and a reminder with the app closed all came through (scenario 10). S16.1 drafted: `docs/data-inventory.md` from the code and the accounts inventory, with open points for S16.2 and S16.5; Resend is in Ireland, and operator retention is confirmed. |
+| 2026-11-18 | S16.5 done (D38): account deletion, household deletion and the 30-day sweep of deactivated households, with the Auth0 users deleted through a machine-to-machine application. 809 unit, 161 integration and 283 e2e tests pass. Done: the owner deleted a throwaway account on the dev tenant, and its documents and Auth0 user were gone. |
 
 **Next up:** S16, then S14.7. Snags from using the app go to S17.
 
@@ -432,7 +435,7 @@ Work is organised as **vertical slices**: each delivers a usable end-to-end incr
 | S16.2 | Privacy policy: the responsible party and Information Officer, what is collected and why, the processors and where they are, transfers abroad, retention, security in outline, people's rights (access, correction, deletion, objection, complaint to the Information Regulator), cookies (essential only, so no consent banner; recorded as a decision). | ⬜ |
 | S16.3 | Terms of service: what the service is, accounts and households, acceptable use, training and care content as guidance, not veterinary advice (NFR-14), no warranty, ending an account, changes to the terms. | ⬜ |
 | S16.4 | Public `/privacy` and `/terms` pages (no sign-in, under the app's CSP), linked from the sign-in page and More. The links go into Google's consent screen, which then moves from Testing to In production, and into Auth0's Universal Login. | ⬜ |
-| S16.5 | Personal data deletion (was S14.5): a person deletes their account, and the last member deletes the household with its dogs, photos and history, without touching other households (NFR-01, NFR-02). What happens to the Auth0 user, backups (aged out by S14.2's retention) and logs is decided and stated in the policy. | ⬜ |
+| S16.5 | Personal data deletion (was S14.5): a person deletes their account, and the last member deletes the household with its dogs, photos and history, without touching other households (NFR-01, NFR-02). What happens to the Auth0 user, backups (aged out by S14.2's retention) and logs is decided and stated in the policy. **Built (18 Nov, D38):** *More → Delete account* (`DELETE /api/v1/me`) deletes the person's Auth0 users (Management API, `delete:users` only), devices, reminder settings, ledger entries, sessions and user; they leave a shared household as D18 says and their records stay from "a former member"; a household nobody else is in goes with them. *Household → Delete household* for its only member, and *Delete it now* on onboarding for the last person out; otherwise the tick deletes a deactivated household after 30 days. Photos go by prefix, then every document with the household's ID, in one transaction. Backups keep deleted data up to 30 days (D36), logs 30 days with IDs only: for the policy (S16.2). Unit, integration and e2e tests. **Done (18 Nov):** the owner set up the dev tenant's *Toe Beans account deletion* application and deleted a throwaway account: its user, household, dogs and the rest went from the database, and its Auth0 user from the tenant. Prod needs its own application, `AUTH0_MANAGEMENT_CLIENT_ID` and the secret (`auth0.md` §8) before the next deploy from `main`. | ✅ |
 | S16.6 | The owner registers as Information Officer with the Information Regulator, and the policy names the contact. | ⬜ |
 
 ---

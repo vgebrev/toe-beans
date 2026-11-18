@@ -1,10 +1,12 @@
 # Toe Beans — Data inventory
 
-**Version:** 0.1 (draft)
+**Version:** 0.2 (draft)
 **Date:** 18 November 2026
-**Inputs:** `docs/requirements.md` v1.0, `docs/architecture.md` v1.26, `docs/runbooks/accounts.md`
+**Inputs:** `docs/requirements.md` v1.0, `docs/architecture.md` v1.27, `docs/runbooks/accounts.md`
 
 **Changes in 0.1:** first draft for backlog S16.1. Lists the personal data Toe Beans holds, where it is, why, and how long it's kept, worked out from the code and the accounts inventory. It's the source for the privacy policy (S16.2) and for deletion (S16.5). §6 lists the open points those slices have to settle.
+
+**Changes in 0.2:** S16.5 built (architecture D38), settling §6's points 1–4: deleting an account deletes the person's Auth0 users, devices, reminder settings, ledger entries, sessions and user; what they recorded in a shared household stays as from "a former member"; a household is deleted by its only member, with its only member's account, or 30 days after the last person left. §2's *Kept* column and §4's Auth0 row follow.
 
 This file is public. It describes kinds of data and where they are, never values. It isn't legal
 advice. The owner has it read with the policy before other households join (backlog S16).
@@ -26,17 +28,17 @@ that household's members can reach it (NFR-01, NFR-02).
 
 | Collection | Personal data | Whose, who sees it | Why | Kept |
 |---|---|---|---|---|
-| `users` | Email, display name, avatar URL (from Google), the provider's subject IDs, when each was linked | The person. Fellow members see the name and avatar | Sign-in, linking Google and email sign-ins by verified email, showing who did what | Until the account is deleted (S16.5). Leaving a household doesn't remove it |
-| `households` | Household name, time zone, members (user ID, role, joined date) | Members | Sharing dogs between caregivers; reminders in local time | While it has members. The last to leave deactivates it (D18); it isn't deleted yet (§6) |
+| `users` | Email, display name, avatar URL (from Google), the provider's subject IDs, when each was linked | The person. Fellow members see the name and avatar | Sign-in, linking Google and email sign-ins by verified email, showing who did what | Until the person deletes their account (D38). Leaving a household doesn't remove it |
+| `households` | Household name, time zone, members (user ID, role, joined date) | Members | Sharing dogs between caregivers; reminders in local time | While it has members. The last to leave deactivates it (D18); it's deleted with everything in it when its only member deletes it or their account, or 30 days after it was deactivated (D38) |
 | `invitations` | The invitee's email (email invitations only), who invited, expiry and use. The token is stored only as a hash | The household's members | Inviting a caregiver (FR-02) | 7 days to use, then removed 30 days after it expires (TTL) |
-| `dogs` | Name, birth date, adoption date, notes, the photo's ID | Household | The dog's profile | Until deleted (S16.5). Archiving keeps it |
+| `dogs` | Name, birth date, adoption date, notes, the photo's ID | Household | The dog's profile | Until its household is deleted (D38). Archiving keeps it |
 | `sessionLogs`, `behaviourEvents` | What was practised or happened, when, notes, emotional state, environment, who recorded it and who changed it last | Household | Training history and reports (FR-05–FR-09) | Until deleted. A deleted entry is purged 30 days later (TTL) |
 | `plannedSessions`, `trainingPlans` | Planned times, who planned them | Household | Planning and reminders (FR-04, FR-12) | Until deleted |
 | `careTasks` | Care titles, dates, notes, history of changes and who made them | Household | Care tracking and reminders (FR-10, FR-11) | Until deleted. History is capped per task |
 | `cues` | Cue words and notes | Household | The shared cue dictionary | Until deleted |
-| `pushDevices` | The browser's push endpoint and keys, a label such as "Galaxy S23 FE · Chrome", last success and failures | The person | Sending reminders to that phone (FR-12) | Until the person removes it or signs out everywhere. A device the push service reports as gone is disabled, not deleted (§6) |
-| `reminderPreferences` | What the person wants reminding of, and when | The person | Reminders | Until the account is deleted |
-| `reminders` | Ledger of reminders: whose, for which item, when due, sent or failed | The person; the tick | Not sending a reminder twice (D27) | 30 days from creation (TTL) |
+| `pushDevices` | The browser's push endpoint and keys, a label such as "Galaxy S23 FE · Chrome", last success and failures | The person | Sending reminders to that phone (FR-12) | Until the person removes it, signs out everywhere or deletes their account. A device the push service reports as gone is disabled, not deleted, until then |
+| `reminderPreferences` | What the person wants reminding of, and when | The person | Reminders | Until the account is deleted (D38) |
+| `reminders` | Ledger of reminders: whose, for which item, when due, sent or failed | The person; the tick | Not sending a reminder twice (D27) | 30 days from creation (TTL), or sooner with the account or household |
 | `sessions` | The user ID, a hash of the cookie's token, created and expiry times | The person | Staying signed in | 90 days sliding, at most 400 days, then removed (TTL). Never backed up |
 | `pendingSignIns` | PKCE checks and the page to return to, for 10 minutes | Nobody | Finishing a sign-in | 10 minutes (TTL). Never backed up |
 | `_migrations`, `_locks` | None | — | Running the app | — |
@@ -48,7 +50,7 @@ The rate limiter keys on the client's address in process memory only, and forget
 
 | What | Where | Personal data | Kept |
 |---|---|---|---|
-| Dog photos | Cloudflare R2 `toe-beans-photos`, Europe location hint | The image, re-encoded with its metadata (EXIF, location) removed (S3) | Until replaced or the dog is deleted |
+| Dog photos | Cloudflare R2 `toe-beans-photos`, Europe location hint | The image, re-encoded with its metadata (EXIF, location) removed (S3) | Until replaced, or its household is deleted (D38) |
 | Backups | R2 `toe-beans-backups`, Europe. The dump is encrypted with `age` to the owner's key | Everything in §2 except `sessions` and `pendingSignIns`, plus every photo | Dumps 30 days; replaced or deleted photos 30 days in `photos/replaced/`; current photos while they exist (D36) |
 | App logs | Google Cloud Logging, project `toe-beans-co-za` | Internal user, household and item IDs, route IDs and errors. Emails, tokens, cookies and push endpoints are redacted (NFR-12) | 30 days |
 | Platform request logs | Cloud Logging (Cloud Run request logs) | Full URLs (which can hold an invitation token, D34), user agent, timing | 30 days, readable by the owner only |
@@ -64,7 +66,7 @@ with protection substantially similar to POPIA. The EU's GDPR is accepted as tha
 | Operator | What it gets | Where | §72 basis | Its retention |
 |---|---|---|---|---|
 | MongoDB Atlas | §2 | South Africa (Cape Town) | Not a transfer | As §2 |
-| Auth0 (Okta) | Email, name, avatar URL, password hash for email sign-in, sign-in logs with IP and device | EU | GDPR-adequate region; Okta's DPA | Account until deleted (§6). Logs 1 day (free plan) |
+| Auth0 (Okta) | Email, name, avatar URL, password hash for email sign-in, sign-in logs with IP and device | EU | GDPR-adequate region; Okta's DPA | Account until the person deletes theirs in the app, which deletes it at Auth0 too (D38). Logs 1 day (free plan) |
 | Google | For Google sign-in: that the person signed in to Toe Beans. Google's OAuth client is the owner's | US and global | The person chooses Google sign-in and has their own account with Google | Google's own |
 | Cloudflare | Every request passes the edge: address, URL, user agent. R2 holds photos and backups. Worker logs are off | Global edge; R2 in Europe | EU storage; Cloudflare's DPA with SCCs for the edge | Request analytics are aggregate. Security events (S17.3's WAF rule) keep addresses for 30 days |
 | Google Cloud | Runs the app. Sees requests and holds logs (§3) and secrets | South Africa (`africa-south1`); Scheduler in `me-central1` carries no personal data | Not a transfer for the app and its logs | 30 days for logs |
@@ -83,16 +85,15 @@ the curated library, not personal data. Push notifications show only what the ho
 
 ## 6. Open points for S16.2 and S16.5
 
-1. **Deleting an account (S16.5).** Today nothing removes a `users` document, an account's
-   `reminderPreferences`, or its Auth0 user. Leaving a household removes the membership only.
-2. **Deleting a household (S16.5).** The last member leaving deactivates it and keeps its dogs,
-   photos and history. S16.5 has to delete them, photos included, without touching another
-   household.
-3. **Who-did-what after someone leaves.** Logs, events and care history keep the user ID of who
-   recorded them. Once that account is deleted, other members should see something like
-   "a former member", not a name. S16.5 decides.
-4. **Disabled push devices** stay until the person removes them. S16.5 can delete them after a
-   while, or with the account.
+1. **Deleting an account** — settled by S16.5 (D38): *More → Delete account* deletes the Auth0
+   users, devices, reminder settings, ledger entries, sessions and the user.
+2. **Deleting a household** — settled (D38): by its only member, with its only member's account,
+   or by the tick 30 days after the last person left. Photos and every document with its ID go;
+   other households aren't touched.
+3. **Who-did-what after someone leaves** — settled (D38): records keep the deleted person's ID,
+   which names nobody once the user is gone, and show "a former member".
+4. **Disabled push devices** — settled: they go with the account, or when the person removes
+   them or signs out everywhere. No separate clean-up.
 5. **Backups** keep deleted data for up to 30 days. The policy says so (D36).
 6. **Resend's region** is settled: the domain sends from Ireland (`eu-west-1`), so it's in the EU
    like Auth0 and Sentry.

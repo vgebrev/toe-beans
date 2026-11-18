@@ -125,5 +125,8 @@ export type PhotoSize = 'large' | 'thumb';
 export const PHOTO_PIXELS: Record<PhotoSize, number> = { large: 1024, thumb: 256 };
 
 /** Where a photo's objects are stored. Random IDs, so a key can't be guessed (§3.6). */
+/** Everything a household has in the photo store sits under this; deleting it deletes them all. */
+export const householdPhotoPrefix = (householdId: Id) => `households/${householdId}/`;
+
 export const photoKey = (dog: Pick<Dog, 'householdId' | 'id'>, photoId: Id, size: PhotoSize) =>
-	`households/${dog.householdId}/dogs/${dog.id}/${photoId}-${size}.webp`;
+	`${householdPhotoPrefix(dog.householdId)}dogs/${dog.id}/${photoId}-${size}.webp`;

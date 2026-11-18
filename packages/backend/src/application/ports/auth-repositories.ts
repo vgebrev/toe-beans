@@ -29,6 +29,8 @@ export interface UserRepository {
 		expectedVersion: number,
 		at: Date
 	): Promise<Result<User, NotFoundError | StaleVersionError>>;
+	/** Deletes the user for good (S16.5). Missing is fine. */
+	delete(id: Id): Promise<void>;
 }
 
 export interface Session {
@@ -49,7 +51,10 @@ export interface SessionRepository {
 	findLive(tokenHash: string, now: Date): Promise<Session | null>;
 	extend(tokenHash: string, expiresAt: Date, at: Date): Promise<void>;
 	delete(tokenHash: string): Promise<void>;
-	/** Ends every session of the person, for *Sign out everywhere*; returns how many. */
+	/**
+	 * Ends every session of the person, for *Sign out everywhere* and deleting the account;
+	 * returns how many. Joins a transaction.
+	 */
 	deleteForUser(userId: Id): Promise<number>;
 }
 

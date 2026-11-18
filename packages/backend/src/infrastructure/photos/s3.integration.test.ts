@@ -37,6 +37,16 @@ describe('s3PhotoStore', () => {
 		await expect(store.delete(['households/h1/nothing.webp'])).resolves.toBeUndefined();
 	});
 
+	it("deletes everything under a household's prefix, and only that", async () => {
+		const mine = ['households/h2/dogs/d1/p1-thumb.webp', 'households/h2/dogs/d2/p2-large.webp'];
+		const theirs = 'households/h20/dogs/d3/p3-thumb.webp';
+		for (const key of [...mine, theirs]) await store.put(key, bytes, 'image/webp');
+		expect(await store.deletePrefix('households/h2/')).toBe(2);
+		for (const key of mine) expect(await store.getStream(key)).toBeNull();
+		expect(await store.getStream(theirs)).not.toBeNull();
+		expect(await store.deletePrefix('households/h2/')).toBe(0);
+	});
+
 	it("keeps the bucket private: an unsigned request can't read", async () => {
 		const key = 'households/h1/dogs/d1/p2-large.webp';
 		await store.put(key, bytes, 'image/webp');

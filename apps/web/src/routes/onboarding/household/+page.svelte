@@ -1,6 +1,7 @@
 <script lang="ts">
 	// J1 step 3. The time zone is the device's unless changed; every schedule is worked out in it.
-	// Someone who was the last to leave a household can bring it back instead (architecture D18).
+	// Someone who was the last to leave a household can bring it back instead (architecture D18), for
+	// 30 days, or delete it now (D38).
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
@@ -10,6 +11,8 @@
 	import { Button } from '#lib/components/ui/button/index.js';
 	import { Input } from '#lib/components/ui/input/index.js';
 	import { Label } from '#lib/components/ui/label/index.js';
+	import * as Sheet from '#lib/components/ui/sheet/index.js';
+	import LocalDate from '#lib/components/shell/LocalDate.svelte';
 	import { createApiClient, problemStatus } from '#lib/api-client/index.js';
 	import type { PageProps } from './$types';
 	import { revealErrors } from '#lib/forms/reveal-errors.js';
@@ -31,6 +34,21 @@
 	});
 
 	let rejoining = $state<'idle' | 'saving' | 'failed'>('idle');
+	let deleteOpen = $state(false);
+	let deleting = $state<'idle' | 'working' | 'failed'>('idle');
+	let deleted = $state(false);
+
+	async function deleteFormer() {
+		deleting = 'working';
+		const result = await api.send('DELETE', '/household/former');
+		// 404: already gone, from another tab or the daily clean-up.
+		if (result.ok || problemStatus(result.error) === 404) {
+			deleteOpen = false;
+			deleted = true;
+			return;
+		}
+		deleting = 'failed';
+	}
 
 	async function rejoin() {
 		rejoining = 'saving';
@@ -92,9 +110,15 @@
 <h1 class="font-display text-[1.75rem] leading-tight font-semibold">Create your household</h1>
 <p class="text-muted-foreground">Everyone who looks after your dog shares it.</p>
 
-{#if data.former}
+{#if deleted}
+	<p aria-live="polite" class="text-sm text-muted-foreground">Household deleted.</p>
+{:else if data.former}
 	<section class="flex flex-col gap-3 rounded-2xl border border-border px-4 py-4">
-		<p>You were the last to leave {data.former.name}. Rejoining brings it back as you left it.</p>
+		<p>
+			You were the last to leave {data.former.name}. Rejoining brings it back as you left it.
+			Otherwise it's deleted on
+			<LocalDate iso={data.former.keptUntil} timeZone={timeZone || 'UTC'} />.
+		</p>
 		{#if rejoining === 'failed'}
 			<p role="alert" class="rounded-2xl border border-border bg-soft px-4 py-3">
 				Couldn't rejoin — check your connection.
@@ -116,7 +140,53 @@
 				Rejoin {data.former.name}
 			{/if}
 		</Button>
+		<Button
+			type="button"
+			variant="ghost"
+			class="w-full text-destructive"
+			onclick={() => {
+				deleting = 'idle';
+				deleteOpen = true;
+			}}
+		>
+			Delete it now
+		</Button>
 	</section>
+
+	<Sheet.Root bind:open={deleteOpen}>
+		<Sheet.Content side="bottom" class="mx-auto flex max-w-xl flex-col gap-4 px-4 pt-6 pb-4">
+			<Sheet.Header class="p-0 pr-12 text-left">
+				<Sheet.Title class="font-display text-xl font-semibold">
+					Delete {data.former.name} for good?
+				</Sheet.Title>
+				<Sheet.Description class="text-base">
+					Its dogs, photos, training and care history and cues are all deleted, and can't be brought
+					back.
+				</Sheet.Description>
+			</Sheet.Header>
+			{#if deleting === 'failed'}
+				<p role="alert" class="rounded-2xl border border-border bg-soft px-4 py-3 text-base">
+					Couldn't delete — check your connection.
+				</p>
+			{/if}
+			<Button
+				type="button"
+				variant="destructive"
+				class="w-full"
+				disabled={deleting === 'working'}
+				onclick={deleteFormer}
+			>
+				{#if deleting === 'working'}
+					<Icon name="saving" class="animate-spin" />
+					Deleting…
+				{:else if deleting === 'failed'}
+					Retry
+				{:else}
+					Delete household
+				{/if}
+			</Button>
+		</Sheet.Content>
+	</Sheet.Root>
 {/if}
 
 <form class="flex flex-col gap-5" onsubmit={save} novalidate {@attach revealErrors}>

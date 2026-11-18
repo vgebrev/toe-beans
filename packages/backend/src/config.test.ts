@@ -40,6 +40,11 @@ const r2 = {
 	S3_SECRET_ACCESS_KEY: 'key-secret'
 };
 const proxySecret = 'p'.repeat(32);
+const management = {
+	AUTH0_DOMAIN: 'toe-beans.eu.auth0.com',
+	AUTH0_MANAGEMENT_CLIENT_ID: 'm2m',
+	AUTH0_MANAGEMENT_CLIENT_SECRET: 'm2m-secret'
+};
 const prod = {
 	APP_ENV: 'prod',
 	MONGODB_URI: atlas,
@@ -47,6 +52,7 @@ const prod = {
 	RESEND_API_KEY: 're_key',
 	PROXY_SECRET: proxySecret,
 	...auth0,
+	...management,
 	...r2,
 	...vapid,
 	...scheduler
@@ -77,6 +83,11 @@ describe('loadConfig', () => {
 			mongodb: { uri: atlas, db: 'tb' },
 			publicOrigin: 'https://toebeans.co.za',
 			oidc: { issuer: auth0.OIDC_ISSUER, clientId: 'client', clientSecret: 'secret' },
+			auth0Management: {
+				domain: 'toe-beans.eu.auth0.com',
+				clientId: 'm2m',
+				clientSecret: 'm2m-secret'
+			},
 			authRateLimit: { limit: 30, windowMs: 600_000 },
 			inviteRateLimit: { limit: 30, windowMs: 600_000 },
 			writeRateLimit: { limit: 300, windowMs: 600_000 },
@@ -204,6 +215,19 @@ describe('loadConfig', () => {
 		expect(loadConfig({ APP_RELEASE: '1.2.0', K_REVISION: 'web-00012-xyz' }).release).toBe('1.2.0');
 		expect(loadConfig({})).not.toHaveProperty('sentry');
 		expect(() => loadConfig({ SENTRY_DSN: 'http://abc@sentry.example/1' })).toThrow(/SENTRY_DSN/);
+	});
+
+	it('needs all three Auth0 Management settings, and them in prod', () => {
+		expect(() => loadConfig({ ...prod, AUTH0_MANAGEMENT_CLIENT_SECRET: '' })).toThrow(
+			/AUTH0_MANAGEMENT_CLIENT_SECRET: required to delete Auth0 users/
+		);
+		expect(() => loadConfig({ AUTH0_DOMAIN: 'toe-beans-dev.eu.auth0.com' })).toThrow(
+			/AUTH0_MANAGEMENT_CLIENT_ID/
+		);
+		expect(() => loadConfig({ ...prod, AUTH0_DOMAIN: 'auth.toebeans.co.za' })).toThrow(
+			/AUTH0_DOMAIN: must be the tenant domain/
+		);
+		expect(loadConfig({}).auth0Management).toBeUndefined();
 	});
 
 	it("requires the proxy's header secret in prod, and takes any request without one locally", () => {

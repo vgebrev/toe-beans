@@ -1,6 +1,7 @@
 <script lang="ts">
-	// Members and pending invitations (ui.md §4.8). Revoking, removing and leaving are each confirmed
-	// in a sheet naming what happens (§5.3), which stays open with a retry if the request fails (§5.2).
+	// Members and pending invitations (ui.md §4.8). Revoking, removing, leaving and deleting are each
+	// confirmed in a sheet naming what happens (§5.3), which stays open with a retry if the request
+	// fails (§5.2). Only someone alone in the household can delete it (architecture D38).
 	import { goto, invalidateAll } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import type { Invitation, Member } from '@toe-beans/contracts';
@@ -26,7 +27,8 @@
 		| { kind: 'remove'; member: Member }
 		| { kind: 'promote'; member: Member }
 		| { kind: 'step-down'; member: Member }
-		| { kind: 'leave'; member: Member };
+		| { kind: 'leave'; member: Member }
+		| { kind: 'delete' };
 
 	let action = $state<Action | null>(null);
 	let sheetOpen = $state(false);
@@ -40,7 +42,7 @@
 		const household = data.household.name;
 		const [next] = others;
 		if (!next) {
-			return `Nobody will be left in ${household}, so it's deactivated and its pending invites stop working. You can rejoin it later.`;
+			return `Nobody will be left in ${household}, so it's deactivated and its pending invites stop working. You can rejoin it within 30 days; after that it's deleted with its dogs, photos and history.`;
 		}
 		const back = "You'll need a new invite to come back.";
 		const lastOwner = you?.role === 'owner' && !others.some((m) => m.role === 'owner');
@@ -81,6 +83,15 @@
 					working: 'Leaving…',
 					failed: "Couldn't leave — check your connection."
 				};
+			case 'delete':
+				return {
+					title: `Delete ${data.household.name} for good?`,
+					description:
+						"Its dogs, photos, training and care history, cues and invites are all deleted, and can't be brought back. Your account stays, so you can start a new household.",
+					confirm: 'Delete household',
+					working: 'Deleting…',
+					failed: "Couldn't delete — check your connection."
+				};
 			default:
 				return {
 					title: 'Revoke invite?',
@@ -102,6 +113,9 @@
 	}
 
 	function send(current: Action) {
+		if (current.kind === 'delete') {
+			return api.send('DELETE', '/household', { ifMatch: data.etag });
+		}
 		if (current.kind === 'revoke') {
 			const { id, etag } = current.invitation;
 			return api.send('DELETE', `/household/invitations/${id}`, { ifMatch: etag });
@@ -128,7 +142,7 @@
 		const result = await send(current);
 		if (result.ok) {
 			sheetOpen = false;
-			if (current.kind === 'leave') {
+			if (current.kind === 'leave' || current.kind === 'delete') {
 				await goto(resolve('/onboarding/household'), { invalidateAll: true });
 				return;
 			}
@@ -137,7 +151,8 @@
 			return;
 		}
 		const code = problemStatus(result.error);
-		if (code === 412 || code === 404) {
+		// 409: someone joined since, so it's no longer theirs alone to delete.
+		if (code === 412 || code === 404 || code === 409) {
 			// Changed since this page loaded: show what's true now, and let them look again.
 			sheetOpen = false;
 			notice =
@@ -271,6 +286,16 @@
 		>
 			Leave household
 		</Button>
+		{#if others.length === 0 && data.details}
+			<Button
+				type="button"
+				variant="ghost"
+				class="w-full text-destructive"
+				onclick={() => ask({ kind: 'delete' })}
+			>
+				Delete household
+			</Button>
+		{/if}
 	{/if}
 </div>
 

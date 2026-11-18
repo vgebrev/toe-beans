@@ -13,7 +13,12 @@ import type { DogRepository, PhotoProcessor, PhotoStore } from './dog-ports.js';
 import type { EmailSender } from './email-sender.js';
 import type { ErrorReporter } from './error-reporter.js';
 import type { ExerciseCatalogue } from './exercise-catalogue.js';
-import type { HouseholdRepository, InvitationRepository } from './household-repositories.js';
+import type {
+	HouseholdData,
+	HouseholdRepository,
+	InvitationRepository
+} from './household-repositories.js';
+import type { IdentityAccounts } from './identity-accounts.js';
 import type { IdentityProvider } from './identity-provider.js';
 import type { Logger } from './logger.js';
 import type { PlannedSessionRepository, TrainingPlanRepository } from './planner-repositories.js';
@@ -62,10 +67,12 @@ export type { EmailFailure, EmailMessage, EmailSender } from './email-sender.js'
 export type { ErrorReporter } from './error-reporter.js';
 export type { ExerciseCatalogue } from './exercise-catalogue.js';
 export type {
+	HouseholdData,
 	HouseholdRepository,
 	InvitationRepository,
 	NewInvitation
 } from './household-repositories.js';
+export type { IdentityAccounts } from './identity-accounts.js';
 export type { IdGenerator } from '../../domain/id.js';
 export type {
 	IdentityClaims,
@@ -111,12 +118,16 @@ export interface Ports {
 	errors: ErrorReporter;
 	readiness: Readiness;
 	identity: IdentityProvider;
+	/** Deleting the person's accounts at the provider, with their own (S16.5). */
+	identityAccounts: IdentityAccounts;
 	users: UserRepository;
 	sessions: SessionRepository;
 	pendingSignIns: PendingSignInRepository;
 	/** Sign-in and its callback, per client address (architecture §7). */
 	authRateLimit: RateLimiter;
 	households: HouseholdRepository;
+	/** Deleting a household's records, whatever collection they're in (D38). */
+	householdData: HouseholdData;
 	invitations: InvitationRepository;
 	email: EmailSender;
 	/** Looking at or accepting an invitation, per client address (architecture §7). */

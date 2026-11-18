@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { createCareTasks } from '../application/care/care-tasks.js';
+import { createErasure } from '../application/household/erasure.js';
 import type { PlannerContext } from '../application/auth/auth.js';
 import { createPlanner } from '../application/planner/planner.js';
 import type { Exercise } from '../domain/exercise.js';
@@ -9,8 +10,8 @@ import { CLAIM_MS, defaultPreference, testKey } from '../domain/reminders.js';
 import { directUnitOfWork, memoryUsers } from '../testing/auth.js';
 import { memoryCareTasks } from '../testing/care-tasks.js';
 import { manualClock } from '../testing/clock.js';
-import { memoryDogs } from '../testing/dogs.js';
-import { memoryHouseholds } from '../testing/household.js';
+import { memoryDogs, memoryPhotoStore } from '../testing/dogs.js';
+import { memoryHouseholdData, memoryHouseholds } from '../testing/household.js';
 import { memoryPlannedSessions, memoryTrainingPlans } from '../testing/planner.js';
 import {
 	fakePushSender,
@@ -100,10 +101,13 @@ async function setup() {
 		clock,
 		ids,
 		logger: silentLogger,
-		errors: noErrors
+		errors: noErrors,
+		householdData: memoryHouseholdData(households),
+		photos: memoryPhotoStore()
 	};
 	const planner = createPlanner(ports);
-	const worker = createWorker(ports, planner, { intervalMs: 5 * MIN });
+	const erasure = createErasure(ports);
+	const worker = createWorker(ports, planner, erasure, { intervalMs: 5 * MIN });
 	const device = async (userId: Id, name: string) =>
 		(await ports.pushDevices.save({
 			id: ids.next(),
@@ -202,7 +206,9 @@ describe('training reminders', () => {
 		const { worker, device, schedule, ports, clock } = await setup();
 		await device(sam, 'phone');
 		await schedule('2026-11-10', '17:30');
-		const other = createWorker(ports, createPlanner(ports), { intervalMs: 5 * MIN });
+		const other = createWorker(ports, createPlanner(ports), createErasure(ports), {
+			intervalMs: 5 * MIN
+		});
 
 		clock.set('2026-11-10T15:30:00Z');
 		await Promise.all([worker.tick(), other.tick(), other.tick()]);
@@ -565,5 +571,26 @@ describe('test reminders', () => {
 			title: 'Reminders are working',
 			path: 'settings/notifications?test=arrived'
 		});
+	});
+});
+
+describe('deactivated households', () => {
+	it('are deleted with their photos once nobody can bring them back (D38)', async () => {
+		const { clock, ports, worker, dog } = await setup();
+		await ports.photos.put(`households/${h1}/dogs/${dog.id}/p-thumb.webp`, new Uint8Array(1), 'x');
+		await ports.photos.put('households/h2/dogs/d/p-thumb.webp', new Uint8Array(1), 'x');
+		const h = (await ports.households.find(h1))!;
+		await ports.households.deactivate(h1, sam, { expectedVersion: h.version, at: clock.now() });
+
+		clock.advance(30 * 24 * 60 * MIN - MIN);
+		expect((await worker.tick()).erased).toBe(0);
+		expect(await ports.households.find(h1)).not.toBeNull();
+
+		clock.advance(2 * MIN);
+		expect((await worker.tick()).erased).toBe(1);
+		expect(await ports.households.find(h1)).toBeNull();
+		expect(ports.householdData.erased).toEqual([h1]);
+		expect(ports.photos.keys()).toEqual(['households/h2/dogs/d/p-thumb.webp']);
+		expect(await ports.households.find('h2' as Id)).not.toBeNull();
 	});
 });

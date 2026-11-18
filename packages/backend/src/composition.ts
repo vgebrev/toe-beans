@@ -2,11 +2,13 @@
 // the reminder tick's own loop where the host doesn't call it (§6.3).
 import type { ErrorReporter, Logger, Ports } from './application/ports/index.js';
 import type { Config } from './config.js';
+import { createErasure } from './application/household/erasure.js';
 import { createPlanner } from './application/planner/planner.js';
 import { createIdGenerator } from './domain/id.js';
 import { createHttp, type Http } from './http/index.js';
 import { oidcIdentityProvider } from './infrastructure/auth/oidc-provider.js';
 import { tickAuthenticator } from './infrastructure/auth/tick-auth.js';
+import { auth0Accounts, noIdentityAccounts } from './infrastructure/auth/auth0-accounts.js';
 import { httpHeartbeat, noHeartbeat } from './infrastructure/monitoring/http-heartbeat.js';
 import {
 	createSentryReporter,
@@ -27,6 +29,7 @@ import {
 import { mongoCues } from './infrastructure/persistence/cue-collection.js';
 import { mongoDogs } from './infrastructure/persistence/dog-collection.js';
 import {
+	mongoHouseholdData,
 	mongoHouseholds,
 	mongoInvitations
 } from './infrastructure/persistence/household-collections.js';
@@ -127,11 +130,17 @@ export async function createBackend(
 		errors,
 		readiness: overrides.readiness ?? mongoReadiness(mongo.db),
 		identity: overrides.identity ?? oidcIdentityProvider(config.oidc),
+		identityAccounts:
+			overrides.identityAccounts ??
+			(config.auth0Management
+				? auth0Accounts({ ...config.auth0Management, issuer: config.oidc.issuer, clock })
+				: noIdentityAccounts(logger)),
 		users: overrides.users ?? mongoUsers(mongo.db),
 		sessions: overrides.sessions ?? mongoSessions(mongo.db),
 		pendingSignIns: overrides.pendingSignIns ?? mongoPendingSignIns(mongo.db),
 		authRateLimit: overrides.authRateLimit ?? memoryRateLimiter({ ...config.authRateLimit, clock }),
 		households: overrides.households ?? mongoHouseholds(mongo.db),
+		householdData: overrides.householdData ?? mongoHouseholdData(mongo.db),
 		invitations: overrides.invitations ?? mongoInvitations(mongo.db, clock),
 		email: overrides.email ?? createEmailSender(config.email),
 		inviteRateLimit:
@@ -156,7 +165,9 @@ export async function createBackend(
 		push: overrides.push ?? webPushSender({ vapid: vapidKeys(config, logger) })
 	};
 	const worker = withHeartbeat(
-		createWorker(ports, createPlanner(ports), { intervalMs: config.worker.intervalMs }),
+		createWorker(ports, createPlanner(ports), createErasure(ports), {
+			intervalMs: config.worker.intervalMs
+		}),
 		config.worker.heartbeatUrl
 			? httpHeartbeat({ url: config.worker.heartbeatUrl, logger })
 			: noHeartbeat
@@ -180,6 +191,7 @@ export async function createBackend(
 		exercises: exercises.all().length,
 		publicOrigin: config.publicOrigin,
 		oidcIssuer: config.oidc.issuer,
+		deletesProviderAccounts: Boolean(config.auth0Management),
 		durationMs: Math.round(performance.now() - started)
 	});
 	const db = mongo;

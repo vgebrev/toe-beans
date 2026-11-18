@@ -3,15 +3,20 @@
 import type {
 	EmailMessage,
 	EmailSender,
+	HouseholdData,
 	HouseholdRepository,
 	InvitationRepository
 } from '../application/ports/index.js';
 import { conflictError, notFound, staleVersion } from '../application/errors.js';
 import type { Household } from '../domain/household.js';
+import type { Id } from '../domain/id.js';
 import { invitationState, type Invitation } from '../domain/invitation.js';
 import { err, ok, type Result } from '../domain/result.js';
 
-export function memoryHouseholds(): HouseholdRepository & { all(): Household[] } {
+export function memoryHouseholds(): HouseholdRepository & {
+	all(): Household[];
+	remove(id: string): boolean;
+} {
 	const households = new Map<string, Household>();
 	const hasMember = (h: Household, userId: string) =>
 		h.memberships.some((m) => m.userId === userId);
@@ -29,12 +34,23 @@ export function memoryHouseholds(): HouseholdRepository & { all(): Household[] }
 			structuredClone([...households.values()].filter((h) => ids.includes(h.id))),
 		findForMember: async (userId) =>
 			structuredClone([...households.values()].find((h) => hasMember(h, userId)) ?? null),
-		findDeactivatedBy: async (userId) =>
+		findDeactivatedBy: async (userId, since) =>
 			structuredClone(
 				[...households.values()]
-					.filter((h) => h.deactivated?.by === userId)
+					.filter((h) => h.deactivated?.by === userId && h.deactivated.at > since)
 					.sort((a, b) => b.deactivated!.at.getTime() - a.deactivated!.at.getTime())[0] ?? null
 			),
+		listDeactivatedBy: async (userId) =>
+			structuredClone([...households.values()].filter((h) => h.deactivated?.by === userId)),
+		findDeactivatedBefore: async (before, limit) =>
+			structuredClone(
+				[...households.values()]
+					.filter((h) => h.deactivated && h.deactivated.at < before)
+					.sort((a, b) => a.deactivated!.at.getTime() - b.deactivated!.at.getTime())
+					.slice(0, limit)
+			),
+		/** For a HouseholdData double: forgets the household. */
+		remove: (id: string) => households.delete(id),
 		async addMember(id, membership, at) {
 			const h = households.get(id)!;
 			if (inOne(membership.userId) || h.deactivated) return err(conflict);
@@ -63,9 +79,11 @@ export function memoryHouseholds(): HouseholdRepository & { all(): Household[] }
 			});
 			return ok(undefined);
 		},
-		async reactivate(id, owner, at) {
+		async reactivate(id, owner, at, since) {
 			const h = households.get(id)!;
-			if (!h.deactivated || inOne(owner.userId)) return err(conflict);
+			if (!h.deactivated || h.deactivated.at <= since || inOne(owner.userId)) {
+				return err(conflict);
+			}
 			delete h.deactivated;
 			Object.assign(h, {
 				memberships: [structuredClone(owner)],
@@ -136,6 +154,23 @@ export function memoryInvitations(
 						('createdBy' in by ? i.createdBy === by.createdBy : i.householdId === by.householdId))
 			).length
 	};
+}
+
+/**
+ * Forgets the household, and records which it was asked to erase. The Mongo adapter, which goes
+ * through every collection, has its integration test.
+ */
+export function memoryHouseholdData(households: {
+	remove(id: string): boolean;
+}): HouseholdData & { erased: string[] } {
+	const fake = {
+		erased: [] as string[],
+		async erase(householdId: Id) {
+			fake.erased.push(householdId);
+			return households.remove(householdId) ? 1 : 0;
+		}
+	};
+	return fake;
 }
 
 export interface FakeEmailSender extends EmailSender {

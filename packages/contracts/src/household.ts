@@ -31,8 +31,11 @@ export type Household = z.infer<typeof Household>;
 export const ChangeMemberRole = z.strictObject({ role: Role });
 export type ChangeMemberRole = z.infer<typeof ChangeMemberRole>;
 
-/** What someone without a household can bring back: the one they were the last to leave. */
-export const FormerHousehold = z.object({ name: z.string() });
+/**
+ * What someone without a household can bring back: the one they were the last to leave, until
+ * `keptUntil`, when it's deleted (architecture D38).
+ */
+export const FormerHousehold = z.object({ name: z.string(), keptUntil: z.iso.datetime() });
 export type FormerHousehold = z.infer<typeof FormerHousehold>;
 
 /** Shape only; the backend tidies the name and checks the time zone. */

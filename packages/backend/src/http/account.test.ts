@@ -12,6 +12,7 @@ function fakeAccount(overrides: Partial<Account> = {}): Account {
 	return {
 		profile: vi.fn(async () => ok(profile)),
 		rename: vi.fn(async (_ctx, { displayName }) => ok({ ...profile, displayName, version: 8 })),
+		delete: vi.fn(async () => ok(undefined)),
 		...overrides
 	};
 }
@@ -80,5 +81,16 @@ describe('account http', () => {
 			body: { displayName: 'Sammy' }
 		});
 		expect(res).toMatchObject({ status: 412, body: { type: 'toe-beans/conflict' } });
+	});
+
+	it('DELETE deletes the account: a 204, or a 503 when the provider is out of reach', async () => {
+		expect(await createAccountHttp(fakeAccount()).delete(ctx)).toMatchObject({ status: 204 });
+		const unreachable = fakeAccount({
+			delete: async () => err({ kind: 'unavailable', message: 'Try again.' })
+		});
+		expect(await createAccountHttp(unreachable).delete(ctx)).toMatchObject({
+			status: 503,
+			body: { type: 'toe-beans/unavailable' }
+		});
 	});
 });

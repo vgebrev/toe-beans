@@ -33,7 +33,10 @@ export interface PushDeviceRepository {
 	listLive(userIds: readonly Id[]): Promise<PushDevice[]>;
 	/** False if they have no device with that ID. */
 	remove(userId: Id, id: Id): Promise<boolean>;
-	/** Removes all of the person's devices, for *Sign out everywhere*; returns how many. */
+	/**
+	 * Removes all of the person's devices, for *Sign out everywhere* and deleting the account;
+	 * returns how many. Joins a transaction.
+	 */
 	removeAllForUser(userId: Id): Promise<number>;
 	recordSuccess(id: Id, at: Date): Promise<void>;
 	recordFailure(id: Id): Promise<void>;
@@ -47,6 +50,8 @@ export interface ReminderPreferenceRepository {
 	findMany(userIds: readonly Id[]): Promise<ReminderPreference[]>;
 	/** Last write wins: only the person themselves changes theirs. */
 	save(preference: ReminderPreference): Promise<ReminderPreference>;
+	/** For deleting the account. Joins a transaction. */
+	delete(userId: Id): Promise<void>;
 }
 
 export type NewReminder = Omit<Reminder, 'createdAt' | 'updatedAt'>;
@@ -76,6 +81,11 @@ export interface ReminderRepository {
 	latestTest(userId: Id): Promise<Reminder | null>;
 	/** Records that it reached their phone, the first time only. False if it isn't theirs. */
 	markReceived(userId: Id, id: Id, at: Date): Promise<boolean>;
+	/**
+	 * Deletes the person's entries, for deleting the account. Their household's go with it when
+	 * it's erased. Joins a transaction.
+	 */
+	deleteForUser(userId: Id): Promise<number>;
 }
 
 export type PushOutcome =

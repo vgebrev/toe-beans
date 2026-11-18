@@ -1,6 +1,7 @@
 // In-memory doubles for the sign-in ports, for unit tests of the auth use cases. The Mongo
 // adapters have their own integration tests.
 import type {
+	IdentityAccounts,
 	IdentityClaims,
 	IdentityFailure,
 	IdentityProvider,
@@ -13,7 +14,7 @@ import type {
 } from '../application/ports/index.js';
 import { notFound, staleVersion } from '../application/errors.js';
 import { err, ok, type Result } from '../domain/result.js';
-import type { User } from '../domain/user.js';
+import type { Identity, User } from '../domain/user.js';
 
 export interface FakeIdentityProvider extends IdentityProvider {
 	/** What the next `completeSignIn` returns. */
@@ -39,6 +40,22 @@ export function fakeIdentityProvider(): FakeIdentityProvider {
 		},
 		async signOutUrl(postSignOutUri) {
 			return `https://idp.example/logout?post_logout_redirect_uri=${encodeURIComponent(postSignOutUri)}`;
+		}
+	};
+	return fake;
+}
+
+/** Records what it was asked to delete; `failing` makes it throw, as an unreachable provider. */
+export function fakeIdentityAccounts(): IdentityAccounts & {
+	deleted: Identity[];
+	failing: boolean;
+} {
+	const fake = {
+		deleted: [] as Identity[],
+		failing: false,
+		async delete(identities: readonly Identity[]) {
+			if (fake.failing) throw new Error('provider unreachable');
+			fake.deleted.push(...structuredClone(identities));
 		}
 	};
 	return fake;
@@ -79,6 +96,9 @@ export function memoryUsers(): UserRepository & { all(): User[] } {
 			Object.assign(u, { displayName, displayNameSource: 'user', updatedAt: at });
 			u.version++;
 			return ok(structuredClone(u));
+		},
+		async delete(id) {
+			users.delete(id);
 		}
 	};
 }
