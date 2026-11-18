@@ -1,6 +1,6 @@
 # Toe Beans — Backlog
 
-**Version:** 0.57 (draft for iteration)
+**Version:** 0.58 (draft for iteration)
 **Date:** 18 November 2026
 **Inputs:** `docs/requirements.md` v1.0, `docs/architecture.md` v1.26, `docs/ui.md` v0.35
 
@@ -93,6 +93,8 @@
 **Changes in 0.56:** S14.4 built (architecture 1.25 D37): Better Stack watches `/readyz` through the Worker, and heartbeats from the tick and the nightly backup catch a stopped scheduler or a night with no backup. `docs/runbooks/monitoring.md` and the accounts inventory `docs/runbooks/accounts.md`. The owner set up the monitor and heartbeats; the heartbeats can only be seen working after the next deploy. Inputs moved to architecture 1.25.
 
 **Changes in 0.57:** S14.4 set up: the owner's Better Stack monitor and both heartbeats are *Up* on prod, with the monitor's real load recorded: a check about every 30 s from at least 4 locations, whatever the regions (architecture 1.26 D37) and its status badge in the README. S14.4 done: the Sentry alert mailed for a new and a regressed test error, and the owner checked the accounts inventory. Inputs moved to architecture 1.26.
+
+**Changes in 0.58:** S17 gets its first two items from the owner, each numbered on its own rather than lettered under S17.1: S17.1, browser error reports through the app's own origin, since ad blockers drop them on the way to Sentry (found in S14.4's check); S17.2, the installed app stuck on *Waking up Toe Beans* after a deploy, asking for the old build's files.
 
 **Changes in 0.51:** S15.1 gains (k), fresh data on coming back to the app and on Back to a page Chrome kept whole (ui 0.35 §5.2), from the owner, after Today stayed stale behind a reminder. Live updates over WebSockets were considered and left out for cost. The offline banner's check backs off from 1 s (architecture 1.23 D31), found through a flaky e2e check. Built with e2e checks and closed by the owner, so S15.1 stays done. Inputs moved to architecture 1.23 and ui 0.35.
 
@@ -431,11 +433,12 @@ Work is organised as **vertical slices**: each delivers a usable end-to-end incr
 ---
 
 ### S17 Refinements ⬜
-*Open-ended, after go-live: the owner's running list of small fixes and polish found while using the live app, as S15.1 was before release. Each lands as a lettered item with its e2e check and is closed by the owner on a phone. Anything bigger becomes its own slice, and anything on the P2 list stays there.*
+*Open-ended, after go-live: the owner's running list of small fixes and polish found while using the live app, as S15.1 was before release. Each lands as its own numbered item (S17.1, S17.2, …) with its e2e check and is closed by the owner on a phone. Anything bigger becomes its own slice, and anything on the P2 list stays there.*
 
 | # | Task | Status |
 |---|---|---|
-| S17.1 | The owner's snag list after go-live. Nothing yet. | ⬜ |
+| S17.1 | **Browser errors past ad blockers:** ad blockers' lists block `*.ingest.sentry.io`, so a household member with one never reports browser errors (found in S14.4's check). Send them through the app's own origin with the SDK's `tunnel` option: a small route that forwards only envelopes for our DSN's project to Sentry's EU ingest, rate limited, and keeps the CSP's `connect-src` to `'self'` (architecture §9, §7). | ⬜ |
+| S17.2 | **Stuck after a deploy:** after a new deployment, the installed app asks for the old build's files, gets 404s and stays on *Waking up Toe Beans* with loading skeletons. The update banner does come up (S15.1 (j)), so *Refresh* gets the person out, but the app shouldn't get stuck. Find out why from the service worker's handling of an old build's chunks and the waking page's retry (architecture D31). | ⬜ |
 
 ## P1 — Phase 1 follow-on
 
