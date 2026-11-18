@@ -20,6 +20,9 @@ GITHUB_REPO=vgebrev/toe-beans
 GITHUB_REPO_ID=1441749392
 POOL=github
 PROVIDER=toe-beans-github
+# The backup workflow's own pool (S14.2), so its tokens can never act as the deploy account.
+BACKUP_POOL=github-backups
+BACKUP_PROVIDER=toe-beans-backups
 BILLING_ACCOUNT=01479B-1DAED2-C5A37D
 BUDGET_USD=${BUDGET_USD:-1}
 # Cloud Run's sample container, so the service exists (and the deploy account can be scoped to it)
@@ -41,7 +44,8 @@ say "Service accounts"
 # toe-beans-run: the identity the app runs as; reads its secrets and nothing else.
 # toe-beans-tick: Cloud Scheduler signs the tick's OIDC token as this; it holds no roles.
 # toe-beans-deploy: GitHub Actions, through Workload Identity Federation; never has a key.
-for name in toe-beans-run toe-beans-tick toe-beans-deploy; do
+# toe-beans-backup: the nightly backup workflow, the same way; reads the backup secrets only.
+for name in toe-beans-run toe-beans-tick toe-beans-deploy toe-beans-backup; do
 	exists gc iam service-accounts describe "$(sa "$name")" ||
 		gc iam service-accounts create "$name" --display-name="Toe Beans: ${name#toe-beans-}"
 done
@@ -147,6 +151,34 @@ gc iam service-accounts remove-iam-policy-binding "$(sa toe-beans-deploy)" \
 	--member="principal://iam.googleapis.com/$POOL_ID/subject/repo:$GITHUB_REPO:environment:production" \
 	>/dev/null 2>&1 || true
 
+say "Backups (S14.2)"
+# The nightly workflow's secrets (infra/backup/README.md), readable by toe-beans-backup alone: not
+# by the app, which has no use for them.
+backup_secrets="backup-mongodb-uri backup-r2-secret-access-key photos-r2-read-secret-access-key"
+for name in $backup_secrets; do
+	exists gc secrets describe "$name" ||
+		gc secrets create "$name" --replication-policy=user-managed --locations="$REGION"
+	gc secrets add-iam-policy-binding "$name" --condition=None \
+		--member="serviceAccount:$(sa toe-beans-backup)" --role=roles/secretmanager.secretAccessor >/dev/null
+done
+# A pool of its own: a binding names a pool, not a provider, so sharing the deploy's pool would let
+# backup tokens act as the deploy account. This one accepts only the backups environment on main.
+exists gc iam workload-identity-pools describe "$BACKUP_POOL" --location=global ||
+	gc iam workload-identity-pools create "$BACKUP_POOL" --location=global --display-name="GitHub Actions backups"
+BACKUP_CONDITION="assertion.repository_id == '$GITHUB_REPO_ID' && assertion.environment == 'backups' && assertion.ref == 'refs/heads/main'"
+if exists gc iam workload-identity-pools providers describe "$BACKUP_PROVIDER" --location=global --workload-identity-pool="$BACKUP_POOL"; then
+	gc iam workload-identity-pools providers update-oidc "$BACKUP_PROVIDER" --location=global \
+		--workload-identity-pool="$BACKUP_POOL" --attribute-mapping="$MAPPING" --attribute-condition="$BACKUP_CONDITION" >/dev/null
+else
+	gc iam workload-identity-pools providers create-oidc "$BACKUP_PROVIDER" --location=global \
+		--workload-identity-pool="$BACKUP_POOL" --issuer-uri=https://token.actions.githubusercontent.com \
+		--attribute-mapping="$MAPPING" --attribute-condition="$BACKUP_CONDITION"
+fi
+BACKUP_POOL_ID="projects/$PROJECT_NUMBER/locations/global/workloadIdentityPools/$BACKUP_POOL"
+gc iam service-accounts add-iam-policy-binding "$(sa toe-beans-backup)" \
+	--role=roles/iam.workloadIdentityUser \
+	--member="principalSet://iam.googleapis.com/$BACKUP_POOL_ID/attribute.repository_id/$GITHUB_REPO_ID" >/dev/null
+
 say "Cloud Scheduler tick"
 # Every 5 minutes (D27), signed as toe-beans-tick for the service's URL. Created paused: it resumes
 # after the first real deploy (README). No retries: the next tick is the retry (§6.3).
@@ -177,7 +209,7 @@ echo "Project roles held by people:"
 gc projects get-iam-policy "$PROJECT" --flatten=bindings[].members \
 	--filter='bindings.members~^user:' --format='value(bindings.role,bindings.members)'
 echo "Secrets still empty:"
-for name in mongodb-uri oidc-client-secret resend-api-key r2-secret-access-key; do
+for name in mongodb-uri oidc-client-secret resend-api-key r2-secret-access-key $backup_secrets; do
 	has_version "$name" || echo "  $name"
 done
 
@@ -188,4 +220,6 @@ TICK_AUDIENCE=$URL
 TICK_INVOKER=$(sa toe-beans-tick)
 WIF provider: $POOL_ID/providers/$PROVIDER
 Deploy account: $(sa toe-beans-deploy)
+Backup WIF provider: $BACKUP_POOL_ID/providers/$BACKUP_PROVIDER
+Backup account: $(sa toe-beans-backup)
 EOF
