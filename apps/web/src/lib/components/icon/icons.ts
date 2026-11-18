@@ -70,7 +70,8 @@ import {
 	UserGroupIcon,
 	Video01Icon,
 	WalkingIcon,
-	WifiDisconnected01Icon
+	WifiDisconnected01Icon,
+	Refresh01Icon
 } from '@hugeicons/core-free-icons';
 
 /**
@@ -113,6 +114,7 @@ export const icons = {
 	gallery: Image02Icon,
 	alert: Alert02Icon,
 	offline: WifiDisconnected01Icon,
+	update: Refresh01Icon,
 	install: Download04Icon,
 	saving: Loading03Icon,
 	// Exercises (ui.md §4.6)
