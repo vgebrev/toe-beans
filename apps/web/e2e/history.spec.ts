@@ -191,10 +191,11 @@ test('D35: a done care task heads the day it was done, under *Any care*, and lea
 	await expect(cards(page).first()).toContainText('Rabies booster');
 
 	await cards(page).first().click();
-	await expect(page).toHaveURL(new RegExp(`/care/${done.id}\\?from=history`));
+	await expect(page).toHaveURL(new RegExp(`/care/${done.id}$`));
+	// Back to History as it was left, still showing vaccinations.
 	await page.getByRole('link', { name: 'History', exact: true }).first().click();
-	await expect(page).toHaveURL(/\/history$/);
-	await expect(cards(page)).toHaveCount(3);
+	await expect(page).toHaveURL(/\/history\?/);
+	await expect(cards(page)).toHaveCount(1);
 });
 
 /** Counts the History list requests the page makes from now on. */

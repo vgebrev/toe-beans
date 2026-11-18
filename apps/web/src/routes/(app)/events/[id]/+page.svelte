@@ -11,6 +11,7 @@
 	import DeleteSheet from '#lib/components/history/DeleteSheet.svelte';
 	import Icon from '#lib/components/icon/Icon.svelte';
 	import EventSheet from '#lib/components/journal/EventSheet.svelte';
+	import BackLink from '#lib/components/shell/BackLink.svelte';
 	import PageHeader from '#lib/components/shell/PageHeader.svelte';
 	import { Button } from '#lib/components/ui/button/index.js';
 	import { categoryLabels, eventPhrase } from '#lib/journal/labels.js';
@@ -62,10 +63,7 @@
 <svelte:head><title>{title} · Toe Beans</title></svelte:head>
 
 <PageHeader {title}>
-	<a href={resolve('/(app)/history')} class="flex min-h-12 items-center gap-1 self-start font-bold">
-		<Icon name="back" />
-		History
-	</a>
+	<BackLink href={resolve('/(app)/history')} label="History" />
 </PageHeader>
 
 <div class="flex flex-col gap-6 px-4 pt-2 pb-8">

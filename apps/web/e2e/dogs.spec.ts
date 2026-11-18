@@ -137,6 +137,32 @@ test('changing the photo, editing and archiving, from the profile', async ({ pag
 	await expect(page.getByText('Rosie Posie is back.')).toBeVisible();
 });
 
+test('a back link leads where the person came from', async ({ page, baseURL }) => {
+	const [rosie] = await ownHousehold(page, baseURL!);
+	const back = (name: string) => page.getByRole('main').getByRole('link', { name, exact: true });
+
+	// The one dog, opened from Care's switcher, leads back to Care, not Dogs.
+	await page.goto('/care');
+	await page
+		.getByRole('main')
+		.getByRole('link', { name: new RegExp(rosie!.name) })
+		.click();
+	await expect(page).toHaveURL(new RegExp(`/dogs/${rosie!.id}$`));
+	await expect(back('Care')).toBeVisible();
+
+	// Still so after changing the details: the form isn't somewhere to go back to.
+	await page.getByRole('link', { name: 'Edit details' }).click();
+	await expect(back(rosie!.name)).toBeVisible();
+	await page.getByRole('button', { name: 'Save' }).click();
+	await expect(page).toHaveURL(new RegExp(`/dogs/${rosie!.id}$`));
+	await back('Care').click();
+	await expect(page).toHaveURL(/\/care$/);
+
+	// Loaded afresh, it leads to the dog's place under More.
+	await page.goto(`/dogs/${rosie!.id}`);
+	await expect(back('Dogs')).toBeVisible();
+});
+
 test('an edit made elsewhere is not overwritten (NFR-13)', async ({ page, baseURL }) => {
 	await ownHousehold(page, baseURL!, { dogs: [] });
 	const dog = await addDog(page, baseURL!);

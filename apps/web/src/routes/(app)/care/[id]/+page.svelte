@@ -10,6 +10,7 @@
 	import { CareTask } from '@toe-beans/contracts';
 	import DogAvatar from '#lib/components/dogs/DogAvatar.svelte';
 	import Icon from '#lib/components/icon/Icon.svelte';
+	import BackLink from '#lib/components/shell/BackLink.svelte';
 	import PageHeader from '#lib/components/shell/PageHeader.svelte';
 	import { Button, buttonVariants } from '#lib/components/ui/button/index.js';
 	import { Input } from '#lib/components/ui/input/index.js';
@@ -26,8 +27,6 @@
 	const api = createApiClient((input, init) => fetch(input, init));
 	const task = $derived(data.task);
 	const dog = $derived(data.dogs?.find((d) => d.id === task?.dogId));
-	// Opened from History, the back link goes there (architecture D35).
-	const fromHistory = $derived(page.url.searchParams.get('from') === 'history');
 
 	let notice = $state<string | null>(page.state.notice ?? null);
 	let status = $state<'idle' | 'working' | 'failed' | 'signed-out'>('idle');
@@ -131,13 +130,7 @@
 <svelte:head><title>{task?.title ?? 'Care task'} · Toe Beans</title></svelte:head>
 
 <PageHeader title={task?.title ?? 'Care task'}>
-	<a
-		href={fromHistory ? resolve('/(app)/history') : resolve('/(app)/care')}
-		class="flex min-h-12 items-center gap-1 self-start font-bold"
-	>
-		<Icon name="back" />
-		{fromHistory ? 'History' : 'Care'}
-	</a>
+	<BackLink href={resolve('/(app)/care')} label="Care" />
 </PageHeader>
 
 <div class="flex flex-col gap-6 px-4 pt-2 pb-8">

@@ -66,19 +66,34 @@ export const todayIn = (timeZone: string, now = new Date()): string =>
 		.format(now)
 		.slice(0, 10);
 
-/** A plain date in the device's locale, e.g. "Tue 10 Nov". */
+/** This year on the device, unless a page says what today is. */
+const yearOf = (today?: string): string => today?.slice(0, 4) ?? String(new Date().getFullYear());
+
+/**
+ * A plain date in the device's locale, e.g. "Tue 10 Nov". A date naming its month gains its year
+ * when that isn't this year ("Thu 18 Nov 2027"), unless the options say otherwise.
+ */
 export const formatDate = (
 	date: string,
 	options: Intl.DateTimeFormatOptions = { weekday: 'short', day: 'numeric', month: 'short' },
-	locale?: string
-): string => new Intl.DateTimeFormat(locale, { ...options, timeZone: 'UTC' }).format(utc(date));
+	locale?: string,
+	today?: string
+): string => {
+	const year =
+		options.month !== undefined && options.year === undefined && date.slice(0, 4) !== yearOf(today);
+	return new Intl.DateTimeFormat(locale, {
+		...options,
+		...(year && { year: 'numeric' }),
+		timeZone: 'UTC'
+	}).format(utc(date));
+};
 
-/** "Today", "Tomorrow", or the date (ui.md §5.4). */
+/** "Today", "Tomorrow", or the date, with its year when that isn't today's (ui.md §5.4). */
 export function dayName(date: string, today: string, locale?: string): string {
 	if (date === today) return 'Today';
 	if (date === addDays(today, 1)) return 'Tomorrow';
 	if (date === addDays(today, -1)) return 'Yesterday';
-	return formatDate(date, { weekday: 'short', day: 'numeric', month: 'short' }, locale);
+	return formatDate(date, { weekday: 'short', day: 'numeric', month: 'short' }, locale, today);
 }
 
 /** The same, mid-sentence: "today", "tomorrow", or the date. */
@@ -87,12 +102,17 @@ export const dayPhrase = (date: string, today: string, locale?: string): string 
 	return ['Today', 'Tomorrow', 'Yesterday'].includes(name) ? name.toLowerCase() : name;
 };
 
-/** "9–15 Nov" (or "Nov 9 – 15"), as the device's locale orders a range. */
-export const weekRange = (monday: string, locale?: string): string =>
-	new Intl.DateTimeFormat(locale, { day: 'numeric', month: 'short', timeZone: 'UTC' }).formatRange(
-		utc(monday),
-		utc(addDays(monday, 6))
-	);
+/** "9–15 Nov" (or "Nov 9 – 15"), as the device's locale orders a range; the year when it isn't this one. */
+export const weekRange = (monday: string, locale?: string, today?: string): string => {
+	const sunday = addDays(monday, 6);
+	const year = [monday, sunday].some((d) => d.slice(0, 4) !== yearOf(today));
+	return new Intl.DateTimeFormat(locale, {
+		day: 'numeric',
+		month: 'short',
+		...(year && { year: 'numeric' }),
+		timeZone: 'UTC'
+	}).formatRange(utc(monday), utc(sunday));
+};
 
 export const EVERY_DAY = [1, 2, 3, 4, 5, 6, 7];
 export const WEEKDAYS = [1, 2, 3, 4, 5];

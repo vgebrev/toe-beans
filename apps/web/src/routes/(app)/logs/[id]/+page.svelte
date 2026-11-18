@@ -9,6 +9,7 @@
 	import DogAvatar from '#lib/components/dogs/DogAvatar.svelte';
 	import DeleteSheet from '#lib/components/history/DeleteSheet.svelte';
 	import Icon from '#lib/components/icon/Icon.svelte';
+	import BackLink from '#lib/components/shell/BackLink.svelte';
 	import PageHeader from '#lib/components/shell/PageHeader.svelte';
 	import OutcomeBadge from '#lib/components/training-log/OutcomeBadge.svelte';
 	import QuickLogSheet from '#lib/components/training-log/QuickLogSheet.svelte';
@@ -63,23 +64,17 @@
 
 <PageHeader title={log?.exercise.title ?? 'Log'}>
 	{#if log?.plannedSessionId}
-		<a
+		<BackLink
 			href={resolve('/(app)/sessions/[id]', { id: log.plannedSessionId })}
-			class="flex min-h-12 items-center gap-1 self-start font-bold"
-		>
-			<Icon name="back" />
-			Session
-		</a>
+			label="Session"
+		/>
 	{:else}
-		<a
+		<BackLink
 			href={log
 				? resolve('/(app)/library/[id]', { id: log.exercise.id })
 				: resolve('/(app)/library')}
-			class="flex min-h-12 items-center gap-1 self-start font-bold"
-		>
-			<Icon name="back" />
-			Exercise
-		</a>
+			label="Exercise"
+		/>
 	{/if}
 </PageHeader>
 

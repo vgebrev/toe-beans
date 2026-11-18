@@ -89,8 +89,9 @@ test('an exercise shows its full instructions and further reading', async ({ pag
 	await page.goto('/library/recall-basics#if-struggling');
 	await expect(page.locator('#if-struggling')).toBeInViewport();
 
-	await page.getByRole('link', { name: 'Library' }).click();
-	await expect(page).toHaveURL('/library');
+	// Back to the library as it was left, still showing recall.
+	await page.getByRole('link', { name: 'Exercise library' }).click();
+	await expect(page).toHaveURL('/library?area=recall');
 });
 
 test('an unknown exercise is a 404 page', async ({ page }) => {

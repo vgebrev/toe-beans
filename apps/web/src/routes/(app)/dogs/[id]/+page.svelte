@@ -8,6 +8,7 @@
 	import DogAvatar from '#lib/components/dogs/DogAvatar.svelte';
 	import DogPhotoSheet from '#lib/components/dogs/DogPhotoSheet.svelte';
 	import Icon from '#lib/components/icon/Icon.svelte';
+	import BackLink from '#lib/components/shell/BackLink.svelte';
 	import PageHeader from '#lib/components/shell/PageHeader.svelte';
 	import { Button } from '#lib/components/ui/button/index.js';
 	import * as Sheet from '#lib/components/ui/sheet/index.js';
@@ -95,10 +96,7 @@
 
 <PageHeader title={data.dog?.name ?? 'Dog'}>
 	<div class="flex items-center justify-between">
-		<a href={resolve('/(app)/dogs')} class="flex min-h-12 items-center gap-1 font-bold">
-			<Icon name="back" />
-			Dogs
-		</a>
+		<BackLink href={resolve('/(app)/dogs')} label="Dogs" />
 		{#if data.dog}
 			<Button
 				variant="ghost"

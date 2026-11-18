@@ -5,8 +5,8 @@
 	import { goto, invalidateAll } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { PlannedSession } from '@toe-beans/contracts';
-	import Icon from '#lib/components/icon/Icon.svelte';
 	import SessionForm from '#lib/components/planner/SessionForm.svelte';
+	import BackLink from '#lib/components/shell/BackLink.svelte';
 	import PageHeader from '#lib/components/shell/PageHeader.svelte';
 	import { createApiClient, problemStatus } from '#lib/api-client/index.js';
 	import {
@@ -124,13 +124,10 @@
 <svelte:head><title>Change session · Toe Beans</title></svelte:head>
 
 <PageHeader title={following ? 'Change this and following' : 'Change this session'}>
-	<a
+	<BackLink
 		href={session ? resolve('/(app)/sessions/[id]', { id: session.id }) : resolve('/(app)/plan')}
-		class="flex min-h-12 items-center gap-1 self-start font-bold"
-	>
-		<Icon name="back" />
-		Session
-	</a>
+		label="Session"
+	/>
 </PageHeader>
 
 <div class="px-4 pt-2">

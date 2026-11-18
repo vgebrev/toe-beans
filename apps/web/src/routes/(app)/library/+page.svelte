@@ -5,6 +5,7 @@
 	import type { ExerciseSummary, SkillArea } from '@toe-beans/contracts';
 	import FilterSheet from '#lib/components/filter/FilterSheet.svelte';
 	import Icon from '#lib/components/icon/Icon.svelte';
+	import BackLink from '#lib/components/shell/BackLink.svelte';
 	import PageHeader from '#lib/components/shell/PageHeader.svelte';
 	import { skillAreaLabels, skillAreas } from '#lib/exercises/skill-areas.js';
 	import type { PageProps } from './$types';
@@ -56,10 +57,7 @@
 {/snippet}
 
 <PageHeader title="Exercise library">
-	<a href={resolve('/(app)/more')} class="flex min-h-12 items-center gap-1 self-start font-bold">
-		<Icon name="back" />
-		More
-	</a>
+	<BackLink href={resolve('/(app)/more')} label="More" />
 </PageHeader>
 
 <div class="flex flex-col gap-6 pt-2">

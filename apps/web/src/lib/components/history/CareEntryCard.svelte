@@ -27,7 +27,7 @@
 {/snippet}
 
 <a
-	href="{resolve('/(app)/care/[id]', { id: task.id })}?from=history"
+	href={resolve('/(app)/care/[id]', { id: task.id })}
 	class="@container flex min-h-16 items-center gap-3 rounded-2xl border border-border bg-card px-4 py-3"
 >
 	<span class="flex w-12 shrink-0 justify-center text-primary @max-[18rem]:hidden">

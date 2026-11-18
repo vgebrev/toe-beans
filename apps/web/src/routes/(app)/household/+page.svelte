@@ -7,6 +7,7 @@
 	import InviteActions from '#lib/components/household/InviteActions.svelte';
 	import Icon from '#lib/components/icon/Icon.svelte';
 	import LocalDate from '#lib/components/shell/LocalDate.svelte';
+	import BackLink from '#lib/components/shell/BackLink.svelte';
 	import PageHeader from '#lib/components/shell/PageHeader.svelte';
 	import { Button } from '#lib/components/ui/button/index.js';
 	import * as Sheet from '#lib/components/ui/sheet/index.js';
@@ -153,10 +154,7 @@
 <svelte:head><title>Household · Toe Beans</title></svelte:head>
 
 <PageHeader title={data.household.name}>
-	<a href={resolve('/(app)/more')} class="flex min-h-12 items-center gap-1 self-start font-bold">
-		<Icon name="back" />
-		More
-	</a>
+	<BackLink href={resolve('/(app)/more')} label="More" />
 </PageHeader>
 
 <div class="flex flex-col gap-8 px-4 pt-2">

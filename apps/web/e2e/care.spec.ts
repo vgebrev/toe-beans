@@ -88,6 +88,14 @@ test('scenario 7: a vaccination for one dog shows on Care and Today, and is mark
 	await page.goto('/');
 	await expect(page.getByRole('region', { name: 'Coming up' })).toBeHidden();
 	await page.goto('/care');
+	// A year off isn't coming up: it waits under Later, with its year.
+	await expect(page.getByRole('region', { name: 'Coming up' })).toContainText('Nothing coming up');
+	await page.getByText(/Later \(1\)/).click();
+	await expect(
+		page.getByRole('link', {
+			name: new RegExp(`Second puppy vaccination.*${Number(dayFromToday(0).slice(0, 4)) + 1}`)
+		})
+	).toBeVisible();
 	await page.getByText(/Done and cancelled \(1\)/).click();
 	await expect(page.getByRole('link', { name: /Second puppy vaccination.*Done/ })).toBeVisible();
 });

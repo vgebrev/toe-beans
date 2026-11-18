@@ -119,10 +119,8 @@
 			return list;
 		}, [])
 	);
-	const heading = (date: string) =>
-		date.slice(0, 4) === data.today.slice(0, 4)
-			? dayName(date, data.today)
-			: formatDate(date, { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
+	// With its year when that isn't this one.
+	const heading = (date: string) => dayName(date, data.today);
 
 	// The filters.
 	const typeChoices = $derived(
@@ -138,7 +136,8 @@
 	let datesRound = $state(0);
 	const preset = $derived(presetOf(filters, data.today));
 	const rangeLabel = $derived.by(() => {
-		const day = (d: string) => formatDate(d, { day: 'numeric', month: 'short' });
+		const day = (d: string) =>
+			formatDate(d, { day: 'numeric', month: 'short' }, undefined, data.today);
 		if (filters.from && filters.to) {
 			return filters.from === filters.to
 				? day(filters.from)

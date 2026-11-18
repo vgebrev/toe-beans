@@ -68,6 +68,12 @@ export const CareTask = z.object({
 });
 export type CareTask = z.infer<typeof CareTask>;
 
+/**
+ * How many days ahead *Coming up* looks, on Today and on Care (ui.md J6, architecture D30). The
+ * backend's domain keeps its own copy (`COMING_UP_DAYS` in care-task.ts), as it imports nothing.
+ */
+export const COMING_UP_DAYS = 7;
+
 /** The Care tab: every current dog's tasks. */
 export const CareTasks = z.object({
 	/** Soonest first, overdue ones included. */

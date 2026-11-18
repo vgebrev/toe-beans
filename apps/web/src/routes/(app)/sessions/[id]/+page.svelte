@@ -10,6 +10,7 @@
 	import { PlannedSession } from '@toe-beans/contracts';
 	import DogAvatar from '#lib/components/dogs/DogAvatar.svelte';
 	import Icon from '#lib/components/icon/Icon.svelte';
+	import BackLink from '#lib/components/shell/BackLink.svelte';
 	import PageHeader from '#lib/components/shell/PageHeader.svelte';
 	import OutcomeBadge from '#lib/components/training-log/OutcomeBadge.svelte';
 	import QuickLogSheet from '#lib/components/training-log/QuickLogSheet.svelte';
@@ -115,13 +116,7 @@
 <!-- planHref and editHref resolve the route; the rule can't see through the query string. -->
 <!-- eslint-disable svelte/no-navigation-without-resolve -->
 <PageHeader title={session?.exercise.title ?? 'Session'}>
-	<a
-		href={session ? planHref(session.date) : resolve('/(app)/plan')}
-		class="flex min-h-12 items-center gap-1 self-start font-bold"
-	>
-		<Icon name="back" />
-		Plan
-	</a>
+	<BackLink href={session ? planHref(session.date) : resolve('/(app)/plan')} label="Plan" />
 </PageHeader>
 
 <div class="flex flex-col gap-6 px-4 pt-2 pb-8">

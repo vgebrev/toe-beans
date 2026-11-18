@@ -3,7 +3,7 @@
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import DogForm from '#lib/components/dogs/DogForm.svelte';
-	import Icon from '#lib/components/icon/Icon.svelte';
+	import BackLink from '#lib/components/shell/BackLink.svelte';
 	import PageHeader from '#lib/components/shell/PageHeader.svelte';
 	import { todayIn } from '#lib/planner/dates.js';
 	import type { PageProps } from './$types';
@@ -14,10 +14,7 @@
 <svelte:head><title>Add a dog · Toe Beans</title></svelte:head>
 
 <PageHeader title="Add a dog">
-	<a href={resolve('/(app)/dogs')} class="flex min-h-12 items-center gap-1 self-start font-bold">
-		<Icon name="back" />
-		Dogs
-	</a>
+	<BackLink href={resolve('/(app)/dogs')} label="Dogs" />
 </PageHeader>
 
 <div class="px-4 pt-2">

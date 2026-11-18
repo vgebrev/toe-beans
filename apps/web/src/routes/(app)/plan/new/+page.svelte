@@ -4,8 +4,8 @@
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { PlannedSession } from '@toe-beans/contracts';
-	import Icon from '#lib/components/icon/Icon.svelte';
 	import SessionForm from '#lib/components/planner/SessionForm.svelte';
+	import BackLink from '#lib/components/shell/BackLink.svelte';
 	import PageHeader from '#lib/components/shell/PageHeader.svelte';
 	import { createApiClient } from '#lib/api-client/index.js';
 	import { getActiveDog } from '#lib/dogs/active-dog.svelte.js';
@@ -61,10 +61,7 @@
 <svelte:head><title>Schedule · Toe Beans</title></svelte:head>
 
 <PageHeader title="Schedule">
-	<a href={resolve('/(app)/plan')} class="flex min-h-12 items-center gap-1 self-start font-bold">
-		<Icon name="back" />
-		Plan
-	</a>
+	<BackLink href={resolve('/(app)/plan')} label="Plan" />
 </PageHeader>
 
 <div class="px-4 pt-2">
