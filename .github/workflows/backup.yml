@@ -1,0 +1,117 @@
+# Nightly backup (architecture §10, D36; backlog S14.2): the prod database, encrypted with age, and
+# a copy of the photo bucket, both into the R2 bucket toe-beans-backups (infra/backup/README.md).
+#
+# Keyless, like the deploy: the job runs in the `backups` environment (main only, no approval, so
+# it can run unattended) and gets GCP credentials by Workload Identity Federation, from a pool of
+# its own that accepts only that environment on main. They act as toe-beans-backup, which can read
+# the three backup secrets and nothing else (infra/gcp/provision.sh). GitHub holds no secrets.
+#
+# Non-secret settings come from the backups environment's variables:
+#   AGE_RECIPIENT              the owner's age public key (age1…); the private key never comes here
+#   R2_ACCOUNT_ID              the Cloudflare account ID, for the R2 endpoint
+#   BACKUP_R2_ACCESS_KEY_ID    the toe-beans-backups token's access key ID (Object Read & Write)
+#   PHOTOS_R2_ACCESS_KEY_ID    the toe-beans-photos read-only token's access key ID
+#
+# The log is public: the script names no objects and counts nothing. A failed run mails the person
+# who last changed the schedule. GitHub turns schedules off in a repo with no commits for 60 days.
+#
+# Third-party actions are pinned to commit SHAs (the tag is in the comment).
+name: Backup
+
+on:
+  schedule:
+    # 02:17 in South Africa, between ticks and after the evening's logging.
+    - cron: '17 0 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: backup
+  cancel-in-progress: false
+
+env:
+  PROJECT: toe-beans-co-za
+  # Each download is pinned by its SHA-256.
+  MONGO_TOOLS_VERSION: 100.19.1
+  MONGO_TOOLS_SHA256: f34b84a67ab96b4ff52571ec5d15e2148d96cb140b1ea9ef8c29ac33c48e3480
+  AGE_VERSION: v1.3.2
+  AGE_SHA256: cbe24006683f8eb669266162894b9a522a1af52f2665fbc63a4bb032ed26ac10
+  RCLONE_VERSION: v1.76.0
+  RCLONE_SHA256: b00f00b3266c3764413afe599d3ec316f6f43b3e0ea8a0bc1d186d2133e46df7
+
+jobs:
+  backup:
+    name: Back up the database and photos
+    # Forks have no backups environment, but don't let them try.
+    if: github.repository_id == '1441749392'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    environment: backups
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install mongodump, age and rclone
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/tools" "$RUNNER_TEMP/bin" && cd "$RUNNER_TEMP/tools"
+          get() { curl --fail --silent --show-error --location -o "$1" "$2" && echo "$3  $1" | sha256sum -c --quiet; }
+          get mongo.tgz "https://fastdl.mongodb.org/tools/db/mongodb-database-tools-ubuntu2404-x86_64-$MONGO_TOOLS_VERSION.tgz" "$MONGO_TOOLS_SHA256"
+          get age.tgz "https://github.com/FiloSottile/age/releases/download/$AGE_VERSION/age-$AGE_VERSION-linux-amd64.tar.gz" "$AGE_SHA256"
+          get rclone.zip "https://github.com/rclone/rclone/releases/download/$RCLONE_VERSION/rclone-$RCLONE_VERSION-linux-amd64.zip" "$RCLONE_SHA256"
+          tar xzf mongo.tgz && tar xzf age.tgz && unzip -q rclone.zip
+          cp mongodb-database-tools-*/bin/mongodump age/age "rclone-$RCLONE_VERSION-linux-amd64/rclone" "$RUNNER_TEMP/bin/"
+          echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
+
+      - uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3.0.0
+        with:
+          workload_identity_provider: projects/1047834821273/locations/global/workloadIdentityPools/github-backups/providers/toe-beans-backups
+          service_account: toe-beans-backup@toe-beans-co-za.iam.gserviceaccount.com
+
+      - name: Back up
+        env:
+          AGE_RECIPIENT: ${{ vars.AGE_RECIPIENT }}
+          R2_ACCOUNT_ID: ${{ vars.R2_ACCOUNT_ID }}
+          BACKUP_R2_ACCESS_KEY_ID: ${{ vars.BACKUP_R2_ACCESS_KEY_ID }}
+          PHOTOS_R2_ACCESS_KEY_ID: ${{ vars.PHOTOS_R2_ACCESS_KEY_ID }}
+          MONGODB_DB: toe-beans
+          BACKUP_DEST: backup:toe-beans-backups
+          PHOTOS_SOURCE: photos:toe-beans-photos
+          # The two remotes, defined here rather than in a config file.
+          RCLONE_CONFIG: /dev/null
+          RCLONE_CONFIG_BACKUP_TYPE: s3
+          RCLONE_CONFIG_BACKUP_PROVIDER: Cloudflare
+          RCLONE_CONFIG_BACKUP_NO_CHECK_BUCKET: 'true'
+          RCLONE_CONFIG_PHOTOS_TYPE: s3
+          RCLONE_CONFIG_PHOTOS_PROVIDER: Cloudflare
+        run: |
+          set -euo pipefail
+          for name in AGE_RECIPIENT R2_ACCOUNT_ID BACKUP_R2_ACCESS_KEY_ID PHOTOS_R2_ACCESS_KEY_ID; do
+            [ -n "${!name}" ] || { echo "::error::Set $name in the backups environment's variables"; exit 1; }
+          done
+          # Each value is masked in the log, then exported; never inside $(…), where the mask
+          # command would end up in the value instead of reaching the runner.
+          read_secret() {
+            local value
+            value=$(gcloud secrets versions access latest --secret="$1" --project="$PROJECT")
+            echo "::add-mask::$value"
+            printf -v "$2" %s "$value"
+            export "${2?}"
+          }
+          read_secret backup-mongodb-uri MONGODB_URI
+          # The password on its own, too, in case a message quotes it apart from the URI.
+          password=$(sed -nE 's#^[^:]+://[^:@/]+:([^@/]+)@.*#\1#p' <<<"$MONGODB_URI")
+          [ -z "$password" ] || echo "::add-mask::$password"
+          read_secret backup-r2-secret-access-key RCLONE_CONFIG_BACKUP_SECRET_ACCESS_KEY
+          read_secret photos-r2-read-secret-access-key RCLONE_CONFIG_PHOTOS_SECRET_ACCESS_KEY
+          endpoint="https://$R2_ACCOUNT_ID.r2.cloudflarestorage.com"
+          export RCLONE_CONFIG_BACKUP_ENDPOINT="$endpoint" RCLONE_CONFIG_PHOTOS_ENDPOINT="$endpoint"
+          export RCLONE_CONFIG_BACKUP_ACCESS_KEY_ID="$BACKUP_R2_ACCESS_KEY_ID"
+          export RCLONE_CONFIG_PHOTOS_ACCESS_KEY_ID="$PHOTOS_R2_ACCESS_KEY_ID"
+          infra/backup/backup.sh
