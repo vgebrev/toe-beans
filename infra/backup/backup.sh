@@ -35,11 +35,11 @@ echo "== Database"
 # Written to a file first, so a dump that fails half way never reaches the bucket as if whole.
 # Sign-in sessions and sign-ins in progress are left out: they last hours to days, and a restore
 # signing everyone out is safer than one bringing old sessions back.
-# Its messages go to the workflow's public log: progress lines (which count documents, so users
-# and households) are dropped, and credentials in a quoted URI are blanked.
+# Its messages go to the workflow's public log, so only errors and warnings are shown, with
+# credentials in a quoted URI blanked: progress lines count documents, so users and households.
 mongodump --uri="$MONGODB_URI" --db="$MONGODB_DB" --archive --gzip \
 	--excludeCollection=sessions --excludeCollection=pendingSignIns \
-	2> >(sed -E '/\t(writing|done dumping) /d; s#//[^@/]*@#//***@#g' >&2) |
+	2> >(sed -nE '/[Ff]ail|[Ee]rror|[Ww]arn/{s#//[^@/]*@#//***@#g;p}' >&2) |
 	age -r "$AGE_RECIPIENT" >"$dump"
 size=$(stat -c %s "$dump")
 # An empty database still makes a few hundred bytes; a few KB is the least a real one makes.

@@ -33,13 +33,14 @@ concurrency:
 
 env:
   PROJECT: toe-beans-co-za
-  # Each download is pinned by its SHA-256.
-  MONGO_TOOLS_VERSION: 100.19.1
-  MONGO_TOOLS_SHA256: f34b84a67ab96b4ff52571ec5d15e2148d96cb140b1ea9ef8c29ac33c48e3480
-  AGE_VERSION: v1.3.2
-  AGE_SHA256: cbe24006683f8eb669266162894b9a522a1af52f2665fbc63a4bb032ed26ac10
-  RCLONE_VERSION: v1.76.0
-  RCLONE_SHA256: b00f00b3266c3764413afe599d3ec316f6f43b3e0ea8a0bc1d186d2133e46df7
+  # Each download is pinned by its SHA-256. Never name these RCLONE_*: rclone reads every
+  # RCLONE_<FLAG> variable as that flag, so RCLONE_VERSION became --version.
+  TOOLS_MONGO_VERSION: 100.19.1
+  TOOLS_MONGO_SHA256: f34b84a67ab96b4ff52571ec5d15e2148d96cb140b1ea9ef8c29ac33c48e3480
+  TOOLS_AGE_VERSION: v1.3.2
+  TOOLS_AGE_SHA256: cbe24006683f8eb669266162894b9a522a1af52f2665fbc63a4bb032ed26ac10
+  TOOLS_RCLONE_VERSION: v1.76.0
+  TOOLS_RCLONE_SHA256: b00f00b3266c3764413afe599d3ec316f6f43b3e0ea8a0bc1d186d2133e46df7
 
 jobs:
   backup:
@@ -62,11 +63,11 @@ jobs:
           set -euo pipefail
           mkdir -p "$RUNNER_TEMP/tools" "$RUNNER_TEMP/bin" && cd "$RUNNER_TEMP/tools"
           get() { curl --fail --silent --show-error --location -o "$1" "$2" && echo "$3  $1" | sha256sum -c --quiet; }
-          get mongo.tgz "https://fastdl.mongodb.org/tools/db/mongodb-database-tools-ubuntu2404-x86_64-$MONGO_TOOLS_VERSION.tgz" "$MONGO_TOOLS_SHA256"
-          get age.tgz "https://github.com/FiloSottile/age/releases/download/$AGE_VERSION/age-$AGE_VERSION-linux-amd64.tar.gz" "$AGE_SHA256"
-          get rclone.zip "https://github.com/rclone/rclone/releases/download/$RCLONE_VERSION/rclone-$RCLONE_VERSION-linux-amd64.zip" "$RCLONE_SHA256"
+          get mongo.tgz "https://fastdl.mongodb.org/tools/db/mongodb-database-tools-ubuntu2404-x86_64-$TOOLS_MONGO_VERSION.tgz" "$TOOLS_MONGO_SHA256"
+          get age.tgz "https://github.com/FiloSottile/age/releases/download/$TOOLS_AGE_VERSION/age-$TOOLS_AGE_VERSION-linux-amd64.tar.gz" "$TOOLS_AGE_SHA256"
+          get rclone.zip "https://github.com/rclone/rclone/releases/download/$TOOLS_RCLONE_VERSION/rclone-$TOOLS_RCLONE_VERSION-linux-amd64.zip" "$TOOLS_RCLONE_SHA256"
           tar xzf mongo.tgz && tar xzf age.tgz && unzip -q rclone.zip
-          cp mongodb-database-tools-*/bin/mongodump age/age "rclone-$RCLONE_VERSION-linux-amd64/rclone" "$RUNNER_TEMP/bin/"
+          cp mongodb-database-tools-*/bin/mongodump age/age "rclone-$TOOLS_RCLONE_VERSION-linux-amd64/rclone" "$RUNNER_TEMP/bin/"
           echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
 
       - uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3.0.0
