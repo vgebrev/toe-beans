@@ -13,7 +13,8 @@
 #   PHOTOS_R2_ACCESS_KEY_ID    the toe-beans-photos read-only token's access key ID
 #
 # The log is public: the script names no objects and counts nothing. A failed run mails the person
-# who last changed the schedule. GitHub turns schedules off in a repo with no commits for 60 days.
+# who last changed the schedule. GitHub turns schedules off in a repo with no commits for 60 days;
+# the heartbeat (S14.4) notices a night with no run at all.
 #
 # Third-party actions are pinned to commit SHAs (the tag is in the comment).
 name: Backup
@@ -116,3 +117,12 @@ jobs:
           export RCLONE_CONFIG_BACKUP_ACCESS_KEY_ID="$BACKUP_R2_ACCESS_KEY_ID"
           export RCLONE_CONFIG_PHOTOS_ACCESS_KEY_ID="$PHOTOS_R2_ACCESS_KEY_ID"
           infra/backup/backup.sh
+
+      # Only after a run that worked: Better Stack alerts when a night passes without one, which
+      # catches a run that never started, such as a schedule GitHub turned off (S14.4).
+      - name: Report the run to the heartbeat
+        run: |
+          set -euo pipefail
+          url=$(gcloud secrets versions access latest --secret=backup-heartbeat-url --project="$PROJECT")
+          echo "::add-mask::$url"
+          curl --fail --silent --show-error --output /dev/null --max-time 10 --retry 3 "$url"

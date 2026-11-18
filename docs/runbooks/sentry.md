@@ -66,6 +66,9 @@ The CSP already allows `https://*.sentry.io` in `connect-src`, which covers the 
 
 ## 4. Alerts (S14.4)
 
+The other monitors (uptime, the tick, backups) are in `monitoring.md`.
+
+
 1. **Alerts → Create alert → Issues:** environment `prod`, when *a new issue is created* or *an
    issue changes state from resolved to unresolved*, send an email to you. Name it
    `New or regressed issue`.

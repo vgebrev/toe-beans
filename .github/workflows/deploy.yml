@@ -117,6 +117,8 @@ jobs:
             "PROXY_SECRET=proxy-secret:latest"
             "VAPID_PUBLIC_KEY=vapid-public-key:latest"
             "VAPID_PRIVATE_KEY=vapid-private-key:latest"
+            # Better Stack's heartbeat for the tick (S14.4, docs/runbooks/monitoring.md).
+            "TICK_HEARTBEAT_URL=tick-heartbeat-url:latest"
           )
           # Values can hold commas (none do today); ^|^ makes | the list separator instead.
           gcloud run deploy "$SERVICE" --project "$PROJECT" --region "$REGION" --quiet \

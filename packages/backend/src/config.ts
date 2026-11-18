@@ -117,7 +117,9 @@ const Env = z
 		// Who may POST the tick: a shared secret, or Cloud Scheduler's OIDC token.
 		TICK_SECRET: z.string().min(32).max(200).optional(),
 		TICK_AUDIENCE: httpUrl.optional(),
-		TICK_INVOKER: z.email().optional()
+		TICK_INVOKER: z.email().optional(),
+		// The monitor's heartbeat URL, called after each tick (backlog S14.4). It holds a token.
+		TICK_HEARTBEAT_URL: z.url({ protocol: /^https$/ }).optional()
 	})
 	.superRefine((e, ctx) => {
 		// Prod must never fall back to a local database.
@@ -224,6 +226,8 @@ export interface WorkerConfig {
 	mode: 'inline' | 'http';
 	intervalMs: number;
 	auth: { secret?: string; google?: { audience: string; invoker: string } };
+	/** Called after each tick that ran to the end, so a monitor notices when ticks stop. */
+	heartbeatUrl?: string;
 }
 
 /** Which PhotoStore runs (`infrastructure/photos`). */
@@ -328,7 +332,8 @@ export function loadConfig(env: Record<string, string | undefined>): Config {
 				...(e.TICK_SECRET && { secret: e.TICK_SECRET }),
 				...(e.TICK_AUDIENCE &&
 					e.TICK_INVOKER && { google: { audience: e.TICK_AUDIENCE, invoker: e.TICK_INVOKER } })
-			}
+			},
+			...(e.TICK_HEARTBEAT_URL && { heartbeatUrl: e.TICK_HEARTBEAT_URL })
 		},
 		...(e.SENTRY_DSN && { sentry: { dsn: e.SENTRY_DSN } }),
 		...((e.APP_RELEASE ?? e.K_REVISION) && { release: e.APP_RELEASE ?? e.K_REVISION })

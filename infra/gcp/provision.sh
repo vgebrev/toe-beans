@@ -76,8 +76,8 @@ secret() {
 has_version() {
 	[ -n "$(gc secrets versions list "$1" --filter=state=enabled --format='value(name)' 2>/dev/null)" ]
 }
-# Filled by the owner (set-secret.sh), from Atlas, Auth0, Resend and Cloudflare R2.
-for name in mongodb-uri oidc-client-secret resend-api-key r2-secret-access-key; do secret "$name"; done
+# Filled by the owner (set-secret.sh), from Atlas, Auth0, Resend, Cloudflare R2 and Better Stack.
+for name in mongodb-uri oidc-client-secret resend-api-key r2-secret-access-key tick-heartbeat-url; do secret "$name"; done
 
 # The Worker's header secret (D32): made here, and read by the Worker's deploy.
 secret proxy-secret
@@ -154,7 +154,7 @@ gc iam service-accounts remove-iam-policy-binding "$(sa toe-beans-deploy)" \
 say "Backups (S14.2)"
 # The nightly workflow's secrets (infra/backup/README.md), readable by toe-beans-backup alone: not
 # by the app, which has no use for them.
-backup_secrets="backup-mongodb-uri backup-r2-secret-access-key photos-r2-read-secret-access-key"
+backup_secrets="backup-mongodb-uri backup-r2-secret-access-key photos-r2-read-secret-access-key backup-heartbeat-url"
 for name in $backup_secrets; do
 	exists gc secrets describe "$name" ||
 		gc secrets create "$name" --replication-policy=user-managed --locations="$REGION"
@@ -209,7 +209,7 @@ echo "Project roles held by people:"
 gc projects get-iam-policy "$PROJECT" --flatten=bindings[].members \
 	--filter='bindings.members~^user:' --format='value(bindings.role,bindings.members)'
 echo "Secrets still empty:"
-for name in mongodb-uri oidc-client-secret resend-api-key r2-secret-access-key $backup_secrets; do
+for name in mongodb-uri oidc-client-secret resend-api-key r2-secret-access-key tick-heartbeat-url $backup_secrets; do
 	has_version "$name" || echo "  $name"
 done
 
