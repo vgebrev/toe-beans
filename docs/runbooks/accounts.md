@@ -3,7 +3,8 @@
 Every outside account prod depends on, every credential they issue, where each is kept and how to
 change it (architecture R2, §8.4; backlog S14.4). This file is public: it names accounts,
 resources and secrets, **never values**, and no email addresses. What personal data each service
-holds, why, and for how long is the data inventory's job (S16.1), which builds on this list.
+holds, why, and for how long is the data inventory's job (`docs/data-inventory.md`, S16.1),
+which builds on this list.
 
 All accounts belong to the owner, who is the only person with access to any of them. There are no
 service account keys anywhere: GitHub reaches GCP through Workload Identity Federation (D15, D36).

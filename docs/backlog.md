@@ -1,6 +1,6 @@
 # Toe Beans — Backlog
 
-**Version:** 0.59 (draft for iteration)
+**Version:** 0.60 (draft for iteration)
 **Date:** 18 November 2026
 **Inputs:** `docs/requirements.md` v1.0, `docs/architecture.md` v1.26, `docs/ui.md` v0.35
 
@@ -97,6 +97,8 @@
 **Changes in 0.58:** S17 gets its first two items from the owner, each numbered on its own rather than lettered under S17.1: S17.1, browser error reports through the app's own origin, since ad blockers drop them on the way to Sentry (found in S14.4's check); S17.2, the installed app stuck on *Waking up Toe Beans* after a deploy, asking for the old build's files.
 
 **Changes in 0.59:** S17.3 from the owner: block scanners' probes at the edge. Cloudflare's analytics show bots asking for `.env` files, `.git`, PHP pages and admin consoles. Spot checks on prod found nothing exposed: they get 404s, the API gives 401 and the tick's POST without its token gives 401. The item is about cost, noise and the `security.txt` contact, not a leak.
+
+**Changes in 0.60:** S14.6 done: `docs/runbooks/durability.md` and `infra/backup/counts.sh` (document counts only), around a redeploy from the Deploy workflow, run by the owner on prod. S16.1 drafted: `docs/data-inventory.md`, with the open points S16.2 and S16.5 have to settle (deleting accounts and households). Resend sends from Ireland; operator log retention confirmed (Auth0 1 day, Resend and Cloudflare 30 days), so every operator holding personal data abroad is in the EU.
 
 **Changes in 0.51:** S15.1 gains (k), fresh data on coming back to the app and on Back to a page Chrome kept whole (ui 0.35 §5.2), from the owner, after Today stayed stale behind a reminder. Live updates over WebSockets were considered and left out for cost. The offline banner's check backs off from 1 s (architecture 1.23 D31), found through a flaky e2e check. Built with e2e checks and closed by the owner, so S15.1 stays done. Inputs moved to architecture 1.23 and ui 0.35.
 
@@ -210,8 +212,9 @@ Work is organised as **vertical slices**: each delivers a usable end-to-end incr
 | 2026-11-18 | S14.3 done, tested by the owner: the first prod dump restored into a scratch database matched prod. |
 | 2026-11-18 | S14.4 built (D37): Better Stack's uptime check on `/readyz` and heartbeats from the tick and the backup, the monitoring runbook and the accounts inventory. The owner set up Better Stack and filled both secrets; the heartbeats are tried on prod after the next deploy. |
 | 2026-11-18 | S14.4 done: the monitor (about a check every 30 s from at least 4 locations, whatever the regions) and both heartbeats *Up* after the deploy, status badge in the README; Sentry's `New or regressed issue` alert on `prod` mailed for a browser test error, new and regressed; accounts inventory checked by the owner. |
+| 2026-11-18 | S14.6 done: the durability runbook and a count script; the owner redeployed prod (`00007` → `00008`), and the counts, the photo, History and a reminder with the app closed all came through (scenario 10). S16.1 drafted: `docs/data-inventory.md` from the code and the accounts inventory, with open points for S16.2 and S16.5; Resend is in Ireland, and operator retention is confirmed. |
 
-**Next up:** S14.6 and S16, then S14.7. Snags from using the app go to S17.
+**Next up:** S16, then S14.7. Snags from using the app go to S17.
 
 ---
 
@@ -417,15 +420,15 @@ Work is organised as **vertical slices**: each delivers a usable end-to-end incr
 | S14.3 | Restore runbook written **and tested** (`docs/runbooks/restore.md`). **Written (18 Nov):** getting a dump, a test restore into a scratch database on the owner's machine checked against prod by `infra/backup/compare.sh` (documents and indexes per collection), a real restore into prod (tick paused, `--drop`, photos back with `rclone copy`), and a lost cluster. Tried locally on a dev backup. **Tested (18 Nov):** the owner restored the first prod dump into a scratch database, `compare.sh` matched prod, and the copy, dump and key file were cleared up (runbook §4). Next test due February 2027. | ✅ |
 | S14.4 | Uptime monitor. Sentry alerts. Accounts inventory (`docs/runbooks/accounts.md`). **Built (18 Nov, D37):** `docs/runbooks/monitoring.md`: a Better Stack monitor on `https://toebeans.co.za/readyz` every 3 minutes; a heartbeat the app calls after each tick (`TICK_HEARTBEAT_URL`, secret `tick-heartbeat-url`), alerting after 15 minutes without one; a heartbeat the backup workflow calls after a good run (secret `backup-heartbeat-url`), alerting after a day and 3 hours; Sentry's `New or regressed issue` alert (`sentry.md` §4). `docs/runbooks/accounts.md` lists every account, secret and variable with how to change it. **Set up (18 Nov):** the owner made the Better Stack monitor (Europe and North America; it checks from at least 4 locations, so `/readyz` is called about every 30 s whatever the regions) and both heartbeats, filled both secrets, and after the deploy saw the monitor and both heartbeats *Up*. The monitor's status badge is in the README. **Done (18 Nov):** the owner turned the project's default alert into `New or regressed issue` on `prod` and got its mail for a browser test error, new and regressed, and checked the inventory against the dashboards. | ✅ |
 | S14.5 | Moved to S16.5. | ➡️ |
-| S14.6 | Durability check: redeploy or restart and verify all data persists (scenario 10) | ⬜ |
+| S14.6 | Durability check: redeploy or restart and verify all data persists (scenario 10). **Built (18 Nov):** `docs/runbooks/durability.md`: document counts before and after (`infra/backup/counts.sh`, read-only, counts only), a redeploy from the Deploy workflow, then the photo, History and a reminder that arrives with the app closed. **Done (18 Nov):** the owner's run on prod, `toe-beans-00007-nc8` → `toe-beans-00008-x4l`: counts matched apart from the tick's and sign-ins' writes, and the reminder arrived with the app closed (runbook §4). | ✅ |
 | S14.7 | Release acceptance: run scenarios 1–10 on both physical phones and record Android/Chrome versions. Waits for S16. | ⬜ |
 
-### S16 Compliance and go-live prep ⬜
+### S16 Compliance and go-live prep 🟨
 *POPIA, before S14.7 and before anyone outside the owner's household is invited. Deferred until development was done (owner, 1 Nov). Drafts are not legal advice: the owner gets them read by someone who knows POPIA before other households join.*
 
 | # | Task | Status |
 |---|---|---|
-| S16.1 | Data inventory: each kind of personal data the app holds (accounts, household and members, dog profiles and photos, sessions, events, care, invitations, push devices, the reminder ledger, sessions and logs), where it lives (Atlas Cape Town, R2 Europe, Auth0 EU, Resend, Sentry, Cloud Run and Cloudflare logs), why, and how long it's kept. The source for S16.2 and the accounts inventory (S14.4). Cross-border transfers (POPIA §72) noted per processor, starting from architecture §3.4's Auth0 note. | ⬜ |
+| S16.1 | Data inventory: each kind of personal data the app holds (accounts, household and members, dog profiles and photos, sessions, events, care, invitations, push devices, the reminder ledger, sessions and logs), where it lives (Atlas Cape Town, R2 Europe, Auth0 EU, Resend, Sentry, Cloud Run and Cloudflare logs), why, and how long it's kept. The source for S16.2 and the accounts inventory (S14.4). Cross-border transfers (POPIA §72) noted per processor, starting from architecture §3.4's Auth0 note. **Drafted (18 Nov):** `docs/data-inventory.md` 0.1, from the code: collections, photos, backups, logs, operators with §72 basis and retention, and eight open points (§6). Resend sends from Ireland (`eu-west-1`); retention at the operators confirmed. Reviewed by the owner. | ✅ |
 | S16.2 | Privacy policy: the responsible party and Information Officer, what is collected and why, the processors and where they are, transfers abroad, retention, security in outline, people's rights (access, correction, deletion, objection, complaint to the Information Regulator), cookies (essential only, so no consent banner; recorded as a decision). | ⬜ |
 | S16.3 | Terms of service: what the service is, accounts and households, acceptable use, training and care content as guidance, not veterinary advice (NFR-14), no warranty, ending an account, changes to the terms. | ⬜ |
 | S16.4 | Public `/privacy` and `/terms` pages (no sign-in, under the app's CSP), linked from the sign-in page and More. The links go into Google's consent screen, which then moves from Testing to In production, and into Auth0's Universal Login. | ⬜ |
