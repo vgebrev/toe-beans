@@ -1,3 +1,6 @@
+// First: it has to run before any schema below is built.
+import './zod-config.js';
+
 export * from './problem.js';
 export * from './limits.js';
 export * from './account.js';

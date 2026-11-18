@@ -22,17 +22,21 @@
 	let { dog, size = 40, ring = false, label, src, class: className }: Props = $props();
 
 	let failed = $state(false);
-	let image = $state<HTMLImageElement | null>(null);
 	// A new photo is a new URL, which deserves a fresh try.
 	const url = $derived(src ?? (size > 128 ? dog.photo.large : dog.photo.thumb));
 	$effect(() => {
 		void url;
 		failed = false;
 	});
-	// A server-rendered image can fail before hydration, when nothing is listening for the error.
-	$effect(() => {
-		if (image?.complete && image.naturalWidth === 0) failed = true;
-	});
+	// Listened for here, not with `onerror`: for that, Svelte's server render adds an inline
+	// `onerror` attribute, which the CSP refuses (architecture §7). An image that failed before
+	// hydration, when nothing was listening yet, is caught by the check.
+	const watchFailure = (image: HTMLImageElement) => {
+		const fail = () => (failed = true);
+		if (image.complete && image.naturalWidth === 0) fail();
+		image.addEventListener('error', fail);
+		return () => image.removeEventListener('error', fail);
+	};
 
 	const initial = $derived([...dog.name][0]?.toUpperCase() ?? '?');
 </script>
@@ -59,14 +63,13 @@
 		</span>
 	{:else}
 		<img
-			bind:this={image}
+			{@attach watchFailure}
 			src={url}
 			alt=""
 			width={size}
 			height={size}
 			class="size-full object-cover"
 			decoding="async"
-			onerror={() => (failed = true)}
 		/>
 	{/if}
 </span>

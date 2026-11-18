@@ -1,15 +1,11 @@
 import type { ClientInit, HandleClientError } from '@sveltejs/kit/hooks';
 import { dev, version } from '$app/env';
 import { SENTRY_DSN } from '$app/env/public';
-import { z } from 'zod';
 import { connection } from '#lib/client/connection.svelte.js';
 import { reportError, startErrorReporting } from '#lib/client/error-reporting.js';
 import { install } from '#lib/client/install.svelte.js';
 
 export const init: ClientInit = () => {
-	// Zod's fast path compiles parsers with `new Function`, and probing for it trips the CSP
-	// (no 'unsafe-eval', architecture §7), which Chrome lists as an issue on every page.
-	z.config({ jitless: true });
 	connection.start();
 	install.start();
 	// Not awaited: reporting must not hold up the first render.

@@ -260,3 +260,25 @@ test('J2: the invitation names the dogs to help care for', async ({ page, browse
 	await expect(invitee.getByText('to help care for Rosie and Milo')).toBeVisible();
 	await context.close();
 });
+
+test('a page with dog photos breaks no CSP rule (architecture §7)', async ({ page, baseURL }) => {
+	// Two ways it has: an `onerror` on an image, for which Svelte's server render adds an inline
+	// handler, and Zod probing for `new Function`. Only the first is a console error; both raise
+	// a violation event.
+	await ownHousehold(page, baseURL!);
+	await page.addInitScript(() => {
+		const seen: string[] = [];
+		Object.assign(window, { cspViolations: seen });
+		document.addEventListener('securitypolicyviolation', (e) =>
+			seen.push(`${e.effectiveDirective} ${e.blockedURI}`)
+		);
+	});
+	const errors: string[] = [];
+	page.on('console', (m) => m.type() === 'error' && errors.push(m.text()));
+	await page.goto('/dogs');
+	await expect(page.getByRole('link', { name: /Rosie/ }).locator('img')).toBeVisible();
+	expect(errors).toEqual([]);
+	expect(await page.evaluate(() => (window as { cspViolations?: string[] }).cspViolations)).toEqual(
+		[]
+	);
+});
