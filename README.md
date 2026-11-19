@@ -9,6 +9,7 @@
 <p align="center">
   <a href="https://github.com/vgebrev/toe-beans/actions/workflows/ci.yml"><img src="https://github.com/vgebrev/toe-beans/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
   <a href="https://github.com/vgebrev/toe-beans/actions/workflows/deploy.yml"><img src="https://github.com/vgebrev/toe-beans/actions/workflows/deploy.yml/badge.svg" alt="Deploy"></a>
+  <a href="https://github.com/vgebrev/toe-beans/releases"><img src="https://img.shields.io/github/v/release/vgebrev/toe-beans?include_prereleases&sort=semver&label=version" alt="Version"></a>
   <a href="https://incidents.betterstack.com/?utm_source=status_badge"><img src="https://incidents.betterstack.com/status-badges/v1/monitor/34qmp.svg" alt="Better Stack Badge"></a>
 </p>
 
@@ -23,9 +24,11 @@ It aims to answer three questions: **What should we do today? How is our puppy p
 What should we work on next?**
 
 > **Status:** the first usable MVP is built and live at [toebeans.co.za](https://toebeans.co.za)
-> (since 17 Nov 2026), ahead of release. Still to come: backups and restore, monitoring,
-> the privacy policy and terms, account deletion, and release acceptance on both phones. See
-> [the backlog](docs/backlog.md) for progress.
+> (since 17 Nov 2026) as a 1.0.0 release candidate. Backups with a tested restore, monitoring,
+> the [privacy policy](https://toebeans.co.za/privacy) and [terms](https://toebeans.co.za/terms),
+> and account deletion are in place. Still to come: release acceptance on both phones, then 1.0.0,
+> with small fixes from using the app along the way. See [the backlog](docs/backlog.md) for
+> progress.
 
 ## What it does
 
@@ -109,6 +112,7 @@ setting.
 | `pnpm test:e2e` | Playwright on emulated Galaxy S23 FE and Redmi Note 12 Pro (needs `pnpm --filter @toe-beans/web exec playwright install chromium` once) |
 | `pnpm build` | Production build (`apps/web/build`) |
 | `pnpm vapid` | Print a new VAPID key pair for Web Push, for `.env` |
+| `pnpm release <rc\|final\|patch\|minor\|major>` | Bump the one version in every `package.json` and date the changelog ([releasing](docs/runbooks/releasing.md)) |
 | `pnpm compose --profile app up --build -d --wait` | The app image on http://localhost:3000, with MongoDB |
 
 If port 27017 or 3000 is taken, set `MONGO_PORT` / `APP_PORT` (and the port in `MONGODB_URI`) in
