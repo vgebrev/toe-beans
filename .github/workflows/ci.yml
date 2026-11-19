@@ -39,6 +39,28 @@ jobs:
       - run: pnpm check
       - run: pnpm test
 
+  # One version for the repo, with notes in CHANGELOG.md (architecture D40). Into main, the version
+  # must also be above every release tag, so each deploy is a new release: run `pnpm release`
+  # on develop first (docs/runbooks/releasing.md). Plain Node, no install: the tool has no
+  # dependencies.
+  release:
+    name: Version and release notes
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          # The tags, to compare against.
+          fetch-depth: 0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+      - name: Check the version
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: node tools/release/src/release.ts check $([ "$BASE_REF" = main ] && echo --new)
+
   integration:
     name: Integration tests (MongoDB in Docker)
     runs-on: ubuntu-24.04

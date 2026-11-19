@@ -12,6 +12,12 @@
 #   R2_ACCESS_KEY_ID   the R2 token's access key ID (its secret is in Secret Manager)
 #   SENTRY_DSN         optional; unset turns error reports off
 #
+# Releases (architecture D40): the release is the version in package.json, which CI holds above
+# every tag for a PR into main. The deploy refuses a version already tagged on another commit.
+# Once prod is ready, the release job tags vX.Y.Z and publishes the GitHub Release from that
+# version's CHANGELOG.md section, marked a pre-release for a candidate (-rc.N). Running it again
+# on the same commit redeploys the same release.
+#
 # Third-party actions are pinned to commit SHAs (the tag is in the comment).
 name: Deploy
 
@@ -45,10 +51,33 @@ jobs:
     permissions:
       contents: read
       id-token: write
+    outputs:
+      version: ${{ steps.release.outputs.name }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+          # The tags, to check the version isn't taken.
+          fetch-depth: 0
+
+      # Node 24 runs the release tool's TypeScript directly; the runner's default Node is older.
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+
+      # Before anything is built or deployed.
+      - name: Release name
+        id: release
+        run: |
+          set -euo pipefail
+          version=$(node tools/release/src/release.ts current)
+          node tools/release/src/release.ts check
+          tagged=$(git rev-parse --quiet --verify "refs/tags/v$version^{commit}" || true)
+          if [ -n "$tagged" ] && [ "$tagged" != "$GITHUB_SHA" ]; then
+            echo "::error::v$version is already released from ${tagged::12}: run pnpm release on develop and merge again"
+            exit 1
+          fi
+          echo "name=$version" >> "$GITHUB_OUTPUT"
 
       - id: auth
         uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3.0.0
@@ -59,10 +88,6 @@ jobs:
       - name: Sign Docker in to Artifact Registry
         run: gcloud auth configure-docker africa-south1-docker.pkg.dev --quiet
 
-      - name: Release name
-        id: release
-        run: echo "name=${GITHUB_SHA::12}" >> "$GITHUB_OUTPUT"
-
       - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
 
       - id: build
@@ -71,7 +96,10 @@ jobs:
           context: .
           file: docker/Dockerfile
           push: true
-          tags: ${{ env.IMAGE }}:${{ steps.release.outputs.name }}
+          # Both are labels only: the deploy uses the digest.
+          tags: |
+            ${{ env.IMAGE }}:${{ steps.release.outputs.name }}
+            ${{ env.IMAGE }}:${{ github.sha }}
           build-args: APP_RELEASE=${{ steps.release.outputs.name }}
           # main's own cache scope; PR builds never write to it.
           cache-from: type=gha
@@ -136,3 +164,39 @@ jobs:
         run: |
           url="https://$SERVICE-1047834821273.$REGION.run.app"
           curl --fail --silent --show-error --retry 5 --retry-all-errors "$url/readyz"
+
+  # Tags and publishes the release once prod runs it. contents: write only here, in a job with no
+  # cloud credentials. Tags made with this token start no workflows.
+  release:
+    name: Tag and publish the release
+    needs: deploy
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+
+      - name: Publish the GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          VERSION: ${{ needs.deploy.outputs.version }}
+        run: |
+          set -euo pipefail
+          if gh release view "v$VERSION" > /dev/null 2>&1; then
+            echo "v$VERSION is already published: this was a redeploy"
+            exit 0
+          fi
+          node tools/release/src/release.ts notes "$VERSION" > "$RUNNER_TEMP/notes.md"
+          # A candidate is a pre-release, so the latest release stays the last final one.
+          if [[ "$VERSION" == *-rc.* ]]; then kind=--prerelease; else kind=--latest; fi
+          # --generate-notes adds the pull requests and a compare link after the changelog's notes.
+          gh release create "v$VERSION" --target "$GITHUB_SHA" --title "Toe Beans $VERSION" \
+            --notes-file "$RUNNER_TEMP/notes.md" --generate-notes "$kind"

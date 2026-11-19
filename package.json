@@ -1,6 +1,7 @@
 {
 	"name": "toe-beans",
 	"private": true,
+	"version": "1.0.0-rc.1",
 	"license": "MIT",
 	"type": "module",
 	"packageManager": "pnpm@10.30.0",
@@ -16,6 +17,7 @@
 		"test": "vitest run",
 		"test:integration": "vitest run --config vitest.integration.config.ts",
 		"test:e2e": "pnpm --filter @toe-beans/web test:e2e",
+		"release": "node tools/release/src/release.ts",
 		"vapid": "pnpm --silent --filter @toe-beans/web vapid",
 		"content:check": "vitest run packages/backend/src/infrastructure/content/library.test.ts",
 		"compose": "docker compose $([ -f .env ] && echo --env-file .env) -f docker/compose.yaml"
