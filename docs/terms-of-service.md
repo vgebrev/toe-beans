@@ -1,6 +1,6 @@
 # Toe Beans — Terms of service
 
-**Version:** 0.2 (reviewed draft)
+**Version:** 0.3 (reviewed draft)
 **Date:** 19 November 2026
 **Inputs:** `docs/requirements.md` v1.0 (NFR-14), `docs/privacy-policy.md` v0.2
 
@@ -11,6 +11,9 @@ privacy policy's notes.
 
 **Changes in 0.2:** reviewed by the owner; §11 has the postal address. The page's "Last updated" is
 **Date** above (S16.4).
+
+**Changes in 0.3:** `support@toebeans.co.za` for questions and a misused account (§2, §11);
+`privacy@` stays for privacy requests.
 
 ---
 
@@ -33,7 +36,7 @@ It's run by one person, without charge and without any promise of how long it wi
 - You must be **18 or older** to create an account.
 - Sign in with your own Google account or email address, and keep your sign-in to yourself.
   You're responsible for what's done with your account.
-- Tell us at privacy@toebeans.co.za if you think someone else has used it.
+- Tell us at support@toebeans.co.za if you think someone else has used it.
 
 ## 3. Households
 
@@ -97,5 +100,6 @@ These terms are governed by the law of South Africa.
 
 ## 11. Contact
 
-- **Email:** privacy@toebeans.co.za
+- **Questions and help:** support@toebeans.co.za
+- **Your information and privacy:** privacy@toebeans.co.za
 - **Post:** PO Box 2973, Cresta 2118, South Africa

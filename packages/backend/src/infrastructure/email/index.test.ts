@@ -18,11 +18,16 @@ describe('createEmailSender', () => {
 
 	it('sends where the config says, and nowhere else', async () => {
 		const fetch = stubFetch();
-		await createEmailSender({ kind: 'mailpit', url: 'http://mail.test:8025', from }).send(message);
+		await createEmailSender({
+			kind: 'mailpit',
+			url: 'http://mail.test:8025',
+			from,
+			replyTo: from
+		}).send(message);
 		expect(target(fetch)).toBe('http://mail.test:8025/api/v1/send');
 
 		fetch.mockClear();
-		await createEmailSender({ kind: 'resend', apiKey: 'k', from }).send(message);
+		await createEmailSender({ kind: 'resend', apiKey: 'k', from, replyTo: from }).send(message);
 		expect(target(fetch)).toBe(RESEND_URL);
 	});
 

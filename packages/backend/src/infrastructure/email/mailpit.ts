@@ -11,6 +11,8 @@ export interface MailpitOptions {
 	url: string;
 	/** e.g. `Toe Beans <invites@toebeans.co.za>`. */
 	from: string;
+	/** Where replies go. */
+	replyTo: string;
 	fetch?: typeof globalThis.fetch;
 }
 
@@ -23,6 +25,7 @@ function parseAddress(from: string): { Email: string; Name?: string } {
 export function mailpitEmailSender({
 	url,
 	from,
+	replyTo,
 	fetch = globalThis.fetch
 }: MailpitOptions): EmailSender {
 	return {
@@ -34,6 +37,7 @@ export function mailpitEmailSender({
 					body: JSON.stringify({
 						From: parseAddress(from),
 						To: [{ Email: to }],
+						ReplyTo: [parseAddress(replyTo)],
 						Subject: subject,
 						Text: text
 					}),

@@ -10,12 +10,15 @@ export interface ResendOptions {
 	apiKey: string;
 	/** e.g. `Toe Beans <invites@toebeans.co.za>`; the domain must be verified with Resend. */
 	from: string;
+	/** Where replies go, e.g. `Toe Beans <support@toebeans.co.za>`. */
+	replyTo: string;
 	fetch?: typeof globalThis.fetch;
 }
 
 export function resendEmailSender({
 	apiKey,
 	from,
+	replyTo,
 	fetch = globalThis.fetch
 }: ResendOptions): EmailSender {
 	return {
@@ -24,7 +27,7 @@ export function resendEmailSender({
 				const response = await fetch(RESEND_URL, {
 					method: 'POST',
 					headers: { authorization: `Bearer ${apiKey}`, 'content-type': 'application/json' },
-					body: JSON.stringify({ from, to: [to], subject, text }),
+					body: JSON.stringify({ from, reply_to: replyTo, to: [to], subject, text }),
 					signal: AbortSignal.timeout(TIMEOUT_MS)
 				});
 				// The status only: Resend's error body can quote the address.

@@ -99,6 +99,8 @@ const Env = z
 		MAILPIT_URL: httpUrl.default('http://localhost:8025'),
 		RESEND_API_KEY: z.string().max(200).optional(),
 		EMAIL_FROM: z.string().max(200).default('Toe Beans <invites@toebeans.co.za>'),
+		// Where replies to an invitation go: a mailbox someone reads, never the inviter's address.
+		EMAIL_REPLY_TO: z.string().max(200).default('Toe Beans <support@toebeans.co.za>'),
 		// Where dog photos go (architecture §3.6). Prod defaults to S3 (R2), as a serverless host's
 		// disk doesn't last; self-hosting can choose a mounted directory instead.
 		PHOTO_STORE: z.enum(['filesystem', 's3']).optional(),
@@ -283,18 +285,19 @@ function photoConfig(e: z.infer<typeof Env>): PhotoConfig {
 /** Which EmailSender runs, with what it needs (`infrastructure/email`). */
 export type EmailConfig =
 	| { kind: 'console' }
-	| { kind: 'mailpit'; url: string; from: string }
-	| { kind: 'resend'; apiKey: string; from: string };
+	| { kind: 'mailpit'; url: string; from: string; replyTo: string }
+	| { kind: 'resend'; apiKey: string; from: string; replyTo: string };
 
 function emailConfig(e: z.infer<typeof Env>): EmailConfig {
 	const from = e.EMAIL_FROM;
+	const replyTo = e.EMAIL_REPLY_TO;
 	switch (senderOf(e)) {
 		case 'console':
 			return { kind: 'console' };
 		case 'mailpit':
-			return { kind: 'mailpit', url: e.MAILPIT_URL, from };
+			return { kind: 'mailpit', url: e.MAILPIT_URL, from, replyTo };
 		case 'resend':
-			return { kind: 'resend', apiKey: e.RESEND_API_KEY!, from };
+			return { kind: 'resend', apiKey: e.RESEND_API_KEY!, from, replyTo };
 	}
 }
 
