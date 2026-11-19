@@ -14,7 +14,7 @@ This file is public. It names settings, never values.
 | Organization | The owner's own, named after them rather than `toe-beans` as step 1 suggests |
 | Project | `toe-beans`, one project for both server and browser (one `SENTRY_DSN`) |
 | Environments | `prod` (Cloud Run), `local` (only if you set a DSN locally, which you shouldn't need to) |
-| Release | The commit's first 12 characters (`APP_RELEASE`, set by the deploy workflow) |
+| Release | The version, such as `1.0.0-rc.1` (`APP_RELEASE`, set by the deploy workflow; architecture D40) |
 | DSN lives in | The GitHub `production` environment's variable `SENTRY_DSN` (it's public: the browser gets it) |
 
 ## 1. Create the organization
