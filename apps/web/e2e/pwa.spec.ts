@@ -174,6 +174,32 @@ test('with the service worker in place, a page load with no connection shows the
 	await expect(page.getByRole('heading', { level: 1 })).toHaveText('History');
 });
 
+test('a fallback page stood in for a nested page, as a reminder opens, still loads its CSS and script', async ({
+	page,
+	context,
+	baseURL
+}) => {
+	await ownHousehold(page, baseURL!);
+	await page.goto('/');
+	await waitForServiceWorker(page);
+
+	// A reminder's deep link (S17.5): the cached page's asset paths must not depend on where it
+	// was first fetched from.
+	await context.setOffline(true);
+	await page.goto('/settings/notifications?test=arrived');
+	await expect(page.getByRole('heading', { level: 1 })).toHaveText("You're offline");
+	await expect(page.getByRole('heading', { level: 1 })).toHaveCSS(
+		'font-family',
+		/^"Fredoka Variable"/
+	);
+	// The script runs: Try again checks rather than doing nothing.
+	await page.getByRole('link', { name: 'Try again' }).click();
+	await expect(page.getByText("Still can't reach Toe Beans.")).toBeVisible();
+
+	await context.setOffline(false);
+	await expect(page.getByRole('heading', { level: 1 })).toHaveText('Notifications');
+});
+
 test('Try again on the offline page loads the page once the connection is back', async ({
 	page,
 	context,

@@ -1,6 +1,6 @@
 # Toe Beans — Backlog
 
-**Version:** 0.68 (draft for iteration)
+**Version:** 0.69 (draft for iteration)
 **Date:** 19 November 2026
 **Inputs:** `docs/requirements.md` v1.0, `docs/architecture.md` v1.30, `docs/ui.md` v0.37
 
@@ -115,6 +115,8 @@
 **Changes in 0.67:** S16.7 done: the owner filled the private part in the password manager, so S16 is done. S17.4 done; seeing a restart on prod isn't waited for. The Current progress table no longer breaks on a blank line. S14.8 added and built: versioning and GitHub Releases in the build and deploy (architecture 1.30 D40), so S14.7 runs on 1.0.0-rc.1 and accepts 1.0.0. Inputs moved to architecture 1.30.
 
 **Changes in 0.68:** S14.8 done: v1.0.0-rc.1 deployed and published as a GitHub pre-release, with the check required in main's ruleset. GitHub Releases are titled with the tag.
+
+**Changes in 0.69:** S17.5 from the owner, logged and built: a reminder tapped while the server sleeps opened a blank page saying *Loading…*. The service worker's fallback pages linked their files relative to where they were fetched, so in place of a nested page they found none.
 
 **Changes in 0.51:** S15.1 gains (k), fresh data on coming back to the app and on Back to a page Chrome kept whole (ui 0.35 §5.2), from the owner, after Today stayed stale behind a reminder. Live updates over WebSockets were considered and left out for cost. The offline banner's check backs off from 1 s (architecture 1.23 D31), found through a flaky e2e check. Built with e2e checks and closed by the owner, so S15.1 stays done. Inputs moved to architecture 1.23 and ui 0.35.
 
@@ -239,6 +241,7 @@ Work is organised as **vertical slices**: each delivers a usable end-to-end incr
 | 2026-11-19 | S16.7 done: the private part is in the owner's password manager, so S16 is done. S17.4 done, closed by the owner as it deploys. |
 | 2026-11-19 | S14.8 built (D40): one version for the repo, `CHANGELOG.md`, `pnpm release`, a CI version check into main, and the deploy tagging and publishing each GitHub Release. Set at 1.0.0-rc.1 for S14.7. |
 | 2026-11-19 | S14.8 done: v1.0.0-rc.1 on prod and published as a GitHub pre-release; the version check is required on main. Releases are now titled with the tag. |
+| 2026-11-19 | S17.5 built: a reminder tapped while the server sleeps opens its item, not a blank *Loading…* page. |
 
 **Next up:** S14.7 on 1.0.0-rc.1. Snags from using the app go to S17.
 
@@ -474,6 +477,7 @@ Work is organised as **vertical slices**: each delivers a usable end-to-end incr
 | S17.2 | **Stuck after a deploy:** after a new deployment, the installed app asks for the old build's files, gets 404s and stays on *Waking up Toe Beans* with loading skeletons. The update banner does come up (S15.1 (j)), so *Refresh* gets the person out, but the app shouldn't get stuck. Find out why from the service worker's handling of an old build's chunks and the waking page's retry (architecture D31). | ⬜ |
 | S17.3 | **Scanners stopped at the edge:** Cloudflare's analytics show bots probing for `/.env*`, `/.git/config`, `*.php`, `/wp-*`, `/actuator/*`, `/graphql`, `/v2/_catalog` and similar. Spot checks on 18 Nov found nothing exposed: the image holds only the build, `node_modules` and the exercises; unknown paths give 404, the API 401, and the tick's POST without its token 401. Each probe still wakes Cloud Run and renders the 13 KB app shell. (a) A free Cloudflare WAF custom rule blocks the obvious patterns before they reach the Worker. (b) A short plain 404 for paths outside the app's routes and assets, in place of the app shell. (c) `/.well-known/security.txt` with a contact and expiry. The full defensive review waits for the v1.0.0 release (architecture §7, D32). | ⬜ |
 | S17.4 | **Signed up, then "Signing in didn't work":** the owner signed up with email on prod and verified from the email, and Auth0 finished the sign-in in the mail app's browser, where the app had no sign-in in progress (logs: `no pending sign-in`), so the page said only that it failed. **Built (19 Nov):** such a callback, if it carries a code, starts a sign-in in that browser once (a 60-second `tb_resumed` cookie stops a loop), and the provider's session usually signs the person straight in. Auth0's *Application Login URI* (`auth0.md` §2) gives its verified and password-changed pages a button back. Unit and e2e tests. **Tried (19 Nov):** with the login URI set, the owner signed up on the phone (refused as unverified, as it should be), verified in a desktop browser and was signed in there through Auth0's button: the login URI fixes the case seen on prod, and the restart covers what's left (a sign-in past 10 minutes, a link in another app's browser). **Done (19 Nov):** closed by the owner as the fix deploys. | ✅ |
+| S17.5 | **Reminder opens a blank *Loading…* page:** with the app closed and the server asleep, tapping a reminder showed a white page with the logo and *Loading…*; pulling to refresh loaded the item. The service worker stood its cached *waking* page in for `sessions/{id}`, but that page linked its CSS and scripts as `./_app/…`, relative to `/waking` where it was fetched, so from a nested address they 404'd and the page never ran, never polled `/healthz` and never loaded the item. The offline and unreachable pages had the same flaw. **Built (19 Nov):** Kit renders root-relative asset paths (`paths.relative: false`); an e2e check opens the offline page at a reminder's address and finds its fonts and script working (it fails without the fix). | ⬜ |
 
 ## P1 — Phase 1 follow-on
 
