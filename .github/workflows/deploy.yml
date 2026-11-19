@@ -198,5 +198,5 @@ jobs:
           # A candidate is a pre-release, so the latest release stays the last final one.
           if [[ "$VERSION" == *-rc.* ]]; then kind=--prerelease; else kind=--latest; fi
           # --generate-notes adds the pull requests and a compare link after the changelog's notes.
-          gh release create "v$VERSION" --target "$GITHUB_SHA" --title "Toe Beans $VERSION" \
+          gh release create "v$VERSION" --target "$GITHUB_SHA" --title "v$VERSION" \
             --notes-file "$RUNNER_TEMP/notes.md" --generate-notes "$kind"

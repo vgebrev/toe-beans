@@ -1,6 +1,6 @@
 # Toe Beans — Backlog
 
-**Version:** 0.67 (draft for iteration)
+**Version:** 0.68 (draft for iteration)
 **Date:** 19 November 2026
 **Inputs:** `docs/requirements.md` v1.0, `docs/architecture.md` v1.30, `docs/ui.md` v0.37
 
@@ -113,6 +113,8 @@
 **Changes in 0.66:** S17.4 logged and built: a sign-in finished in another browser starts one in this browser instead of failing (architecture 1.29 §3.4). Inputs moved to architecture 1.29.
 
 **Changes in 0.67:** S16.7 done: the owner filled the private part in the password manager, so S16 is done. S17.4 done; seeing a restart on prod isn't waited for. The Current progress table no longer breaks on a blank line. S14.8 added and built: versioning and GitHub Releases in the build and deploy (architecture 1.30 D40), so S14.7 runs on 1.0.0-rc.1 and accepts 1.0.0. Inputs moved to architecture 1.30.
+
+**Changes in 0.68:** S14.8 done: v1.0.0-rc.1 deployed and published as a GitHub pre-release, with the check required in main's ruleset. GitHub Releases are titled with the tag.
 
 **Changes in 0.51:** S15.1 gains (k), fresh data on coming back to the app and on Back to a page Chrome kept whole (ui 0.35 §5.2), from the owner, after Today stayed stale behind a reminder. Live updates over WebSockets were considered and left out for cost. The offline banner's check backs off from 1 s (architecture 1.23 D31), found through a flaky e2e check. Built with e2e checks and closed by the owner, so S15.1 stays done. Inputs moved to architecture 1.23 and ui 0.35.
 
@@ -236,8 +238,9 @@ Work is organised as **vertical slices**: each delivers a usable end-to-end incr
 | 2026-11-19 | S17.4 built: a sign-in finished in another browser (an email's verification link) restarts in this one instead of failing. |
 | 2026-11-19 | S16.7 done: the private part is in the owner's password manager, so S16 is done. S17.4 done, closed by the owner as it deploys. |
 | 2026-11-19 | S14.8 built (D40): one version for the repo, `CHANGELOG.md`, `pnpm release`, a CI version check into main, and the deploy tagging and publishing each GitHub Release. Set at 1.0.0-rc.1 for S14.7. |
+| 2026-11-19 | S14.8 done: v1.0.0-rc.1 on prod and published as a GitHub pre-release; the version check is required on main. Releases are now titled with the tag. |
 
-**Next up:** the first release, 1.0.0-rc.1 (S14.8), then S14.7. Snags from using the app go to S17.
+**Next up:** S14.7 on 1.0.0-rc.1. Snags from using the app go to S17.
 
 ---
 
@@ -445,7 +448,7 @@ Work is organised as **vertical slices**: each delivers a usable end-to-end incr
 | S14.5 | Moved to S16.5. | ➡️ |
 | S14.6 | Durability check: redeploy or restart and verify all data persists (scenario 10). **Built (18 Nov):** `docs/runbooks/durability.md`: document counts before and after (`infra/backup/counts.sh`, read-only, counts only), a redeploy from the Deploy workflow, then the photo, History and a reminder that arrives with the app closed. **Done (18 Nov):** the owner's run on prod, `toe-beans-00007-nc8` → `toe-beans-00008-x4l`: counts matched apart from the tick's and sign-ins' writes, and the reminder arrived with the app closed (runbook §4). | ✅ |
 | S14.7 | Release acceptance: run scenarios 1–10 on both physical phones and record Android/Chrome versions, on a release candidate (S14.8). Once it passes, `pnpm release final` cuts 1.0.0 from the same code. | ⬜ |
-| S14.8 | Versioning and releases, before S14.7. **Built (19 Nov, D40):** one SemVer in every `package.json`, notes in `CHANGELOG.md` (Unreleased as work lands), `pnpm release` to bump (`tools/release`, unit tests), CI's *Version and release notes* job (into main, a version above every tag), and the deploy refusing a taken version, naming the build after the version and, once prod is ready, tagging `vX.Y.Z` and publishing the GitHub Release (pre-release for a candidate). `docs/runbooks/releasing.md`. Set at 1.0.0-rc.1. Left: the owner makes the new check required in main's ruleset, and the first deploy publishes v1.0.0-rc.1. | 🟨 |
+| S14.8 | Versioning and releases, before S14.7. **Built (19 Nov, D40):** one SemVer in every `package.json`, notes in `CHANGELOG.md` (Unreleased as work lands), `pnpm release` to bump (`tools/release`, unit tests), CI's *Version and release notes* job (into main, a version above every tag), and the deploy refusing a taken version, naming the build after the version and, once prod is ready, tagging `vX.Y.Z` and publishing the GitHub Release (pre-release for a candidate). `docs/runbooks/releasing.md`. Set at 1.0.0-rc.1. **Done (19 Nov):** the check is required in main's ruleset, and the first deploy published v1.0.0-rc.1 as a pre-release; releases are titled with the tag. | ✅ |
 
 ### S16 Compliance and go-live prep ✅
 *POPIA, before S14.7 and before anyone outside the owner's household is invited. Deferred until development was done (owner, 1 Nov). Drafts are not legal advice: the owner gets them read by someone who knows POPIA before other households join.*
