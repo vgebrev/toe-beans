@@ -1,6 +1,6 @@
 # Toe Beans — Privacy policy
 
-**Version:** 0.2 (reviewed draft)
+**Version:** 0.3 (reviewed draft)
 **Date:** 19 November 2026
 **Inputs:** `docs/data-inventory.md` v0.2, `docs/architecture.md` v1.28 (D36, D38, D39)
 
@@ -16,6 +16,10 @@ number (S16.6). §5's column reads
 "How long", as the published page shows each row as a card. The page's "Last updated" is
 **Date** above (S16.4). Emails to `privacy@` are kept in the owner's Gmail for a year after
 they're answered (§4, §5; data inventory 0.3).
+
+**Changes in 0.3:** the sign-in page at `auth.toebeans.co.za` loads its font from Google Fonts,
+so §4 lists Google Fonts and what it sees (data inventory 0.4). The Gmail row covers
+`support@toebeans.co.za` too, where replies to invitations and Auth0's emails now go.
 
 Before publishing:
 
@@ -109,7 +113,8 @@ where we can.
 | Resend | Sends invitation emails, and the sign-in service's verification and password emails | EU (Ireland) |
 | Sentry | Receives error reports with personal details removed | EU (Germany) |
 | Your browser's push service (Google's, for Chrome) | Delivers reminders. Each one is encrypted so the service can't read it | Worldwide |
-| Google (Gmail) | Holds the emails you send to privacy@toebeans.co.za, and our replies (§5) | Worldwide |
+| Google Fonts | Serves the font of the sign-in page at `auth.toebeans.co.za`, so it sees your device's address and browser when the page loads, but not who you are | Worldwide |
+| Google (Gmail) | Holds the emails you send us, at privacy@toebeans.co.za or support@toebeans.co.za, and our replies (§5) | Worldwide |
 | Google | If you choose to sign in with Google, Google knows you signed in to Toe Beans, under Google's own privacy policy | Worldwide |
 
 **Google sign-in.** We receive only your name, email address and profile picture from Google, and

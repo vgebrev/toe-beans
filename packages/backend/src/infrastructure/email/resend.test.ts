@@ -3,17 +3,19 @@ import { RESEND_URL, resendEmailSender } from './resend.js';
 
 const message = { to: 'jane@example.com', subject: 'Hello', text: 'Join us' };
 const from = 'Toe Beans <invites@toebeans.example>';
+const replyTo = 'Toe Beans <support@toebeans.example>';
 
 describe('resendEmailSender', () => {
-	it('posts the message with the API key', async () => {
+	it('posts the message with the API key, replies going to support', async () => {
 		const fetch = vi.fn(async () => new Response('{"id":"1"}', { status: 200 }));
-		const sender = resendEmailSender({ apiKey: 're_key', from, fetch: fetch as never });
+		const sender = resendEmailSender({ apiKey: 're_key', from, replyTo, fetch: fetch as never });
 		expect(await sender.send(message)).toEqual({ ok: true, value: undefined });
 		const [url, init] = fetch.mock.calls[0] as unknown as [string, RequestInit];
 		expect(url).toBe(RESEND_URL);
 		expect(init.headers).toMatchObject({ authorization: 'Bearer re_key' });
 		expect(JSON.parse(init.body as string)).toEqual({
 			from,
+			reply_to: replyTo,
 			to: ['jane@example.com'],
 			subject: 'Hello',
 			text: 'Join us'
@@ -23,7 +25,7 @@ describe('resendEmailSender', () => {
 	it('reports a refusal by status only: the body can quote the address', async () => {
 		const body = '{"message":"jane@example.com is not allowed"}';
 		const fetch = vi.fn(async () => new Response(body, { status: 422 }));
-		const sender = resendEmailSender({ apiKey: 'k', from, fetch: fetch as never });
+		const sender = resendEmailSender({ apiKey: 'k', from, replyTo, fetch: fetch as never });
 		expect(await sender.send(message)).toEqual({ ok: false, error: { reason: 'resend 422' } });
 	});
 
@@ -31,7 +33,7 @@ describe('resendEmailSender', () => {
 		const fetch = vi.fn(async () => {
 			throw new TypeError('fetch failed');
 		});
-		const sender = resendEmailSender({ apiKey: 'k', from, fetch: fetch as never });
+		const sender = resendEmailSender({ apiKey: 'k', from, replyTo, fetch: fetch as never });
 		expect(await sender.send(message)).toEqual({ ok: false, error: { reason: 'TypeError' } });
 	});
 });

@@ -46,22 +46,59 @@ Names follow the project convention: kebab-case words (`toe-beans`), not run tog
    - In the GCP project, under **APIs & Services → OAuth consent screen**, choose External, enter the app name *Toe Beans*, a support email and the `toebeans.co.za` domain, with only the basic scopes. Publish it, so sign-in isn't limited to listed test users.
    - Under **Credentials → Create OAuth client ID**, choose Web application. Set the authorised redirect URI to `https://auth.toebeans.co.za/login/callback`, the custom domain from step 6.
    - Paste the client ID and secret into the Auth0 Google connection.
-   - **Before other households join (S16.4):** on the consent screen's **Branding**, set the home
-     page `https://toebeans.co.za`, the privacy policy `https://toebeans.co.za/privacy` and the
-     terms `https://toebeans.co.za/terms`, then move the app from **Testing** to **In production**.
-     With only the basic scopes Google doesn't need to verify it, though it may check the domain
-     and that the home page links to the policy (the sign-in page does).
+   - **Published (S16.4, 19 Nov 2026).** In **Google Auth Platform → Branding**: home page
+     `https://toebeans.co.za`, privacy policy `https://toebeans.co.za/privacy`, terms
+     `https://toebeans.co.za/terms`, authorised domain `toebeans.co.za`. The domain is a **Domain
+     property in Google Search Console**, verified by a `google-site-verification` TXT record on
+     `@` in Cloudflare, under the same Google account as the project: keep that record, or
+     verification lapses. Then **Audience → Publish app** (In production) and brand verification,
+     so the consent screen shows the *Toe Beans* name and logo rather than only the domain. Google
+     waits 24 hours after a domain is verified before it re-checks the branding. Changing the
+     name, logo or links means verifying again.
 4. Turn off every other connection for the application, so the login page shows only Google and email. This matters for security, not just looks: the app trusts the provider's `email_verified` claim to link accounts and to match email invitations (architecture D34, security audit C2), and Google and the database connection are the two that verify an address. Check it again on the prod tenant before the first real user, and before enabling any new connection.
 
 ## 5. Login page
 
 1. Under **Branding → Universal Login**, use the current Universal Login experience.
-2. Optional for now: brand colours and logo from `ui.md` §6.4. S13 polishes these.
-3. **Prod, once `/privacy` and `/terms` are live (S16.4):** under **Branding → Universal Login →
-   Advanced options** (or wherever the dashboard now offers them), set the privacy policy and terms
-   links to `https://toebeans.co.za/privacy` and `https://toebeans.co.za/terms`, if it offers those
-   fields. Otherwise the links on our own sign-in page are enough. Check the sign-up screen shows
-   them.
+2. **Branding (prod, S16.4)**, under **Customizations**, from `ui.md` §6.4's light theme. The login
+   page has one set of colours, so it doesn't follow dark mode (the editor's light/dark switch is
+   for the captcha only). The editor is on the free plan: an older tenant past its trial saves it.
+   The editor shows a draft across tenants until saved, so check the real login page afterwards.
+
+   | Section | Setting | Value |
+   |---|---|---|
+   | Colors | Primary button, links, focused components, base focus | `#8a4b1f` |
+   | | Primary button label | `#ffffff` |
+   | | Base hover | `#75401a` |
+   | | Secondary button border, input border | `#94806f` |
+   | | Secondary button label, header, body text, input filled text | `#2b1d14` |
+   | | Input labels and placeholders, icons | `#6b5444` |
+   | | Widget background, input background | `#ffffff` |
+   | | Widget border | `#e6d8c6` |
+   | | Error | `#b3261e` |
+   | | Success | `#1e5b2e` |
+   | Fonts | Font URL | `https://fonts.gstatic.com/s/nunito/v32/XRXV3I6Li01BKofINeaB.woff2` |
+   | | Title, buttons | Bold |
+   | Borders | Buttons | Pill |
+   | | Input style, radius | Rounded, 10 px (the editor's maximum; the app uses 12) |
+   | | Widget corner radius, border weight | 16 px, 1 px; no shadow |
+   | Widget | Logo URL, height | `https://toebeans.co.za/icons/icon-512.png`, 52 px |
+   | Branding | Favicon URL | `https://toebeans.co.za/icons/icon-192.png` (the app's own favicon is inlined, so it has no URL) |
+   | Page background | Colour | `#fffbf5` |
+
+   The font is Nunito's Latin file from Google Fonts, which allows other sites to load it; the
+   privacy policy lists Google Fonts for this (§4 there). If Google ever retires that URL, get the
+   current one from `https://fonts.googleapis.com/css2?family=Nunito:wght@200..1000` (the
+   `/* latin */` block). Fredoka, the app's heading font, can't come too: the theme takes one font.
+3. **Privacy and terms links.** The free plan doesn't offer custom sign-up prompts ("Customize
+   Signup & Login" is paid), so the login page has no links of its own. The app's sign-in page
+   links to both just before handing over, which is where people agree (S16.4).
+4. **Names and addresses (prod).** **Settings → General**: Friendly Name `Toe Beans` (the login
+   page's "Log in to … to continue to …" and Auth0's emails use it, and it otherwise shows the
+   tenant ID), Support Email `support@toebeans.co.za`. **Branding → Email Provider**: From
+   `Toe Beans <support@toebeans.co.za>`, so replies to verification and password emails reach the
+   owner. Optionally, under the prompts' **Custom Text**, the login and sign-up descriptions read
+   "Log in to continue to Toe Beans." and "Sign up to continue to Toe Beans."
 
 ## 6. Prod only: custom domain and email
 

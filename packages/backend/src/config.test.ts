@@ -93,7 +93,12 @@ describe('loadConfig', () => {
 			writeRateLimit: { limit: 300, windowMs: 600_000 },
 			photoRateLimit: { limit: 20, windowMs: 3_600_000 },
 			proxySecret,
-			email: { kind: 'resend', apiKey: 're_key', from: 'Toe Beans <invites@toebeans.co.za>' },
+			email: {
+				kind: 'resend',
+				apiKey: 're_key',
+				from: 'Toe Beans <invites@toebeans.co.za>',
+				replyTo: 'Toe Beans <support@toebeans.co.za>'
+			},
 			photos: {
 				kind: 's3',
 				endpoint: r2.S3_ENDPOINT,
@@ -267,7 +272,8 @@ describe('loadConfig', () => {
 			expect(loadConfig({ EMAIL_SENDER: 'mailpit' }).email).toEqual({
 				kind: 'mailpit',
 				url: 'http://localhost:8025',
-				from
+				from,
+				replyTo: 'Toe Beans <support@toebeans.co.za>'
 			});
 			const elsewhere = { EMAIL_SENDER: 'mailpit', MAILPIT_URL: 'http://mail.test:9000' };
 			expect(loadConfig(elsewhere).email).toMatchObject({ url: 'http://mail.test:9000' });
@@ -277,8 +283,15 @@ describe('loadConfig', () => {
 			expect(loadConfig({ EMAIL_SENDER: 'resend', RESEND_API_KEY: 're_key' }).email).toEqual({
 				kind: 'resend',
 				apiKey: 're_key',
-				from
+				from,
+				replyTo: 'Toe Beans <support@toebeans.co.za>'
 			});
+			const replies = {
+				EMAIL_SENDER: 'resend',
+				RESEND_API_KEY: 'k',
+				EMAIL_REPLY_TO: 'help@x.example'
+			};
+			expect(loadConfig(replies).email).toMatchObject({ replyTo: 'help@x.example' });
 			expect(() => loadConfig({ EMAIL_SENDER: 'resend' })).toThrow(
 				/RESEND_API_KEY: required to send through Resend/
 			);
