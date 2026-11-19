@@ -2,7 +2,15 @@ import { describe, expect, it, vi } from 'vitest';
 import type { TickReport } from '../application/ports/tick.js';
 import { withHeartbeat } from './heartbeat.js';
 
-const report: TickReport = { extended: 0, claimed: 1, sent: 1, retrying: 0, skipped: 0, failed: 0 };
+const report: TickReport = {
+	extended: 0,
+	claimed: 1,
+	sent: 1,
+	retrying: 0,
+	skipped: 0,
+	failed: 0,
+	erased: 0
+};
 
 describe('withHeartbeat', () => {
 	it('beats after a tick and passes its report on', async () => {

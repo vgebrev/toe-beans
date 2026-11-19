@@ -72,6 +72,10 @@ services:
       OIDC_ISSUER: ${OIDC_ISSUER:-}
       OIDC_CLIENT_ID: ${OIDC_CLIENT_ID:-}
       OIDC_CLIENT_SECRET: ${OIDC_CLIENT_SECRET:-}
+      # Deleting an account deletes its dev-tenant Auth0 users when these are set (auth0.md §8).
+      AUTH0_DOMAIN: ${AUTH0_DOMAIN:-}
+      AUTH0_MANAGEMENT_CLIENT_ID: ${AUTH0_MANAGEMENT_CLIENT_ID:-}
+      AUTH0_MANAGEMENT_CLIENT_SECRET: ${AUTH0_MANAGEMENT_CLIENT_SECRET:-}
       PHOTO_STORE: s3
       S3_ENDPOINT: http://seaweedfs:8333
       S3_BUCKET: toe-beans-photos

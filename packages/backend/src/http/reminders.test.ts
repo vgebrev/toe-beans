@@ -142,7 +142,15 @@ describe('reminders http', () => {
 });
 
 describe('tick http', () => {
-	const report = { extended: 0, claimed: 1, sent: 1, retrying: 0, skipped: 0, failed: 0 };
+	const report = {
+		extended: 0,
+		claimed: 1,
+		sent: 1,
+		retrying: 0,
+		skipped: 0,
+		failed: 0,
+		erased: 0
+	};
 	const worker = { tick: async () => report };
 	const auth = { verify: async (h: string | null) => h === 'Bearer good' };
 

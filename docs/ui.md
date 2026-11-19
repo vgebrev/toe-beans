@@ -1,9 +1,9 @@
 # Toe Beans — UI and Interaction Design
 
-**Version:** 0.35 (draft for iteration)
-**Date:** 18 November 2026
+**Version:** 0.37 (draft for iteration)
+**Date:** 19 November 2026
 **Status:** Proposed. Review-round decisions in §8 are accepted.
-**Inputs:** `docs/requirements.md` v1.0, `docs/architecture.md` v1.23
+**Inputs:** `docs/requirements.md` v1.0, `docs/architecture.md` v1.28
 
 **Changes in 0.7:** the logo landed (S0.9). The mark is now a **TB monogram** with four toe beans above it and a heart-shaped bean in the B, from the AI-assisted design board (Monogram Iteration B), replacing the placeholder paw. It was traced from the board and cleaned up rather than redrawn by hand; the variants are the brown-on-cream mark, a cream-on-brown app-icon tile (favicon and maskable) and a white badge. The wordmark uses Fredoka Bold to match the board (§6.4 Logo).
 
@@ -52,6 +52,10 @@
 **Changes in 0.35:** §5.2: *Fresh data*, from the owner (backlog S15.1 (k)). Every screen fetches its data again when the app comes back to the front, which only Today did, and when Back returns to a page Chrome kept whole in its back/forward cache. That second case is the one the owner hit: a reminder's tap opens its item as a new page, so after marking it done, Android's Back showed Today as it had been. Neither happens on a form or with a sheet open. Live updates stay out (NFR-13): a WebSocket would keep a server instance running while any phone has the app open, which the free tier can't absorb. The offline banner's check after a failure backs off from 1 s (architecture 1.23 D31). Inputs moved to architecture 1.23.
 
 **Changes in 0.34:** §5.2: a *New version* banner, from the owner (backlog S15.1 (j)). Once a new build is deployed, the top banner says "A new version of Toe Beans is ready." with *Refresh*, which reloads the page. It uses SvelteKit's own version check (`updated` from `$app/state`), and gives way to the offline banner, since reloading then would only find the offline page.
+
+**Changes in 0.36:** S16.5, deleting personal data (architecture 1.27 D38). §4.7: *Delete account* under *Sign out everywhere*, in red, confirmed in a sheet that says what happens to the household (they leave it and their records stay from "a former member", or it goes with them when nobody else is in it); once deleted the browser signs out as *Sign out* does. §4.8: *Delete household* under *Leave household* for someone alone in it, and the last person's leave sheet says they can rejoin within 30 days, after which it's deleted. J1 step 3: the *Rejoin* panel says when the household will be deleted and offers *Delete it now*. Inputs moved to architecture 1.27.
+
+**Changes in 0.37:** S16.4, the privacy policy and terms as public pages (§2.3, §4.7, J1 step 1). `/privacy` and `/terms` open signed in or out, with a back link to the app; *Privacy policy* and *Terms of service* links sit under *Sign in* on Welcome and under the version on More. On a phone their tables stack into one card per row. Inputs moved to architecture 1.28.
 
 **Changes in 0.12:** S3 built. J1 step 4 as built: *Take photo* or *Gallery*, then a framing square with the circle overlay (drag, pinch, a zoom slider and arrow keys), and birth date as *I know the date* or *Approximate* with months old. J2 names the dogs. §2.2: the switcher shows on Today, Plan, History and Care, with name chips. §5.1 gains two rules from using it: one confirm button per context (a sheet is its own context), and a control is never disabled without the reason on screen; the photo moved into its own sheet in J1 to follow the first, and the household, name and email-invite buttons stopped greying out for missing input to follow the second. §4.5: editing is its own page and the overflow sheet holds *Edit details* and *Archive*; the Recent sections wait for their slices. The dog accent palette is defined (§6.4), and More gains *Dogs* (§2.1). The custom dog icon read as a monkey, so it's replaced by Phosphor's *Dog*, the documented fallback library (§6.4).
 
@@ -138,6 +142,7 @@ A **floating "+" button** on Today, Plan, History and Care opens a chooser: *Log
 /settings/notifications
 /join/:token            invitation acceptance
 /onboarding/*           first-run flow
+/privacy, /terms        public: the privacy policy and terms (S16.4)
 ```
 
 ---
@@ -148,9 +153,9 @@ Each journey maps to a requirements acceptance scenario (§5 there).
 
 ### J1 — First run and onboarding (scenario 1)
 
-1. **Welcome.** Short value statement. **Sign in** → IdP (Google or email).
+1. **Welcome.** Short value statement. **Sign in** → IdP (Google or email). Links to the privacy policy and terms sit under it (*added in 0.37*).
 2. **Your name:** "What should your household call you?", filled in with the name from sign-in, which for an email sign-up is only the start of the address. Saved like Account's name field (§4.7). Built with S2.
-3. **Create household:** name and time zone (detected from the device, editable). Someone who was the last to leave a household also sees *Rejoin [household]* above the form, which brings it back with them as owner (architecture D18).
+3. **Create household:** name and time zone (detected from the device, editable). Someone who was the last to leave a household also sees *Rejoin [household]* above the form, which brings it back with them as owner (architecture D18), with "Otherwise it's deleted on [date]" (30 days after they left, D38) and a quieter red *Delete it now*, confirmed in a bottom sheet that names what goes. Once deleted, "Household deleted." replaces the panel.
 4. **Add your dog:** photo first (camera or gallery, crop to a circle preview), then name, birth date or estimated age (toggle *I know the date* / *Approximate: months old*), adoption date, notes. A dog can't be saved without a photo. The UI explains why ("helps everyone see at a glance which dog an entry is for").
    - *As built (S3):* *Take photo* opens the camera, *Gallery* the picker. The photo then shows in a square with the circle dimmed around: drag to move it, pinch or use the *Zoom* slider (for anyone who can't pinch), or the arrow keys and +/− when the square has focus; it can't be moved off the circle. The photo is chosen and framed in its own sheet (*Add photo*), whose one confirm button, *Use photo*, returns to the form with the circle preview; the form's own *Add dog* saves (§5.1). *Another photo*, beside it in the sheet's footer, starts again, and *Use photo* tapped before choosing says to choose one first. The framing square is sized to the height the sheet leaves it, so the whole sheet fits on the phone without scrolling, and the footer stays pinned if it ever doesn't (e.g. very large text). Birth date is optional; *Approximate* asks for months old and stores a date that many months back, marked as an estimate (architecture §5.2). Not skippable: every record belongs to a dog. The same form is *Add a dog* under More → Dogs.
 5. **Invite a caregiver** (skippable):
@@ -354,6 +359,8 @@ On More. **Your name** is a text field (48 px, `autocomplete="name"`, up to 100 
 - A conflict (the name was saved elsewhere, e.g. on another device) says "Your name was changed somewhere else a moment ago." with *See the new name* and *Keep mine*. It's the person's own record, so overwriting is offered (§5.2).
 - If the account can't be loaded, the name and email show as text, with "Couldn't load your account details. Reload the page to change your name."
 - *Added in 0.30:* **Sign out everywhere**, a quieter button under *Sign out*, for a lost phone or a computer left signed in (architecture D33). It opens a bottom sheet (§5.3), "Sign out on every device?", saying the person is signed out here and on every phone and browser they've used, that reminders stop on all of them, and to sign in again where they still use Toe Beans and turn reminders back on in Notifications. Its one button, *Sign out everywhere*, signs out like *Sign out* (this browser's reminders are unsubscribed first) and lands on the provider's sign-out.
+- *Added in 0.36:* **Delete account**, a red text button under *Sign out everywhere* (architecture D38). Its bottom sheet, "Delete your account for good?", says what happens to the household by who's in it: alone, the account and the household with its dogs, photos and history go; with others, the person leaves it, what they recorded stays for the others (named) as from "a former member", and who becomes the owner if it changes. Then "You'll be signed out on every device. This can't be undone." The destructive button deletes, unsubscribes this browser's reminders and signs out as *Sign out* does, landing on sign-in. If the sign-in service can't be reached nothing is deleted and the sheet says to try again in a minute; other failures say to check the connection; both turn the button into **Retry**.
+- *Added in 0.37:* **Privacy policy** and **Terms of service** links in More's footer, under the version. Both pages are public (`/privacy`, `/terms`), rendered from `docs/privacy-policy.md` and `docs/terms-of-service.md`, with a back link to the app; on a phone each table row stacks into a card, its column names as labels, so nothing scrolls sideways.
 
 ### 4.8 Household
 
@@ -362,7 +369,8 @@ On More as **Household & invites**, showing the household's name; the page keeps
 - **Members:** display name, "(you)", and role. No emails: the household knows each other by name. An owner sees *Make owner* and *Remove* on each caregiver, each confirmed in a bottom sheet (§5.3): *Remove* says they lose access and that their invites stop working, and *Make owner* says owners can't remove each other, so only they can step down. An owner sees *Step down* on their own row while another owner stays (architecture D19). Afterwards the result shows at the top of the page.
 - **Pending invites:** invitations that can still be used, showing the address or "Invite link", who sent it and until when. *Revoke* appears for an owner, or on your own invitation (architecture D17), and confirms in a bottom sheet naming it (§5.3). If it failed the sheet stays open with **Retry**; if the invitation changed meanwhile, nothing is revoked, the sheet closes and the page says so above the refreshed list.
 - **Invite a caregiver:** the same controls as J1 step 5. *Create an invite link* shows the link once, in a read-only field, with its terms and *Share link* (the share sheet, or copy as the fallback). It's only ever available on this screen at creation, because only its hash is kept (architecture §5.2). *Send invite* keeps the address after a failure, and shows "Invite sent to …" politely once the server has sent it.
-- **Leave household:** at the foot of the page, for everyone, confirmed in a bottom sheet that says what follows: who becomes the owner, that coming back takes a new invite, or for the last person, that the household is deactivated and they can rejoin it. Leaving goes to *Create household* (J1 step 3).
+- **Leave household:** at the foot of the page, for everyone, confirmed in a bottom sheet that says what follows: who becomes the owner, that coming back takes a new invite, or for the last person, that the household is deactivated and they can rejoin it within 30 days, after which it's deleted with its dogs, photos and history (D38). Leaving goes to *Create household* (J1 step 3).
+- *Added in 0.36:* **Delete household:** under *Leave household*, a red text button, only for someone alone in it (architecture D38). Its sheet, "Delete [household] for good?", says its dogs, photos, training and care history, cues and invites are deleted and can't be brought back, and that the account stays. Deleting goes to *Create household*. If someone joined meanwhile, nothing is deleted and the page says the household changed.
 - If the household changed while a sheet was open, nothing is done, the sheet closes and the top of the page says so above the refreshed members. A failure keeps the sheet open with **Retry**, as for revoking.
 
 ---

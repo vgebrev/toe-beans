@@ -3,7 +3,12 @@ import { createIdGenerator, type Id } from '../../domain/id.js';
 import type { User } from '../../domain/user.js';
 import { directUnitOfWork, memoryUsers } from '../../testing/auth.js';
 import { manualClock } from '../../testing/clock.js';
-import { memoryHouseholds, memoryInvitations } from '../../testing/household.js';
+import { memoryPhotoStore } from '../../testing/dogs.js';
+import {
+	memoryHouseholdData,
+	memoryHouseholds,
+	memoryInvitations
+} from '../../testing/household.js';
 import { createHouseholds } from './household.js';
 import { silentLogger } from '../../testing/logger.js';
 
@@ -30,19 +35,27 @@ async function setup() {
 	await users.insert(jo);
 	const households = memoryHouseholds();
 	const invitations = memoryInvitations();
+	const householdData = memoryHouseholdData(households);
+	const photos = memoryPhotoStore();
 	const clock = manualClock(at);
 	const ids = createIdGenerator(() => clock.now().getTime());
 	return {
 		households,
+		householdData,
 		invitations,
+		photos,
+		clock,
 		service: createHouseholds({
 			households,
+			householdData,
 			invitations,
 			users,
+			photos,
 			uow: directUnitOfWork,
 			clock,
 			ids,
-			logger: silentLogger
+			logger: silentLogger,
+			errors: { capture() {}, flush: async () => {} }
 		})
 	};
 }
@@ -212,12 +225,24 @@ describe('people leaving a household (D18)', () => {
 
 		expect(await h.service.findReactivatable({ userId: sam.id })).toEqual({
 			ok: true,
-			value: { name: 'The Does' }
+			value: { name: 'The Does', keptUntil: later(30) }
 		});
 		const back = await h.service.reactivate({ userId: sam.id });
 		expect(back).toMatchObject({ ok: true, value: { members: [{ role: 'owner', you: true }] } });
 		expect(household(h).deactivated).toBeUndefined();
 		expect(await h.service.findReactivatable({ userId: sam.id })).toMatchObject({ ok: false });
+	});
+
+	it("can't be brought back once it's past 30 days (D38)", async () => {
+		const h = await shared();
+		await h.service.removeMember(asOwner, { memberId: sam.id, expectedVersion: 1 });
+		h.clock.set(later(30));
+		expect(await h.service.findReactivatable({ userId: sam.id })).toMatchObject({ ok: false });
+		expect(await h.service.reactivate({ userId: sam.id })).toMatchObject({
+			ok: false,
+			error: { kind: 'not-found' }
+		});
+		expect(household(h).deactivated).toBeDefined();
 	});
 
 	it("won't bring one back for someone who's since joined another", async () => {
@@ -359,5 +384,97 @@ describe('people leaving a household (D18)', () => {
 				[true, true, false]
 			]);
 		});
+	});
+});
+
+describe('deleting a household (D38)', () => {
+	const HOUSEHOLD = 'h1' as Id;
+	const asOwner = { userId: sam.id, householdId: HOUSEHOLD, role: 'owner' as const };
+
+	async function owned(...others: User[]) {
+		const context = await setup();
+		await context.households.insert({
+			id: HOUSEHOLD,
+			name: 'The Does',
+			timeZone: 'Africa/Johannesburg',
+			memberships: [
+				{ userId: sam.id, role: 'owner', joinedAt: at },
+				...others.map((u) => ({ userId: u.id, role: 'caregiver' as const, joinedAt: at }))
+			],
+			version: 3,
+			createdAt: at,
+			updatedAt: at
+		});
+		await context.households.insert({
+			id: 'h2' as Id,
+			name: 'Next door',
+			timeZone: 'Africa/Johannesburg',
+			memberships: [{ userId: jo.id, role: 'owner', joinedAt: at }],
+			version: 1,
+			createdAt: at,
+			updatedAt: at
+		});
+		await context.invitations.insert({
+			id: 'i1' as Id,
+			householdId: HOUSEHOLD,
+			kind: 'link',
+			tokenHash: 'i1',
+			expiresAt: new Date(at.getTime() + 86_400_000),
+			maxUses: 1,
+			createdBy: sam.id
+		});
+		for (const key of [
+			'households/h1/dogs/d1/p1-thumb.webp',
+			'households/h1/dogs/d1/p1-large.webp',
+			'households/h2/dogs/d2/p2-thumb.webp'
+		]) {
+			await context.photos.put(key, new Uint8Array(1), 'image/webp');
+		}
+		return context;
+	}
+
+	it('deletes it with its photos when its one member asks, and nothing of another', async () => {
+		const h = await owned();
+		expect(await h.service.delete(asOwner, { expectedVersion: 3 })).toEqual({
+			ok: true,
+			value: undefined
+		});
+		expect(h.householdData.erased).toEqual([HOUSEHOLD]);
+		expect(h.households.all().map((x) => x.id)).toEqual(['h2']);
+		expect(h.photos.keys()).toEqual(['households/h2/dogs/d2/p2-thumb.webp']);
+	});
+
+	it("won't while someone else is in it, or on a stale version, and changes nothing", async () => {
+		const h = await owned(alex);
+		expect(await h.service.delete(asOwner, { expectedVersion: 3 })).toMatchObject({
+			ok: false,
+			error: { kind: 'conflict' }
+		});
+		const alone = await owned();
+		expect(await alone.service.delete(asOwner, { expectedVersion: 2 })).toMatchObject({
+			ok: false,
+			error: { kind: 'stale-version' }
+		});
+		for (const context of [h, alone]) {
+			expect(context.householdData.erased).toEqual([]);
+			expect(context.photos.keys()).toHaveLength(3);
+			expect(context.invitations.all()[0]!.revokedAt).toBeUndefined();
+		}
+	});
+
+	it('deletes the one its last member left, which then nobody can bring back', async () => {
+		const h = await owned();
+		await h.service.removeMember(asOwner, { memberId: sam.id, expectedVersion: 3 });
+		expect(await h.service.deleteFormer({ userId: alex.id })).toMatchObject({
+			ok: false,
+			error: { kind: 'not-found' }
+		});
+		expect(await h.service.deleteFormer({ userId: sam.id })).toEqual({
+			ok: true,
+			value: undefined
+		});
+		expect(h.householdData.erased).toEqual([HOUSEHOLD]);
+		expect(h.photos.keys()).toEqual(['households/h2/dogs/d2/p2-thumb.webp']);
+		expect(await h.service.findReactivatable({ userId: sam.id })).toMatchObject({ ok: false });
 	});
 });

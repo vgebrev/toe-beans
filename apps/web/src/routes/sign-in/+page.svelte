@@ -51,4 +51,8 @@
 		</Button>
 	{/if}
 	<p class="text-sm text-muted-foreground">With Google, or with your email and a password.</p>
+	<p class="flex gap-4 text-sm text-muted-foreground">
+		<a href={resolve('/privacy')} class="flex min-h-12 items-center underline">Privacy policy</a>
+		<a href={resolve('/terms')} class="flex min-h-12 items-center underline">Terms of service</a>
+	</p>
 </main>

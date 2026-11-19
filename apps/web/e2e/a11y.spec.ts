@@ -28,7 +28,9 @@ const pages = [
 	'/household',
 	'/settings/notifications',
 	'/plan/new',
-	'/care/new'
+	'/care/new',
+	'/privacy',
+	'/terms'
 ];
 
 async function at200Percent(page: Page) {

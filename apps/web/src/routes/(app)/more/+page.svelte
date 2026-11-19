@@ -11,6 +11,7 @@
 	import { Button } from '#lib/components/ui/button/index.js';
 	import * as Sheet from '#lib/components/ui/sheet/index.js';
 	import { unsubscribe } from '#lib/push/browser.js';
+	import { createApiClient, problemStatus } from '#lib/api-client/index.js';
 	import type { PageProps } from './$types';
 
 	let { data }: PageProps = $props();
@@ -31,6 +32,48 @@
 			new Promise((resolve) => setTimeout(resolve, 3000))
 		]);
 		form.submit();
+	}
+
+	/**
+	 * Deleting the account (architecture D38). Once it's gone the session is too, so this browser's
+	 * reminders stop and the sign-out form finishes at the provider, as signing out does.
+	 */
+	const api = createApiClient((input, init) => fetch(input, init));
+	let deleteOpen = $state(false);
+	let deleting = $state<'idle' | 'working' | 'unavailable' | 'failed'>('idle');
+	let signOutForm = $state<HTMLFormElement>();
+
+	const deleteDescription = $derived.by(() => {
+		const household = data.household.name;
+		const others = data.members?.filter((m) => !m.you);
+		if (!others) {
+			return `Your account and reminders are deleted. If others share ${household}, you leave it and what you recorded stays for them, from "a former member". If nobody does, ${household} is deleted too, with its dogs, photos and history.`;
+		}
+		if (others.length === 0) {
+			return `Your account and ${household}, with its dogs, photos, training and care history, are deleted for good, along with your reminders.`;
+		}
+		const you = data.members?.find((m) => m.you);
+		const [next] = [...others].sort((a, b) => a.joinedAt.localeCompare(b.joinedAt));
+		const handOver =
+			you?.role === 'owner' && !others.some((m) => m.role === 'owner') && next
+				? ` ${next.displayName} becomes the owner.`
+				: '';
+		const names = listFormat.format(others.map((m) => m.displayName));
+		return `Your account and reminders are deleted, and you leave ${household}. What you recorded stays for ${names}, from "a former member".${handOver}`;
+	});
+
+	async function deleteAccount() {
+		deleting = 'working';
+		const result = await api.send('DELETE', '/me');
+		if (!result.ok) {
+			deleting = problemStatus(result.error) === 503 ? 'unavailable' : 'failed';
+			return;
+		}
+		await Promise.race([
+			unsubscribe().catch(() => undefined),
+			new Promise((resolve) => setTimeout(resolve, 3000))
+		]);
+		signOutForm?.submit();
 	}
 
 	const listFormat = new Intl.ListFormat('en', { type: 'conjunction' });
@@ -159,7 +202,57 @@
 		<Button variant="ghost" class="w-full" onclick={() => (everywhereOpen = true)}>
 			Sign out everywhere
 		</Button>
+		<Button
+			variant="ghost"
+			class="w-full text-destructive"
+			onclick={() => {
+				deleting = 'idle';
+				deleteOpen = true;
+			}}
+		>
+			Delete account
+		</Button>
 	</section>
+
+	<Sheet.Root bind:open={deleteOpen}>
+		<Sheet.Content side="bottom" class="mx-auto flex max-w-xl flex-col gap-4 px-4 pt-6 pb-4">
+			<Sheet.Header class="p-0 pr-12 text-left">
+				<Sheet.Title class="font-display text-xl font-semibold">
+					Delete your account for good?
+				</Sheet.Title>
+				<Sheet.Description class="text-base">
+					{deleteDescription} You'll be signed out on every device. This can't be undone.
+				</Sheet.Description>
+			</Sheet.Header>
+			{#if deleting === 'unavailable'}
+				<p role="alert" class="rounded-2xl border border-border bg-soft px-4 py-3 text-base">
+					Couldn't reach the sign-in service, so nothing was deleted. Try again in a minute.
+				</p>
+			{:else if deleting === 'failed'}
+				<p role="alert" class="rounded-2xl border border-border bg-soft px-4 py-3 text-base">
+					Couldn't delete your account — check your connection.
+				</p>
+			{/if}
+			<Button
+				type="button"
+				variant="destructive"
+				class="w-full"
+				disabled={deleting === 'working'}
+				onclick={deleteAccount}
+			>
+				{#if deleting === 'working'}
+					<Icon name="saving" class="animate-spin" />
+					Deleting…
+				{:else if deleting === 'idle'}
+					Delete account
+				{:else}
+					Retry
+				{/if}
+			</Button>
+		</Sheet.Content>
+	</Sheet.Root>
+	<!-- Submitted once the account is gone: ends the cookie and the provider's session. -->
+	<form bind:this={signOutForm} method="POST" action={resolve('/auth/sign-out')} hidden></form>
 
 	<Sheet.Root bind:open={everywhereOpen}>
 		<Sheet.Content side="bottom" class="mx-auto flex max-w-xl flex-col gap-4 px-4 pt-6 pb-4">
@@ -183,5 +276,9 @@
 	<footer class="flex flex-col items-center gap-1 pt-4 text-sm text-muted-foreground">
 		<Logo wordmark size={28} />
 		<p>Version {version}</p>
+		<p class="flex gap-4">
+			<a href={resolve('/privacy')} class="flex min-h-12 items-center underline">Privacy policy</a>
+			<a href={resolve('/terms')} class="flex min-h-12 items-center underline">Terms of service</a>
+		</p>
 	</footer>
 </div>

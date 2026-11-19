@@ -27,6 +27,20 @@ export interface Household {
 
 export const HOUSEHOLD_NAME_MAX = 100;
 
+/**
+ * How long a deactivated household is kept for the person who left last to bring back. After
+ * that nobody can reach it, and the tick deletes it with its dogs, photos and history (D38).
+ */
+export const DEACTIVATED_KEEP_DAYS = 30;
+
+/** Until when a household deactivated at `at` can be brought back. */
+export const keptUntil = (at: Date): Date =>
+	new Date(at.getTime() + DEACTIVATED_KEEP_DAYS * 24 * 60 * 60 * 1000);
+
+/** Households deactivated before this, at `now`, are past bringing back. */
+export const deactivatedCutoff = (now: Date): Date =>
+	new Date(now.getTime() - DEACTIVATED_KEEP_DAYS * 24 * 60 * 60 * 1000);
+
 export const ownerCount = (memberships: Membership[]) =>
 	memberships.filter((m) => m.role === 'owner').length;
 

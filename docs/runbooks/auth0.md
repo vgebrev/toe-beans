@@ -46,12 +46,22 @@ Names follow the project convention: kebab-case words (`toe-beans`), not run tog
    - In the GCP project, under **APIs & Services → OAuth consent screen**, choose External, enter the app name *Toe Beans*, a support email and the `toebeans.co.za` domain, with only the basic scopes. Publish it, so sign-in isn't limited to listed test users.
    - Under **Credentials → Create OAuth client ID**, choose Web application. Set the authorised redirect URI to `https://auth.toebeans.co.za/login/callback`, the custom domain from step 6.
    - Paste the client ID and secret into the Auth0 Google connection.
+   - **Before other households join (S16.4):** on the consent screen's **Branding**, set the home
+     page `https://toebeans.co.za`, the privacy policy `https://toebeans.co.za/privacy` and the
+     terms `https://toebeans.co.za/terms`, then move the app from **Testing** to **In production**.
+     With only the basic scopes Google doesn't need to verify it, though it may check the domain
+     and that the home page links to the policy (the sign-in page does).
 4. Turn off every other connection for the application, so the login page shows only Google and email. This matters for security, not just looks: the app trusts the provider's `email_verified` claim to link accounts and to match email invitations (architecture D34, security audit C2), and Google and the database connection are the two that verify an address. Check it again on the prod tenant before the first real user, and before enabling any new connection.
 
 ## 5. Login page
 
 1. Under **Branding → Universal Login**, use the current Universal Login experience.
 2. Optional for now: brand colours and logo from `ui.md` §6.4. S13 polishes these.
+3. **Prod, once `/privacy` and `/terms` are live (S16.4):** under **Branding → Universal Login →
+   Advanced options** (or wherever the dashboard now offers them), set the privacy policy and terms
+   links to `https://toebeans.co.za/privacy` and `https://toebeans.co.za/terms`, if it offers those
+   fields. Otherwise the links on our own sign-in page are enough. Check the sign-up screen shows
+   them.
 
 ## 6. Prod only: custom domain and email
 
@@ -75,11 +85,47 @@ The custom domain must be in place **before the first real user signs in**. User
 
 Never commit the dev client secret. `.env` is gitignored, and `.env.example` holds only placeholders.
 
+## 8. Account deletion: a machine-to-machine application
+
+Deleting a Toe Beans account deletes the person's Auth0 users too (backlog S16.5, architecture
+D38): Auth0 keeps their email, name and, for email sign-ins, a password hash. The app does it
+through the Management API, with an application that can do nothing else.
+
+1. Under **Applications → Applications**, choose **Create Application**, name it
+   `Toe Beans account deletion`, and pick **Machine to Machine Applications**.
+2. Authorise it for the **Auth0 Management API** with the **`delete:users`** permission only.
+   Nothing to read users, nothing to create or update them.
+3. From its **Settings**, take the client ID and secret.
+4. Set them:
+
+| Variable | Dev (`.env`) | Prod |
+|---|---|---|
+| `AUTH0_DOMAIN` | `toe-beans-dev.eu.auth0.com` | `toe-beans.eu.auth0.com`, set in the Deploy workflow. The tenant's own domain: the Management API isn't on the custom domain |
+| `AUTH0_MANAGEMENT_CLIENT_ID` | from step 3 | the `production` environment variable in GitHub |
+| `AUTH0_MANAGEMENT_CLIENT_SECRET` | from step 3 | Secret Manager `auth0-management-client-secret` (`infra/gcp/set-secret.sh`) |
+
+Prod refuses to start without all three, so set them **before** the release that brings S16.5
+reaches `main`. Re-run `infra/gcp/provision.sh` first if the secret doesn't exist yet.
+
+A machine-to-machine token counts against the free plan's monthly quota; the app keeps each one
+for its 24 hours, so a deletion costs at most one.
+
+**Rotating:** in the application's **Credentials**, **Rotate** the secret, set the new one and
+redeploy. Nothing else uses it.
+
+**If a deletion fails at Auth0,** the app deletes nothing of its own and tells the person to try
+again; the log says `could not delete the provider accounts` with the status, and Sentry gets it.
+
 ## Checking it works
 
 - Sign in with Google and with a new email/password account on `http://localhost:7877`. Each should land back in the app, signed in.
 - Sign out. The next sign-in should show the Auth0 login page again instead of signing you straight back in.
 - In prod, check that the login page is served from `auth.toebeans.co.za`.
+- Auth0's built-in email provider (dev) may never reach some mailboxes: Yahoo dropped its
+  verification mail without a trace, while Gmail got it. Test with Gmail (a `+tag` address makes
+  throwaways), or give the tenant a real provider as in §6.
+- With §8 set up, sign in as a throwaway email/password account, delete it from *More*, and check
+  the user is gone from **User Management → Users**.
 
 ## Rotating the client secret
 

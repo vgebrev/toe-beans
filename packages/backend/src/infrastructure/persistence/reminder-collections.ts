@@ -18,6 +18,7 @@ import {
 	type ReminderPreference
 } from '../../domain/reminders.js';
 import { isDuplicateKey } from './mongo.js';
+import { currentSession } from './unit-of-work.js';
 
 export const PUSH_DEVICES = 'pushDevices';
 export const REMINDER_PREFERENCES = 'reminderPreferences';
@@ -108,7 +109,7 @@ export function mongoPushDevices(db: Db, clock: Clock): PushDeviceRepository {
 			return deletedCount === 1;
 		},
 		async removeAllForUser(userId) {
-			const { deletedCount } = await devices.deleteMany({ userId });
+			const { deletedCount } = await devices.deleteMany({ userId }, { session: currentSession() });
 			return deletedCount;
 		},
 		async recordSuccess(id, at) {
@@ -141,6 +142,9 @@ export function mongoReminderPreferences(db: Db): ReminderPreferenceRepository {
 				{ upsert: true, returnDocument: 'after' }
 			);
 			return toPreference(doc!);
+		},
+		async delete(userId) {
+			await prefs.deleteOne({ _id: userId }, { session: currentSession() });
 		}
 	};
 }
@@ -210,6 +214,11 @@ export function mongoReminders(db: Db, clock: Clock): ReminderRepository {
 				{ $set: { receivedAt: { $ifNull: ['$receivedAt', at] } } }
 			]);
 			return matchedCount === 1;
+		},
+		async deleteForUser(userId) {
+			// On migration 0008's (userId, kind, _id) index.
+			const { deletedCount } = await ledger.deleteMany({ userId }, { session: currentSession() });
+			return deletedCount;
 		}
 	};
 }

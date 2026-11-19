@@ -11,7 +11,7 @@ This file is public. It names settings, never values.
 |---|---|
 | Plan | Developer (free): one user, about 5k errors a month, 30 days' retention |
 | Data region | **EU** (Frankfurt), like Auth0. Chosen when the organization is created and can't be changed |
-| Organization | `toe-beans` |
+| Organization | The owner's own, named after them rather than `toe-beans` as step 1 suggests |
 | Project | `toe-beans`, one project for both server and browser (one `SENTRY_DSN`) |
 | Environments | `prod` (Cloud Run), `local` (only if you set a DSN locally, which you shouldn't need to) |
 | Release | The commit's first 12 characters (`APP_RELEASE`, set by the deploy workflow) |
@@ -56,7 +56,9 @@ This file is public. It names settings, never values.
 3. Check both sides send:
    - **Browser:** open `https://toebeans.co.za`, sign in, open DevTools' console and run
      `setTimeout(() => { throw new Error('Sentry check (browser)') })`. The issue appears within a
-     minute with environment `prod` and the release.
+     minute with environment `prod` and the release. The `setTimeout` matters: an error thrown
+     straight from the console never reaches the page's handlers. An ad blocker may block the
+     report (`ERR_BLOCKED_BY_CLIENT` in the Network tab); use a window without it.
    - **Server:** no route throws on demand. The first real server error shows it works; until
      then, Cloud Run's logs at startup show the config without errors.
 4. Open the browser check's event and confirm it has no IP address, no user, no cookies and no
@@ -68,12 +70,22 @@ The CSP already allows `https://*.sentry.io` in `connect-src`, which covers the 
 
 The other monitors (uptime, the tick, backups) are in `monitoring.md`.
 
+The project comes with *Send a notification for high priority issues*. Sentry decides what's high
+priority, and at this size every new error is worth a look, so change that alert rather than add
+a second one (two alerts would mail twice for the same error).
 
-1. **Alerts → Create alert → Issues:** environment `prod`, when *a new issue is created* or *an
-   issue changes state from resolved to unresolved*, send an email to you. Name it
-   `New or regressed issue`.
-2. Delete or disable the default alert the project came with, so each error emails once.
-3. **User settings → Notifications:** keep *Weekly reports* on; turn off workflow emails you don't
+1. **Monitors → Alerts →** *Send a notification for high priority issues* **→ Edit.**
+2. **Environment:** `prod`, so a local run with a DSN never mails. Sentry lists an environment only
+   once an event has come from it, so do §3's browser check first.
+3. **When** *any* of: *A new issue is created*; *The issue changes state from resolved to
+   unresolved*. Remove the two high-priority triggers.
+4. **If:** leave *Any event*. **Then:** keep *Notify Suggested Assignees, and if none, Recently
+   Active Members*: you're the only member, so it mails you. Or choose *Member* and pick yourself.
+5. **Name:** `New or regressed issue`. Save.
+6. **Check it:** resolve the §3 test issue and run the check again. The same issue comes back as
+   regressed (Sentry groups by stack trace, so a new message from the same line isn't a new issue)
+   and you get a mail.
+7. **User settings → Notifications:** keep *Weekly reports* on; turn off workflow emails you don't
    want.
 
 ## Known limits

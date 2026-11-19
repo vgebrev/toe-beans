@@ -1,7 +1,7 @@
 // A directory as the photo store: for dev, e2e and self-hosting with a mounted volume
 // (architecture §3.6, §8). Never on a serverless host, whose filesystem doesn't last (NFR-05).
 import { createReadStream } from 'node:fs';
-import { mkdir, rename, rm, stat, writeFile } from 'node:fs/promises';
+import { mkdir, readdir, rename, rm, stat, writeFile } from 'node:fs/promises';
 import { dirname, join, resolve, sep } from 'node:path';
 import { Readable } from 'node:stream';
 import type { PhotoStore } from '../../application/ports/index.js';
@@ -41,6 +41,21 @@ export function filesystemPhotoStore(directory: string): PhotoStore {
 		},
 		async delete(keys) {
 			await Promise.all(keys.map((key) => rm(pathOf(key), { force: true })));
+		},
+		async deletePrefix(prefix) {
+			// Prefixes end at a directory (householdPhotoPrefix), so this is that directory.
+			const directory = pathOf(prefix.replace(/\/$/, ''));
+			let files: unknown[];
+			try {
+				files = (await readdir(directory, { recursive: true, withFileTypes: true })).filter((e) =>
+					e.isFile()
+				);
+			} catch (e) {
+				if ((e as NodeJS.ErrnoException).code === 'ENOENT') return 0;
+				throw e;
+			}
+			await rm(directory, { recursive: true, force: true });
+			return files.length;
 		}
 	};
 }

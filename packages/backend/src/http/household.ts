@@ -39,8 +39,12 @@ export interface HouseholdHttp {
 		viewer: Viewer,
 		input: { id: string; ifMatch: string | null; body: unknown }
 	): Promise<HttpResponse>;
+	/** Deleting it for good, by its only member, with If-Match (D38). */
+	delete(viewer: Viewer, input: { ifMatch: string | null }): Promise<HttpResponse>;
 	getFormer(viewer: Viewer): Promise<HttpResponse>;
 	reactivate(viewer: Viewer): Promise<HttpResponse>;
+	/** Deleting the household the viewer was the last to leave, before it runs out (D38). */
+	deleteFormer(viewer: Viewer): Promise<HttpResponse>;
 	listInvitations(viewer: Viewer): Promise<HttpResponse>;
 	createInvitation(viewer: Viewer, input: { body: unknown }): Promise<HttpResponse>;
 	revokeInvitation(
@@ -131,14 +135,26 @@ export function createHouseholdHttp(
 			return respond(changed, () => noContent());
 		},
 
+		async delete(viewer, { ifMatch }) {
+			if (!isMember(viewer)) return noHousehold();
+			const version = versionFromIfMatch(ifMatch);
+			if (!version.ok) return errorResponse(version.error);
+			const deleted = await households.delete(viewer.member, { expectedVersion: version.value });
+			return respond(deleted, () => noContent());
+		},
+
 		async getFormer(viewer) {
-			return respond(await households.findReactivatable(viewer.auth), (former) =>
-				json(former satisfies FormerHousehold)
+			return respond(await households.findReactivatable(viewer.auth), ({ name, keptUntil }) =>
+				json({ name, keptUntil: keptUntil.toISOString() } satisfies FormerHousehold)
 			);
 		},
 
 		async reactivate(viewer) {
 			return respond(await households.reactivate(viewer.auth), householdResponse(200));
+		},
+
+		async deleteFormer(viewer) {
+			return respond(await households.deleteFormer(viewer.auth), () => noContent());
 		},
 
 		async listInvitations(viewer) {

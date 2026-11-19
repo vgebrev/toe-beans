@@ -77,7 +77,8 @@ has_version() {
 	[ -n "$(gc secrets versions list "$1" --filter=state=enabled --format='value(name)' 2>/dev/null)" ]
 }
 # Filled by the owner (set-secret.sh), from Atlas, Auth0, Resend, Cloudflare R2 and Better Stack.
-for name in mongodb-uri oidc-client-secret resend-api-key r2-secret-access-key tick-heartbeat-url; do secret "$name"; done
+for name in mongodb-uri oidc-client-secret auth0-management-client-secret resend-api-key \
+	r2-secret-access-key tick-heartbeat-url; do secret "$name"; done
 
 # The Worker's header secret (D32): made here, and read by the Worker's deploy.
 secret proxy-secret

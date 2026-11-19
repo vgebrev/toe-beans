@@ -17,7 +17,9 @@ resources but never secret values.
 - **The private key** lives only with the owner. Neither GitHub nor GCP can read a dump.
 - **The photo sync stops** rather than move more than 50 photos out of `photos/current/` in one run,
   in case the source has been emptied by mistake. The run fails, and a failed run sends mail.
-  After a real mass deletion, run it by hand with a higher `MAX_PHOTO_MOVES`.
+  After a real mass deletion, run it by hand with a higher `MAX_PHOTO_MOVES`. Deleting a household
+  or an account (architecture D38) removes two objects per photo, so a household with more than
+  about 25 dogs' photos, or several deleted on one day, can trip it.
 - **A night with no run** (a schedule GitHub turned off, say) sends no mail of its own. After each
   run that worked, the workflow calls Better Stack's `toe-beans-backup` heartbeat, which alerts when
   a day passes without one (`docs/runbooks/monitoring.md` §4).

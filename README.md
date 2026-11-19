@@ -9,6 +9,7 @@
 <p align="center">
   <a href="https://github.com/vgebrev/toe-beans/actions/workflows/ci.yml"><img src="https://github.com/vgebrev/toe-beans/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
   <a href="https://github.com/vgebrev/toe-beans/actions/workflows/deploy.yml"><img src="https://github.com/vgebrev/toe-beans/actions/workflows/deploy.yml/badge.svg" alt="Deploy"></a>
+  <a href="https://incidents.betterstack.com/?utm_source=status_badge"><img src="https://incidents.betterstack.com/status-badges/v1/monitor/34qmp.svg" alt="Better Stack Badge"></a>
 </p>
 
 ---

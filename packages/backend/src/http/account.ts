@@ -1,15 +1,20 @@
-// GET and PATCH /api/v1/me: the signed-in person's own account (architecture §3.3).
+// GET, PATCH and DELETE /api/v1/me: the signed-in person's own account (architecture §3.3, D38).
 import { UpdateProfile, type Profile as ProfileDto } from '@toe-beans/contracts';
 import type { Account, Profile } from '../application/account/account.js';
 import type { AuthContext } from '../application/auth/auth.js';
 import { etag, versionFromIfMatch } from './etag.js';
-import { errorResponse, json, respond, type HttpResponse } from './response.js';
+import { errorResponse, json, noContent, respond, type HttpResponse } from './response.js';
 import { parseInput } from './validation.js';
 
 export interface AccountHttp {
 	get(ctx: AuthContext): Promise<HttpResponse>;
 	/** `ifMatch` is the If-Match header; `body` the parsed JSON body, if any. */
 	update(ctx: AuthContext, input: { ifMatch: string | null; body: unknown }): Promise<HttpResponse>;
+	/**
+	 * Deletes the account and what's only theirs. No If-Match: what the person confirmed is the
+	 * account, which a rename elsewhere doesn't change. The session goes with it.
+	 */
+	delete(ctx: AuthContext): Promise<HttpResponse>;
 }
 
 const withEtag = ({ version, ...profile }: Profile): HttpResponse =>
@@ -31,6 +36,10 @@ export function createAccountHttp(account: Account): AccountHttp {
 				expectedVersion: version.value
 			});
 			return respond(renamed, withEtag);
+		},
+
+		async delete(ctx) {
+			return respond(await account.delete(ctx), () => noContent());
 		}
 	};
 }

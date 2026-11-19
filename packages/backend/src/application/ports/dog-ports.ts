@@ -43,6 +43,11 @@ export interface PhotoStore {
 	getStream(key: string): Promise<StoredPhoto | null>;
 	/** Missing keys are fine. */
 	delete(keys: readonly string[]): Promise<void>;
+	/**
+	 * Deletes every object whose key starts with `prefix`, such as `householdPhotoPrefix`, and
+	 * returns how many there were. Nothing there is fine.
+	 */
+	deletePrefix(prefix: string): Promise<number>;
 }
 
 /** The re-encoded photo: WebP in each size, with no EXIF or GPS location left (§3.6). */

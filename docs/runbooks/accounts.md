@@ -3,7 +3,8 @@
 Every outside account prod depends on, every credential they issue, where each is kept and how to
 change it (architecture R2, §8.4; backlog S14.4). This file is public: it names accounts,
 resources and secrets, **never values**, and no email addresses. What personal data each service
-holds, why, and for how long is the data inventory's job (S16.1), which builds on this list.
+holds, why, and for how long is the data inventory's job (`docs/data-inventory.md`, S16.1),
+which builds on this list.
 
 All accounts belong to the owner, who is the only person with access to any of them. There are no
 service account keys anywhere: GitHub reaches GCP through Workload Identity Federation (D15, D36).
@@ -14,11 +15,11 @@ service account keys anywhere: GitHub reaches GCP through Workload Identity Fede
 |---|---|---|---|---|---|
 | **Google Cloud** | Hosting, secrets, the tick's scheduler, the budget; the Google sign-in client | Project `toe-beans-co-za`: Cloud Run `toe-beans`, Artifact Registry `toe-beans`, Secret Manager, Cloud Scheduler `toe-beans-tick`, budget `toe-beans`; service accounts `toe-beans-run`, `-tick`, `-deploy`, `-backup`; the OAuth client and consent screen for Auth0's Google connection | Pay as you go, inside the free tier; US$1 budget alert | `africa-south1` (Scheduler `me-central1`) | `infra/gcp/README.md` |
 | **MongoDB Atlas** | The database | An M0 cluster; database `toe-beans`; users `toe-beans-app` (`readWrite` on `toe-beans`) and `toe-beans-backup` (`read`); network access `0.0.0.0/0` (R3) | Free (M0) | AWS `af-south-1`, Cape Town | architecture §8.4 |
-| **Cloudflare** | DNS, the edge, photo and backup storage | Zone `toebeans.co.za`; Worker `toe-beans-edge`; R2 buckets `toe-beans-photos` and `toe-beans-backups`; R2 tokens (below) | Free | R2 in Europe (location hint) | `infra/edge/README.md`, `infra/backup/README.md` |
+| **Cloudflare** | DNS, the edge, photo and backup storage | Zone `toebeans.co.za`; Worker `toe-beans-edge`; R2 buckets `toe-beans-photos` and `toe-beans-backups`; R2 tokens (below); Email Routing forwards `privacy@toebeans.co.za` to the owner's inbox | Free | R2 in Europe (location hint) | `infra/edge/README.md`, `infra/backup/README.md` |
 | **GoDaddy** | The domain's registration | `toebeans.co.za`, registered 31 Oct 2026 for two years; nameservers point at Cloudflare | Paid yearly | — | — |
-| **Auth0** | Sign-in | Tenants `toe-beans` (prod, custom domain `auth.toebeans.co.za`) and `toe-beans-dev`; application *Toe Beans* in each; Google and database connections only | Free | EU | `auth0.md` |
-| **Resend** | Email: invitations from the app, and Auth0's verification and password mails | Domain `toebeans.co.za` (its DNS records in Cloudflare); two API keys (below) | Free | — | — |
-| **Sentry** | Error reports | Organization and project `toe-beans` | Developer (free) | EU (Frankfurt) | `sentry.md` |
+| **Auth0** | Sign-in | Tenants `toe-beans` (prod, custom domain `auth.toebeans.co.za`) and `toe-beans-dev`; applications *Toe Beans* and *Toe Beans account deletion* (machine-to-machine, `delete:users` only) in each; Google and database connections only | Free | EU | `auth0.md` |
+| **Resend** | Email: invitations from the app, Auth0's verification and password mails, and the owner's replies as `privacy@toebeans.co.za` | Domain `toebeans.co.za` (its DNS records in Cloudflare); three API keys (below) | Free | — | — |
+| **Sentry** | Error reports | The owner's organization; project `toe-beans` | Developer (free) | EU (Frankfurt) | `sentry.md` |
 | **GitHub** | Code, CI, deploys, nightly backups | Public repo `vgebrev/toe-beans`; ruleset on `main`; environments `production` (main only, owner approval) and `backups` (main only); Dependabot | Free | — | `CLAUDE.md`, architecture §10 |
 | **Better Stack** | Uptime and heartbeats | Monitor `toe-beans`, heartbeats `toe-beans-tick` and `toe-beans-backup` | Free | — | `monitoring.md` |
 
@@ -34,6 +35,7 @@ its payment card current; the registration runs to 31 Oct 2028.
 |---|---|---|---|
 | `mongodb-uri` | Atlas connection string as `toe-beans-app` | `toe-beans-run` | Atlas: edit the user's password; set the secret; redeploy. The old password stops working at once, so redeploy straight after |
 | `oidc-client-secret` | The prod Auth0 application's client secret | `toe-beans-run` | `auth0.md`, *Rotating the client secret* |
+| `auth0-management-client-secret` | The prod *Toe Beans account deletion* application's secret (only `delete:users`); its client ID is the `production` variable `AUTH0_MANAGEMENT_CLIENT_ID` | `toe-beans-run` | `auth0.md` §8, *Rotating* |
 | `resend-api-key` | Resend key, sending access, `toebeans.co.za` only | `toe-beans-run` | Resend: create a new key; set the secret; redeploy; delete the old key |
 | `r2-secret-access-key` | The app's R2 token (Object Read & Write on `toe-beans-photos`); its access key ID is the `production` variable `R2_ACCESS_KEY_ID` | `toe-beans-run` | R2: create a new token; set the secret and the variable; redeploy; delete the old token |
 | `proxy-secret` | The Worker's header secret (D32), generated by `provision.sh` | `toe-beans-run`; copied into the Worker | `infra/edge/README.md`. Between the Worker's update and the app's redeploy every request gets 403, so do both together |
@@ -50,6 +52,7 @@ its payment card current; the registration runs to 31 Oct 2028.
 |---|---|---|
 | Google OAuth client secret (Auth0's Google connection) | GCP *APIs & Services → Credentials*, pasted into Auth0's Google connection (prod) | Add a new secret on the client in GCP, paste it into Auth0, then delete the old one |
 | Resend SMTP key (Auth0's email provider) | Resend, pasted into Auth0 *Branding → Email Provider* (prod) | New key in Resend, paste into Auth0, send a test mail, delete the old key |
+| Resend SMTP key (replies as `privacy@`) | Resend (sending access only), pasted into Gmail *Settings → Accounts → Send mail as* for `privacy@toebeans.co.za`, through `smtp.resend.com`, port 465, user `resend` | New key in Resend, edit the address in Gmail, send a test reply, delete the old key |
 | `PROXY_SECRET` | The Worker's secret, a copy of `proxy-secret` | With `proxy-secret` |
 | The age private key | Offline only: the owner's password manager and one offline copy. Never in the repo, GitHub or GCP | `infra/backup/README.md` §1. A new key reads only backups made after the change |
 
@@ -58,7 +61,7 @@ read them in a step's log, so nothing secret ever goes here:
 
 | Environment | Variables |
 |---|---|
-| `production` | `OIDC_CLIENT_ID`, `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `SENTRY_DSN` |
+| `production` | `OIDC_CLIENT_ID`, `AUTH0_MANAGEMENT_CLIENT_ID`, `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `SENTRY_DSN` |
 | `backups` | `AGE_RECIPIENT`, `R2_ACCOUNT_ID`, `BACKUP_R2_ACCESS_KEY_ID`, `PHOTOS_R2_ACCESS_KEY_ID` |
 
 **Local only:** `.env` holds the dev Auth0 client secret, a dev VAPID pair and any local keys. It's

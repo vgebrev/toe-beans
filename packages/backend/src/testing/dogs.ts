@@ -46,6 +46,11 @@ export function memoryPhotoStore(): PhotoStore & {
 		},
 		async delete(keys: readonly string[]) {
 			for (const key of keys) objects.delete(key);
+		},
+		async deletePrefix(prefix: string) {
+			const under = [...objects.keys()].filter((key) => key.startsWith(prefix));
+			for (const key of under) objects.delete(key);
+			return under.length;
 		}
 	};
 }

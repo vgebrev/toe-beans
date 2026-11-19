@@ -2,6 +2,7 @@
 // its own people through the mock provider, so most start signed out.
 import { expect, test, type Browser, type Page } from '@playwright/test';
 import {
+	addDog,
 	blockMockFonts,
 	createHousehold,
 	jsonHeaders,
@@ -588,4 +589,117 @@ test('with two owners, one leaving hands nothing on (D19)', async ({ page, brows
 	await expect(sheet).toContainText("You'll need a new invite to come back.");
 	await expect(sheet).not.toContainText('becomes the owner');
 	await caregiver.context().close();
+});
+
+test('someone alone in a household can delete it, with its dogs (D38)', async ({
+	page,
+	browser,
+	baseURL
+}) => {
+	await owner(page, baseURL!, 'The Short Stay');
+	await addDog(page, baseURL!, { name: 'Biscuit' });
+	const { url } = await createLink(page, baseURL!);
+	await page.goto('/household');
+	await page.getByRole('button', { name: 'Delete household' }).click();
+	const sheet = page.getByRole('dialog', { name: 'Delete The Short Stay for good?' });
+	await expect(sheet).toContainText("can't be brought back");
+	await sheet.getByRole('button', { name: 'Delete household' }).click();
+	await expect(page).toHaveURL('/onboarding/household');
+	// Gone, not deactivated: nothing to bring back, and its dogs and links lead nowhere.
+	await expect(page.getByRole('button', { name: /^Rejoin/ })).toHaveCount(0);
+	expect((await page.request.get('/api/v1/household/former')).status()).toBe(404);
+
+	const stranger = await secondPerson(browser, baseURL!);
+	await signIn(stranger, newPerson('stranger'));
+	await stranger.goto(url);
+	await expect(stranger.getByRole('heading', { level: 1 })).toHaveText("This invite isn't valid");
+	await stranger.context().close();
+});
+
+test("a household with others in it can't be deleted, even through the API (D38)", async ({
+	page,
+	browser,
+	baseURL
+}) => {
+	const { caregiver } = await twoPeople(page, browser, baseURL!);
+	await page.goto('/household');
+	await expect(page.getByRole('button', { name: 'Leave household' })).toBeVisible();
+	await expect(page.getByRole('button', { name: 'Delete household' })).toHaveCount(0);
+	const household = await page.request.get('/api/v1/household');
+	const refused = await page.request.delete('/api/v1/household', {
+		headers: { origin: baseURL!, 'if-match': household.headers()['etag']! }
+	});
+	expect(refused.status()).toBe(409);
+	const after = await caregiver.request.get('/api/v1/household');
+	expect((await after.json()).members).toHaveLength(2);
+	await caregiver.context().close();
+});
+
+test('the last person out can delete it now instead of rejoining (D38)', async ({
+	page,
+	baseURL
+}) => {
+	await owner(page, baseURL!, 'The Old Place');
+	await page.goto('/household');
+	await page.getByRole('button', { name: 'Leave household' }).click();
+	const sheet = page.getByRole('dialog');
+	await expect(sheet).toContainText('You can rejoin it within 30 days');
+	await sheet.getByRole('button', { name: 'Leave household' }).click();
+	await expect(page).toHaveURL('/onboarding/household');
+	await expect(page.getByText(/Otherwise it's deleted on \w/)).toBeVisible();
+
+	await page.getByRole('button', { name: 'Delete it now' }).click();
+	await page
+		.getByRole('dialog', { name: 'Delete The Old Place for good?' })
+		.getByRole('button', { name: 'Delete household' })
+		.click();
+	await expect(page.getByText('Household deleted.')).toBeVisible();
+	await page.reload();
+	await expect(page.getByRole('button', { name: /^Rejoin/ })).toHaveCount(0);
+});
+
+test('deleting an account: they leave, and what they recorded stays from a former member (D38)', async ({
+	page,
+	browser,
+	baseURL
+}) => {
+	const { caregiver, person } = await twoPeople(page, browser, baseURL!);
+	const cue = await caregiver.request.post('/api/v1/cues', {
+		headers: jsonHeaders(baseURL!),
+		data: JSON.stringify({ label: 'Settle', meaning: 'Lie down on the mat' })
+	});
+	expect(cue.status()).toBe(201);
+
+	await caregiver.goto('/more');
+	await caregiver.getByRole('button', { name: 'Delete account' }).click();
+	const sheet = caregiver.getByRole('dialog', { name: 'Delete your account for good?' });
+	await expect(sheet).toContainText('you leave');
+	await expect(sheet).toContainText('from "a former member"');
+	await sheet.getByRole('button', { name: 'Delete account' }).click();
+	await expect(caregiver).toHaveURL('/sign-in');
+	expect((await caregiver.context().cookies()).map((c) => c.name)).not.toContain('tb_session');
+
+	await page.goto('/household');
+	await expect(page.getByRole('listitem').filter({ hasText: person.name })).toHaveCount(0);
+	await page.goto('/cues');
+	await expect(page.getByText('Last edited by A former member')).toBeVisible();
+
+	// Signing in again with the same identity starts from nothing.
+	await signIn(caregiver, person);
+	await expect(caregiver).toHaveURL(/\/onboarding/);
+	await caregiver.context().close();
+});
+
+test('deleting the account of someone alone deletes their household too (D38)', async ({
+	page,
+	baseURL
+}) => {
+	await owner(page, baseURL!, 'The Solo Flat');
+	await addDog(page, baseURL!, { name: 'Pip' });
+	await page.goto('/more');
+	await page.getByRole('button', { name: 'Delete account' }).click();
+	const sheet = page.getByRole('dialog', { name: 'Delete your account for good?' });
+	await expect(sheet).toContainText('Your account and The Solo Flat');
+	await sheet.getByRole('button', { name: 'Delete account' }).click();
+	await expect(page).toHaveURL('/sign-in');
 });

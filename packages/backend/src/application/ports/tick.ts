@@ -13,6 +13,8 @@ export interface TickReport {
 	/** Not sent: the subject changed, nobody to send to, or the person no longer wants it. */
 	skipped: number;
 	failed: number;
+	/** Deactivated households deleted, past the time to bring them back (D38). */
+	erased: number;
 }
 
 export interface ReminderTick {

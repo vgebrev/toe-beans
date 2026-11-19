@@ -5,7 +5,7 @@ file is public. It names monitors and settings, never URLs that hold a token.
 
 | Watches | How | Alerts when | Set up |
 |---|---|---|---|
-| The app answering, end to end | Better Stack monitor `toe-beans` on `https://toebeans.co.za/readyz`, every 3 minutes | Anything but a 2xx: DNS, Cloudflare, the Worker, Cloud Run, or the database (`/readyz` pings Mongo) | §2 |
+| The app answering, end to end | Better Stack monitor `toe-beans` on `https://toebeans.co.za/readyz`, every 3 minutes from Europe and North America | Anything but a 2xx: DNS, Cloudflare, the Worker, Cloud Run, or the database (`/readyz` pings Mongo) | §2 |
 | Reminders being sent | Better Stack heartbeat `toe-beans-tick`, called by the app after each tick | No tick for 15 minutes: Cloud Scheduler stopped or can't get in, or ticks fail | §3 |
 | Backups being made | Better Stack heartbeat `toe-beans-backup`, called by the backup workflow after a run that worked | No good run for a day and 3 hours, including a run that never started | §4 |
 | A failed backup run | GitHub's own mail to the owner | At once | Nothing to do |
@@ -30,9 +30,15 @@ are called, nothing else.
 - **URL:** `https://toebeans.co.za/readyz`. Through the Worker on purpose, so it covers the whole
   path a phone takes. `/readyz` answers 503 when the database doesn't. No rate limit applies to it.
 - **Name:** `toe-beans`. **Check frequency:** 3 minutes. **On-call escalation:** email.
+- **Advanced settings → Regions:** Europe and North America. Better Stack checks every monitor from
+  at least 4 locations and alerts only once 3 of them fail, so fewer regions doesn't mean fewer
+  requests: prod sees about one every 30 seconds with two regions as with four, and with the
+  frequency at 10 minutes as at 3, about 86k a month. That's under 5% of Cloud Run's free requests, and under 5% of its free
+  CPU time even with each ~30 ms answer billed as 100 ms. If the bill ever shows it, turn the
+  monitor off (the heartbeats stay) or move the uptime check to UptimeRobot.
 - Leave the confirmation period at its default: a cold start answers within a few seconds (§8.4).
 
-Check it: the monitor shows *Up* within a few minutes.
+Check it: the monitor shows *Up* within a few minutes. The README shows its status badge.
 
 ## 3. The tick's heartbeat
 
