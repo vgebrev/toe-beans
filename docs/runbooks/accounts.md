@@ -79,4 +79,4 @@ where it has one (Atlas, Cloudflare, GCP audit logs, Auth0 logs).
 
 Quarterly, with the restore test (`restore.md` §4) and the cost review (R1): read this list
 against each service's dashboard, remove what's gone, add what's new, and check the domain's
-renewal and the budget.
+renewal and the budget. Review `disaster-recovery.md` at the same time (§7 there).
