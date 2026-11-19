@@ -24,11 +24,10 @@ It aims to answer three questions: **What should we do today? How is our puppy p
 What should we work on next?**
 
 > **Status:** the first usable MVP is built and live at [toebeans.co.za](https://toebeans.co.za)
-> (since 17 Nov 2026) as a 1.0.0 release candidate. Backups with a tested restore, monitoring,
-> the [privacy policy](https://toebeans.co.za/privacy) and [terms](https://toebeans.co.za/terms),
-> and account deletion are in place. Still to come: release acceptance on both phones, then 1.0.0,
-> with small fixes from using the app along the way. See [the backlog](docs/backlog.md) for
-> progress.
+> (since 17 Nov 2026) and released as 1.0.0 after acceptance on both phones. Backups with a tested
+> restore, monitoring, the [privacy policy](https://toebeans.co.za/privacy) and
+> [terms](https://toebeans.co.za/terms), and account deletion are in place. Next: small fixes from
+> using the app, then the Phase 1 follow-on. See [the backlog](docs/backlog.md) for progress.
 
 ## What it does
 
