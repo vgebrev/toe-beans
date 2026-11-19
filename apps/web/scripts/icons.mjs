@@ -18,6 +18,30 @@ for (const size of [192, 512]) {
 	await render(tile, size).toFile(out(`icon-${size}.png`));
 	await render(maskable, size).toFile(out(`maskable-${size}.png`));
 }
+// The test environment's icons (S17.6): the same tiles with a TEST band, so a phone with both
+// installed can tell them apart. The maskable band sits inside the safe zone (the middle 80%
+// circle), where Android's crop leaves it whole.
+const band = (svg, { y, height, width, clip }) => {
+	const source = svg.toString();
+	const scale = source.includes('viewBox="0 0 128 128"') ? 4 : 1;
+	const shape = `<clipPath id="tile"><rect width="512" height="512" rx="${clip}"/></clipPath>`;
+	const rect = `<rect x="${256 - width / 2}" y="${y}" width="${width}" height="${height}" rx="${clip ? 0 : height * 0.2}" fill="#1F6F78"/>`;
+	const text = `<text x="256" y="${y + height * 0.76}" text-anchor="middle" font-family="DejaVu Sans, sans-serif" font-weight="bold" font-size="${height * 0.72}" letter-spacing="${height * 0.08}" fill="#FFFBF5">TEST</text>`;
+	return Buffer.from(
+		source
+			.replace(/viewBox="0 0 \d+ \d+"/, 'viewBox="0 0 512 512"')
+			.replace(/<svg([^>]*)>/, `<svg$1><defs>${shape}</defs><g transform="scale(${scale})">`)
+			.replace(/<\/svg>\s*$/, `</g><g clip-path="url(#tile)">${rect}${text}</g></svg>`)
+	);
+};
+for (const size of [192, 512]) {
+	await render(band(tile, { y: 400, height: 112, width: 512, clip: 112 }), size).toFile(
+		out(`test-icon-${size}.png`)
+	);
+	await render(band(maskable, { y: 318, height: 96, width: 336, clip: 0 }), size).toFile(
+		out(`test-maskable-${size}.png`)
+	);
+}
 // Android draws the badge from its alpha channel only: a white silhouette on transparent.
 await render(badge, 96).toFile(out('badge-96.png'));
 // The home screen shortcuts (ui.md §6.3): the "+" chooser's own icons in cream on the primary

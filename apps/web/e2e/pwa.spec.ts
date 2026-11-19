@@ -174,6 +174,32 @@ test('with the service worker in place, a page load with no connection shows the
 	await expect(page.getByRole('heading', { level: 1 })).toHaveText('History');
 });
 
+test('a fallback page stood in for a nested page, as a reminder opens, still loads its CSS and script', async ({
+	page,
+	context,
+	baseURL
+}) => {
+	await ownHousehold(page, baseURL!);
+	await page.goto('/');
+	await waitForServiceWorker(page);
+
+	// A reminder's deep link (S17.5): the cached page's asset paths must not depend on where it
+	// was first fetched from.
+	await context.setOffline(true);
+	await page.goto('/settings/notifications?test=arrived');
+	await expect(page.getByRole('heading', { level: 1 })).toHaveText("You're offline");
+	await expect(page.getByRole('heading', { level: 1 })).toHaveCSS(
+		'font-family',
+		/^"Fredoka Variable"/
+	);
+	// The script runs: Try again checks rather than doing nothing.
+	await page.getByRole('link', { name: 'Try again' }).click();
+	await expect(page.getByText("Still can't reach Toe Beans.")).toBeVisible();
+
+	await context.setOffline(false);
+	await expect(page.getByRole('heading', { level: 1 })).toHaveText('Notifications');
+});
+
 test('Try again on the offline page loads the page once the connection is back', async ({
 	page,
 	context,
@@ -295,6 +321,26 @@ test('the manifest offers Log training and Record event on a long press of the i
 		const icon = await request.get(shortcut.icons[0].src);
 		expect(icon.headers()['content-type']).toBe('image/png');
 	}
+});
+
+test('off prod the app installs as Toe Beans (Test), with the TEST icons (S17.6)', async ({
+	page,
+	request
+}) => {
+	const response = await request.get('/manifest.webmanifest');
+	expect(response.headers()['content-type']).toBe('application/manifest+json');
+	const manifest = await response.json();
+	expect(manifest.name).toBe('Toe Beans (Test)');
+	for (const icon of manifest.icons) {
+		expect(icon.src).toMatch(/^\/icons\/test-/);
+		expect((await request.get(icon.src)).headers()['content-type']).toBe('image/png');
+	}
+	// The page links it, and Chrome reads it from there.
+	await page.goto('/sign-in');
+	await expect(page.locator('link[rel="manifest"]')).toHaveAttribute(
+		'href',
+		'/manifest.webmanifest'
+	);
 });
 
 test('the shortcuts open Record event and Log training on Today, once', async ({

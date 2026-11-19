@@ -10,6 +10,13 @@ for fixes. Candidates (`-rc.N`) go to prod for the owner to try before the relea
 
 ## Unreleased
 
+## 1.0.0-rc.2 - 2026-11-19
+
+### Fixed
+
+- Tapping a reminder while Toe Beans was asleep could show a blank page saying *Loading…*
+  until you pulled to refresh. It now wakes up and opens the reminder's item.
+
 ## 1.0.0-rc.1 - 2026-11-19
 
 ### Added

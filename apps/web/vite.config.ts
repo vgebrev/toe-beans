@@ -85,7 +85,11 @@ export default defineConfig({
 					'frame-ancestors': ['none']
 				}
 			},
-			version: { name: release() }
+			version: { name: release() },
+			// Root-relative asset paths (/_app/…), not ./_app/…: the service worker stands its cached
+			// fallback pages in for whatever page was asked for (a reminder's sessions/{id}), where
+			// a path relative to /waking misses, so the page came up with no CSS or JS (S17.5).
+			paths: { relative: false }
 		})
 	]
 });
