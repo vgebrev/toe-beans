@@ -1,19 +1,20 @@
 # Toe Beans — Terms of service
 
-**Version:** 0.1 (draft)
+**Version:** 0.2 (reviewed draft)
 **Date:** 19 November 2026
-**Inputs:** `docs/requirements.md` v1.0 (NFR-14), `docs/privacy-policy.md` v0.1
+**Inputs:** `docs/requirements.md` v1.0 (NFR-14), `docs/privacy-policy.md` v0.2
 
 **Changes in 0.1:** first draft for backlog S16.3. S16.4 publishes the text below the line at
 `/terms`. The owner reviews it, and fills in the points marked **[OWNER]**, before other
 households join. Contact details, minimum age and the caveat about legal advice are as in the
 privacy policy's notes.
 
+**Changes in 0.2:** reviewed by the owner; §11 has the postal address. The page's "Last updated" is
+**Date** above (S16.4).
+
 ---
 
 # Terms of service
-
-*Last updated: [date of publishing]*
 
 These terms are the agreement between you and Veli Gebrev ("we", "us"), who runs Toe Beans. By
 creating an account you accept them. Please read them with the [privacy policy](/privacy), which
@@ -97,4 +98,4 @@ These terms are governed by the law of South Africa.
 ## 11. Contact
 
 - **Email:** privacy@toebeans.co.za
-- **Post:** [OWNER: postal address]
+- **Post:** PO Box 2973, Cresta 2118, South Africa

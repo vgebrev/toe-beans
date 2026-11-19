@@ -276,5 +276,9 @@
 	<footer class="flex flex-col items-center gap-1 pt-4 text-sm text-muted-foreground">
 		<Logo wordmark size={28} />
 		<p>Version {version}</p>
+		<p class="flex gap-4">
+			<a href={resolve('/privacy')} class="flex min-h-12 items-center underline">Privacy policy</a>
+			<a href={resolve('/terms')} class="flex min-h-12 items-center underline">Terms of service</a>
+		</p>
 	</footer>
 </div>

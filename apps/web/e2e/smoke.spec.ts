@@ -1,6 +1,15 @@
 import { expect, test } from '@playwright/test';
 
-const destinations = ['/', '/plan', '/history', '/care', '/more', '/household'];
+const destinations = [
+	'/',
+	'/plan',
+	'/history',
+	'/care',
+	'/more',
+	'/household',
+	'/privacy',
+	'/terms'
+];
 
 for (const path of destinations) {
 	test(`${path} renders on the phone without errors, sideways scrolling or third parties`, async ({

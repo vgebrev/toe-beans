@@ -46,12 +46,22 @@ Names follow the project convention: kebab-case words (`toe-beans`), not run tog
    - In the GCP project, under **APIs & Services → OAuth consent screen**, choose External, enter the app name *Toe Beans*, a support email and the `toebeans.co.za` domain, with only the basic scopes. Publish it, so sign-in isn't limited to listed test users.
    - Under **Credentials → Create OAuth client ID**, choose Web application. Set the authorised redirect URI to `https://auth.toebeans.co.za/login/callback`, the custom domain from step 6.
    - Paste the client ID and secret into the Auth0 Google connection.
+   - **Before other households join (S16.4):** on the consent screen's **Branding**, set the home
+     page `https://toebeans.co.za`, the privacy policy `https://toebeans.co.za/privacy` and the
+     terms `https://toebeans.co.za/terms`, then move the app from **Testing** to **In production**.
+     With only the basic scopes Google doesn't need to verify it, though it may check the domain
+     and that the home page links to the policy (the sign-in page does).
 4. Turn off every other connection for the application, so the login page shows only Google and email. This matters for security, not just looks: the app trusts the provider's `email_verified` claim to link accounts and to match email invitations (architecture D34, security audit C2), and Google and the database connection are the two that verify an address. Check it again on the prod tenant before the first real user, and before enabling any new connection.
 
 ## 5. Login page
 
 1. Under **Branding → Universal Login**, use the current Universal Login experience.
 2. Optional for now: brand colours and logo from `ui.md` §6.4. S13 polishes these.
+3. **Prod, once `/privacy` and `/terms` are live (S16.4):** under **Branding → Universal Login →
+   Advanced options** (or wherever the dashboard now offers them), set the privacy policy and terms
+   links to `https://toebeans.co.za/privacy` and `https://toebeans.co.za/terms`, if it offers those
+   fields. Otherwise the links on our own sign-in page are enough. Check the sign-up screen shows
+   them.
 
 ## 6. Prod only: custom domain and email
 

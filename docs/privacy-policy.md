@@ -1,6 +1,6 @@
 # Toe Beans — Privacy policy
 
-**Version:** 0.1 (draft)
+**Version:** 0.2 (reviewed draft)
 **Date:** 19 November 2026
 **Inputs:** `docs/data-inventory.md` v0.2, `docs/architecture.md` v1.28 (D36, D38, D39)
 
@@ -8,23 +8,26 @@
 the text below the line at `/privacy`. The owner reviews it, and fills in the points marked
 **[OWNER]**, before other households join.
 
+**Changes in 0.2:** reviewed by the owner. "Device" rather than "phone", as the app also runs in
+desktop browsers; §9 says how the data is kept safe, including encryption at rest at the operators
+that store it (checked against their documentation). §1 has the postal address and says the owner
+is registered with the Information Regulator as Information Officer, with the registration
+number (S16.6). §5's column reads
+"How long", as the published page shows each row as a card. The page's "Last updated" is
+**Date** above (S16.4). Emails to `privacy@` are kept in the owner's Gmail for a year after
+they're answered (§4, §5; data inventory 0.3).
+
 Before publishing:
 
-1. **[OWNER] Contact address.** The draft uses `privacy@toebeans.co.za`. Nothing receives mail at
-   the domain yet; Cloudflare Email Routing (free) can forward it to your inbox.
-2. **[OWNER] Postal address.** POPIA §18 asks for the responsible party's address. A PO box or
-   another address you're happy to publish works.
-3. **[OWNER] Information Officer.** S16.6 registers you with the Information Regulator; §1 then
-   names you as Information Officer, with the registration number if you'd like to show it.
-4. **Minimum age 18.** This keeps children's personal information out (POPIA §34–35). The terms say
+1. **`privacy@toebeans.co.za`** receives mail in the owner's Gmail and sends through Resend
+   (`docs/runbooks/accounts.md`). That correspondence is kept a year after it's answered (§4, §5).
+2. **Minimum age 18.** This keeps children's personal information out (POPIA §34–35). The terms say
    the same.
-5. It isn't legal advice. Have it read before relying on it, as `data-inventory.md` says.
+3. It isn't legal advice. Have it read before relying on it, as `data-inventory.md` says.
 
 ---
 
 # Privacy policy
-
-*Last updated: [date of publishing]*
 
 Toe Beans is an app for training and caring for a puppy together with the people you share it with.
 This policy says what personal information Toe Beans holds about you, why, where it's kept, for how
@@ -34,10 +37,11 @@ Information Act (POPIA).
 ## 1. Who we are
 
 Toe Beans is run by Veli Gebrev, an individual in South Africa ("we", "us"). We are the
-*responsible party* for your personal information under POPIA, and also its Information Officer.
+*responsible party* for your personal information under POPIA, and also its Information Officer,
+registered with the Information Regulator (registration number 2026-072618).
 
 - **Email:** privacy@toebeans.co.za
-- **Post:** [OWNER: postal address]
+- **Post:** PO Box 2973, Cresta 2118, South Africa
 
 Write to us with any question about this policy or your information.
 
@@ -105,6 +109,7 @@ where we can.
 | Resend | Sends invitation emails, and the sign-in service's verification and password emails | EU (Ireland) |
 | Sentry | Receives error reports with personal details removed | EU (Germany) |
 | Your browser's push service (Google's, for Chrome) | Delivers reminders. Each one is encrypted so the service can't read it | Worldwide |
+| Google (Gmail) | Holds the emails you send to privacy@toebeans.co.za, and our replies (§5) | Worldwide |
 | Google | If you choose to sign in with Google, Google knows you signed in to Toe Beans, under Google's own privacy policy | Worldwide |
 
 **Google sign-in.** We receive only your name, email address and profile picture from Google, and
@@ -115,17 +120,18 @@ including the Limited Use requirements.
 
 ## 5. How long we keep it
 
-| What | Kept until |
+| What | How long |
 |---|---|
-| Your account | You delete it |
-| A household, its dogs, photos and records | Its last member deletes it, or 30 days after the last member left it |
+| Your account | Until you delete it |
+| A household, its dogs, photos and records | Until its last member deletes it, or 30 days after the last member left it |
 | Something you delete in the app | Removed straight away, except training sessions and behaviour entries, which are kept hidden for 30 days, then removed |
-| Invitations | Removed 30 days after they expire (they last 7 days) |
+| Invitations | 7 days to use, then removed 30 days after they expire |
 | Reminder records | 30 days |
-| Sign-in sessions | 90 days after you last used the app, and never more than 400 days |
+| Sign-in sessions | 90 days after you last used the app, never more than 400 days |
 | Logs and error reports | 30 days |
 | Sign-in logs at Auth0 | 1 day |
 | Emails' delivery logs at Resend | 30 days |
+| Emails you send us | A year after we've answered, then deleted |
 | Backups | 30 days (see below) |
 
 **Backups.** We back the app's data and photos up every night, encrypted so that only we can read

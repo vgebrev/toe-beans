@@ -9,6 +9,9 @@
 .env
 .env.*
 docs
+# Except what the privacy and terms pages are built from (backlog S16.4).
+!docs/privacy-policy.md
+!docs/terms-of-service.md
 spikes
 workspace
 infra

@@ -94,6 +94,11 @@ export default defineConfig({
 			OIDC_ISSUER: 'http://localhost:8090/default',
 			OIDC_CLIENT_ID: 'toe-beans-e2e',
 			OIDC_CLIENT_SECRET: 'e2e-secret',
+			// Whatever .env says: deleting a test account must never reach a real Auth0 tenant.
+			// Empty counts as unset, so the mock's users are left alone (architecture D38).
+			AUTH0_DOMAIN: '',
+			AUTH0_MANAGEMENT_CLIENT_ID: '',
+			AUTH0_MANAGEMENT_CLIENT_SECRET: '',
 			// Every test signs in from localhost, which would soon hit the per-address limit.
 			AUTH_RATE_LIMIT: '10000',
 			INVITE_RATE_LIMIT: '10000',
