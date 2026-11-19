@@ -76,12 +76,14 @@ describe('cookies', () => {
 		expect(cookieSettings('https://toebeans.co.za')).toEqual({
 			secure: true,
 			session: '__Host-tb_session',
-			signIn: '__Host-tb_signin'
+			signIn: '__Host-tb_signin',
+			resumed: '__Host-tb_resumed'
 		});
 		expect(cookieSettings('http://192.168.1.20:7877')).toEqual({
 			secure: false,
 			session: 'tb_session',
-			signIn: 'tb_signin'
+			signIn: 'tb_signin',
+			resumed: 'tb_resumed'
 		});
 	});
 
@@ -144,8 +146,49 @@ describe('auth http', () => {
 		expect(res.headers.location).toBe('/plan');
 		expect(res.cookies).toEqual([
 			expect.objectContaining({ name: '__Host-tb_signin', maxAge: 0 }),
+			expect.objectContaining({ name: '__Host-tb_resumed', maxAge: 0 }),
 			expect.objectContaining({ name: '__Host-tb_session', value: TOKEN, maxAge: 3600 })
 		]);
+	});
+
+	describe('a callback with no sign-in in progress in this browser', () => {
+		const noPending = () =>
+			fakeAuth({ finishSignIn: async () => err({ kind: 'no-pending', returnTo: '/' }) });
+
+		it('starts one here, once, when the provider signed the person in', async () => {
+			const res = await createAuthHttp(noPending(), options(origin)).callback({
+				search: '?code=c&state=s',
+				cookie: reader({}),
+				...client
+			});
+			expect(res.headers.location).toBe('/auth/sign-in');
+			expect(res.cookies).toEqual([
+				expect.objectContaining({ name: '__Host-tb_resumed', value: '1', maxAge: 60 }),
+				expect.objectContaining({ name: '__Host-tb_signin', maxAge: 0 })
+			]);
+		});
+
+		it("says it failed the second time, so blocked cookies can't loop", async () => {
+			const res = await createAuthHttp(noPending(), options(origin)).callback({
+				search: '?code=c&state=s',
+				cookie: reader({ '__Host-tb_resumed': '1' }),
+				...client
+			});
+			expect(res.headers.location).toBe('/sign-in?error=failed');
+			expect(res.cookies).toEqual([
+				expect.objectContaining({ name: '__Host-tb_signin', maxAge: 0 }),
+				expect.objectContaining({ name: '__Host-tb_resumed', maxAge: 0 })
+			]);
+		});
+
+		it('says it failed when the provider sent an error rather than a code', async () => {
+			const res = await createAuthHttp(noPending(), options(origin)).callback({
+				search: '?error=access_denied&state=s',
+				cookie: reader({}),
+				...client
+			});
+			expect(res.headers.location).toBe('/sign-in?error=failed');
+		});
 	});
 
 	it.each([
@@ -159,7 +202,10 @@ describe('auth http', () => {
 			...client
 		});
 		expect(res.headers.location).toBe(location);
-		expect(res.cookies).toEqual([expect.objectContaining({ name: '__Host-tb_signin', maxAge: 0 })]);
+		expect(res.cookies).toEqual([
+			expect.objectContaining({ name: '__Host-tb_signin', maxAge: 0 }),
+			expect.objectContaining({ name: '__Host-tb_resumed', maxAge: 0 })
+		]);
 	});
 
 	describe('rate limit', () => {

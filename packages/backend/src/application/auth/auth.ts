@@ -61,8 +61,12 @@ export const SESSION_EXTEND_EVERY_MS = DAY_MS;
 export const SIGN_IN_TTL_MS = 10 * 60 * 1000;
 
 export interface SignInFailure {
-	/** `email-unverified`: the provider hasn't verified the email yet, so no user or session is made. */
-	kind: 'failed' | 'email-unverified';
+	/**
+	 * `email-unverified`: the provider hasn't verified the email yet, so no user or session is made.
+	 * `no-pending`: this browser has no sign-in in progress, as when the provider finished one in
+	 * another browser (an email's verification link opened in a mail app's own browser).
+	 */
+	kind: 'failed' | 'email-unverified' | 'no-pending';
 	returnTo: string;
 }
 
@@ -213,7 +217,7 @@ export function createAuth(
 			if (!pending) {
 				// Expired, used already, or another tab started a newer sign-in.
 				log.warn('sign-in failed', { reason: 'no pending sign-in' });
-				return err({ kind: 'failed', returnTo: '/' });
+				return err({ kind: 'no-pending', returnTo: '/' });
 			}
 			const { returnTo } = pending;
 

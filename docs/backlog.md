@@ -1,8 +1,8 @@
 # Toe Beans — Backlog
 
-**Version:** 0.65 (draft for iteration)
+**Version:** 0.66 (draft for iteration)
 **Date:** 19 November 2026
-**Inputs:** `docs/requirements.md` v1.0, `docs/architecture.md` v1.28, `docs/ui.md` v0.37
+**Inputs:** `docs/requirements.md` v1.0, `docs/architecture.md` v1.29, `docs/ui.md` v0.37
 
 **Changes in 0.3:** spike results S-1.0 to S-1.4 and S0.1–S0.2 recorded as they landed (see Current progress). S-1.4b dropped as not needed, S-1.5 parked, S-1.4a retargeted to `toebeans.co.za`.
 
@@ -109,6 +109,8 @@
 **Changes in 0.64:** S16.7 drafted: `docs/runbooks/disaster-recovery.md`, with scenarios, breach response under POPIA §22 with a notice template, moving off each provider, and what a trusted person does if the owner can't act. The private part waits on the owner's password manager.
 
 **Changes in 0.65:** S16.4 done: Google's consent screen is published and brand-verified with the policy links, and Auth0's login page carries the app's light branding with Nunito from Google Fonts; the free plan has no custom sign-up prompts, so the app's sign-in page carries the links. Invitations reply to `support@toebeans.co.za` (`EMAIL_REPLY_TO`), and Auth0's emails come from it. Policy and terms 0.3, data inventory 0.4.
+
+**Changes in 0.66:** S17.4 logged and built: a sign-in finished in another browser starts one in this browser instead of failing (architecture 1.29 §3.4). Inputs moved to architecture 1.29.
 
 **Changes in 0.51:** S15.1 gains (k), fresh data on coming back to the app and on Back to a page Chrome kept whole (ui 0.35 §5.2), from the owner, after Today stayed stale behind a reminder. Live updates over WebSockets were considered and left out for cost. The offline banner's check backs off from 1 s (architecture 1.23 D31), found through a flaky e2e check. Built with e2e checks and closed by the owner, so S15.1 stays done. Inputs moved to architecture 1.23 and ui 0.35.
 
@@ -230,6 +232,7 @@ Work is organised as **vertical slices**: each delivers a usable end-to-end incr
 | 2026-11-19 | `privacy@toebeans.co.za` works both ways: Cloudflare Email Routing in, Resend's SMTP out, tried by the owner; recorded in `accounts.md` and the data inventory (0.3). S16.2 done: correspondence kept a year after it's answered. |
 | 2026-11-19 | S16.7 drafted: `docs/runbooks/disaster-recovery.md`. |
 | 2026-11-19 | S16.4 done: Google's consent screen published and brand-verified; Auth0's login page branded. Invitations now reply to `support@toebeans.co.za`, tried by the owner in Mailpit. |
+| 2026-11-19 | S17.4 built: a sign-in finished in another browser (an email's verification link) restarts in this one instead of failing. |
 
 **Next up:** S16, then S14.7. Snags from using the app go to S17.
 
@@ -463,6 +466,7 @@ Work is organised as **vertical slices**: each delivers a usable end-to-end incr
 | S17.1 | **Browser errors past ad blockers:** ad blockers' lists block `*.ingest.sentry.io`, so a household member with one never reports browser errors (found in S14.4's check). Send them through the app's own origin with the SDK's `tunnel` option: a small route that forwards only envelopes for our DSN's project to Sentry's EU ingest, rate limited, and keeps the CSP's `connect-src` to `'self'` (architecture §9, §7). | ⬜ |
 | S17.2 | **Stuck after a deploy:** after a new deployment, the installed app asks for the old build's files, gets 404s and stays on *Waking up Toe Beans* with loading skeletons. The update banner does come up (S15.1 (j)), so *Refresh* gets the person out, but the app shouldn't get stuck. Find out why from the service worker's handling of an old build's chunks and the waking page's retry (architecture D31). | ⬜ |
 | S17.3 | **Scanners stopped at the edge:** Cloudflare's analytics show bots probing for `/.env*`, `/.git/config`, `*.php`, `/wp-*`, `/actuator/*`, `/graphql`, `/v2/_catalog` and similar. Spot checks on 18 Nov found nothing exposed: the image holds only the build, `node_modules` and the exercises; unknown paths give 404, the API 401, and the tick's POST without its token 401. Each probe still wakes Cloud Run and renders the 13 KB app shell. (a) A free Cloudflare WAF custom rule blocks the obvious patterns before they reach the Worker. (b) A short plain 404 for paths outside the app's routes and assets, in place of the app shell. (c) `/.well-known/security.txt` with a contact and expiry. The full defensive review waits for the v1.0.0 release (architecture §7, D32). | ⬜ |
+| S17.4 | **Signed up, then "Signing in didn't work":** the owner signed up with email on prod and verified from the email, and Auth0 finished the sign-in in the mail app's browser, where the app had no sign-in in progress (logs: `no pending sign-in`), so the page said only that it failed. **Built (19 Nov):** such a callback, if it carries a code, starts a sign-in in that browser once (a 60-second `tb_resumed` cookie stops a loop), and the provider's session usually signs the person straight in. Auth0's *Application Login URI* (`auth0.md` §2) gives its verified and password-changed pages a button back. Unit and e2e tests. **Tried (19 Nov):** with the login URI set, the owner signed up on the phone (refused as unverified, as it should be), verified in a desktop browser and was signed in there through Auth0's button: the login URI fixes the case seen on prod, and the restart covers what's left (a sign-in past 10 minutes, a link in another app's browser). Left: seeing a restart on prod. | 🟨 |
 
 ## P1 — Phase 1 follow-on
 

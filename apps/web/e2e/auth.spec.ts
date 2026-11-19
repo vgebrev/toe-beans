@@ -74,7 +74,19 @@ test('an email the provider has not verified is refused, with no session', async
 	await expect(page).toHaveURL('/sign-in?returnTo=%2Fcare');
 });
 
-test('a callback without a sign-in in progress says it failed', async ({ page }) => {
+// As when an email's verification link finishes signing in inside a mail app's own browser.
+test('a callback with no sign-in in progress here starts one, and signs in', async ({ page }) => {
+	await page.goto('/auth/callback?code=from-another-browser&state=elsewhere');
+	await signInAtMockProvider(page, newPerson('resumed'));
+	await expect(page).toHaveURL(/\/onboarding/);
+});
+
+test('a second such callback says it failed, so blocked cookies cannot loop', async ({
+	page,
+	context,
+	baseURL
+}) => {
+	await context.addCookies([{ name: 'tb_resumed', value: '1', url: baseURL! }]);
 	await page.goto('/auth/callback?code=stolen&state=guess');
 	await expect(page).toHaveURL('/sign-in?error=failed');
 	await expect(page.getByRole('alert')).toHaveText("Signing in didn't work. Please try again.");
