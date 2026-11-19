@@ -26,6 +26,10 @@ Names follow the project convention: kebab-case words (`toe-beans`), not run tog
 2. Under **Settings**:
    - **Allowed Callback URLs:** each app origin + `/auth/callback`. Dev: `http://localhost:7877/auth/callback, http://localhost:3000/auth/callback, https://toebeans.test:7877/auth/callback` (the dev server on the LAN, README). Prod: `https://toebeans.co.za/auth/callback`.
    - **Allowed Logout URLs:** each app origin + `/`. Dev: `http://localhost:7877/, http://localhost:3000/, https://toebeans.test:7877/`. Prod: `https://toebeans.co.za/`.
+   - **Application Login URI:** prod `https://toebeans.co.za/auth/sign-in` (dev may leave it empty:
+     Auth0 refuses `http` and `localhost`). Auth0's "email verified" and "password changed" pages
+     use it for the button back to the app. The emails' *Redirect To* can't be changed on the free
+     plan.
    - **Allowed Web Origins** and **Allowed Origins (CORS):** leave empty.
    - **Application Logo:** add once the PNG exports exist (S13.1).
 3. Under **Credentials**, set the authentication method to **Client Secret (Basic)**.

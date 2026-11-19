@@ -245,7 +245,7 @@ describe('auth', () => {
 			const callbackUrl = new URL(callbackUri);
 			t.identity.answer = ok(google());
 			expect(await t.auth.finishSignIn({ callbackUrl, handle: undefined })).toEqual(
-				err({ kind: 'failed', returnTo: '/' })
+				err({ kind: 'no-pending', returnTo: '/' })
 			);
 			expect(await t.auth.finishSignIn({ callbackUrl, handle: 'x'.repeat(43) })).toMatchObject({
 				ok: false

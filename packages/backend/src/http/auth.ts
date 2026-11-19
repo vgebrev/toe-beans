@@ -17,6 +17,10 @@ export interface AuthHttpOptions {
 
 export const CALLBACK_PATH = '/auth/callback';
 export const SIGN_IN_PAGE = '/sign-in';
+export const SIGN_IN_ROUTE = '/auth/sign-in';
+
+/** How long a restarted sign-in has to come back before another restart is refused. */
+const RESUME_WINDOW_S = 60;
 
 export type CookieReader = (name: string) => string | undefined;
 
@@ -28,7 +32,12 @@ export type CookieReader = (name: string) => string | undefined;
 export function cookieSettings(publicOrigin: string) {
 	const secure = publicOrigin.startsWith('https:');
 	const prefix = secure ? '__Host-' : '';
-	return { secure, session: `${prefix}tb_session`, signIn: `${prefix}tb_signin` };
+	return {
+		secure,
+		session: `${prefix}tb_session`,
+		signIn: `${prefix}tb_signin`,
+		resumed: `${prefix}tb_resumed`
+	};
 }
 
 /**
@@ -153,11 +162,27 @@ export function createAuthHttp(
 			});
 			if (!result.ok) {
 				const { kind, returnTo } = result.error;
+				// The provider signed the person in, but in a browser with no sign-in of ours in
+				// progress: start one here, once. The provider's session usually sends them straight
+				// back, now with a pending sign-in. The marker cookie stops a loop where cookies
+				// don't stick; the second time, they see the failure.
+				const answered = new URLSearchParams(search).has('code');
+				if (kind === 'no-pending' && answered && !read(names.resumed)) {
+					logger.info('sign-in restarted in this browser');
+					return redirect(SIGN_IN_ROUTE, [
+						cookie(names.resumed, '1', RESUME_WINDOW_S),
+						clear(names.signIn)
+					]);
+				}
 				const error = kind === 'email-unverified' ? 'unverified' : 'failed';
-				return redirect(signInPath(returnTo, error), [clear(names.signIn)]);
+				return redirect(signInPath(returnTo, error), [clear(names.signIn), clear(names.resumed)]);
 			}
 			const { token, expiresAt, returnTo } = result.value;
-			return redirect(returnTo, [clear(names.signIn), sessionCookie(token, expiresAt)]);
+			return redirect(returnTo, [
+				clear(names.signIn),
+				clear(names.resumed),
+				sessionCookie(token, expiresAt)
+			]);
 		},
 
 		async signOut({ cookie: read, everywhere = false }) {
