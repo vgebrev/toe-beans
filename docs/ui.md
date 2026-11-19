@@ -1,6 +1,6 @@
 # Toe Beans — UI and Interaction Design
 
-**Version:** 0.37 (draft for iteration)
+**Version:** 0.38 (draft for iteration)
 **Date:** 19 November 2026
 **Status:** Proposed. Review-round decisions in §8 are accepted.
 **Inputs:** `docs/requirements.md` v1.0, `docs/architecture.md` v1.28
@@ -56,6 +56,8 @@
 **Changes in 0.36:** S16.5, deleting personal data (architecture 1.27 D38). §4.7: *Delete account* under *Sign out everywhere*, in red, confirmed in a sheet that says what happens to the household (they leave it and their records stay from "a former member", or it goes with them when nobody else is in it); once deleted the browser signs out as *Sign out* does. §4.8: *Delete household* under *Leave household* for someone alone in it, and the last person's leave sheet says they can rejoin within 30 days, after which it's deleted. J1 step 3: the *Rejoin* panel says when the household will be deleted and offers *Delete it now*. Inputs moved to architecture 1.27.
 
 **Changes in 0.37:** S16.4, the privacy policy and terms as public pages (§2.3, §4.7, J1 step 1). `/privacy` and `/terms` open signed in or out, with a back link to the app; *Privacy policy* and *Terms of service* links sit under *Sign in* on Welcome and under the version on More. On a phone their tables stack into one card per row. Inputs moved to architecture 1.28.
+
+**Changes in 0.38:** S17.6, the manifest names its environment (§6.3): off prod the app installs as *Toe Beans (Test)* with a teal TEST band on its icon, so a phone with both can tell them apart. Prod's manifest is unchanged.
 
 **Changes in 0.12:** S3 built. J1 step 4 as built: *Take photo* or *Gallery*, then a framing square with the circle overlay (drag, pinch, a zoom slider and arrow keys), and birth date as *I know the date* or *Approximate* with months old. J2 names the dogs. §2.2: the switcher shows on Today, Plan, History and Care, with name chips. §5.1 gains two rules from using it: one confirm button per context (a sheet is its own context), and a control is never disabled without the reason on screen; the photo moved into its own sheet in J1 to follow the first, and the household, name and email-invite buttons stopped greying out for missing input to follow the second. §4.5: editing is its own page and the overflow sheet holds *Edit details* and *Archive*; the Recent sections wait for their slices. The dog accent palette is defined (§6.4), and More gains *Dogs* (§2.1). The custom dog icon read as a monkey, so it's replaced by Phosphor's *Dog*, the documented fallback library (§6.4).
 
@@ -453,7 +455,7 @@ All deletes, archives, invite revocations and "turn off reminders" go through a 
 
 - Capture `beforeinstallprompt` and offer *Install* in onboarding, in Notifications settings, and once as a dismissible Today banner.
 - Show installed state in Settings.
-- The manifest uses `display: standalone`, theme colours, maskable icons, `start_url: /`, and `shortcuts` for *Log training* and *Record event* (Android long-press on the icon).
+- The manifest uses `display: standalone`, theme colours, maskable icons, `start_url: /`, and `shortcuts` for *Log training* and *Record event* (Android long-press on the icon). Off prod (`APP_ENV`) it names the app *Toe Beans (Test)* and uses the icons with a TEST band, so a test install sits beside the real one without being mistaken for it.
 - *As built (S13):* Chrome's offer is kept from the first moment (it can come before the app's code loads) and stops Chrome's own install bar. Where it's offered, *Install Toe Beans* shows the browser's dialog; where it isn't (already installed, or not yet offered), the text points at the browser's *Install* or *Add to Home screen*. Today shows "Install Toe Beans on this device" with *Not now* while the browser offers it, until dismissed there or in the browser's dialog. Notifications keeps its install note, now with the button. More has an **App** section: "Installed: you're using the Toe Beans app." in the app, the offer otherwise, and "Installed. Open Toe Beans from your home screen or apps list from now on." No install wording names a phone or a browser right after installing from a tab. The shortcuts open Today with *Record event* or *Log training*'s exercise picker already open, once (the address loses `?add=`), with the "+" chooser's icons in cream on brown.
 
 ### 6.4 Visual design

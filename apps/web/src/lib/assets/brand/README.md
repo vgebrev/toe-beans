@@ -20,4 +20,5 @@ The light tan `#F2B461` on the tiles is icon-only (decorative, on brown); the de
 `#DE9844`/`#844313` are mapped to the `accent` and `primary` tokens elsewhere.
 
 The PNG sizes the manifest and push need (192, 512, maskable 512, badge 96) are exported from
-these in S13.1, with the manifest.
+these in S13.1, with the manifest. The `test-` icons are the same tiles with a TEST band, for
+installs off prod (S17.6).

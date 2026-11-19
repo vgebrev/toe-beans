@@ -1,8 +1,8 @@
 # Toe Beans — Backlog
 
-**Version:** 0.69 (draft for iteration)
+**Version:** 0.70 (draft for iteration)
 **Date:** 19 November 2026
-**Inputs:** `docs/requirements.md` v1.0, `docs/architecture.md` v1.30, `docs/ui.md` v0.37
+**Inputs:** `docs/requirements.md` v1.0, `docs/architecture.md` v1.30, `docs/ui.md` v0.38
 
 **Changes in 0.3:** spike results S-1.0 to S-1.4 and S0.1–S0.2 recorded as they landed (see Current progress). S-1.4b dropped as not needed, S-1.5 parked, S-1.4a retargeted to `toebeans.co.za`.
 
@@ -117,6 +117,8 @@
 **Changes in 0.68:** S14.8 done: v1.0.0-rc.1 deployed and published as a GitHub pre-release, with the check required in main's ruleset. GitHub Releases are titled with the tag.
 
 **Changes in 0.69:** S17.5 from the owner, logged and built: a reminder tapped while the server sleeps opened a blank page saying *Loading…*. The service worker's fallback pages linked their files relative to where they were fetched, so in place of a nested page they found none.
+
+**Changes in 0.70:** S17.6 from the owner, logged and built: a test install is named *Toe Beans (Test)*, with a TEST band on its icon (ui 0.38 §6.3). S17.7 from the owner, logged: an uninstalled app's push device stays in the database.
 
 **Changes in 0.51:** S15.1 gains (k), fresh data on coming back to the app and on Back to a page Chrome kept whole (ui 0.35 §5.2), from the owner, after Today stayed stale behind a reminder. Live updates over WebSockets were considered and left out for cost. The offline banner's check backs off from 1 s (architecture 1.23 D31), found through a flaky e2e check. Built with e2e checks and closed by the owner, so S15.1 stays done. Inputs moved to architecture 1.23 and ui 0.35.
 
@@ -242,6 +244,8 @@ Work is organised as **vertical slices**: each delivers a usable end-to-end incr
 | 2026-11-19 | S14.8 built (D40): one version for the repo, `CHANGELOG.md`, `pnpm release`, a CI version check into main, and the deploy tagging and publishing each GitHub Release. Set at 1.0.0-rc.1 for S14.7. |
 | 2026-11-19 | S14.8 done: v1.0.0-rc.1 on prod and published as a GitHub pre-release; the version check is required on main. Releases are now titled with the tag. |
 | 2026-11-19 | S17.5 built: a reminder tapped while the server sleeps opens its item, not a blank *Loading…* page. |
+| 2026-11-19 | S17.6 built: a test install is *Toe Beans (Test)* with a TEST band on its icon. |
+| 2026-11-19 | S17.7 logged: an uninstalled app's push device stays in the database. |
 
 **Next up:** S14.7 on 1.0.0-rc.1. Snags from using the app go to S17.
 
@@ -478,6 +482,8 @@ Work is organised as **vertical slices**: each delivers a usable end-to-end incr
 | S17.3 | **Scanners stopped at the edge:** Cloudflare's analytics show bots probing for `/.env*`, `/.git/config`, `*.php`, `/wp-*`, `/actuator/*`, `/graphql`, `/v2/_catalog` and similar. Spot checks on 18 Nov found nothing exposed: the image holds only the build, `node_modules` and the exercises; unknown paths give 404, the API 401, and the tick's POST without its token 401. Each probe still wakes Cloud Run and renders the 13 KB app shell. (a) A free Cloudflare WAF custom rule blocks the obvious patterns before they reach the Worker. (b) A short plain 404 for paths outside the app's routes and assets, in place of the app shell. (c) `/.well-known/security.txt` with a contact and expiry. The full defensive review waits for the v1.0.0 release (architecture §7, D32). | ⬜ |
 | S17.4 | **Signed up, then "Signing in didn't work":** the owner signed up with email on prod and verified from the email, and Auth0 finished the sign-in in the mail app's browser, where the app had no sign-in in progress (logs: `no pending sign-in`), so the page said only that it failed. **Built (19 Nov):** such a callback, if it carries a code, starts a sign-in in that browser once (a 60-second `tb_resumed` cookie stops a loop), and the provider's session usually signs the person straight in. Auth0's *Application Login URI* (`auth0.md` §2) gives its verified and password-changed pages a button back. Unit and e2e tests. **Tried (19 Nov):** with the login URI set, the owner signed up on the phone (refused as unverified, as it should be), verified in a desktop browser and was signed in there through Auth0's button: the login URI fixes the case seen on prod, and the restart covers what's left (a sign-in past 10 minutes, a link in another app's browser). **Done (19 Nov):** closed by the owner as the fix deploys. | ✅ |
 | S17.5 | **Reminder opens a blank *Loading…* page:** with the app closed and the server asleep, tapping a reminder showed a white page with the logo and *Loading…*; pulling to refresh loaded the item. The service worker stood its cached *waking* page in for `sessions/{id}`, but that page linked its CSS and scripts as `./_app/…`, relative to `/waking` where it was fetched, so from a nested address they 404'd and the page never ran, never polled `/healthz` and never loaded the item. The offline and unreachable pages had the same flaw. **Built (19 Nov):** Kit renders root-relative asset paths (`paths.relative: false`); an e2e check opens the offline page at a reminder's address and finds its fonts and script working (it fails without the fix). | ⬜ |
+| S17.6 | **Test install told apart from the real one:** with toebeans.test and toebeans.co.za both installed, the phone showed two identical *Toe Beans*. **Built (19 Nov):** the manifest is served from a route instead of `static/`; off prod (`APP_ENV`) it says *Toe Beans (Test)* and points at icons with a teal TEST band (`pnpm --filter @toe-beans/web icons`, inside the maskable safe zone). Prod's manifest is unchanged, checked against the old file. Unit and e2e tests. | ⬜ |
+| S17.7 | **Push devices outlive the app:** uninstalling the app leaves its `pushDevices` document. No browser tells the server about an uninstall, so the server can only find out by sending: the next reminder to it gets 404/410 from the push service and the device is *disabled*, not deleted, and stays until the person removes it, signs out everywhere or deletes their account (data inventory §2). Until a reminder is due it stays active, and possibly listed on the Notifications screen. No clean fix, so pick a policy: (a) delete a device the push service reports as gone rather than disable it; (b) delete devices with no successful send for a set time (a TTL on `lastSuccessAt`/`createdAt`, say 60 days), which also covers a phone that's lost or reset with nothing ever sent; (c) widen what a new subscription replaces: today `reminders.ts` replaces the person's devices with the same label only once they're disabled, so a reinstall before any reminder has failed leaves the old one listed as active, and it counts towards the device limit. Replacing an active same-label device too would cover a reinstall, at the cost of someone with two identical phones. Any change updates the data inventory's `pushDevices` row and the privacy policy's retention wording (S16). | ⬜ |
 
 ## P1 — Phase 1 follow-on
 
