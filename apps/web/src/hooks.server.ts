@@ -1,6 +1,7 @@
 import type { RequestEvent } from '@sveltejs/kit';
 import type { Handle, HandleServerError, ServerInit } from '@sveltejs/kit/hooks';
 import { PROXY_SECRET_HEADER, REQUEST_ID_HEADER, requestIdFrom } from '@toe-beans/backend';
+import { ERROR_RELAY_PATH } from '@toe-beans/contracts';
 import { backend, startBackend } from '#lib/server/backend.js';
 import { toResponse, unauthenticated } from '#lib/server/respond.js';
 
@@ -38,6 +39,27 @@ const machineRoutes = new Set(['/internal/tick']);
 // token is what allows it; accepting is a separate route and needs a session.
 const publicApiRoutes = new Set(['/api/v1/invitations/[token]']);
 
+// The browser's error reports (architecture D41) and security.txt: no session lookup.
+const noViewerRoutes = new Set([...quietRoutes, ERROR_RELAY_PATH, '/.well-known/security.txt']);
+
+/**
+ * Scanners' probes (`/.env`, `/wp-login.php`…) match no route (backlog S17.3). Rendering the app
+ * shell's "We couldn't find that" for each costs a render and a session lookup, so a request that
+ * isn't a browser's page load gets a short plain 404 instead. A person who opens a mistyped
+ * address still sees the app's own page, and unknown API paths stay behind sign-in. (A missing
+ * `/_app/` file never gets here: adapter-node answers it.)
+ */
+const isProbe = (event: RequestEvent) =>
+	event.route.id === null &&
+	!event.url.pathname.startsWith('/api/') &&
+	event.request.headers.get('sec-fetch-dest') !== 'document';
+
+const notFound = () =>
+	new Response('Not found\n', {
+		status: 404,
+		headers: { 'content-type': 'text/plain; charset=utf-8', 'cache-control': 'no-store' }
+	});
+
 /**
  * Gives each request an ID, puts it on every log line and error report the request causes and
  * on the response, then logs the request. The route ID is logged, never the path or query,
@@ -61,7 +83,9 @@ export const handle: Handle = ({ event, resolve }) => {
 			// Some responses (e.g. from fetch) have immutable headers; the logs still have the ID.
 		}
 		const route = event.route.id ?? '(unmatched)';
-		const log = quietRoutes.has(route) ? logger.debug : logger.info;
+		// Probes come by the hundred; their lines would drown the rest too.
+		const quiet = quietRoutes.has(route) || (response.status === 404 && isProbe(event));
+		const log = quiet ? logger.debug : logger.info;
 		log('request', {
 			method: event.request.method,
 			route,
@@ -94,6 +118,7 @@ async function authenticated(
 		const bypassed = edge.checkProxy(headers.get(PROXY_SECRET_HEADER));
 		if (bypassed) return toResponse(bypassed);
 	}
+	if (isProbe(event)) return notFound();
 
 	const refused = auth.checkOrigin({
 		method: event.request.method,
@@ -102,8 +127,8 @@ async function authenticated(
 	});
 	if (refused) return toResponse(refused);
 
-	// Probes don't need a viewer, so they never touch the sessions.
-	if (quietRoutes.has(route)) return resolve(event, resolveOptions);
+	// Probes and error reports don't need a viewer, so they never touch the sessions.
+	if (noViewerRoutes.has(route)) return resolve(event, resolveOptions);
 
 	const { viewer, cookies } = await auth.authenticate((name) => event.cookies.get(name));
 	event.locals.viewer = viewer;

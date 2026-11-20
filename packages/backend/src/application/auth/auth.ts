@@ -300,22 +300,29 @@ export function createAuth(
 
 		/**
 		 * Ends the session and returns the provider's sign-out URL to redirect to. `everywhere` ends
-		 * all of the person's sessions and removes their push devices, for a lost phone or a cookie
-		 * that may have leaked (security audit F7): a device signed out shouldn't get reminders.
+		 * all of the person's sessions, for a lost phone or a cookie that may have leaked (security
+		 * audit F7). A device signed out gets no reminders (D43): `everywhere` signs out all of the
+		 * person's devices, and otherwise `endpoint`, this browser's push subscription, names the one
+		 * to sign out. The browser keeps its subscription, so signing in there again resumes it.
 		 */
 		async signOut(
 			token: string | undefined,
-			{ everywhere = false }: { everywhere?: boolean } = {}
+			{ everywhere = false, endpoint }: { everywhere?: boolean; endpoint?: string } = {}
 		): Promise<{ url: string }> {
 			if (token && isSecretToken(token)) {
 				const tokenHash = hashSecretToken(token);
-				const session = everywhere ? await sessions.findLive(tokenHash, clock.now()) : null;
-				if (session) {
+				const session =
+					everywhere || endpoint ? await sessions.findLive(tokenHash, clock.now()) : null;
+				if (session && everywhere) {
 					const { userId } = session;
 					const ended = await sessions.deleteForUser(userId);
-					const devices = await pushDevices.removeAllForUser(userId);
+					const devices = await pushDevices.signOutAll(userId, clock.now());
 					log.info('signed out everywhere', { userId, sessions: ended, devices });
 				} else {
+					const userId = session?.userId;
+					if (userId && endpoint && (await pushDevices.signOut(userId, endpoint, clock.now()))) {
+						log.info('push device signed out', { userId });
+					}
 					await sessions.delete(tokenHash);
 				}
 			}

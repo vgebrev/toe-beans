@@ -1,6 +1,7 @@
 // The browser side of reminders (ui.md J7): whether this browser can have them, what to call
 // this device, which phone maker's battery steps to show, and subscribing. Nothing here asks for
 // permission on its own: only `subscribe`, called from a tap, does.
+import type { SeenPushDevice } from '@toe-beans/contracts';
 
 export type Support = 'supported' | 'unsupported';
 
@@ -132,4 +133,29 @@ export async function subscribe(
 export async function unsubscribe(): Promise<void> {
 	const reg = await registration(3_000);
 	await (await reg?.pushManager.getSubscription())?.unsubscribe();
+}
+
+/** This browser's push endpoint, for signing out to name its device (architecture D43). */
+export async function currentEndpoint(): Promise<string | null> {
+	const reg = await registration(3_000);
+	return (await reg?.pushManager.getSubscription())?.endpoint ?? null;
+}
+
+/**
+ * What `POST /reminders/devices/seen` takes: this browser's subscription with its label and the
+ * key it was made with, or null if it has none (architecture D43). Asks for nothing.
+ */
+export async function seenBody(model?: string): Promise<SeenPushDevice | null> {
+	if (pushSupport() === 'unsupported' || Notification.permission !== 'granted') return null;
+	const reg = await registration();
+	const subscription = await reg?.pushManager.getSubscription();
+	if (!subscription) return null;
+	const { endpoint, keys } = subscription.toJSON();
+	if (!endpoint || !keys?.p256dh || !keys.auth) return null;
+	return {
+		endpoint,
+		keys: { p256dh: keys.p256dh, auth: keys.auth },
+		label: deviceLabel(model ?? (await phoneModel()), navigator.userAgent),
+		serverKey: toBase64url(subscription.options.applicationServerKey)
+	};
 }

@@ -57,14 +57,20 @@ This file is public. It names settings, never values.
    - **Browser:** open `https://toebeans.co.za`, sign in, open DevTools' console and run
      `setTimeout(() => { throw new Error('Sentry check (browser)') })`. The issue appears within a
      minute with environment `prod` and the release. The `setTimeout` matters: an error thrown
-     straight from the console never reaches the page's handlers. An ad blocker may block the
-     report (`ERR_BLOCKED_BY_CLIENT` in the Network tab); use a window without it.
+     straight from the console never reaches the page's handlers. The report goes to
+     `https://toebeans.co.za/oops` (the Network tab shows it, status 200), not to Sentry's host,
+     so an ad blocker doesn't stop it (architecture D41). A 400 there means the envelope's DSN
+     isn't the server's `SENTRY_DSN`; a 502, that Sentry didn't answer the server.
    - **Server:** no route throws on demand. The first real server error shows it works; until
      then, Cloud Run's logs at startup show the config without errors.
 4. Open the browser check's event and confirm it has no IP address, no user, no cookies and no
    request URL. Resolve the issue.
 
-The CSP already allows `https://*.sentry.io` in `connect-src`, which covers the EU ingest host.
+The browser never talks to Sentry itself: the server's `/oops` route sends its reports on (D41), so
+the CSP's `connect-src` stays `'self'`. The route sends only envelopes for this DSN, and nothing
+about the phone's request goes with them. **Allowed Domains** (§2) no longer sees browser events
+come from `toebeans.co.za`, since they arrive from the server without an Origin; Sentry accepts
+those, and the relay is what keeps other projects' envelopes out.
 
 ## 4. Alerts (S14.4)
 

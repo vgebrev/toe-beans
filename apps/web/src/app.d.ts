@@ -1,13 +1,15 @@
 // See https://svelte.dev/docs/kit/types#app.d.ts
 // for information about these interfaces
 declare global {
+	/** When the build was made, as an ISO timestamp (vite.config.ts `define`). */
+	const __BUILT_AT__: string;
 	namespace App {
 		interface Error {
 			message: string;
 			/** Shown with unexpected errors, so a report can be matched to the logs (NFR-12). */
 			requestId?: string;
-			/** In the browser, the page's data couldn't be fetched: offline, not a bug. */
-			offline?: boolean;
+			/** In the browser, the page's data or code couldn't be fetched: not a bug. */
+			unreachable?: boolean;
 		}
 		// `viewer` is added in lib/server/locals.d.ts, which may import backend types.
 		interface Locals {

@@ -1,5 +1,5 @@
 <script lang="ts">
-	// The offline and unreachable pages: what happened, and *Try again*, which loads the page
+	// The *Can't reach Toe Beans* page: what happened, and *Try again*, which loads the page
 	// that was asked for (the address bar still shows it). The connection often takes a few
 	// seconds to come back after airplane mode, so *Try again* first checks the server answers
 	// and says so if it doesn't yet, rather than loading this page again with nothing to show.

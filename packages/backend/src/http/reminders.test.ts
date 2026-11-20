@@ -68,7 +68,8 @@ describe('reminders http', () => {
 			id: expect.any(String),
 			label: 'Galaxy S23 FE · Chrome',
 			createdAt: at.toISOString(),
-			disabled: false
+			disabled: false,
+			signedOut: false
 		});
 		const settings = await http.settings(viewer);
 		expect(JSON.stringify(settings.body)).not.toContain('secret-token');
@@ -78,6 +79,24 @@ describe('reminders http', () => {
 	it('refuses a body that isn’t a subscription', async () => {
 		const { http } = setup();
 		expect((await http.saveDevice(viewer, { body: { endpoint: 5 } })).status).toBe(400);
+	});
+
+	it('marks a device in use when the app opens, needing the key it was made with', async () => {
+		const { http } = setup();
+		const seen = { ...subscription, label: 'Galaxy S23 FE · Chrome' };
+		expect((await http.deviceSeen(viewer, { body: seen })).status).toBe(400);
+		expect(
+			await http.deviceSeen(viewer, { body: { ...seen, serverKey: 'BPublicKeyForTests' } })
+		).toMatchObject({
+			status: 200,
+			body: { device: { label: 'Galaxy S23 FE · Chrome', disabled: false, signedOut: false } }
+		});
+		expect(
+			await http.deviceSeen(viewer, { body: { ...seen, serverKey: 'BAnOldKey' } })
+		).toMatchObject({ status: 200, body: { device: null } });
+		expect((await http.settings(viewer)).body).toMatchObject({
+			devices: [{ label: 'Galaxy S23 FE · Chrome' }]
+		});
 	});
 
 	it('removes a device, and 404s one that isn’t theirs', async () => {
@@ -131,6 +150,7 @@ describe('reminders http', () => {
 		for (const res of [
 			await http.settings(noHousehold),
 			await http.saveDevice(noHousehold, { body: subscription }),
+			await http.deviceSeen(noHousehold, { body: subscription }),
 			await http.removeDevice(noHousehold, { id: 'x' }),
 			await http.savePreference(noHousehold, { body: {} }),
 			await http.startTest(noHousehold, { body: { deviceId: 'x' } }),

@@ -33,3 +33,53 @@ redeploy the app so it picks up the new version.
   check a laptop on Wi-Fi still signs in.
 - Worker logs stay off (`observability` in `wrangler.jsonc`); Cloudflare's own request analytics
   are visible only to the account owner.
+
+## Scanners blocked before the Worker (S17.3)
+
+Bots probe for secrets and other software's admin pages. The app answers them with a plain 404,
+but each one still costs a Worker request and wakes Cloud Run. A WAF custom rule (free plan: 5
+rules, no regex) blocks the obvious ones at Cloudflare, before the Worker runs.
+
+In the dashboard: **toebeans.co.za → Security → Security rules → Create rule → Custom rule**,
+name `toe-beans-scanners`, *Edit expression*, paste the expression below, action **Block**, deploy.
+
+```
+(lower(http.request.uri.path) contains "/." and not starts_with(http.request.uri.path, "/.well-known/"))
+or ends_with(lower(http.request.uri.path), ".php")
+or lower(http.request.uri.path) contains ".php/"
+or ends_with(lower(http.request.uri.path), ".asp")
+or ends_with(lower(http.request.uri.path), ".aspx")
+or ends_with(lower(http.request.uri.path), ".jsp")
+or ends_with(lower(http.request.uri.path), ".cgi")
+or ends_with(lower(http.request.uri.path), ".env")
+or ends_with(lower(http.request.uri.path), ".ini")
+or ends_with(lower(http.request.uri.path), ".sql")
+or ends_with(lower(http.request.uri.path), ".bak")
+or ends_with(lower(http.request.uri.path), ".yml")
+or ends_with(lower(http.request.uri.path), ".yaml")
+or starts_with(lower(http.request.uri.path), "/wp-")
+or starts_with(lower(http.request.uri.path), "/wordpress")
+or starts_with(lower(http.request.uri.path), "/phpmyadmin")
+or starts_with(lower(http.request.uri.path), "/cgi-bin")
+or starts_with(lower(http.request.uri.path), "/actuator")
+or starts_with(lower(http.request.uri.path), "/graphql")
+or starts_with(lower(http.request.uri.path), "/v2/_catalog")
+or starts_with(lower(http.request.uri.path), "/vendor/")
+or starts_with(lower(http.request.uri.path), "/boaform")
+```
+
+None of the app's paths fall under it: its routes, `/_app/…` build files, `/icons/…`,
+`/manifest.webmanifest`, `/robots.txt` and `/.well-known/security.txt` (a `/.` anywhere else is a
+dotfile or `..`). A route added later under one of those prefixes would need the rule changed.
+
+Checks, once deployed:
+
+- `curl -s -o /dev/null -w '%{http_code}\n' https://toebeans.co.za/.env` answers 403, and so does
+  `/wp-login.php`.
+- `curl -s https://toebeans.co.za/.well-known/security.txt` gives the contact, and
+  `curl -s https://toebeans.co.za/readyz` `{"status":"ready"}`.
+- Opening the app and a reminder on a phone still works.
+- **Security → Events** lists what the rule blocked.
+
+What it misses reaches the app, which gives anything that isn't a browser's page load and matches
+no route a short `Not found` 404, without a session lookup and logged at debug only.

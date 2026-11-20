@@ -20,8 +20,9 @@ export interface NewPushDevice {
 
 export interface PushDeviceRepository {
 	/**
-	 * Saves the browser's subscription. The endpoint identifies it: one already stored becomes this
-	 * person's, live again, with these keys and label, and keeps its ID; otherwise `id` is used.
+	 * Saves the browser's subscription, seen now. The endpoint identifies it: one already stored
+	 * becomes this person's, live again (neither disabled nor signed out), with these keys and
+	 * label, and keeps its ID; otherwise `id` is used.
 	 * One stored for someone else moves only if the keys match, which only the browser holding the
 	 * subscription knows (security audit F6); otherwise nothing changes and it returns null.
 	 */
@@ -29,18 +30,28 @@ export interface PushDeviceRepository {
 	/** Their devices, disabled ones too, newest first. */
 	listForUser(userId: Id): Promise<PushDevice[]>;
 	findForUser(userId: Id, id: Id): Promise<PushDevice | null>;
-	/** Devices not disabled, of any of these people. For the worker. */
+	/** Whoever's device this endpoint is, if anyone's. */
+	findByEndpoint(endpoint: string): Promise<PushDevice | null>;
+	/** Devices neither disabled nor signed out, of any of these people. For the worker. */
 	listLive(userIds: readonly Id[]): Promise<PushDevice[]>;
 	/** False if they have no device with that ID. */
 	remove(userId: Id, id: Id): Promise<boolean>;
 	/**
-	 * Removes all of the person's devices, for *Sign out everywhere* and deleting the account;
-	 * returns how many. Joins a transaction.
+	 * Signing out in that browser: their device with this endpoint gets nothing until it's saved
+	 * again (D43). False if they have none.
 	 */
+	signOut(userId: Id, endpoint: string, at: Date): Promise<boolean>;
+	/** *Sign out everywhere*: all of their devices, as `signOut`; returns how many. */
+	signOutAll(userId: Id, at: Date): Promise<number>;
+	/** Removes all of the person's devices, for deleting the account; returns how many. Joins a transaction. */
 	removeAllForUser(userId: Id): Promise<number>;
+	/** It took a reminder, so it's in use: it won't be deleted for `DEVICE_UNUSED_MS`. */
 	recordSuccess(id: Id, at: Date): Promise<void>;
 	recordFailure(id: Id): Promise<void>;
-	/** The push service said it's gone: nothing more is sent to it. */
+	/**
+	 * The push service said it's gone: nothing more is sent to it, and it's deleted after
+	 * `DEVICE_STOPPED_MS` unless the browser saves it again.
+	 */
 	disable(id: Id, at: Date): Promise<void>;
 }
 

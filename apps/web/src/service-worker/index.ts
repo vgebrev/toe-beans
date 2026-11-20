@@ -1,13 +1,20 @@
 // The service worker (architecture §6.2, §7). It shows each reminder push as a notification,
 // even with the app closed, reports its arrival, and opens the item when tapped. It precaches the
-// build's files and the fallback pages, and stands them in for a page load that fails: *You're
-// offline* with no response, *Can't reach Toe Beans* on a gateway error, and the waking skeleton
-// while a cold server starts (ui.md §5.2). Nothing else is cached: API responses, photos and
-// pages go to the network every time (NFR-04).
+// build's files and the fallback pages, and stands them in for a page load that fails: *Can't
+// reach Toe Beans* with no response or a gateway error, whether the phone or the app is down,
+// and the waking skeleton while a cold server starts (ui.md §5.2). Nothing else is cached: API
+// responses, photos and pages go to the network every time (NFR-04).
 import { version } from '$app/env';
 import { assets, immutable } from '$app/manifest';
 import { self } from '$app/service-worker';
-import { isGatewayError, mayBeCold, precachePaths, WAKING_AFTER_MS } from '#lib/offline/caching.js';
+import {
+	CACHE_PREFIX,
+	cachesToDelete,
+	isGatewayError,
+	mayBeCold,
+	precachePaths,
+	WAKING_AFTER_MS
+} from '#lib/offline/caching.js';
 import {
 	FALLBACK,
 	notificationOptions,
@@ -22,17 +29,16 @@ const icons = () => ({
 	badge: new URL('icons/badge-96.png', scope()).href
 });
 
-const CACHE = `toe-beans-${version}`;
+const CACHE = `${CACHE_PREFIX}${version}`;
 // Manifest paths are relative to the base path, which is where this worker is served from.
 const toPath = (path: string) => new URL(path, self.location.href).pathname;
-const OFFLINE = toPath('offline');
 const UNREACHABLE = toPath('unreachable');
 const WAKING = toPath('waking');
 const HEALTHZ = toPath('healthz');
 const AUTH = toPath('auth/');
+const IMMUTABLE = toPath('_app/immutable/');
 const PRECACHE = [
 	...precachePaths([...immutable, ...assets].map((f) => f.path)),
-	'offline',
 	'unreachable',
 	'waking'
 ].map(toPath);
@@ -51,7 +57,7 @@ self.addEventListener('activate', (event) => {
 	event.waitUntil(
 		caches
 			.keys()
-			.then((keys) => Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k))))
+			.then((keys) => Promise.all(cachesToDelete(keys, CACHE).map((k) => caches.delete(k))))
 			.then(() => self.clients.claim())
 	);
 });
@@ -74,7 +80,7 @@ async function navigate(request: Request, url: URL): Promise<Response> {
 			lastAnswered = Date.now();
 			return response;
 		},
-		async () => (await cached(OFFLINE)) ?? Response.error()
+		async () => (await cached(UNREACHABLE)) ?? Response.error()
 	);
 	if (url.pathname.startsWith(AUTH) || !mayBeCold(Date.now(), lastAnswered)) return network;
 
@@ -102,6 +108,10 @@ self.addEventListener('fetch', (event) => {
 		);
 	} else if (PRECACHED.has(url.pathname)) {
 		event.respondWith(cached(url.pathname).then((hit) => hit ?? fetch(request)));
+	} else if (url.pathname.startsWith(IMMUTABLE)) {
+		// Another build's file, asked for by a page still open on the build before this one: the
+		// server no longer has it, but that build's cache does (S17.2). Hashed names never clash.
+		event.respondWith(caches.match(url.pathname).then((hit) => hit ?? fetch(request)));
 	}
 });
 
@@ -132,8 +142,8 @@ self.addEventListener('notificationclick', (event) => {
 	event.waitUntil(self.clients.openWindow(target));
 });
 
-// The push service renewed the subscription: save the new one, or reminders stop until the
-// Notifications screen next opens. Chrome rarely fires this; the screen re-saves anyway.
+// The push service renewed the subscription: save the new one in place of the old (architecture
+// D43), or reminders stop until the app next opens. Chrome rarely fires this.
 self.addEventListener('pushsubscriptionchange', (event) => {
 	const change = event as Event & {
 		oldSubscription?: PushSubscription | null;
@@ -148,7 +158,10 @@ self.addEventListener('pushsubscriptionchange', (event) => {
 				fetch(new URL('api/v1/reminders/devices', scope()), {
 					method: 'PUT',
 					headers: { 'content-type': 'application/json' },
-					body: JSON.stringify(subscription.toJSON())
+					body: JSON.stringify({
+						...subscription.toJSON(),
+						...(change.oldSubscription && { replaces: change.oldSubscription.endpoint })
+					})
 				})
 			)
 			.catch(() => undefined)

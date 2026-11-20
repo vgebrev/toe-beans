@@ -1,20 +1,20 @@
 <script lang="ts" module>
-	/** From the tap to the waking message: long enough to be a cold start (ui.md §5.2). */
+	/** From the tap to the connecting message: long enough to be a cold start (ui.md §5.2). */
 	export const WAKE_AFTER_MS = 3000;
 </script>
 
 <script lang="ts">
 	// A page still loading (ui.md §5.2, NFR-09): a header and cards in outline straight away, then
-	// "Waking up Toe Beans…" once it's taking long enough to be a cold start (3 s from the tap).
+	// "Connecting to Toe Beans…" once it's taking long enough to be a cold start (3 s from the tap).
 	// The app shell shows it during a slow navigation, and the service worker's waking page
 	// (routes/(shell)/waking) during a slow first load.
 	import { onMount } from 'svelte';
 	import Logo from '#lib/components/Logo.svelte';
 
 	interface Props {
-		/** How long until the waking message, from when this appears. */
+		/** How long until the connecting message, from when this appears. */
 		wakeAfterMs?: number;
-		/** Said instead of the waking message, such as that the connection dropped. */
+		/** Said instead of the connecting message, such as that Toe Beans can't be reached. */
 		message?: string | null;
 	}
 
@@ -36,7 +36,7 @@
 	</div>
 	<!-- Screen readers hear the status line rather than empty shapes. -->
 	<p role="status" class={message || waking ? 'px-4 py-3 text-center font-bold' : 'sr-only'}>
-		{message ?? (waking ? 'Waking up Toe Beans…' : 'Loading…')}
+		{message ?? (waking ? 'Connecting to Toe Beans…' : 'Loading…')}
 	</p>
 	<div aria-hidden="true" class="flex flex-col gap-3">
 		<div class="h-5 w-24 {block}"></div>

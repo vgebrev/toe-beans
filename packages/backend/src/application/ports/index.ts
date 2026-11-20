@@ -11,7 +11,7 @@ import type { Clock } from './clock.js';
 import type { CueRepository } from './cue-repository.js';
 import type { DogRepository, PhotoProcessor, PhotoStore } from './dog-ports.js';
 import type { EmailSender } from './email-sender.js';
-import type { ErrorReporter } from './error-reporter.js';
+import type { ErrorRelay, ErrorReporter } from './error-reporter.js';
 import type { ExerciseCatalogue } from './exercise-catalogue.js';
 import type {
 	HouseholdData,
@@ -64,7 +64,7 @@ export type {
 	StoredPhoto
 } from './dog-ports.js';
 export type { EmailFailure, EmailMessage, EmailSender } from './email-sender.js';
-export type { ErrorReporter } from './error-reporter.js';
+export type { ErrorRelay, ErrorRelayOutcome, ErrorReporter } from './error-reporter.js';
 export type { ExerciseCatalogue } from './exercise-catalogue.js';
 export type {
 	HouseholdData,
@@ -116,6 +116,10 @@ export interface Ports {
 	uow: UnitOfWork;
 	logger: Logger;
 	errors: ErrorReporter;
+	/** The browser's error reports, sent on from the server (architecture D41). */
+	errorRelay: ErrorRelay;
+	/** Browser error reports, per client address (architecture D41). */
+	errorReportRateLimit: RateLimiter;
 	readiness: Readiness;
 	identity: IdentityProvider;
 	/** Deleting the person's accounts at the provider, with their own (S16.5). */

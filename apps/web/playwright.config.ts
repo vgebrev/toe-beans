@@ -7,6 +7,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { defineConfig, devices } from '@playwright/test';
+import { E2E_SENTRY_DSN } from './e2e/error-relay.js';
 import { SIGNED_IN } from './e2e/mock-sign-in.js';
 import { PUSH_SERVICE_ORIGIN } from './e2e/push-service.js';
 import { TICK_SECRET } from './e2e/tick.js';
@@ -105,6 +106,10 @@ export default defineConfig({
 			// Tests share people across files, so the per-person limits would bite too (D32).
 			WRITE_RATE_LIMIT: '10000',
 			PHOTO_RATE_LIMIT: '10000',
+			ERROR_REPORT_RATE_LIMIT: '10000',
+			// Whatever .env says: error reports go through the relay to a host that isn't there,
+			// never to a real Sentry project (e2e/error-relay.ts).
+			SENTRY_DSN: E2E_SENTRY_DSN,
 			// Whatever .env says: tests invite made-up addresses, and must never send real mail.
 			EMAIL_SENDER: 'console',
 			// Test photos in their own directory, never dev's photos or a real bucket.

@@ -30,6 +30,19 @@ export interface PushDevice {
 	failureCount: number;
 	/** Set when the push service says the subscription is gone (404/410). Nothing is sent to it. */
 	disabledAt?: Date;
+	/**
+	 * Set when its person signed out in that browser, or everywhere (D43): nothing is sent to it
+	 * until they sign in there again and the app's next open resumes it.
+	 */
+	signedOutAt?: Date;
+	/** When the browser last saved it: on each app open, and from the Notifications screen. */
+	lastSeenAt: Date;
+	/**
+	 * When it's deleted (a TTL index, architecture D43): `DEVICE_UNUSED_MS` after it was last seen
+	 * or took a reminder, or `DEVICE_STOPPED_MS` after it was disabled. Uninstalling tells nobody,
+	 * so this is how a gone phone leaves the list.
+	 */
+	staleAt: Date;
 	createdAt: Date;
 	updatedAt: Date;
 }
@@ -156,6 +169,15 @@ export const TTL_SECONDS: Record<ReminderKind, number> = {
 /** Devices one person can register; old phones are removed on the settings screen. */
 export const DEVICES_MAX = 10;
 export const DEVICE_LABEL_MAX = 60;
+const DAY_MS = 24 * 60 * 60 * 1000;
+/** A device neither seen nor reached for this long is deleted (architecture D43). */
+export const DEVICE_UNUSED_MS = 30 * DAY_MS;
+/** A device the push service reported gone stays listed as stopped this long, then is deleted. */
+export const DEVICE_STOPPED_MS = 14 * DAY_MS;
+
+/** The last time it was seen or took a reminder: which of two same-named devices is in use. */
+export const lastUsed = (d: Pick<PushDevice, 'lastSeenAt' | 'lastSuccessAt'>): number =>
+	Math.max(d.lastSeenAt.getTime(), d.lastSuccessAt?.getTime() ?? 0);
 
 /** The dedupe key: the same session at the same time reminds a person once. */
 export const reminderKey = (subject: ReminderSubject, subjectAt: Date, userId: Id): string =>

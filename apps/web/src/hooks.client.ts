@@ -19,8 +19,10 @@ export const init: ClientInit = () => {
 export const handleError: HandleClientError = ({ kind, error, event }) => {
 	// 404s and errors thrown with `error()` are expected outcomes, not bugs.
 	if (kind !== 'unknown') return;
-	// A navigation whose page data couldn't be fetched: the connection, not a bug (ui.md §6.1).
-	if (!navigator.onLine || isFailedFetch(error)) return { message: 'Offline', offline: true };
+	// A navigation whose page data or code couldn't be fetched: the phone offline or the app
+	// down, not a bug (ui.md §6.1).
+	if (!navigator.onLine || isFailedFetch(error))
+		return { message: 'Unreachable', unreachable: true };
 	reportError(error, { route: event.route.id ?? '(unmatched)' });
 };
 

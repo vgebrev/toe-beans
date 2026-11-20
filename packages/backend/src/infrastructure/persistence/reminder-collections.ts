@@ -2,7 +2,8 @@
 // D27). Devices and preferences belong to a person, not a household, so they don't build on
 // HouseholdCollection: every method takes the user. The ledger is written by the worker, which
 // works across households; people only reach their own entries, by user. Indexes, including the
-// ledger's unique key and its 30-day TTL, are created by migration 0008.
+// ledger's unique key and its 30-day TTL, are created by migration 0008; the devices' TTL on
+// `staleAt` by 0016.
 import type { Db } from 'mongodb';
 import type {
 	Clock,
@@ -13,6 +14,8 @@ import type {
 import type { Id } from '../../domain/id.js';
 import {
 	defaultPreference,
+	DEVICE_STOPPED_MS,
+	DEVICE_UNUSED_MS,
 	type PushDevice,
 	type Reminder,
 	type ReminderPreference
@@ -24,7 +27,8 @@ export const PUSH_DEVICES = 'pushDevices';
 export const REMINDER_PREFERENCES = 'reminderPreferences';
 export const REMINDERS = 'reminders';
 
-const DEVICE_SCHEMA = 1;
+// 2 adds `lastSeenAt` and `staleAt` (D43); migration 0016 brings schema 1 documents up.
+const DEVICE_SCHEMA = 2;
 // 2 adds care reminders (D30); a schema 1 document reads with the care defaults.
 const PREFERENCE_SCHEMA = 2;
 const REMINDER_SCHEMA = 1;
@@ -44,6 +48,7 @@ const toDevice = ({ _id, schemaVersion: _, ...rest }: DeviceDoc): PushDevice => 
 	id: _id,
 	...rest
 });
+const after = (at: Date, ms: number) => new Date(at.getTime() + ms);
 const toPreference = ({ _id, schemaVersion: _, ...rest }: PreferenceDoc): ReminderPreference => ({
 	...defaultPreference(_id),
 	...rest
@@ -65,9 +70,16 @@ export function mongoPushDevices(db: Db, clock: Clock): PushDeviceRepository {
 		const doc = await devices.findOneAndUpdate(
 			{ endpoint, $or: [{ userId }, sameBrowser] },
 			{
-				$set: { ...fields, failureCount: 0, updatedAt: now },
-				$unset: { disabledAt: '' },
-				$setOnInsert: { _id: id, endpoint, createdAt: now, schemaVersion: DEVICE_SCHEMA }
+				$set: {
+					...fields,
+					failureCount: 0,
+					lastSeenAt: now,
+					staleAt: after(now, DEVICE_UNUSED_MS),
+					updatedAt: now,
+					schemaVersion: DEVICE_SCHEMA
+				},
+				$unset: { disabledAt: '', signedOutAt: '' },
+				$setOnInsert: { _id: id, endpoint, createdAt: now }
 			},
 			{ upsert: true, returnDocument: 'after' }
 		);
@@ -97,10 +109,18 @@ export function mongoPushDevices(db: Db, clock: Clock): PushDeviceRepository {
 			const doc = await devices.findOne({ _id: id, userId });
 			return doc && toDevice(doc);
 		},
+		async findByEndpoint(endpoint) {
+			const doc = await devices.findOne({ endpoint });
+			return doc && toDevice(doc);
+		},
 		async listLive(userIds) {
 			if (userIds.length === 0) return [];
 			const docs = await devices
-				.find({ userId: { $in: [...userIds] }, disabledAt: { $exists: false } })
+				.find({
+					userId: { $in: [...userIds] },
+					disabledAt: { $exists: false },
+					signedOutAt: { $exists: false }
+				})
 				.toArray();
 			return docs.map(toDevice);
 		},
@@ -108,18 +128,38 @@ export function mongoPushDevices(db: Db, clock: Clock): PushDeviceRepository {
 			const { deletedCount } = await devices.deleteOne({ _id: id, userId });
 			return deletedCount === 1;
 		},
+		async signOut(userId, endpoint, at) {
+			const { matchedCount } = await devices.updateOne(
+				{ endpoint, userId },
+				{ $set: { signedOutAt: at, updatedAt: at } }
+			);
+			return matchedCount === 1;
+		},
+		async signOutAll(userId, at) {
+			const { matchedCount } = await devices.updateMany(
+				{ userId },
+				{ $set: { signedOutAt: at, updatedAt: at } }
+			);
+			return matchedCount;
+		},
 		async removeAllForUser(userId) {
 			const { deletedCount } = await devices.deleteMany({ userId }, { session: currentSession() });
 			return deletedCount;
 		},
 		async recordSuccess(id, at) {
-			await devices.updateOne({ _id: id }, { $set: { lastSuccessAt: at, failureCount: 0 } });
+			await devices.updateOne(
+				{ _id: id, disabledAt: { $exists: false } },
+				{ $set: { lastSuccessAt: at, failureCount: 0, staleAt: after(at, DEVICE_UNUSED_MS) } }
+			);
 		},
 		async recordFailure(id) {
 			await devices.updateOne({ _id: id }, { $inc: { failureCount: 1 } });
 		},
 		async disable(id, at) {
-			await devices.updateOne({ _id: id }, { $set: { disabledAt: at, updatedAt: at } });
+			await devices.updateOne(
+				{ _id: id },
+				{ $set: { disabledAt: at, staleAt: after(at, DEVICE_STOPPED_MS), updatedAt: at } }
+			);
 		}
 	};
 }

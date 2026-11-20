@@ -8,7 +8,16 @@ import type {
 	ReminderRepository
 } from '../application/ports/index.js';
 import type { Id } from '../domain/id.js';
-import type { PushDevice, PushPayload, Reminder, ReminderPreference } from '../domain/reminders.js';
+import {
+	DEVICE_STOPPED_MS,
+	DEVICE_UNUSED_MS,
+	type PushDevice,
+	type PushPayload,
+	type Reminder,
+	type ReminderPreference
+} from '../domain/reminders.js';
+
+const after = (at: Date, ms: number) => new Date(at.getTime() + ms);
 
 export function memoryPushDevices(now: () => Date): PushDeviceRepository & { all(): PushDevice[] } {
 	const devices = new Map<Id, PushDevice>();
@@ -20,10 +29,12 @@ export function memoryPushDevices(now: () => Date): PushDeviceRepository & { all
 				existing?.keys.p256dh === fields.keys.p256dh && existing.keys.auth === fields.keys.auth;
 			if (existing && existing.userId !== fields.userId && !sameBrowser) return null;
 			const at = now();
+			const seen = { failureCount: 0, lastSeenAt: at, staleAt: after(at, DEVICE_UNUSED_MS) };
 			const device: PushDevice = existing
-				? { ...existing, ...fields, failureCount: 0, updatedAt: at }
-				: { id, endpoint, ...fields, failureCount: 0, createdAt: at, updatedAt: at };
+				? { ...existing, ...fields, ...seen, updatedAt: at }
+				: { id, endpoint, ...fields, ...seen, createdAt: at, updatedAt: at };
 			delete device.disabledAt;
+			delete device.signedOutAt;
 			devices.set(device.id, device);
 			return structuredClone(device);
 		},
@@ -37,13 +48,27 @@ export function memoryPushDevices(now: () => Date): PushDeviceRepository & { all
 			const d = devices.get(id);
 			return d?.userId === userId ? structuredClone(d) : null;
 		},
+		findByEndpoint: async (endpoint) =>
+			structuredClone([...devices.values()].find((d) => d.endpoint === endpoint) ?? null),
 		listLive: async (userIds) =>
 			structuredClone(
-				[...devices.values()].filter((d) => userIds.includes(d.userId) && !d.disabledAt)
+				[...devices.values()].filter(
+					(d) => userIds.includes(d.userId) && !d.disabledAt && !d.signedOutAt
+				)
 			),
 		async remove(userId, id) {
 			if (devices.get(id)?.userId !== userId) return false;
 			return devices.delete(id);
+		},
+		async signOut(userId, endpoint, at) {
+			const d = [...devices.values()].find((x) => x.endpoint === endpoint && x.userId === userId);
+			if (d) Object.assign(d, { signedOutAt: at, updatedAt: at });
+			return Boolean(d);
+		},
+		async signOutAll(userId, at) {
+			const mine = [...devices.values()].filter((d) => d.userId === userId);
+			for (const d of mine) Object.assign(d, { signedOutAt: at, updatedAt: at });
+			return mine.length;
 		},
 		async removeAllForUser(userId) {
 			const mine = [...devices.values()].filter((d) => d.userId === userId);
@@ -52,7 +77,13 @@ export function memoryPushDevices(now: () => Date): PushDeviceRepository & { all
 		},
 		async recordSuccess(id, at) {
 			const d = devices.get(id);
-			if (d) Object.assign(d, { lastSuccessAt: at, failureCount: 0 });
+			if (d && !d.disabledAt) {
+				Object.assign(d, {
+					lastSuccessAt: at,
+					failureCount: 0,
+					staleAt: after(at, DEVICE_UNUSED_MS)
+				});
+			}
 		},
 		async recordFailure(id) {
 			const d = devices.get(id);
@@ -60,7 +91,8 @@ export function memoryPushDevices(now: () => Date): PushDeviceRepository & { all
 		},
 		async disable(id, at) {
 			const d = devices.get(id);
-			if (d) Object.assign(d, { disabledAt: at, updatedAt: at });
+			if (d)
+				Object.assign(d, { disabledAt: at, staleAt: after(at, DEVICE_STOPPED_MS), updatedAt: at });
 		}
 	};
 }

@@ -18,6 +18,7 @@ const local = {
 	inviteRateLimit: { limit: 30, windowMs: 600_000 },
 	writeRateLimit: { limit: 300, windowMs: 600_000 },
 	photoRateLimit: { limit: 20, windowMs: 3_600_000 },
+	errorReportRateLimit: { limit: 30, windowMs: 600_000 },
 	email: { kind: 'console' },
 	photos: { kind: 'filesystem', directory: '.data/photos' },
 	push: { subject: 'mailto:hello@toebeans.co.za', allowedEndpoints: [...PUSH_SERVICES] },
@@ -92,6 +93,7 @@ describe('loadConfig', () => {
 			inviteRateLimit: { limit: 30, windowMs: 600_000 },
 			writeRateLimit: { limit: 300, windowMs: 600_000 },
 			photoRateLimit: { limit: 20, windowMs: 3_600_000 },
+			errorReportRateLimit: { limit: 30, windowMs: 600_000 },
 			proxySecret,
 			email: {
 				kind: 'resend',

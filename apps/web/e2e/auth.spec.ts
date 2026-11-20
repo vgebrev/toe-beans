@@ -137,6 +137,7 @@ test('signing out everywhere ends the sessions on other devices too', async ({
 	await page.getByRole('button', { name: 'Sign out everywhere' }).click();
 	const sheet = page.getByRole('dialog', { name: 'Sign out on every device?' });
 	await expect(sheet).toContainText('reminders stop on all of them');
+	await expect(sheet).toContainText('They start again on each one when you sign in there.');
 	await sheet.getByRole('button', { name: 'Sign out everywhere' }).click();
 	await expect(page).toHaveURL('/sign-in');
 

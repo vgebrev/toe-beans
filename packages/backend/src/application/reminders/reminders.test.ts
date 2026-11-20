@@ -100,6 +100,121 @@ describe('devices', () => {
 		expect(await settings.devices(alex)).toHaveLength(1);
 	});
 
+	it('replace the same-named device used most recently when reinstalled (D43)', async () => {
+		const { settings, clock, ports } = setup();
+		const saveAs = async (name: string, label: string) => {
+			const saved = await settings.saveDevice(sam, { endpoint: endpoint(name), keys, label });
+			if (!saved.ok) throw new Error(JSON.stringify(saved.error));
+			return saved.value;
+		};
+		const older = await saveAs('phone-1', 'phone');
+		clock.advance(60_000);
+		const newer = await saveAs('phone-2', 'phone');
+		// phone-2 replaced phone-1 on saving; bring phone-1 back as a second phone of that name.
+		await ports.pushDevices.save({ ...older, keys });
+		clock.advance(60_000);
+		await ports.pushDevices.recordSuccess(older.id, clock.now());
+		const tablet = await saveAs('tablet', 'tablet');
+
+		const reinstalled = await saveAs('phone-3', 'phone');
+		const left = await settings.devices(sam);
+		// phone-1 took a reminder after phone-2 was last seen, so it's the one in use.
+		expect(left.map((d) => d.id).sort()).toEqual([newer.id, tablet.id, reinstalled.id].sort());
+	});
+
+	it('are marked in use when the app opens, never replacing another in use (D43)', async () => {
+		const { settings, clock, save } = setup();
+		const phone = await save(sam, 'phone');
+		clock.advance(24 * 60 * 60 * 1000);
+		const seen = await settings.deviceSeen(sam, {
+			endpoint: endpoint('phone'),
+			keys,
+			label: 'phone',
+			serverKey: 'BPublicKeyForTests'
+		});
+		expect(seen).toMatchObject({ ok: true, value: { id: phone.id, lastSeenAt: clock.now() } });
+		const [device] = await settings.devices(sam);
+		expect(device!.staleAt).toEqual(new Date(clock.now().getTime() + 30 * 24 * 60 * 60 * 1000));
+
+		// A second phone of the same name opening the app is added alongside, not in place of it.
+		const twin = await settings.deviceSeen(sam, {
+			endpoint: endpoint('twin'),
+			keys,
+			label: 'phone',
+			serverKey: 'BPublicKeyForTests'
+		});
+		expect(twin.ok).toBe(true);
+		expect(await settings.devices(sam)).toHaveLength(2);
+	});
+
+	it('resume when their person signs in there again, but never pass to the next person (D43)', async () => {
+		const { settings, ports, save } = setup();
+		const phone = await save(sam, 'phone');
+		await ports.pushDevices.signOut(sam.userId, endpoint('phone'), start);
+		expect(await ports.pushDevices.listLive([sam.userId])).toEqual([]);
+		expect(await settings.startTest(sam, { deviceId: phone.id })).toMatchObject({ ok: false });
+		const opened = { endpoint: endpoint('phone'), keys, label: 'phone' };
+		const serverKey = 'BPublicKeyForTests';
+
+		// Alex signs in on Sam's phone: Sam's device stays Sam's, and stays signed out.
+		expect(await settings.deviceSeen(alex, { ...opened, serverKey })).toEqual({
+			ok: true,
+			value: null
+		});
+		expect(await settings.devices(alex)).toEqual([]);
+		expect((await settings.devices(sam))[0]!.signedOutAt).toBeDefined();
+
+		// Sam signs in again: it resumes.
+		expect(await settings.deviceSeen(sam, { ...opened, serverKey })).toMatchObject({
+			ok: true,
+			value: { id: phone.id }
+		});
+		expect((await settings.devices(sam))[0]!.signedOutAt).toBeUndefined();
+		expect(await ports.pushDevices.listLive([sam.userId])).toHaveLength(1);
+
+		// Alex turning reminders on there takes it over, as the browser's keys show it's theirs.
+		await ports.pushDevices.signOut(sam.userId, endpoint('phone'), start);
+		expect((await settings.saveDevice(alex, opened)).ok).toBe(true);
+		expect(await settings.devices(sam)).toEqual([]);
+		expect(await ports.pushDevices.listLive([alex.userId])).toHaveLength(1);
+	});
+
+	it('are left alone when the app opens with a subscription made with another key', async () => {
+		const { settings } = setup();
+		const seen = await settings.deviceSeen(sam, {
+			endpoint: endpoint('phone'),
+			keys,
+			serverKey: 'BAnOldKey'
+		});
+		expect(seen).toEqual({ ok: true, value: null });
+		expect(await settings.devices(sam)).toEqual([]);
+	});
+
+	it('replace exactly the subscription they renew, keeping its name (D43)', async () => {
+		const { settings, clock, save } = setup();
+		const phone = await save(sam, 'phone');
+		clock.advance(60_000);
+		const twin = await settings.deviceSeen(sam, {
+			endpoint: endpoint('twin'),
+			keys,
+			label: 'phone',
+			serverKey: 'BPublicKeyForTests'
+		});
+		expect(twin.ok).toBe(true);
+		// The service worker knows the old endpoint but not the device's name.
+		const renewed = await settings.saveDevice(sam, {
+			endpoint: endpoint('phone-renewed'),
+			keys,
+			replaces: endpoint('phone')
+		});
+		expect(renewed).toMatchObject({ ok: true, value: { label: 'phone' } });
+		const left = await settings.devices(sam);
+		expect(left.map((d) => d.endpoint).sort()).toEqual(
+			[endpoint('phone-renewed'), endpoint('twin')].sort()
+		);
+		expect(left.some((d) => d.id === phone.id)).toBe(false);
+	});
+
 	it('must use a known push service, so the server never posts where a client says', async () => {
 		const { settings } = setup();
 		const saved = await settings.saveDevice(sam, {

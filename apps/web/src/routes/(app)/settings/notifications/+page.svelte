@@ -11,6 +11,7 @@
 		ReminderPreference,
 		ReminderSettings,
 		ReminderTest,
+		SeenPushDeviceResult,
 		CareLead,
 		limits,
 		TrainingLead
@@ -33,6 +34,7 @@
 		makerOf,
 		phoneModel,
 		pushSupport,
+		seenBody,
 		subscribe,
 		unsubscribe,
 		type Maker
@@ -126,7 +128,7 @@
 		if (fresh.ok) settings = fresh.data;
 	}
 
-	/** Saves this browser's subscription, which also refreshes it on the server. */
+	/** Saves this browser's subscription as the person's device: turning reminders on. */
 	async function saveDevice(subscription: PushSubscription): Promise<boolean> {
 		const saved = await api.send('PUT', '/reminders/devices', {
 			body: { ...subscription.toJSON(), label: deviceLabel(model, navigator.userAgent) },
@@ -145,8 +147,19 @@
 		if (Notification.permission === 'denied') return void (phase = 'denied');
 		if (Notification.permission !== 'granted') return void (phase = 'ask');
 		const subscription = await currentSubscription(settings.publicKey);
-		if (!subscription) return void (phase = 'ask');
-		phase = (await saveDevice(subscription)) ? 'on' : 'failed';
+		const body = subscription && (await seenBody(model));
+		if (!body) return void (phase = 'ask');
+		// Refreshes this person's device, or resumes it, but never takes over someone else's: on a
+		// shared phone, reminders are on for the next person only once they turn them on (D43).
+		const seen = await api.send('POST', '/reminders/devices/seen', {
+			body,
+			schema: SeenPushDeviceResult
+		});
+		if (!seen.ok) return void (phase = 'failed');
+		if (!seen.data.device) return void (phase = 'ask');
+		thisDeviceId = seen.data.device.id;
+		await refresh();
+		phase = 'on';
 	}
 
 	async function turnOn() {
@@ -538,9 +551,11 @@
 									{#if here}<strong class="text-foreground">This device</strong> ·{/if}
 									{device.disabled
 										? 'Stopped: reminders no longer reach it'
-										: device.lastSuccessAt
-											? `Last reminder ${day(device.lastSuccessAt)}`
-											: `Added ${day(device.createdAt)}`}
+										: device.signedOut
+											? 'Signed out: reminders resume when you sign in there'
+											: device.lastSuccessAt
+												? `Last reminder ${day(device.lastSuccessAt)}`
+												: `Added ${day(device.createdAt)}`}
 								</span>
 							</span>
 							<Button

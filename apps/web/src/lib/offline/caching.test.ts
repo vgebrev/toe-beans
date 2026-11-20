@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { isGatewayError, mayBeCold, precachePaths, QUIET_FOR_MS } from './caching.js';
+import {
+	cachesToDelete,
+	isGatewayError,
+	mayBeCold,
+	precachePaths,
+	QUIET_FOR_MS
+} from './caching.js';
 
 describe('precachePaths', () => {
 	it('keeps the Latin font files and everything else, and drops the other subsets', () => {
@@ -40,5 +46,18 @@ describe('mayBeCold', () => {
 
 	it('is false right after the server answered, so the waking page cannot come round again', () => {
 		expect(mayBeCold(10_000, 9_000)).toBe(false);
+	});
+});
+
+describe('cachesToDelete', () => {
+	it("keeps this build's cache and the one before it, for a page still on the old build", () => {
+		expect(
+			cachesToDelete(['toe-beans-1', 'toe-beans-2', 'other', 'toe-beans-3'], 'toe-beans-3')
+		).toEqual(['toe-beans-1']);
+	});
+
+	it('deletes nothing on a first install or a reinstall of the same build', () => {
+		expect(cachesToDelete(['toe-beans-3'], 'toe-beans-3')).toEqual([]);
+		expect(cachesToDelete([], 'toe-beans-3')).toEqual([]);
 	});
 });

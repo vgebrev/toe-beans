@@ -49,6 +49,7 @@ import { generateVapidKeys, webPushSender } from './infrastructure/push/web-push
 import { migrate, migrations } from './infrastructure/persistence/migrations/index.js';
 import { connectMongo, mongoReadiness } from './infrastructure/persistence/mongo.js';
 import { mongoUnitOfWork } from './infrastructure/persistence/unit-of-work.js';
+import { noErrorRelay, sentryRelay } from './infrastructure/error-reporting/sentry-relay.js';
 import { memoryRateLimiter } from './infrastructure/rate-limit/memory-rate-limiter.js';
 import { withRequestContext, type RequestContext } from './infrastructure/request-context.js';
 import { systemClock } from './infrastructure/system-clock.js';
@@ -128,6 +129,12 @@ export async function createBackend(
 		uow: overrides.uow ?? mongoUnitOfWork(mongo.client),
 		logger,
 		errors,
+		errorRelay:
+			overrides.errorRelay ??
+			(config.sentry ? sentryRelay({ dsn: config.sentry.dsn, logger }) : noErrorRelay),
+		errorReportRateLimit:
+			overrides.errorReportRateLimit ??
+			memoryRateLimiter({ ...config.errorReportRateLimit, clock }),
 		readiness: overrides.readiness ?? mongoReadiness(mongo.db),
 		identity: overrides.identity ?? oidcIdentityProvider(config.oidc),
 		identityAccounts:

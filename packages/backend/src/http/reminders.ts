@@ -3,9 +3,11 @@
 // 404, as for every other household feature, since there's nothing to remind them of.
 import {
 	SavePushDevice,
+	SeenPushDevice,
 	StartReminderTest,
 	UpdateReminderPreference,
 	type PushDevice as DeviceDto,
+	type SeenPushDeviceResult,
 	type ReminderPreference as PreferenceDto,
 	type ReminderSettings as SettingsDto,
 	type ReminderTest as TestDto
@@ -20,6 +22,7 @@ import { parseInput } from './validation.js';
 export interface RemindersHttp {
 	settings(viewer: Viewer): Promise<HttpResponse>;
 	saveDevice(viewer: Viewer, input: { body: unknown }): Promise<HttpResponse>;
+	deviceSeen(viewer: Viewer, input: { body: unknown }): Promise<HttpResponse>;
 	removeDevice(viewer: Viewer, input: { id: string }): Promise<HttpResponse>;
 	savePreference(viewer: Viewer, input: { body: unknown }): Promise<HttpResponse>;
 	startTest(viewer: Viewer, input: { body: unknown }): Promise<HttpResponse>;
@@ -32,7 +35,8 @@ export const deviceDto = (d: PushDevice): DeviceDto => ({
 	label: d.label,
 	createdAt: d.createdAt.toISOString(),
 	...(d.lastSuccessAt && { lastSuccessAt: d.lastSuccessAt.toISOString() }),
-	disabled: Boolean(d.disabledAt)
+	disabled: Boolean(d.disabledAt),
+	signedOut: Boolean(d.signedOutAt)
 });
 
 const preferenceDto = (p: ReminderPreference): PreferenceDto => ({
@@ -76,6 +80,15 @@ export function createRemindersHttp(reminders: ReminderSettings): RemindersHttp 
 			if (!input.ok) return errorResponse(input.error);
 			const saved = await reminders.saveDevice(viewer.member, input.value);
 			return respond(saved, (d) => json(deviceDto(d)));
+		},
+
+		async deviceSeen(viewer, { body }) {
+			if (!isMember(viewer)) return noHousehold();
+			const input = parseInput(SeenPushDevice, body);
+			if (!input.ok) return errorResponse(input.error);
+			return respond(await reminders.deviceSeen(viewer.member, input.value), (d) =>
+				json({ device: d && deviceDto(d) } satisfies SeenPushDeviceResult)
+			);
 		},
 
 		async removeDevice(viewer, { id }) {

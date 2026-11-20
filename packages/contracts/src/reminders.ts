@@ -10,7 +10,9 @@ export const PushDevice = z.object({
 	/** The last reminder it accepted. */
 	lastSuccessAt: z.iso.datetime().optional(),
 	/** The push service dropped it (the app was uninstalled, or site data cleared). */
-	disabled: z.boolean()
+	disabled: z.boolean(),
+	/** Its person signed out there: reminders resume when they sign in there again (D43). */
+	signedOut: z.boolean()
 });
 export type PushDevice = z.infer<typeof PushDevice>;
 
@@ -74,9 +76,22 @@ export type ReminderSettings = z.infer<typeof ReminderSettings>;
 export const SavePushDevice = z.object({
 	endpoint: z.string().max(2048),
 	keys: z.object({ p256dh: z.string().max(200), auth: z.string().max(100) }),
-	label: z.string().max(200).optional()
+	label: z.string().max(200).optional(),
+	/** The endpoint this subscription renews, from the service worker's `pushsubscriptionchange`. */
+	replaces: z.string().max(2048).optional()
 });
 export type SavePushDevice = z.infer<typeof SavePushDevice>;
+
+/**
+ * The app or the Notifications screen opened with this browser subscribed (architecture D43): the
+ * subscription again, marking the device in use, with the key it was made with.
+ */
+export const SeenPushDevice = SavePushDevice.extend({ serverKey: z.string().max(200) });
+export type SeenPushDevice = z.infer<typeof SeenPushDevice>;
+
+/** The device saved, or null when this browser's subscription isn't one to save for them. */
+export const SeenPushDeviceResult = z.object({ device: PushDevice.nullable() });
+export type SeenPushDeviceResult = z.infer<typeof SeenPushDeviceResult>;
 
 /** A field left out stays as it was. */
 export const UpdateReminderPreference = z.strictObject({

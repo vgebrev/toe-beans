@@ -27,9 +27,10 @@
 				// No answer yet: offline, or still starting.
 			}
 			if (stopped) return;
-			if (!navigator.onLine) message = "You're offline. Toe Beans opens as soon as you're back.";
+			if (!navigator.onLine)
+				message = "Can't reach Toe Beans at the moment. It opens as soon as it's back.";
 			else if (Date.now() - started > 20_000)
-				message = 'Toe Beans is taking longer than usual to wake up…';
+				message = 'Toe Beans is taking longer than usual to connect…';
 			else message = null;
 			timer = setTimeout(poll, 1000);
 		}
@@ -50,5 +51,5 @@
 
 <svelte:head><title>Toe Beans</title></svelte:head>
 
-<!-- The service worker waited a second already, so the waking message comes 3 s from the tap. -->
+<!-- The service worker waited a second already, so the connecting message comes 3 s from the tap. -->
 <LoadingSkeleton wakeAfterMs={WAKE_AFTER_MS - WAKING_AFTER_MS} {message} />
