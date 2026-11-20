@@ -39,8 +39,26 @@ const machineRoutes = new Set(['/internal/tick']);
 // token is what allows it; accepting is a separate route and needs a session.
 const publicApiRoutes = new Set(['/api/v1/invitations/[token]']);
 
-// The browser's error reports (architecture D41): sent signed in or not, so no session lookup.
-const noViewerRoutes = new Set([...quietRoutes, ERROR_RELAY_PATH]);
+// The browser's error reports (architecture D41) and security.txt: no session lookup.
+const noViewerRoutes = new Set([...quietRoutes, ERROR_RELAY_PATH, '/.well-known/security.txt']);
+
+/**
+ * Scanners' probes (`/.env`, `/wp-login.php`…) match no route (backlog S17.3). Rendering the app
+ * shell's "We couldn't find that" for each costs a render and a session lookup, so a request that
+ * isn't a browser's page load gets a short plain 404 instead. A person who opens a mistyped
+ * address still sees the app's own page, and unknown API paths stay behind sign-in. (A missing
+ * `/_app/` file never gets here: adapter-node answers it.)
+ */
+const isProbe = (event: RequestEvent) =>
+	event.route.id === null &&
+	!event.url.pathname.startsWith('/api/') &&
+	event.request.headers.get('sec-fetch-dest') !== 'document';
+
+const notFound = () =>
+	new Response('Not found\n', {
+		status: 404,
+		headers: { 'content-type': 'text/plain; charset=utf-8', 'cache-control': 'no-store' }
+	});
 
 /**
  * Gives each request an ID, puts it on every log line and error report the request causes and
@@ -65,7 +83,9 @@ export const handle: Handle = ({ event, resolve }) => {
 			// Some responses (e.g. from fetch) have immutable headers; the logs still have the ID.
 		}
 		const route = event.route.id ?? '(unmatched)';
-		const log = quietRoutes.has(route) ? logger.debug : logger.info;
+		// Probes come by the hundred; their lines would drown the rest too.
+		const quiet = quietRoutes.has(route) || (response.status === 404 && isProbe(event));
+		const log = quiet ? logger.debug : logger.info;
 		log('request', {
 			method: event.request.method,
 			route,
@@ -98,6 +118,7 @@ async function authenticated(
 		const bypassed = edge.checkProxy(headers.get(PROXY_SECRET_HEADER));
 		if (bypassed) return toResponse(bypassed);
 	}
+	if (isProbe(event)) return notFound();
 
 	const refused = auth.checkOrigin({
 		method: event.request.method,

@@ -45,6 +45,8 @@ const https = devHttps();
 const allowedHosts = ['toebeans.test'];
 
 export default defineConfig({
+	// When this build was made: security.txt expires a year on (S17.3).
+	define: { __BUILT_AT__: JSON.stringify(new Date().toISOString()) },
 	server: { port: devPort, strictPort: true, allowedHosts, ...(https && { https }) },
 	preview: { port: devPort, strictPort: true, allowedHosts, ...(https && { https }) },
 	plugins: [
