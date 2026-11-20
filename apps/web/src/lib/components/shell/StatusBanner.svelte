@@ -4,17 +4,18 @@
 	//   away with the same message, and the form keeps everything for *Retry*.
 	// - Once a new version is deployed: Kit's `updated` checks `_app/version.json` when the app
 	//   comes back to the front, on its hourly poll and on page data responses. *Refresh* loads
-	//   the new build. Never while offline, as a reload would only find the offline page.
+	//   the new build. Never while Toe Beans can't be reached, as a reload would only find the
+	//   *Can't reach Toe Beans* page.
 	import { updated } from '$app/state';
 	import Icon from '#lib/components/icon/Icon.svelte';
 	import { connection } from '#lib/client/connection.svelte.js';
 
+	// One message whether the phone is offline or the app is down: the phone's own flag isn't
+	// always right, and the person can't tell the difference from here either.
 	const text = $derived(
-		connection.state === 'offline'
-			? "You're offline. Changes can't be saved right now."
-			: connection.state === 'unreachable'
-				? "Can't reach Toe Beans. Changes can't be saved right now."
-				: null
+		connection.state === 'online'
+			? null
+			: "Can't reach Toe Beans at the moment. Changes can't be saved right now."
 	);
 </script>
 

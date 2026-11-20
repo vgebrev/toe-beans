@@ -1,7 +1,7 @@
 <script lang="ts">
 	// The app shell (ui.md §2.1): each destination scrolls above the fixed bottom bar. The active
 	// dog is shared by every page under it (§2.2). A navigation that takes a while shows a
-	// skeleton in place of the page, then "Waking up Toe Beans…" (§5.2, NFR-09): with the app
+	// skeleton in place of the page, then "Connecting to Toe Beans…" (§5.2, NFR-09): with the app
 	// left open, the server may have gone to sleep since the last tap. It keeps the trail of pages
 	// visited, so a back link leads where the person came from (§2.1). And it fetches the page's
 	// data again whenever it may be out of date (§5.2, NFR-13).

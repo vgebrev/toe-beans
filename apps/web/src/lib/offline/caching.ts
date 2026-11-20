@@ -27,3 +27,17 @@ export const QUIET_FOR_MS = 60_000;
 /** Whether a page load should race the waking page, given when the server last answered. */
 export const mayBeCold = (now: number, lastAnswered: number | null): boolean =>
 	lastAnswered === null || now - lastAnswered >= QUIET_FOR_MS;
+
+/** Each build's precache is named after its version. */
+export const CACHE_PREFIX = 'toe-beans-';
+
+/**
+ * The caches a newly active worker deletes: all but its own and the one before it (S17.2). A
+ * page still open on the previous build lazily loads its route chunks, which the new server
+ * doesn't have (each image holds only its own build), so they come from that build's cache
+ * until the page reloads. Cache names come back in the order they were made.
+ */
+export function cachesToDelete(names: readonly string[], current: string): string[] {
+	const ours = names.filter((name) => name.startsWith(CACHE_PREFIX) && name !== current);
+	return ours.slice(0, -1);
+}

@@ -1,5 +1,5 @@
-// The PWA around the pages (S13; NFR-03, NFR-04, NFR-09; ui.md §5.2, §6.1, §6.3): the offline
-// and new-version banners, the fallback pages, saves while offline (scenario 8), the loading
+// The PWA around the pages (S13; NFR-03, NFR-04, NFR-09; ui.md §5.2, §6.1, §6.3): the
+// connection and new-version banners, the fallback pages, saves while offline (scenario 8), the loading
 // skeleton, installing and the home screen shortcuts. Each test brings its own household.
 import { expect, test, type Page } from '@playwright/test';
 import { blockMockFonts, ownHousehold } from './mock-sign-in.js';
@@ -19,9 +19,10 @@ async function waitForServiceWorker(page: Page) {
 	});
 }
 
-const banner = (page: Page) => page.getByText("You're offline. Changes can't be saved right now.");
+const banner = (page: Page) =>
+	page.getByText("Can't reach Toe Beans at the moment. Changes can't be saved right now.");
 
-test('the offline banner shows while the phone is offline, and goes when it is back', async ({
+test('the connection banner shows while the phone is offline, and goes when it is back', async ({
 	page,
 	context,
 	baseURL
@@ -122,7 +123,7 @@ test("a page opened offline in the app still opens, and says its data couldn't l
 	await expect(banner(page)).toBeVisible();
 });
 
-test('a slow page shows the skeleton, then "Waking up Toe Beans…" (NFR-09)', async ({
+test('a slow page shows the skeleton, then "Connecting to Toe Beans…" (NFR-09)', async ({
 	page,
 	context,
 	baseURL
@@ -136,12 +137,12 @@ test('a slow page shows the skeleton, then "Waking up Toe Beans…" (NFR-09)', a
 
 	await page.getByRole('navigation', { name: 'Main' }).getByRole('link', { name: 'Plan' }).click();
 	await expect(page.locator('[aria-busy="true"]')).toBeVisible();
-	await expect(page.getByText('Waking up Toe Beans…')).toBeVisible();
+	await expect(page.getByText('Connecting to Toe Beans…')).toBeVisible();
 	await expect(page.getByRole('heading', { level: 1 })).toHaveText('Plan');
 	await expect(page.locator('[aria-busy="true"]')).toBeHidden();
 });
 
-test('with the service worker in place, a page load with no connection shows the offline page', async ({
+test("with the service worker in place, a page load with no connection shows Can't reach Toe Beans", async ({
 	page,
 	context,
 	baseURL
@@ -152,7 +153,7 @@ test('with the service worker in place, a page load with no connection shows the
 
 	await context.setOffline(true);
 	await page.goto('/history');
-	await expect(page.getByRole('heading', { level: 1 })).toHaveText("You're offline");
+	await expect(page.getByRole('heading', { level: 1 })).toHaveText("Can't reach Toe Beans");
 	await expect(page).toHaveURL('/history');
 	// In the app's own fonts, from the cache.
 	await expect(page.getByRole('heading', { level: 1 })).toHaveCSS(
@@ -187,7 +188,7 @@ test('a fallback page stood in for a nested page, as a reminder opens, still loa
 	// was first fetched from.
 	await context.setOffline(true);
 	await page.goto('/settings/notifications?test=arrived');
-	await expect(page.getByRole('heading', { level: 1 })).toHaveText("You're offline");
+	await expect(page.getByRole('heading', { level: 1 })).toHaveText("Can't reach Toe Beans");
 	await expect(page.getByRole('heading', { level: 1 })).toHaveCSS(
 		'font-family',
 		/^"Fredoka Variable"/
@@ -200,7 +201,7 @@ test('a fallback page stood in for a nested page, as a reminder opens, still loa
 	await expect(page.getByRole('heading', { level: 1 })).toHaveText('Notifications');
 });
 
-test('Try again on the offline page loads the page once the connection is back', async ({
+test("Try again on Can't reach Toe Beans loads the page once the connection is back", async ({
 	page,
 	context,
 	baseURL
@@ -210,7 +211,7 @@ test('Try again on the offline page loads the page once the connection is back',
 	await waitForServiceWorker(page);
 	await context.setOffline(true);
 	await page.goto('/history');
-	await expect(page.getByRole('heading', { level: 1 })).toHaveText("You're offline");
+	await expect(page.getByRole('heading', { level: 1 })).toHaveText("Can't reach Toe Beans");
 
 	// Without the online event, as when it comes before the connection really works.
 	await page.evaluate(() =>
@@ -240,7 +241,7 @@ test('the service worker precaches the app and its fallback pages, and only Lati
 		const cache = await caches.open(names.find((n) => n.startsWith('toe-beans-'))!);
 		return (await cache.keys()).map((request) => new URL(request.url).pathname);
 	});
-	expect(cached).toEqual(expect.arrayContaining(['/offline', '/unreachable', '/waking']));
+	expect(cached).toEqual(expect.arrayContaining(['/unreachable', '/waking']));
 	const fonts = cached.filter((path) => path.endsWith('.woff2'));
 	expect(fonts.length).toBe(2);
 	expect(fonts.every((path) => /-latin-wght-normal\./.test(path))).toBe(true);
@@ -248,12 +249,43 @@ test('the service worker precaches the app and its fallback pages, and only Lati
 	expect(cached.some((path) => path.startsWith('/api/') || path === '/')).toBe(false);
 });
 
-test("the service worker's waking page is a skeleton that says it's waking up", async ({
+test("the service worker's waking page is a skeleton that says it's connecting", async ({
 	page
 }) => {
 	await page.goto('/waking');
 	await expect(page.locator('[aria-busy="true"]')).toBeVisible();
-	await expect(page.getByText('Waking up Toe Beans…')).toBeVisible();
+	await expect(page.getByText('Connecting to Toe Beans…')).toBeVisible();
+});
+
+test("a page still on the build before a deploy gets that build's files from its cache (S17.2)", async ({
+	page,
+	baseURL
+}) => {
+	await ownHousehold(page, baseURL!);
+	await page.goto('/');
+	await waitForServiceWorker(page);
+	// The previous build's cache, as the new worker keeps it: the server no longer has its files.
+	const path = '/_app/immutable/chunks/from-the-old-build.js';
+	await page.evaluate(async (path) => {
+		const cache = await caches.open('toe-beans-the-build-before');
+		await cache.put(
+			path,
+			new Response('export const old = true;', {
+				headers: { 'content-type': 'text/javascript' }
+			})
+		);
+	}, path);
+
+	const answer = await page.evaluate(async (path) => {
+		const response = await fetch(path);
+		return { status: response.status, body: await response.text() };
+	}, path);
+	expect(answer).toEqual({ status: 200, body: 'export const old = true;' });
+	// Anything else not precached still goes to the server.
+	const missing = await page.evaluate(
+		async () => (await fetch('/_app/immutable/chunks/no-build-had-this.js')).status
+	);
+	expect(missing).toBe(404);
 });
 
 /** What Chrome sends when it would install the app, with the dialog's answer. */

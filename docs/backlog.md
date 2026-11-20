@@ -1,8 +1,8 @@
 # Toe Beans — Backlog
 
-**Version:** 0.71 (draft for iteration)
-**Date:** 19 November 2026
-**Inputs:** `docs/requirements.md` v1.0, `docs/architecture.md` v1.30, `docs/ui.md` v0.38
+**Version:** 0.72 (draft for iteration)
+**Date:** 20 November 2026
+**Inputs:** `docs/requirements.md` v1.0, `docs/architecture.md` v1.31, `docs/ui.md` v0.39
 
 **Changes in 0.3:** spike results S-1.0 to S-1.4 and S0.1–S0.2 recorded as they landed (see Current progress). S-1.4b dropped as not needed, S-1.5 parked, S-1.4a retargeted to `toebeans.co.za`.
 
@@ -121,6 +121,8 @@
 **Changes in 0.70:** S17.6 from the owner, logged and built: a test install is named *Toe Beans (Test)*, with a TEST band on its icon (ui 0.38 §6.3). S17.7 from the owner, logged: an uninstalled app's push device stays in the database.
 
 **Changes in 0.71:** S14.7 done: release acceptance passed on both phones, S14 closed and 1.0.0 cut (D40). S17.5 and S17.6 closed by the owner.
+
+**Changes in 0.72:** S17.2 built: not seen again since S17.5, and its 404s found: the new service worker deleted the old build's cache while a page on that build was still open (architecture 1.31 D31). S17.8 from the owner, logged and built: *Can't reach Toe Beans* whether the phone or the app is down, and *Connecting to* rather than *Waking up* (ui 0.39 §5.2). Inputs moved to architecture 1.31 and ui 0.39.
 
 **Changes in 0.51:** S15.1 gains (k), fresh data on coming back to the app and on Back to a page Chrome kept whole (ui 0.35 §5.2), from the owner, after Today stayed stale behind a reminder. Live updates over WebSockets were considered and left out for cost. The offline banner's check backs off from 1 s (architecture 1.23 D31), found through a flaky e2e check. Built with e2e checks and closed by the owner, so S15.1 stays done. Inputs moved to architecture 1.23 and ui 0.35.
 
@@ -249,8 +251,9 @@ Work is organised as **vertical slices**: each delivers a usable end-to-end incr
 | 2026-11-19 | S17.6 built: a test install is *Toe Beans (Test)* with a TEST band on its icon. |
 | 2026-11-19 | S17.7 logged: an uninstalled app's push device stays in the database. |
 | 2026-11-19 | S17.5 and S17.6 done. S14.7 done: release acceptance passed on both phones; S14 closed and 1.0.0 cut. |
+| 2026-11-20 | S17.2 built: a page open on the old build keeps its files after a deploy. S17.8 built: *Can't reach Toe Beans* for an offline phone or a down app, and *Connecting to Toe Beans…*. |
 
-**Next up:** 1.0.0 to prod, then S17 refinements (S17.1–S17.3, S17.7) and P1. Snags from using the app go to S17.
+**Next up:** 1.0.0 to prod, then S17 refinements (S17.1–S17.3, S17.7, S17.8) and P1. Snags from using the app go to S17.
 
 ---
 
@@ -475,18 +478,19 @@ Work is organised as **vertical slices**: each delivers a usable end-to-end incr
 
 ---
 
-### S17 Refinements ⬜
+### S17 Refinements 🟨
 *Open-ended, after go-live: the owner's running list of small fixes and polish found while using the live app, as S15.1 was before release. Each lands as its own numbered item (S17.1, S17.2, …) with its e2e check and is closed by the owner on a phone. Anything bigger becomes its own slice, and anything on the P2 list stays there.*
 
 | # | Task | Status |
 |---|---|---|
 | S17.1 | **Browser errors past ad blockers:** ad blockers' lists block `*.ingest.sentry.io`, so a household member with one never reports browser errors (found in S14.4's check). Send them through the app's own origin with the SDK's `tunnel` option: a small route that forwards only envelopes for our DSN's project to Sentry's EU ingest, rate limited, and keeps the CSP's `connect-src` to `'self'` (architecture §9, §7). | ⬜ |
-| S17.2 | **Stuck after a deploy:** after a new deployment, the installed app asks for the old build's files, gets 404s and stays on *Waking up Toe Beans* with loading skeletons. The update banner does come up (S15.1 (j)), so *Refresh* gets the person out, but the app shouldn't get stuck. Find out why from the service worker's handling of an old build's chunks and the waking page's retry (architecture D31). | ⬜ |
+| S17.2 | **Stuck after a deploy:** after a new deployment, the installed app asks for the old build's files, gets 404s and stays on *Waking up Toe Beans* with loading skeletons. The update banner does come up (S15.1 (j)), so *Refresh* gets the person out, but the app shouldn't get stuck. Find out why from the service worker's handling of an old build's chunks and the waking page's retry (architecture D31). **Not seen again (20 Nov)** since S17.5, whose broken waking page at a nested address likely accounts for being stuck; kept open to watch. **The 404s found:** the new worker skips waiting, takes over the open page and deleted every other cache, so the old build's page asked the server for its lazily loaded route chunks, which the new image doesn't have. Kit then reloads only if a navigation fails and `version.json` has changed; a failed preload or a component's import just 404s. **Built (20 Nov):** the new worker keeps the previous build's cache too and serves an `_app/immutable/` file it doesn't precache from any cache before the network (architecture 1.31 D31). Unit tests for which caches go; an e2e check fetches a file only an older build's cache holds. | 🟨 |
 | S17.3 | **Scanners stopped at the edge:** Cloudflare's analytics show bots probing for `/.env*`, `/.git/config`, `*.php`, `/wp-*`, `/actuator/*`, `/graphql`, `/v2/_catalog` and similar. Spot checks on 18 Nov found nothing exposed: the image holds only the build, `node_modules` and the exercises; unknown paths give 404, the API 401, and the tick's POST without its token 401. Each probe still wakes Cloud Run and renders the 13 KB app shell. (a) A free Cloudflare WAF custom rule blocks the obvious patterns before they reach the Worker. (b) A short plain 404 for paths outside the app's routes and assets, in place of the app shell. (c) `/.well-known/security.txt` with a contact and expiry. The full defensive review waits for the v1.0.0 release (architecture §7, D32). | ⬜ |
 | S17.4 | **Signed up, then "Signing in didn't work":** the owner signed up with email on prod and verified from the email, and Auth0 finished the sign-in in the mail app's browser, where the app had no sign-in in progress (logs: `no pending sign-in`), so the page said only that it failed. **Built (19 Nov):** such a callback, if it carries a code, starts a sign-in in that browser once (a 60-second `tb_resumed` cookie stops a loop), and the provider's session usually signs the person straight in. Auth0's *Application Login URI* (`auth0.md` §2) gives its verified and password-changed pages a button back. Unit and e2e tests. **Tried (19 Nov):** with the login URI set, the owner signed up on the phone (refused as unverified, as it should be), verified in a desktop browser and was signed in there through Auth0's button: the login URI fixes the case seen on prod, and the restart covers what's left (a sign-in past 10 minutes, a link in another app's browser). **Done (19 Nov):** closed by the owner as the fix deploys. | ✅ |
 | S17.5 | **Reminder opens a blank *Loading…* page:** with the app closed and the server asleep, tapping a reminder showed a white page with the logo and *Loading…*; pulling to refresh loaded the item. The service worker stood its cached *waking* page in for `sessions/{id}`, but that page linked its CSS and scripts as `./_app/…`, relative to `/waking` where it was fetched, so from a nested address they 404'd and the page never ran, never polled `/healthz` and never loaded the item. The offline and unreachable pages had the same flaw. **Built (19 Nov):** Kit renders root-relative asset paths (`paths.relative: false`); an e2e check opens the offline page at a reminder's address and finds its fonts and script working (it fails without the fix). **Done (19 Nov):** closed by the owner on a phone. | ✅ |
 | S17.6 | **Test install told apart from the real one:** with toebeans.test and toebeans.co.za both installed, the phone showed two identical *Toe Beans*. **Built (19 Nov):** the manifest is served from a route instead of `static/`; off prod (`APP_ENV`) it says *Toe Beans (Test)* and points at icons with a teal TEST band (`pnpm --filter @toe-beans/web icons`, inside the maskable safe zone). Prod's manifest is unchanged, checked against the old file. Unit and e2e tests. **Done (19 Nov):** closed by the owner on a phone. | ✅ |
 | S17.7 | **Push devices outlive the app:** uninstalling the app leaves its `pushDevices` document. No browser tells the server about an uninstall, so the server can only find out by sending: the next reminder to it gets 404/410 from the push service and the device is *disabled*, not deleted, and stays until the person removes it, signs out everywhere or deletes their account (data inventory §2). Until a reminder is due it stays active, and possibly listed on the Notifications screen. No clean fix, so pick a policy: (a) delete a device the push service reports as gone rather than disable it; (b) delete devices with no successful send for a set time (a TTL on `lastSuccessAt`/`createdAt`, say 60 days), which also covers a phone that's lost or reset with nothing ever sent; (c) widen what a new subscription replaces: today `reminders.ts` replaces the person's devices with the same label only once they're disabled, so a reinstall before any reminder has failed leaves the old one listed as active, and it counts towards the device limit. Replacing an active same-label device too would cover a reinstall, at the cost of someone with two identical phones. Any change updates the data inventory's `pushDevices` row and the privacy policy's retention wording (S16). | ⬜ |
+| S17.8 | **"Connecting", and one message for offline or down:** the skeleton said *Waking up Toe Beans…*, and with the server down the app could claim the phone was offline: the service worker showed *You're offline* for any page load with no answer, and a failed fetch in the app (page data, or a chunk an old build asked for) gave the error page's *You're offline*. **Built (20 Nov):** *Connecting to Toe Beans…*; one fallback page, *Can't reach Toe Beans* ("…your connection or the app may be down"), for no answer and gateway errors alike, and the same words on the banner, the waking page and the error page (ui 0.39 §5.2, architecture 1.31 D31). The e2e checks follow the new wording. | 🟨 |
 
 ## P1 — Phase 1 follow-on
 

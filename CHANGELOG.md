@@ -10,6 +10,17 @@ for fixes. Candidates (`-rc.N`) go to prod for the owner to try before the relea
 
 ## Unreleased
 
+### Changed
+
+- When Toe Beans can't be reached, the app now says *Can't reach Toe Beans* whether your
+  connection or the app is down, instead of sometimes saying you're offline when you weren't.
+- A slow start says *Connecting to Toe Beans…* instead of *Waking up Toe Beans…*.
+
+### Fixed
+
+- After an update, an app left open on the previous version keeps loading its pages until you
+  refresh, instead of failing to find their files.
+
 ## 1.0.0 - 2026-11-19
 
 ### Added
