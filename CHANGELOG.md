@@ -10,6 +10,8 @@ for fixes. Candidates (`-rc.N`) go to prod for the owner to try before the relea
 
 ## Unreleased
 
+## 1.0.1 - 2026-11-20
+
 ### Changed
 
 - When Toe Beans can't be reached, the app now says *Can't reach Toe Beans* whether your
