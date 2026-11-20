@@ -14,6 +14,7 @@ import { planTimes } from './0012-plan-times.js';
 import { invitationEmailIndex } from './0013-invitation-emails.js';
 import { careHistoryIndex } from './0014-care-history.js';
 import { householdExpiryIndex } from './0015-household-expiry.js';
+import { pushDeviceExpiry } from './0016-push-device-expiry.js';
 import type { Migration } from './runner.js';
 
 export const migrations: readonly Migration[] = [
@@ -31,7 +32,8 @@ export const migrations: readonly Migration[] = [
 	planTimes,
 	invitationEmailIndex,
 	careHistoryIndex,
-	householdExpiryIndex
+	householdExpiryIndex,
+	pushDeviceExpiry
 ];
 
 export { migrate, type Migration } from './runner.js';

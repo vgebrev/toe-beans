@@ -133,6 +133,41 @@ describe('mongoPushDevices', () => {
 		expect((await devices().findForUser(sam, device.id))!.lastSuccessAt).toEqual(at);
 		expect(await devices().remove(sam, device.id)).toBe(true);
 	});
+
+	it('removes a device by endpoint for its own person only (D43)', async () => {
+		const [sam, alex] = [ids.next(), ids.next()];
+		const endpoint = `https://fcm.googleapis.com/fcm/send/${ids.next()}`;
+		await devices().save({ id: ids.next(), userId: sam, endpoint, keys, label: 'x' });
+		expect(await devices().removeByEndpoint(alex, endpoint)).toBe(false);
+		expect(await devices().removeByEndpoint(sam, endpoint)).toBe(true);
+		expect(await devices().listForUser(sam)).toEqual([]);
+	});
+
+	it('is deleted 30 days after it was last seen or reached, or 14 after it stopped (D43)', async () => {
+		const day = 24 * 60 * 60 * 1000;
+		const plus = (d: Date, days: number) => new Date(d.getTime() + days * day);
+		const sam = ids.next();
+		const device = (await devices().save({
+			id: ids.next(),
+			userId: sam,
+			endpoint: `https://fcm.googleapis.com/fcm/send/${ids.next()}`,
+			keys,
+			label: 'x'
+		}))!;
+		expect(device).toMatchObject({ lastSeenAt: at, staleAt: plus(at, 30) });
+		await devices().recordSuccess(device.id, plus(at, 5));
+		expect(await devices().findForUser(sam, device.id)).toMatchObject({ staleAt: plus(at, 35) });
+		await devices().disable(device.id, plus(at, 6));
+		expect(await devices().findForUser(sam, device.id)).toMatchObject({ staleAt: plus(at, 20) });
+		// A stopped device taking a reminder can't happen, and wouldn't keep it.
+		await devices().recordSuccess(device.id, plus(at, 7));
+		expect(await devices().findForUser(sam, device.id)).toMatchObject({ staleAt: plus(at, 20) });
+
+		const indexes = await db.mongo.db.collection('pushDevices').indexes();
+		expect(indexes).toContainEqual(
+			expect.objectContaining({ key: { staleAt: 1 }, expireAfterSeconds: 0 })
+		);
+	});
 });
 
 describe('mongoReminderPreferences', () => {

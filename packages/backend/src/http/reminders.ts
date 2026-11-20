@@ -3,6 +3,7 @@
 // 404, as for every other household feature, since there's nothing to remind them of.
 import {
 	SavePushDevice,
+	SeenPushDevice,
 	StartReminderTest,
 	UpdateReminderPreference,
 	type PushDevice as DeviceDto,
@@ -20,6 +21,7 @@ import { parseInput } from './validation.js';
 export interface RemindersHttp {
 	settings(viewer: Viewer): Promise<HttpResponse>;
 	saveDevice(viewer: Viewer, input: { body: unknown }): Promise<HttpResponse>;
+	deviceSeen(viewer: Viewer, input: { body: unknown }): Promise<HttpResponse>;
 	removeDevice(viewer: Viewer, input: { id: string }): Promise<HttpResponse>;
 	savePreference(viewer: Viewer, input: { body: unknown }): Promise<HttpResponse>;
 	startTest(viewer: Viewer, input: { body: unknown }): Promise<HttpResponse>;
@@ -76,6 +78,13 @@ export function createRemindersHttp(reminders: ReminderSettings): RemindersHttp 
 			if (!input.ok) return errorResponse(input.error);
 			const saved = await reminders.saveDevice(viewer.member, input.value);
 			return respond(saved, (d) => json(deviceDto(d)));
+		},
+
+		async deviceSeen(viewer, { body }) {
+			if (!isMember(viewer)) return noHousehold();
+			const input = parseInput(SeenPushDevice, body);
+			if (!input.ok) return errorResponse(input.error);
+			return respond(await reminders.deviceSeen(viewer.member, input.value), () => noContent());
 		},
 
 		async removeDevice(viewer, { id }) {

@@ -18,6 +18,9 @@ for fixes. Candidates (`-rc.N`) go to prod for the owner to try before the relea
 
 ### Fixed
 
+- The devices listed under *Notifications* stay up to date. Signing out removes that device
+  straight away, reinstalling the app replaces its old entry instead of adding a second one,
+  and a device that's uninstalled or no longer used drops off the list by itself.
 - After an update, an app left open on the previous version keeps loading its pages until you
   refresh, instead of failing to find their files.
 

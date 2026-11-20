@@ -74,9 +74,18 @@ export type ReminderSettings = z.infer<typeof ReminderSettings>;
 export const SavePushDevice = z.object({
 	endpoint: z.string().max(2048),
 	keys: z.object({ p256dh: z.string().max(200), auth: z.string().max(100) }),
-	label: z.string().max(200).optional()
+	label: z.string().max(200).optional(),
+	/** The endpoint this subscription renews, from the service worker's `pushsubscriptionchange`. */
+	replaces: z.string().max(2048).optional()
 });
 export type SavePushDevice = z.infer<typeof SavePushDevice>;
+
+/**
+ * The app opened with reminders on (architecture D43): the subscription again, marking the device
+ * in use, with the key it was made with.
+ */
+export const SeenPushDevice = SavePushDevice.extend({ serverKey: z.string().max(200) });
+export type SeenPushDevice = z.infer<typeof SeenPushDevice>;
 
 /** A field left out stays as it was. */
 export const UpdateReminderPreference = z.strictObject({

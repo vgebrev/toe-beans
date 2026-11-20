@@ -142,8 +142,8 @@ self.addEventListener('notificationclick', (event) => {
 	event.waitUntil(self.clients.openWindow(target));
 });
 
-// The push service renewed the subscription: save the new one, or reminders stop until the
-// Notifications screen next opens. Chrome rarely fires this; the screen re-saves anyway.
+// The push service renewed the subscription: save the new one in place of the old (architecture
+// D43), or reminders stop until the app next opens. Chrome rarely fires this.
 self.addEventListener('pushsubscriptionchange', (event) => {
 	const change = event as Event & {
 		oldSubscription?: PushSubscription | null;
@@ -158,7 +158,10 @@ self.addEventListener('pushsubscriptionchange', (event) => {
 				fetch(new URL('api/v1/reminders/devices', scope()), {
 					method: 'PUT',
 					headers: { 'content-type': 'application/json' },
-					body: JSON.stringify(subscription.toJSON())
+					body: JSON.stringify({
+						...subscription.toJSON(),
+						...(change.oldSubscription && { replaces: change.oldSubscription.endpoint })
+					})
 				})
 			)
 			.catch(() => undefined)

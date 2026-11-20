@@ -407,6 +407,38 @@ describe('auth', () => {
 			expect(t.pushDevices.all().map((d) => d.id)).toEqual(['d3']);
 		});
 
+		it("forgets the device this browser names, and only if it is the person's own (D43)", async () => {
+			const tokenOf = (r: Awaited<ReturnType<typeof signIn>>) => (r.ok ? r.value.token : '');
+			const phone = tokenOf(await signIn(google()));
+			const laptop = tokenOf(await signIn(google()));
+			const alex = tokenOf(await signIn(google({ subject: 'google-oauth2|2', email: 'a@x.com' })));
+			const samId = (await t.auth.authenticate(phone))!.viewer.auth.userId;
+			const alexId = (await t.auth.authenticate(alex))!.viewer.auth.userId;
+			const keys = { p256dh: 'B'.repeat(87), auth: 'a'.repeat(22) };
+			const device = (userId: Id, n: string) =>
+				t.pushDevices.save({ id: n as Id, userId, endpoint: `https://p/${n}`, keys, label: n });
+			await device(samId, 'd1');
+			await device(samId, 'd2');
+			await device(alexId, 'd3');
+
+			// Alex's endpoint named from Sam's session changes nothing.
+			await t.auth.signOut(laptop, { endpoint: 'https://p/d3' });
+			expect(
+				t.pushDevices
+					.all()
+					.map((d) => d.id)
+					.sort()
+			).toEqual(['d1', 'd2', 'd3']);
+			await t.auth.signOut(phone, { endpoint: 'https://p/d1' });
+			expect(await t.auth.authenticate(phone)).toBeNull();
+			expect(
+				t.pushDevices
+					.all()
+					.map((d) => d.id)
+					.sort()
+			).toEqual(['d2', 'd3']);
+		});
+
 		it('everywhere with an unknown or expired session ends nothing else', async () => {
 			const result = await signIn(google());
 			const token = result.ok ? result.value.token : '';

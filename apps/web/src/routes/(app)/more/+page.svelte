@@ -18,7 +18,8 @@
 
 	/**
 	 * Signing out stops this browser's reminders first: on a shared phone the next person
-	 * shouldn't get them. The push service then refuses sends, and the server drops the device.
+	 * shouldn't get them. The form then names the subscription, so the server forgets the device
+	 * straight away rather than when a reminder to it fails (architecture D43).
 	 */
 	let signingOut = false;
 	let everywhereOpen = $state(false);
@@ -27,10 +28,18 @@
 		event.preventDefault();
 		signingOut = true;
 		const form = event.currentTarget as HTMLFormElement;
-		await Promise.race([
-			unsubscribe().catch(() => undefined),
-			new Promise((resolve) => setTimeout(resolve, 3000))
+		const endpoint = await Promise.race([
+			unsubscribe().catch(() => null),
+			new Promise<null>((resolve) => setTimeout(() => resolve(null), 3000))
 		]);
+		if (endpoint) {
+			const field = Object.assign(document.createElement('input'), {
+				type: 'hidden',
+				name: 'endpoint',
+				value: endpoint
+			});
+			form.append(field);
+		}
 		form.submit();
 	}
 

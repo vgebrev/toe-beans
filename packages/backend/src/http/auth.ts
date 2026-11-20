@@ -89,8 +89,15 @@ export interface AuthHttp {
 		cookie: CookieReader;
 		clientAddress: string;
 	}): Promise<HttpResponse>;
-	/** `POST /auth/sign-out`. `everywhere` ends all of the person's sessions (*Sign out everywhere*). */
-	signOut(input: { cookie: CookieReader; everywhere?: boolean }): Promise<HttpResponse>;
+	/**
+	 * `POST /auth/sign-out`. `everywhere` ends all of the person's sessions (*Sign out everywhere*);
+	 * otherwise `endpoint`, this browser's push subscription, names the device to forget (D43).
+	 */
+	signOut(input: {
+		cookie: CookieReader;
+		everywhere?: boolean;
+		endpoint?: string | undefined;
+	}): Promise<HttpResponse>;
 	/**
 	 * The viewer for this request, or null. `cookies` renews or clears the session cookie, and the
 	 * host must set them on the response.
@@ -185,8 +192,13 @@ export function createAuthHttp(
 			]);
 		},
 
-		async signOut({ cookie: read, everywhere = false }) {
-			const { url } = await auth.signOut(read(names.session), { everywhere });
+		async signOut({ cookie: read, everywhere = false, endpoint }) {
+			const { url } = await auth.signOut(read(names.session), {
+				everywhere,
+				// A push endpoint is a URL of at most 2 KB (as SavePushDevice takes); anything else
+				// can't be one.
+				...(endpoint && endpoint.length <= 2048 && { endpoint })
+			});
 			return redirect(url, [clear(names.session)]);
 		},
 

@@ -128,8 +128,32 @@ export async function subscribe(
 	}
 }
 
-/** Stops this browser's subscription: the push service then refuses sends, and the server stops. */
-export async function unsubscribe(): Promise<void> {
+/**
+ * Stops this browser's subscription: the push service then refuses sends, and the server stops.
+ * Returns the endpoint it had, for signing out to name the device to forget (architecture D43).
+ */
+export async function unsubscribe(): Promise<string | null> {
 	const reg = await registration(3_000);
-	await (await reg?.pushManager.getSubscription())?.unsubscribe();
+	const subscription = await reg?.pushManager.getSubscription();
+	if (!subscription) return null;
+	const { endpoint } = subscription;
+	await subscription.unsubscribe();
+	return endpoint;
+}
+
+/**
+ * The app has opened (architecture D43): if reminders are on in this browser, saves its
+ * subscription again, so the server knows the device is in use and doesn't delete it as stale.
+ * Asks for nothing, and a failure only means it's tried again on the next open.
+ */
+export async function reportSeen(post: (body: unknown) => Promise<unknown>): Promise<void> {
+	if (pushSupport() === 'unsupported' || Notification.permission !== 'granted') return;
+	const reg = await registration();
+	const subscription = await reg?.pushManager.getSubscription();
+	if (!subscription) return;
+	await post({
+		...subscription.toJSON(),
+		label: deviceLabel(await phoneModel(), navigator.userAgent),
+		serverKey: toBase64url(subscription.options.applicationServerKey)
+	});
 }

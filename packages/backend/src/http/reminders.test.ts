@@ -80,6 +80,18 @@ describe('reminders http', () => {
 		expect((await http.saveDevice(viewer, { body: { endpoint: 5 } })).status).toBe(400);
 	});
 
+	it('marks a device in use when the app opens, needing the key it was made with', async () => {
+		const { http } = setup();
+		const seen = { ...subscription, label: 'Galaxy S23 FE · Chrome' };
+		expect((await http.deviceSeen(viewer, { body: seen })).status).toBe(400);
+		expect(
+			(await http.deviceSeen(viewer, { body: { ...seen, serverKey: 'BPublicKeyForTests' } })).status
+		).toBe(204);
+		expect((await http.settings(viewer)).body).toMatchObject({
+			devices: [{ label: 'Galaxy S23 FE · Chrome' }]
+		});
+	});
+
 	it('removes a device, and 404s one that isn’t theirs', async () => {
 		const { http } = setup();
 		const saved = (await http.saveDevice(viewer, { body: subscription })).body as { id: string };
@@ -131,6 +143,7 @@ describe('reminders http', () => {
 		for (const res of [
 			await http.settings(noHousehold),
 			await http.saveDevice(noHousehold, { body: subscription }),
+			await http.deviceSeen(noHousehold, { body: subscription }),
 			await http.removeDevice(noHousehold, { id: 'x' }),
 			await http.savePreference(noHousehold, { body: {} }),
 			await http.startTest(noHousehold, { body: { deviceId: 'x' } }),

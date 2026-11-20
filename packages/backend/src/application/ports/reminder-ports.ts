@@ -20,8 +20,9 @@ export interface NewPushDevice {
 
 export interface PushDeviceRepository {
 	/**
-	 * Saves the browser's subscription. The endpoint identifies it: one already stored becomes this
-	 * person's, live again, with these keys and label, and keeps its ID; otherwise `id` is used.
+	 * Saves the browser's subscription, seen now. The endpoint identifies it: one already stored
+	 * becomes this person's, live again, with these keys and label, and keeps its ID; otherwise
+	 * `id` is used.
 	 * One stored for someone else moves only if the keys match, which only the browser holding the
 	 * subscription knows (security audit F6); otherwise nothing changes and it returns null.
 	 */
@@ -33,14 +34,20 @@ export interface PushDeviceRepository {
 	listLive(userIds: readonly Id[]): Promise<PushDevice[]>;
 	/** False if they have no device with that ID. */
 	remove(userId: Id, id: Id): Promise<boolean>;
+	/** Their device with this endpoint, if any: signing out, or the push service renewing it. */
+	removeByEndpoint(userId: Id, endpoint: string): Promise<boolean>;
 	/**
 	 * Removes all of the person's devices, for *Sign out everywhere* and deleting the account;
 	 * returns how many. Joins a transaction.
 	 */
 	removeAllForUser(userId: Id): Promise<number>;
+	/** It took a reminder, so it's in use: it won't be deleted for `DEVICE_UNUSED_MS`. */
 	recordSuccess(id: Id, at: Date): Promise<void>;
 	recordFailure(id: Id): Promise<void>;
-	/** The push service said it's gone: nothing more is sent to it. */
+	/**
+	 * The push service said it's gone: nothing more is sent to it, and it's deleted after
+	 * `DEVICE_STOPPED_MS` unless the browser saves it again.
+	 */
 	disable(id: Id, at: Date): Promise<void>;
 }
 

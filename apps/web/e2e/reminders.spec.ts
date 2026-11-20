@@ -287,6 +287,57 @@ test('a device the push service says is gone stops getting reminders', async ({
 	expect(devices).toMatchObject([{ disabled: true }]);
 });
 
+test('signing out forgets this device straight away, and no other (D43)', async ({
+	page,
+	baseURL
+}) => {
+	const person = newPerson();
+	await signIn(page, person);
+	await createHousehold(page, baseURL!);
+	const other = fakeSubscription();
+	const saved = await page.request.put('/api/v1/reminders/devices', {
+		headers: jsonHeaders(baseURL!),
+		data: JSON.stringify({
+			endpoint: other.endpoint,
+			keys: { p256dh: other.p256dh, auth: other.auth },
+			label: 'Old tablet · Chrome'
+		})
+	});
+	expect(saved.status()).toBe(200);
+	await fakePushInBrowser(page, fakeSubscription());
+	await page.goto('/settings/notifications');
+	await page.getByRole('switch', { name: /Push notifications/ }).click();
+	await expect(page.getByText(/On for this device/)).toBeVisible();
+	const before = await (await page.request.get('/api/v1/reminders')).json();
+	expect(before.devices).toHaveLength(2);
+
+	await page.goto('/more');
+	await page.getByRole('button', { name: 'Sign out', exact: true }).click();
+	await expect(page).toHaveURL('/sign-in');
+	await signIn(page, person);
+	await expect(page).toHaveURL('/');
+	const { devices } = await (await page.request.get('/api/v1/reminders')).json();
+	expect(devices).toMatchObject([{ label: 'Old tablet · Chrome' }]);
+});
+
+test('opening the app with reminders on tells the server the device is still in use (D43)', async ({
+	page,
+	baseURL
+}) => {
+	await ownHousehold(page, baseURL!, { dogs: ['Ripley'] });
+	await fakePushInBrowser(page, fakeSubscription());
+	const deviceId = await turnOn(page);
+	// Gone from the server (deleted as stale, say) while the browser still has its subscription.
+	const removed = await page.request.delete(`/api/v1/reminders/devices/${deviceId}`, {
+		headers: jsonHeaders(baseURL!)
+	});
+	expect(removed.status()).toBe(204);
+	await page.goto('/');
+	await expect
+		.poll(async () => (await (await page.request.get('/api/v1/reminders')).json()).devices)
+		.toMatchObject([{ label: expect.stringMatching(/ · Chrome$/), disabled: false }]);
+});
+
 test('blocked, unsupported and failed states say what to do', async ({ page, baseURL }) => {
 	await ownHousehold(page, baseURL!, { dogs: ['Ripley'] });
 

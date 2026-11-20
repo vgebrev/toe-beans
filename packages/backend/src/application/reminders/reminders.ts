@@ -13,6 +13,7 @@ import {
 	isCareLead,
 	isCareTime,
 	isTrainingLead,
+	lastUsed,
 	TEST_DELAY_MS,
 	TEST_OVERDUE_MS,
 	testKey,
@@ -30,6 +31,13 @@ export interface DeviceInput {
 	endpoint: string;
 	keys: PushKeys;
 	label?: string | undefined;
+	/** The subscription this one renews (the service worker's `pushsubscriptionchange`). */
+	replaces?: string | undefined;
+}
+
+export interface SeenInput extends DeviceInput {
+	/** The key the browser subscribed with, which must be the server's for sends to work. */
+	serverKey: string;
 }
 
 export interface PreferenceInput {
@@ -54,6 +62,22 @@ export interface RemindersOptions {
 
 export type ReminderSettings = ReturnType<typeof createReminderSettings>;
 
+/**
+ * What a new subscription with this label stands in for (architecture D43). No browser says it's
+ * been uninstalled or reinstalled, so the label is the best guess there is. Stopped devices with
+ * it go: the same device subscribing again after its old subscription was cancelled (on Android,
+ * blocking the app's notifications does that) would otherwise list itself as a stopped "other
+ * device". From the Notifications screen the one in use most recently goes too, as a reinstall
+ * leaves the old install's device active until a reminder to it fails. A device with another label
+ * stays, so its owner sees it.
+ */
+function sameDevice(mine: PushDevice[], label: string, replaceInUse: boolean): PushDevice[] {
+	const same = mine.filter((d) => d.label === label);
+	const stopped = same.filter((d) => d.disabledAt);
+	const [latest] = same.filter((d) => !d.disabledAt).sort((a, b) => lastUsed(b) - lastUsed(a));
+	return replaceInUse && latest ? [...stopped, latest] : stopped;
+}
+
 export function createReminderSettings(
 	{
 		pushDevices,
@@ -74,6 +98,62 @@ export function createReminderSettings(
 	const findDevice = async (ctx: MemberContext, id: string) =>
 		isId(id) ? pushDevices.findForUser(ctx.userId, id) : null;
 
+	async function save(
+		ctx: MemberContext,
+		input: DeviceInput,
+		{ replaceInUse }: { replaceInUse: boolean }
+	): Promise<Result<PushDevice, ValidationError>> {
+		if (!isAllowedEndpoint(input.endpoint, allowedEndpoints)) {
+			log.warn('push endpoint refused', { userId: ctx.userId });
+			return err(
+				validationError("This browser's push service isn't supported.", {
+					endpoint: ['Try a different browser.']
+				})
+			);
+		}
+		if (!arePushKeys(input.keys)) {
+			return err(validationError('The subscription is not valid.', { keys: ['Not valid.'] }));
+		}
+		const mine = await pushDevices.listForUser(ctx.userId);
+		const known = mine.some((d) => d.endpoint === input.endpoint);
+		// A renewed subscription: the old one is certainly this browser, so nothing is guessed from
+		// the label, which the service worker that renews it doesn't know anyway.
+		const renewed =
+			input.replaces && input.replaces !== input.endpoint
+				? mine.find((d) => d.endpoint === input.replaces)
+				: undefined;
+		const label = cleanDeviceLabel(input.label ?? renewed?.label);
+		const replaced = renewed ? [renewed] : known ? [] : sameDevice(mine, label, replaceInUse);
+		if (!known && mine.length - replaced.length >= DEVICES_MAX) {
+			return err(
+				validationError(
+					`You can have reminders on up to ${DEVICES_MAX} devices. Remove one to add this one.`
+				)
+			);
+		}
+		const device = await pushDevices.save({
+			id: ids.next(),
+			userId: ctx.userId,
+			endpoint: input.endpoint,
+			keys: input.keys,
+			label
+		});
+		if (!device) {
+			// Someone else's endpoint without its keys: not this browser (security audit F6).
+			log.warn('push endpoint of another person refused', { userId: ctx.userId });
+			return err(validationError('This subscription is not valid.', { endpoint: ['Not valid.'] }));
+		}
+		for (const old of replaced) await pushDevices.remove(ctx.userId, old.id);
+		if (!known) {
+			log.info('push device added', {
+				userId: ctx.userId,
+				deviceId: device.id,
+				replaced: replaced.length
+			});
+		}
+		return ok(device);
+	}
+
 	return {
 		/** The key browsers subscribe with. */
 		publicKey: () => push.publicKey,
@@ -85,58 +165,22 @@ export function createReminderSettings(
 		 * current subscription each time it opens, so a phone handed to someone else, renewed keys
 		 * or a device the push service had dropped all come right.
 		 */
-		async saveDevice(
+		saveDevice: (ctx: MemberContext, input: DeviceInput) =>
+			save(ctx, input, { replaceInUse: true }),
+
+		/**
+		 * The app opened with reminders on (architecture D43): saving the subscription again marks
+		 * the device in use, so it isn't deleted as stale, and brings back one that was. Null when the
+		 * subscription was made with another key, which can't be sent to: the Notifications screen
+		 * subscribes again. Unlike the screen, it never replaces a device in use, so two phones with
+		 * the same name don't take turns removing each other.
+		 */
+		async deviceSeen(
 			ctx: MemberContext,
-			input: DeviceInput
-		): Promise<Result<PushDevice, ValidationError>> {
-			if (!isAllowedEndpoint(input.endpoint, allowedEndpoints)) {
-				log.warn('push endpoint refused', { userId: ctx.userId });
-				return err(
-					validationError("This browser's push service isn't supported.", {
-						endpoint: ['Try a different browser.']
-					})
-				);
-			}
-			if (!arePushKeys(input.keys)) {
-				return err(validationError('The subscription is not valid.', { keys: ['Not valid.'] }));
-			}
-			const label = cleanDeviceLabel(input.label);
-			const mine = await pushDevices.listForUser(ctx.userId);
-			const known = mine.some((d) => d.endpoint === input.endpoint);
-			// The same device subscribing again after its old subscription was cancelled (on Android,
-			// blocking the app's notifications does that) would otherwise list itself as a stopped
-			// "other device". A stopped device with another label stays, so its owner sees it stopped.
-			const replaced = known ? [] : mine.filter((d) => d.disabledAt && d.label === label);
-			if (!known && mine.length - replaced.length >= DEVICES_MAX) {
-				return err(
-					validationError(
-						`You can have reminders on up to ${DEVICES_MAX} devices. Remove one to add this one.`
-					)
-				);
-			}
-			const device = await pushDevices.save({
-				id: ids.next(),
-				userId: ctx.userId,
-				endpoint: input.endpoint,
-				keys: input.keys,
-				label
-			});
-			if (!device) {
-				// Someone else's endpoint without its keys: not this browser (security audit F6).
-				log.warn('push endpoint of another person refused', { userId: ctx.userId });
-				return err(
-					validationError('This subscription is not valid.', { endpoint: ['Not valid.'] })
-				);
-			}
-			for (const old of replaced) await pushDevices.remove(ctx.userId, old.id);
-			if (!known) {
-				log.info('push device added', {
-					userId: ctx.userId,
-					deviceId: device.id,
-					replaced: replaced.length
-				});
-			}
-			return ok(device);
+			{ serverKey, ...input }: SeenInput
+		): Promise<Result<PushDevice | null, ValidationError>> {
+			if (serverKey !== push.publicKey) return ok(null);
+			return save(ctx, input, { replaceInUse: false });
 		},
 
 		async removeDevice(ctx: MemberContext, id: string): Promise<Result<void, NotFoundError>> {
