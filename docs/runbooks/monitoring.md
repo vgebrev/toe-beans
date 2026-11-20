@@ -7,7 +7,7 @@ file is public. It names monitors and settings, never URLs that hold a token.
 |---|---|---|---|
 | The app answering, end to end | Better Stack monitor `toe-beans` on `https://toebeans.co.za/readyz`, every 3 minutes from Europe and North America | Anything but a 2xx: DNS, Cloudflare, the Worker, Cloud Run, or the database (`/readyz` pings Mongo) | §2 |
 | Reminders being sent | Better Stack heartbeat `toe-beans-tick`, called by the app after each tick | No tick for 15 minutes: Cloud Scheduler stopped or can't get in, or ticks fail | §3 |
-| Backups being made | Better Stack heartbeat `toe-beans-backup`, called by the backup workflow after a run that worked | No good run for a day and 3 hours, including a run that never started | §4 |
+| Backups being made | Better Stack heartbeat `toe-beans-backup`, called by the backup workflow after a run that worked | No good run for a day and 12 hours, including a run that never started | §4 |
 | A failed backup run | GitHub's own mail to the owner | At once | Nothing to do |
 | Errors in the app | Sentry, `New or regressed issue` | A new kind of error, or one coming back | `sentry.md` §4 |
 | Spend | GCP budget `toe-beans` (US$1) | 50% and 100% of spend, 100% forecast | `provision.sh` |
@@ -30,12 +30,12 @@ are called, nothing else.
 - **URL:** `https://toebeans.co.za/readyz`. Through the Worker on purpose, so it covers the whole
   path a phone takes. `/readyz` answers 503 when the database doesn't. No rate limit applies to it.
 - **Name:** `toe-beans`. **Check frequency:** 3 minutes. **On-call escalation:** email.
-- **Advanced settings → Regions:** Europe and North America. Better Stack checks every monitor from
-  at least 4 locations and alerts only once 3 of them fail, so fewer regions doesn't mean fewer
-  requests: prod sees about one every 30 seconds with two regions as with four, and with the
-  frequency at 10 minutes as at 3, about 86k a month. That's under 5% of Cloud Run's free requests, and under 5% of its free
-  CPU time even with each ~30 ms answer billed as 100 ms. If the bill ever shows it, turn the
-  monitor off (the heartbeats stay) or move the uptime check to UptimeRobot.
+- **Advanced settings → Regions:** Europe and North America. Prod sees one check every 3 minutes,
+  about 14k a month: well under Cloud Run's free requests and CPU time. **While the monitor's page
+  is open in Better Stack, it checks in real time**, so prod's logs show `/readyz` every few
+  seconds; that stops when the page is closed, so don't judge the load from logs taken while
+  watching it. If the bill ever shows the monitor, turn it off (the heartbeats stay) or move the
+  uptime check to UptimeRobot.
 - Leave the confirmation period at its default: a cold start answers within a few seconds (§8.4).
 
 Check it: the monitor shows *Up* within a few minutes. The README shows its status badge.
@@ -63,8 +63,8 @@ fails on a secret with no version. After the deploy, the startup log line `backe
 
 **Uptime → Heartbeats → Create heartbeat:**
 
-- **Name:** `toe-beans-backup`. **Expect a heartbeat every:** 1 day. **Grace period:** 3 hours
-  (GitHub sometimes starts scheduled runs late).
+- **Name:** `toe-beans-backup`. **Expect a heartbeat every:** 1 day. **Grace period:** 12 hours
+  (GitHub starts scheduled runs late, by hours at busy times: S17.9).
 - **On-call escalation:** email.
 
 ```sh

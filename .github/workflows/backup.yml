@@ -21,8 +21,9 @@ name: Backup
 
 on:
   schedule:
-    # 02:17 in South Africa, between ticks and after the evening's logging.
-    - cron: '17 0 * * *'
+    # 02:17 UTC, 04:17 in South Africa, between ticks. Not near 00:00 UTC, when many repos'
+    # schedules start: there GitHub started this run about 7 hours late (S17.9).
+    - cron: '17 2 * * *'
   workflow_dispatch:
 
 permissions:
