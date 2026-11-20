@@ -10,6 +10,13 @@ for fixes. Candidates (`-rc.N`) go to prod for the owner to try before the relea
 
 ## Unreleased
 
+## 1.0.2 - 2026-11-20
+
+### Added
+
+- If Toe Beans is still loading after 20 seconds, it offers *Refresh*, so you're never left
+  waiting on the loading screen.
+
 ## 1.0.1 - 2026-11-20
 
 ### Changed

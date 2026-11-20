@@ -8,7 +8,7 @@ names resources, never values.
 |---|---|
 | Backups | R2 bucket `toe-beans-backups`: `mongo/toe-beans-<UTC time>.archive.gz.age` nightly, `photos/current/`, `photos/replaced/<UTC time>/` |
 | Kept | 30 days for dumps and replaced photos |
-| Most you can lose | A day of data: everything since the last 00:17 UTC run |
+| Most you can lose | A day of data: everything since the last nightly run (02:17 UTC, or later when GitHub starts it late) |
 | Key | The owner's age private key (`toe-beans-backup.key`, password manager plus an offline copy) |
 | Not in a dump | Sign-in sessions and sign-ins in progress: after a restore everyone signs in again |
 | Test | Before go-live, then quarterly (§4) |

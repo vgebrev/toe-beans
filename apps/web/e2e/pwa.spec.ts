@@ -142,6 +142,32 @@ test('a slow page shows the skeleton, then "Connecting to Toe Beans…" (NFR-09)
 	await expect(page.locator('[aria-busy="true"]')).toBeHidden();
 });
 
+test('a navigation stuck past 20 s offers Refresh, which loads the page it was going to', async ({
+	page,
+	context,
+	baseURL
+}) => {
+	await page.clock.install();
+	await ownHousehold(page, baseURL!);
+	await page.goto('/');
+	// The first never answered, as a request lost on the way would be.
+	let held = false;
+	await context.route('**/api/v1/planned-sessions*', async (route) => {
+		if (held) return route.continue();
+		held = true;
+	});
+
+	await page.getByRole('navigation', { name: 'Main' }).getByRole('link', { name: 'Plan' }).click();
+	await expect(page.getByText('Connecting to Toe Beans…')).toBeVisible();
+	await expect(page.getByRole('button', { name: 'Refresh' })).toBeHidden();
+	await page.clock.fastForward(20_000);
+	await expect(page.getByText('Toe Beans is taking longer than usual to connect…')).toBeVisible();
+
+	await page.getByRole('button', { name: 'Refresh' }).click();
+	await expect(page).toHaveURL(/\/plan$/);
+	await expect(page.getByRole('heading', { level: 1 })).toHaveText('Plan');
+});
+
 test("with the service worker in place, a page load with no connection shows Can't reach Toe Beans", async ({
 	page,
 	context,
@@ -255,6 +281,17 @@ test("the service worker's waking page is a skeleton that says it's connecting",
 	await page.goto('/waking');
 	await expect(page.locator('[aria-busy="true"]')).toBeVisible();
 	await expect(page.getByText('Connecting to Toe Beans…')).toBeVisible();
+});
+
+test('the waking page, past 20 s, says it is taking longer than usual and offers Refresh', async ({
+	page
+}) => {
+	await page.clock.install();
+	await page.goto('/waking');
+	await expect(page.getByText('Connecting to Toe Beans…')).toBeVisible();
+	await page.clock.fastForward(20_000);
+	await expect(page.getByText('Toe Beans is taking longer than usual to connect…')).toBeVisible();
+	await expect(page.getByRole('button', { name: 'Refresh' })).toBeVisible();
 });
 
 test("a page still on the build before a deploy gets that build's files from its cache (S17.2)", async ({
