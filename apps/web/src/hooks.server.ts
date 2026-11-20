@@ -28,8 +28,9 @@ const resolveOptions = {
 		type === 'font' ? latinFont.test(path) : type === 'js' || type === 'css'
 };
 
-// Probes and the uptime monitor hit these every few minutes; their lines would drown the rest.
-const quietRoutes = new Set(['/healthz', '/readyz']);
+// The uptime monitor and the deploy hit this every few minutes, and the app's own connection
+// checks while it's waking; their lines would drown the rest.
+const quietRoutes = new Set(['/readyz']);
 
 // Called by a scheduler, not a browser (architecture §6.3): no Origin header and no session. The
 // route checks its own bearer token, so the origin check and session lookup don't apply.

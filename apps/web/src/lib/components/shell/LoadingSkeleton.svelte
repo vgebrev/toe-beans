@@ -25,13 +25,16 @@
 		refreshTo?: string;
 		/** Said instead of the connecting message, such as that Toe Beans can't be reached. */
 		message?: string | null;
+		/** When it starts offering *Refresh*: the load is stuck, worth reporting (S17.11). */
+		onLong?: () => void;
 	}
 
 	let {
 		wakeAfterMs = WAKE_AFTER_MS,
 		longAfterMs = LONG_AFTER_MS,
 		refreshTo,
-		message = null
+		message = null,
+		onLong
 	}: Props = $props();
 
 	let waking = $state(false);
@@ -39,7 +42,10 @@
 	onMount(() => {
 		const timers = [
 			setTimeout(() => (waking = true), wakeAfterMs),
-			setTimeout(() => (long = true), longAfterMs)
+			setTimeout(() => {
+				long = true;
+				onLong?.();
+			}, longAfterMs)
 		];
 		return () => timers.forEach(clearTimeout);
 	});

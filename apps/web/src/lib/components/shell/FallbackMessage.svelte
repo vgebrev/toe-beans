@@ -7,6 +7,7 @@
 	import { onMount } from 'svelte';
 	import Logo from '#lib/components/Logo.svelte';
 	import { buttonVariants } from '#lib/components/ui/button/index.js';
+	import { checkServer } from '#lib/offline/reachable.js';
 
 	interface Props {
 		title: string;
@@ -18,13 +19,7 @@
 	let checking = $state(false);
 	let stillDown = $state(false);
 
-	const answers = async () => {
-		try {
-			return (await fetch('/healthz', { cache: 'no-store' })).ok;
-		} catch {
-			return false;
-		}
-	};
+	const answers = async () => (await checkServer()) === 'answered';
 
 	async function tryAgain(event: MouseEvent) {
 		event.preventDefault();

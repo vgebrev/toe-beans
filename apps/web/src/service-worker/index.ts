@@ -12,9 +12,11 @@ import {
 	cachesToDelete,
 	isGatewayError,
 	mayBeCold,
+	PAGE_TIMEOUT_MS,
 	precachePaths,
 	WAKING_AFTER_MS
 } from '#lib/offline/caching.js';
+import { READY_PATH } from '#lib/offline/reachable.js';
 import {
 	FALLBACK,
 	notificationOptions,
@@ -34,7 +36,7 @@ const CACHE = `${CACHE_PREFIX}${version}`;
 const toPath = (path: string) => new URL(path, self.location.href).pathname;
 const UNREACHABLE = toPath('unreachable');
 const WAKING = toPath('waking');
-const HEALTHZ = toPath('healthz');
+const READY = toPath(READY_PATH.slice(1));
 const AUTH = toPath('auth/');
 const IMMUTABLE = toPath('_app/immutable/');
 const PRECACHE = [
@@ -67,27 +69,33 @@ const cached = async (path: string) => (await caches.open(CACHE)).match(path);
 /** When the app last answered, in this worker's lifetime (Chrome stops it when idle). */
 let lastAnswered: number | null = null;
 
+const unreachable = async () => (await cached(UNREACHABLE)) ?? Response.error();
+
 /**
  * A page load: the network, or a fallback page in its place. After a quiet spell a load that
  * takes over a second gets the waking skeleton meanwhile, which loads the page again once the
- * server answers; by then it has answered, so that load goes straight through. Sign-in's own
- * steps are never raced: a callback's code works once, so it can't be loaded again.
+ * server answers; by then it has answered, so that load goes straight through. One with no answer
+ * in 20 s gets *Can't reach Toe Beans*, whose *Try again* checks first. Sign-in's own steps are
+ * never raced: a callback's code works once, so it can't be loaded again.
  */
 async function navigate(request: Request, url: URL): Promise<Response> {
-	const network = fetch(request).then(
-		async (response) => {
-			if (isGatewayError(response.status)) return (await cached(UNREACHABLE)) ?? response;
-			lastAnswered = Date.now();
-			return response;
-		},
-		async () => (await cached(UNREACHABLE)) ?? Response.error()
+	const network = fetch(request).then(async (response) => {
+		if (isGatewayError(response.status)) return (await cached(UNREACHABLE)) ?? response;
+		lastAnswered = Date.now();
+		return response;
+	}, unreachable);
+	if (url.pathname.startsWith(AUTH)) return network;
+
+	const gaveUp = new Promise<Response>((resolve) =>
+		setTimeout(() => resolve(unreachable()), PAGE_TIMEOUT_MS)
 	);
-	if (url.pathname.startsWith(AUTH) || !mayBeCold(Date.now(), lastAnswered)) return network;
+	const answer = Promise.race([network, gaveUp]);
+	if (!mayBeCold(Date.now(), lastAnswered)) return answer;
 
 	const waking = new Promise<Response | undefined>((resolve) =>
 		setTimeout(() => resolve(cached(WAKING)), WAKING_AFTER_MS)
 	);
-	return (await Promise.race([network, waking])) ?? network;
+	return (await Promise.race([answer, waking])) ?? answer;
 }
 
 self.addEventListener('fetch', (event) => {
@@ -98,7 +106,7 @@ self.addEventListener('fetch', (event) => {
 
 	if (request.mode === 'navigate') {
 		event.respondWith(navigate(request, url));
-	} else if (url.pathname === HEALTHZ) {
+	} else if (url.pathname === READY) {
 		// The waking page asking whether the server is up: an answer means it is.
 		event.respondWith(
 			fetch(request).then((response) => {
@@ -113,6 +121,12 @@ self.addEventListener('fetch', (event) => {
 		// server no longer has it, but that build's cache does (S17.2). Hashed names never clash.
 		event.respondWith(caches.match(url.pathname).then((hit) => hit ?? fetch(request)));
 	}
+});
+
+// Which build this worker is, for More (#lib/offline/worker-version.ts): its cached pages and
+// files can be a build behind the page's own until it updates (S17.11).
+self.addEventListener('message', (event) => {
+	if (event.data === 'version') event.ports[0]?.postMessage(version);
 });
 
 self.addEventListener('push', (event) => {
