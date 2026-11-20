@@ -4,7 +4,7 @@
 // send to it through PUSH_SERVICE_ORIGINS.
 import { createDecipheriv, createECDH, createHmac, randomBytes, randomUUID } from 'node:crypto';
 import { createServer } from 'node:http';
-import type { Page } from '@playwright/test';
+import { expect, type Page } from '@playwright/test';
 
 export const PUSH_SERVICE_PORT = 4174;
 export const PUSH_SERVICE_ORIGIN = `http://localhost:${PUSH_SERVICE_PORT}`;
@@ -182,6 +182,16 @@ export interface ReceivedPush {
 }
 
 /** Every push the service has received for this subscription, decrypted. */
+/**
+ * Waits for `count` pushes to have reached this subscription, then returns them all. Tests run in
+ * parallel and the tick is global, so another test's tick may hold this reminder and still be
+ * sending it when this test's tick returns.
+ */
+export async function awaitPushes(sub: FakeSubscription, count = 1): Promise<ReceivedPush[]> {
+	await expect.poll(async () => (await pushesFor(sub)).length).toBeGreaterThanOrEqual(count);
+	return pushesFor(sub);
+}
+
 export async function pushesFor(sub: FakeSubscription): Promise<ReceivedPush[]> {
 	const res = await fetch(`${PUSH_SERVICE_ORIGIN}/push/${sub.id}`);
 	const list = (await res.json()) as Received[];

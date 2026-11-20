@@ -1,8 +1,8 @@
 # Toe Beans — Data inventory
 
-**Version:** 0.6 (draft)
+**Version:** 0.7 (draft)
 **Date:** 20 November 2026
-**Inputs:** `docs/requirements.md` v1.0, `docs/architecture.md` v1.34, `docs/runbooks/accounts.md`
+**Inputs:** `docs/requirements.md` v1.0, `docs/architecture.md` v1.35, `docs/runbooks/accounts.md`
 
 **Changes in 0.1:** first draft for backlog S16.1. Lists the personal data Toe Beans holds, where it is, why, and how long it's kept, worked out from the code and the accounts inventory. It's the source for the privacy policy (S16.2) and for deletion (S16.5). §6 lists the open points those slices have to settle.
 
@@ -15,6 +15,8 @@
 **Changes in 0.5:** §3, error reports: the browser's reports now reach Sentry through the app's own server (architecture 1.32 D41), so Sentry no longer receives the phone's address at all.
 
 **Changes in 0.6:** §2, `pushDevices` (architecture 1.34 D43): a device is removed when the person signs out in that browser, and deleted 30 days after it was last used or 14 days after the push service reported it gone, so an uninstalled or lost phone no longer stays on file indefinitely. It also records when the app last opened on it.
+
+**Changes in 0.7:** §2, `pushDevices` (architecture 1.35 D43): signing out no longer removes the device; it's marked signed out and sent nothing until the person signs in there again, and the 30-day deletion still applies. The row records when it was signed out.
 
 This file is public. It describes kinds of data and where they are, never values. It isn't legal
 advice. The owner has it read with the policy before other households join (backlog S16).
@@ -44,7 +46,7 @@ that household's members can reach it (NFR-01, NFR-02).
 | `plannedSessions`, `trainingPlans` | Planned times, who planned them | Household | Planning and reminders (FR-04, FR-12) | Until deleted |
 | `careTasks` | Care titles, dates, notes, history of changes and who made them | Household | Care tracking and reminders (FR-10, FR-11) | Until deleted. History is capped per task |
 | `cues` | Cue words and notes | Household | The shared cue dictionary | Until deleted |
-| `pushDevices` | The browser's push endpoint and keys, a label such as "Galaxy S23 FE · Chrome", when the app last opened on it, last success and failures | The person | Sending reminders to that phone (FR-12) | Until the person removes it, signs out on it or everywhere, or deletes their account; otherwise 30 days after the app last opened on it or it last took a reminder (TTL), or 14 days after the push service reported it gone (D43) |
+| `pushDevices` | The browser's push endpoint and keys, a label such as "Galaxy S23 FE · Chrome", when the app last opened on it, whether its person signed out there, last success and failures | The person | Sending reminders to that phone (FR-12) | Until the person removes it or deletes their account; otherwise 30 days after the app last opened on it or it last took a reminder (TTL), or 14 days after the push service reported it gone. Signed out, it's sent nothing until they sign in there again (D43) |
 | `reminderPreferences` | What the person wants reminding of, and when | The person | Reminders | Until the account is deleted (D38) |
 | `reminders` | Ledger of reminders: whose, for which item, when due, sent or failed | The person; the tick | Not sending a reminder twice (D27) | 30 days from creation (TTL), or sooner with the account or household |
 | `sessions` | The user ID, a hash of the cookie's token, created and expiry times | The person | Staying signed in | 90 days sliding, at most 400 days, then removed (TTL). Never backed up |

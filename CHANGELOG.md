@@ -15,12 +15,15 @@ for fixes. Candidates (`-rc.N`) go to prod for the owner to try before the relea
 - When Toe Beans can't be reached, the app now says *Can't reach Toe Beans* whether your
   connection or the app is down, instead of sometimes saying you're offline when you weren't.
 - A slow start says *Connecting to Toe Beans…* instead of *Waking up Toe Beans…*.
+- Signing out no longer turns reminders off. They pause while you're signed out and come back
+  by themselves when you sign in on that device again. Someone else signing in on it doesn't
+  get your reminders, and gets their own only once they turn them on.
 
 ### Fixed
 
-- The devices listed under *Notifications* stay up to date. Signing out removes that device
-  straight away, reinstalling the app replaces its old entry instead of adding a second one,
-  and a device that's uninstalled or no longer used drops off the list by itself.
+- The devices listed under *Notifications* stay up to date. Reinstalling the app replaces its
+  old entry instead of adding a second one, and a device that's uninstalled or no longer used
+  drops off the list by itself.
 - After an update, an app left open on the previous version keeps loading its pages until you
   refresh, instead of failing to find their files.
 

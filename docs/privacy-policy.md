@@ -1,8 +1,8 @@
 # Toe Beans — Privacy policy
 
-**Version:** 0.4 (reviewed draft)
+**Version:** 0.5 (reviewed draft)
 **Date:** 20 November 2026
-**Inputs:** `docs/data-inventory.md` v0.6, `docs/architecture.md` v1.34 (D36, D38, D39, D43)
+**Inputs:** `docs/data-inventory.md` v0.7, `docs/architecture.md` v1.35 (D36, D38, D39, D43)
 
 **Changes in 0.1:** first draft for backlog S16.2, written from the data inventory. S16.4 publishes
 the text below the line at `/privacy`. The owner reviews it, and fills in the points marked
@@ -24,6 +24,9 @@ so §4 lists Google Fonts and what it sees (data inventory 0.4). The Gmail row c
 **Changes in 0.4:** §5 gains how long a device's reminder registration is kept: until reminders
 are turned off on it or you sign out there, and otherwise 30 days after it was last used, or 14
 after it stopped accepting reminders (data inventory 0.6, architecture D43).
+
+**Changes in 0.5:** §5: signing out no longer removes a device's registration; reminders pause
+until you sign in there again (data inventory 0.7, architecture 1.35 D43).
 
 Before publishing:
 
@@ -135,7 +138,7 @@ including the Limited Use requirements.
 | A household, its dogs, photos and records | Until its last member deletes it, or 30 days after the last member left it |
 | Something you delete in the app | Removed straight away, except training sessions and behaviour entries, which are kept hidden for 30 days, then removed |
 | Invitations | 7 days to use, then removed 30 days after they expire |
-| Devices you get reminders on | Until you turn reminders off there, remove the device, or sign out on it. One not used for 30 days, or that stopped accepting reminders 14 days ago (as when the app is uninstalled), is removed |
+| Devices you get reminders on | Until you turn reminders off there or remove the device. While you're signed out on it, nothing is sent to it. One not used for 30 days, or that stopped accepting reminders 14 days ago (as when the app is uninstalled), is removed |
 | Reminder records | 30 days |
 | Sign-in sessions | 90 days after you last used the app, never more than 400 days |
 | Logs and error reports | 30 days |

@@ -34,6 +34,7 @@ export function memoryPushDevices(now: () => Date): PushDeviceRepository & { all
 				? { ...existing, ...fields, ...seen, updatedAt: at }
 				: { id, endpoint, ...fields, ...seen, createdAt: at, updatedAt: at };
 			delete device.disabledAt;
+			delete device.signedOutAt;
 			devices.set(device.id, device);
 			return structuredClone(device);
 		},
@@ -47,17 +48,27 @@ export function memoryPushDevices(now: () => Date): PushDeviceRepository & { all
 			const d = devices.get(id);
 			return d?.userId === userId ? structuredClone(d) : null;
 		},
+		findByEndpoint: async (endpoint) =>
+			structuredClone([...devices.values()].find((d) => d.endpoint === endpoint) ?? null),
 		listLive: async (userIds) =>
 			structuredClone(
-				[...devices.values()].filter((d) => userIds.includes(d.userId) && !d.disabledAt)
+				[...devices.values()].filter(
+					(d) => userIds.includes(d.userId) && !d.disabledAt && !d.signedOutAt
+				)
 			),
 		async remove(userId, id) {
 			if (devices.get(id)?.userId !== userId) return false;
 			return devices.delete(id);
 		},
-		async removeByEndpoint(userId, endpoint) {
+		async signOut(userId, endpoint, at) {
 			const d = [...devices.values()].find((x) => x.endpoint === endpoint && x.userId === userId);
-			return d ? devices.delete(d.id) : false;
+			if (d) Object.assign(d, { signedOutAt: at, updatedAt: at });
+			return Boolean(d);
+		},
+		async signOutAll(userId, at) {
+			const mine = [...devices.values()].filter((d) => d.userId === userId);
+			for (const d of mine) Object.assign(d, { signedOutAt: at, updatedAt: at });
+			return mine.length;
 		},
 		async removeAllForUser(userId) {
 			const mine = [...devices.values()].filter((d) => d.userId === userId);

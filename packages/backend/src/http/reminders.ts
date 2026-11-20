@@ -7,6 +7,7 @@ import {
 	StartReminderTest,
 	UpdateReminderPreference,
 	type PushDevice as DeviceDto,
+	type SeenPushDeviceResult,
 	type ReminderPreference as PreferenceDto,
 	type ReminderSettings as SettingsDto,
 	type ReminderTest as TestDto
@@ -34,7 +35,8 @@ export const deviceDto = (d: PushDevice): DeviceDto => ({
 	label: d.label,
 	createdAt: d.createdAt.toISOString(),
 	...(d.lastSuccessAt && { lastSuccessAt: d.lastSuccessAt.toISOString() }),
-	disabled: Boolean(d.disabledAt)
+	disabled: Boolean(d.disabledAt),
+	signedOut: Boolean(d.signedOutAt)
 });
 
 const preferenceDto = (p: ReminderPreference): PreferenceDto => ({
@@ -84,7 +86,9 @@ export function createRemindersHttp(reminders: ReminderSettings): RemindersHttp 
 			if (!isMember(viewer)) return noHousehold();
 			const input = parseInput(SeenPushDevice, body);
 			if (!input.ok) return errorResponse(input.error);
-			return respond(await reminders.deviceSeen(viewer.member, input.value), () => noContent());
+			return respond(await reminders.deviceSeen(viewer.member, input.value), (d) =>
+				json({ device: d && deviceDto(d) } satisfies SeenPushDeviceResult)
+			);
 		},
 
 		async removeDevice(viewer, { id }) {

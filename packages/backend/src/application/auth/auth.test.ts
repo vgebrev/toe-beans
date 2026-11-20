@@ -386,7 +386,7 @@ describe('auth', () => {
 			expect(await t.auth.authenticate(token)).toBeNull();
 		});
 
-		it("everywhere ends all the person's sessions and removes their devices, no one else's", async () => {
+		it("everywhere ends all the person's sessions and signs out their devices, no one else's", async () => {
 			const tokenOf = (r: Awaited<ReturnType<typeof signIn>>) => (r.ok ? r.value.token : '');
 			const phone = tokenOf(await signIn(google()));
 			const laptop = tokenOf(await signIn(google()));
@@ -404,10 +404,12 @@ describe('auth', () => {
 			expect(await t.auth.authenticate(phone)).toBeNull();
 			expect(await t.auth.authenticate(laptop)).toBeNull();
 			expect(await t.auth.authenticate(alex)).not.toBeNull();
-			expect(t.pushDevices.all().map((d) => d.id)).toEqual(['d3']);
+			// Kept, to resume when Sam signs in on each again (D43), but sent nothing meanwhile.
+			expect(t.pushDevices.all()).toHaveLength(3);
+			expect((await t.pushDevices.listLive([samId, alexId])).map((d) => d.id)).toEqual(['d3']);
 		});
 
-		it("forgets the device this browser names, and only if it is the person's own (D43)", async () => {
+		it("signs out the device this browser names, and only if it's the person's own (D43)", async () => {
 			const tokenOf = (r: Awaited<ReturnType<typeof signIn>>) => (r.ok ? r.value.token : '');
 			const phone = tokenOf(await signIn(google()));
 			const laptop = tokenOf(await signIn(google()));
@@ -421,22 +423,18 @@ describe('auth', () => {
 			await device(samId, 'd2');
 			await device(alexId, 'd3');
 
+			const live = async () =>
+				(await t.pushDevices.listLive([samId, alexId])).map((d) => d.id).sort();
 			// Alex's endpoint named from Sam's session changes nothing.
 			await t.auth.signOut(laptop, { endpoint: 'https://p/d3' });
-			expect(
-				t.pushDevices
-					.all()
-					.map((d) => d.id)
-					.sort()
-			).toEqual(['d1', 'd2', 'd3']);
+			expect(await live()).toEqual(['d1', 'd2', 'd3']);
 			await t.auth.signOut(phone, { endpoint: 'https://p/d1' });
 			expect(await t.auth.authenticate(phone)).toBeNull();
-			expect(
-				t.pushDevices
-					.all()
-					.map((d) => d.id)
-					.sort()
-			).toEqual(['d2', 'd3']);
+			expect(await live()).toEqual(['d2', 'd3']);
+			// Kept, to resume when Sam signs in there again.
+			expect(t.pushDevices.all().find((d) => d.id === 'd1')).toMatchObject({
+				signedOutAt: expect.any(Date)
+			});
 		});
 
 		it('everywhere with an unknown or expired session ends nothing else', async () => {

@@ -147,6 +147,38 @@ describe('devices', () => {
 		expect(await settings.devices(sam)).toHaveLength(2);
 	});
 
+	it('resume when their person signs in there again, but never pass to the next person (D43)', async () => {
+		const { settings, ports, save } = setup();
+		const phone = await save(sam, 'phone');
+		await ports.pushDevices.signOut(sam.userId, endpoint('phone'), start);
+		expect(await ports.pushDevices.listLive([sam.userId])).toEqual([]);
+		expect(await settings.startTest(sam, { deviceId: phone.id })).toMatchObject({ ok: false });
+		const opened = { endpoint: endpoint('phone'), keys, label: 'phone' };
+		const serverKey = 'BPublicKeyForTests';
+
+		// Alex signs in on Sam's phone: Sam's device stays Sam's, and stays signed out.
+		expect(await settings.deviceSeen(alex, { ...opened, serverKey })).toEqual({
+			ok: true,
+			value: null
+		});
+		expect(await settings.devices(alex)).toEqual([]);
+		expect((await settings.devices(sam))[0]!.signedOutAt).toBeDefined();
+
+		// Sam signs in again: it resumes.
+		expect(await settings.deviceSeen(sam, { ...opened, serverKey })).toMatchObject({
+			ok: true,
+			value: { id: phone.id }
+		});
+		expect((await settings.devices(sam))[0]!.signedOutAt).toBeUndefined();
+		expect(await ports.pushDevices.listLive([sam.userId])).toHaveLength(1);
+
+		// Alex turning reminders on there takes it over, as the browser's keys show it's theirs.
+		await ports.pushDevices.signOut(sam.userId, endpoint('phone'), start);
+		expect((await settings.saveDevice(alex, opened)).ok).toBe(true);
+		expect(await settings.devices(sam)).toEqual([]);
+		expect(await ports.pushDevices.listLive([alex.userId])).toHaveLength(1);
+	});
+
 	it('are left alone when the app opens with a subscription made with another key', async () => {
 		const { settings } = setup();
 		const seen = await settings.deviceSeen(sam, {

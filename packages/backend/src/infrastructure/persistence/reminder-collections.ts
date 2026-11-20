@@ -78,7 +78,7 @@ export function mongoPushDevices(db: Db, clock: Clock): PushDeviceRepository {
 					updatedAt: now,
 					schemaVersion: DEVICE_SCHEMA
 				},
-				$unset: { disabledAt: '' },
+				$unset: { disabledAt: '', signedOutAt: '' },
 				$setOnInsert: { _id: id, endpoint, createdAt: now }
 			},
 			{ upsert: true, returnDocument: 'after' }
@@ -109,10 +109,18 @@ export function mongoPushDevices(db: Db, clock: Clock): PushDeviceRepository {
 			const doc = await devices.findOne({ _id: id, userId });
 			return doc && toDevice(doc);
 		},
+		async findByEndpoint(endpoint) {
+			const doc = await devices.findOne({ endpoint });
+			return doc && toDevice(doc);
+		},
 		async listLive(userIds) {
 			if (userIds.length === 0) return [];
 			const docs = await devices
-				.find({ userId: { $in: [...userIds] }, disabledAt: { $exists: false } })
+				.find({
+					userId: { $in: [...userIds] },
+					disabledAt: { $exists: false },
+					signedOutAt: { $exists: false }
+				})
 				.toArray();
 			return docs.map(toDevice);
 		},
@@ -120,9 +128,19 @@ export function mongoPushDevices(db: Db, clock: Clock): PushDeviceRepository {
 			const { deletedCount } = await devices.deleteOne({ _id: id, userId });
 			return deletedCount === 1;
 		},
-		async removeByEndpoint(userId, endpoint) {
-			const { deletedCount } = await devices.deleteOne({ endpoint, userId });
-			return deletedCount === 1;
+		async signOut(userId, endpoint, at) {
+			const { matchedCount } = await devices.updateOne(
+				{ endpoint, userId },
+				{ $set: { signedOutAt: at, updatedAt: at } }
+			);
+			return matchedCount === 1;
+		},
+		async signOutAll(userId, at) {
+			const { matchedCount } = await devices.updateMany(
+				{ userId },
+				{ $set: { signedOutAt: at, updatedAt: at } }
+			);
+			return matchedCount;
 		},
 		async removeAllForUser(userId) {
 			const { deletedCount } = await devices.deleteMany({ userId }, { session: currentSession() });

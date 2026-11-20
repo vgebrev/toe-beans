@@ -12,7 +12,7 @@ import {
 	signIn,
 	ZONE
 } from './mock-sign-in.js';
-import { fakePushInBrowser, fakeSubscription, pushesFor } from './push-service.js';
+import { awaitPushes, fakePushInBrowser, fakeSubscription, pushesFor } from './push-service.js';
 import { runTick } from './tick.js';
 
 test.use({ storageState: { cookies: [], origins: [] } });
@@ -96,7 +96,7 @@ test('scenario 4: turn on reminders, and one arrives for a planned session with 
 	await page.goto('about:blank');
 	await runTick(page);
 
-	const [push, ...more] = await pushesFor(sub);
+	const [push, ...more] = await awaitPushes(sub);
 	expect(more).toEqual([]);
 	expect(push!.headers).toMatchObject({
 		ttl: '3600',
@@ -206,7 +206,7 @@ test('care reminders: days before and the time of day are saved, and one arrives
 	await page.goto('about:blank');
 	await runTick(page);
 
-	const [push, ...more] = await pushesFor(sub);
+	const [push, ...more] = await awaitPushes(sub);
 	expect(more).toEqual([]);
 	expect(push!.headers).toMatchObject({ ttl: '43200', urgency: 'high' });
 	expect(push!.payload).toEqual({
@@ -287,12 +287,13 @@ test('a device the push service says is gone stops getting reminders', async ({
 	expect(devices).toMatchObject([{ disabled: true }]);
 });
 
-test('signing out forgets this device straight away, and no other (D43)', async ({
+test('signing out pauses this device, which resumes on signing in again, and never passes to the next person (D43)', async ({
 	page,
+	browser,
 	baseURL
 }) => {
-	const person = newPerson();
-	await signIn(page, person);
+	const sam = newPerson('sam');
+	await signIn(page, sam);
 	await createHousehold(page, baseURL!);
 	const other = fakeSubscription();
 	const saved = await page.request.put('/api/v1/reminders/devices', {
@@ -308,16 +309,49 @@ test('signing out forgets this device straight away, and no other (D43)', async 
 	await page.goto('/settings/notifications');
 	await page.getByRole('switch', { name: /Push notifications/ }).click();
 	await expect(page.getByText(/On for this device/)).toBeVisible();
-	const before = await (await page.request.get('/api/v1/reminders')).json();
-	expect(before.devices).toHaveLength(2);
+	const signOut = async () => {
+		await page.goto('/more');
+		await page.getByRole('button', { name: 'Sign out', exact: true }).click();
+		await expect(page).toHaveURL('/sign-in');
+	};
+	await signOut();
 
-	await page.goto('/more');
-	await page.getByRole('button', { name: 'Sign out', exact: true }).click();
-	await expect(page).toHaveURL('/sign-in');
-	await signIn(page, person);
+	// Seen from Sam's laptop: this phone is signed out, the tablet isn't.
+	const laptopContext = await browser.newContext({ storageState: { cookies: [], origins: [] } });
+	const laptop = await laptopContext.newPage();
+	await blockMockFonts(laptop);
+	await signIn(laptop, sam);
+	await expect(laptop).toHaveURL('/');
+	const samsDevices = async () =>
+		(await (await laptop.request.get('/api/v1/reminders')).json()).devices;
+	expect(await samsDevices()).toEqual(
+		expect.arrayContaining([
+			expect.objectContaining({ label: 'Old tablet · Chrome', signedOut: false }),
+			expect.objectContaining({ label: expect.stringMatching(/ · Chrome$/), signedOut: true })
+		])
+	);
+	await laptop.goto('/settings/notifications');
+	await expect(
+		laptop.getByText('Signed out: reminders resume when you sign in there')
+	).toBeVisible();
+
+	// Alex signs in on the phone: reminders are off for them, and Sam's device stays Sam's.
+	await signIn(page, newPerson('alex'));
+	await createHousehold(page, baseURL!);
+	await page.goto('/settings/notifications');
+	await expect(page.getByText('Off on this device')).toBeVisible();
+	expect((await (await page.request.get('/api/v1/reminders')).json()).devices).toEqual([]);
+	await signOut();
+
+	// Sam signs in on the phone again: reminders are back on without a tap.
+	await signIn(page, sam);
 	await expect(page).toHaveURL('/');
-	const { devices } = await (await page.request.get('/api/v1/reminders')).json();
-	expect(devices).toMatchObject([{ label: 'Old tablet · Chrome' }]);
+	await expect
+		.poll(async () => (await samsDevices()).filter((d: { signedOut: boolean }) => d.signedOut))
+		.toEqual([]);
+	await page.goto('/settings/notifications');
+	await expect(page.getByText(/On for this device/)).toBeVisible();
+	await laptopContext.close();
 });
 
 test('opening the app with reminders on tells the server the device is still in use (D43)', async ({

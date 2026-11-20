@@ -16,7 +16,7 @@
 	import { createApiClient } from '#lib/api-client/index.js';
 	import { ActiveDog, setActiveDog } from '#lib/dogs/active-dog.svelte.js';
 	import { isForm, setTrail, Trail } from '#lib/navigation/trail.svelte.js';
-	import { reportSeen } from '#lib/push/browser.js';
+	import { seenBody } from '#lib/push/browser.js';
 	import type { LayoutProps } from './$types';
 
 	let { children }: LayoutProps = $props();
@@ -24,12 +24,13 @@
 	const active = setActiveDog(new ActiveDog());
 	onMount(() => active.restore());
 
-	// Once per app open: a device not seen for 30 days is deleted as gone.
+	// Once per app open: a device not seen for 30 days is deleted as gone, and one signed out here
+	// resumes. A failure only means it's tried again on the next open.
 	onMount(() => {
 		const api = createApiClient((input, init) => fetch(input, init));
-		reportSeen((body) => api.send('POST', '/reminders/devices/seen', { body })).catch(
-			() => undefined
-		);
+		seenBody()
+			.then((body) => body && api.send('POST', '/reminders/devices/seen', { body }))
+			.catch(() => undefined);
 	});
 
 	// The tabs start the trail afresh.

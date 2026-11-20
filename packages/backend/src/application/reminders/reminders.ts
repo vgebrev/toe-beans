@@ -161,25 +161,29 @@ export function createReminderSettings(
 		devices: (ctx: MemberContext): Promise<PushDevice[]> => pushDevices.listForUser(ctx.userId),
 
 		/**
-		 * Registers this browser for the person, or refreshes it: the settings screen saves the
-		 * current subscription each time it opens, so a phone handed to someone else, renewed keys
-		 * or a device the push service had dropped all come right.
+		 * Registers this browser for the person: turning reminders on, or the service worker saving
+		 * a renewed subscription. It takes the device over from whoever had it, if the keys show it's
+		 * this browser (a shared phone's next person turning reminders on).
 		 */
 		saveDevice: (ctx: MemberContext, input: DeviceInput) =>
 			save(ctx, input, { replaceInUse: true }),
 
 		/**
-		 * The app opened with reminders on (architecture D43): saving the subscription again marks
-		 * the device in use, so it isn't deleted as stale, and brings back one that was. Null when the
-		 * subscription was made with another key, which can't be sent to: the Notifications screen
-		 * subscribes again. Unlike the screen, it never replaces a device in use, so two phones with
-		 * the same name don't take turns removing each other.
+		 * The app or the Notifications screen opened with this browser subscribed (architecture
+		 * D43): saving the subscription again marks the device in use, so it isn't deleted as stale,
+		 * resumes it if the person had signed out here, and brings back one that was deleted. Null,
+		 * with nothing saved, when the subscription was made with another key, which can't be sent
+		 * to, or is someone else's device: a person signed out on a shared phone keeps theirs, and the
+		 * next person gets reminders here only by turning them on. It never replaces a device in use,
+		 * so two phones with the same name don't take turns removing each other.
 		 */
 		async deviceSeen(
 			ctx: MemberContext,
 			{ serverKey, ...input }: SeenInput
 		): Promise<Result<PushDevice | null, ValidationError>> {
 			if (serverKey !== push.publicKey) return ok(null);
+			const stored = await pushDevices.findByEndpoint(input.endpoint);
+			if (stored && stored.userId !== ctx.userId) return ok(null);
 			return save(ctx, input, { replaceInUse: false });
 		},
 
@@ -232,7 +236,7 @@ export function createReminderSettings(
 			input: { deviceId: string }
 		): Promise<Result<TestView, NotFoundError>> {
 			const device = await findDevice(ctx, input.deviceId);
-			if (!device || device.disabledAt) return err(notFound('device'));
+			if (!device || device.disabledAt || device.signedOutAt) return err(notFound('device'));
 			const now = clock.now();
 			const latest = await reminders.latestTest(ctx.userId);
 			if (

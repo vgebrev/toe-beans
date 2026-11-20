@@ -10,16 +10,16 @@
 	import ThemeSwitch from '#lib/components/shell/ThemeSwitch.svelte';
 	import { Button } from '#lib/components/ui/button/index.js';
 	import * as Sheet from '#lib/components/ui/sheet/index.js';
-	import { unsubscribe } from '#lib/push/browser.js';
+	import { currentEndpoint, unsubscribe } from '#lib/push/browser.js';
 	import { createApiClient, problemStatus } from '#lib/api-client/index.js';
 	import type { PageProps } from './$types';
 
 	let { data }: PageProps = $props();
 
 	/**
-	 * Signing out stops this browser's reminders first: on a shared phone the next person
-	 * shouldn't get them. The form then names the subscription, so the server forgets the device
-	 * straight away rather than when a reminder to it fails (architecture D43).
+	 * Signing out names this browser's subscription, so the server stops its reminders: on a shared
+	 * phone the next person shouldn't get them. The browser stays subscribed, so they resume when
+	 * the person signs in here again (architecture D43).
 	 */
 	let signingOut = false;
 	let everywhereOpen = $state(false);
@@ -29,7 +29,7 @@
 		signingOut = true;
 		const form = event.currentTarget as HTMLFormElement;
 		const endpoint = await Promise.race([
-			unsubscribe().catch(() => null),
+			currentEndpoint().catch(() => null),
 			new Promise<null>((resolve) => setTimeout(() => resolve(null), 3000))
 		]);
 		if (endpoint) {
@@ -271,8 +271,7 @@
 				</Sheet.Title>
 				<Sheet.Description class="text-base">
 					You'll be signed out here and on every phone and browser you've used, and reminders stop
-					on all of them. Sign in again where you still use Toe Beans, and turn reminders back on in
-					Notifications.
+					on all of them. They start again on each one when you sign in there.
 				</Sheet.Description>
 			</Sheet.Header>
 			<form method="POST" action={resolve('/auth/sign-out')} onsubmit={signOut}>

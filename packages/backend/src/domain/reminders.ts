@@ -30,6 +30,11 @@ export interface PushDevice {
 	failureCount: number;
 	/** Set when the push service says the subscription is gone (404/410). Nothing is sent to it. */
 	disabledAt?: Date;
+	/**
+	 * Set when its person signed out in that browser, or everywhere (D43): nothing is sent to it
+	 * until they sign in there again and the app's next open resumes it.
+	 */
+	signedOutAt?: Date;
 	/** When the browser last saved it: on each app open, and from the Notifications screen. */
 	lastSeenAt: Date;
 	/**

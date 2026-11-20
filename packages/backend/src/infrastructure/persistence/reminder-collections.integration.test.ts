@@ -134,13 +134,23 @@ describe('mongoPushDevices', () => {
 		expect(await devices().remove(sam, device.id)).toBe(true);
 	});
 
-	it('removes a device by endpoint for its own person only (D43)', async () => {
+	it('signs a device out for its own person only, until it is saved again (D43)', async () => {
 		const [sam, alex] = [ids.next(), ids.next()];
 		const endpoint = `https://fcm.googleapis.com/fcm/send/${ids.next()}`;
+		const other = `https://fcm.googleapis.com/fcm/send/${ids.next()}`;
 		await devices().save({ id: ids.next(), userId: sam, endpoint, keys, label: 'x' });
-		expect(await devices().removeByEndpoint(alex, endpoint)).toBe(false);
-		expect(await devices().removeByEndpoint(sam, endpoint)).toBe(true);
-		expect(await devices().listForUser(sam)).toEqual([]);
+		await devices().save({ id: ids.next(), userId: sam, endpoint: other, keys, label: 'y' });
+		expect(await devices().findByEndpoint(endpoint)).toMatchObject({ userId: sam });
+		expect(await devices().signOut(alex, endpoint, at)).toBe(false);
+		expect(await devices().signOut(sam, endpoint, at)).toBe(true);
+		expect((await devices().listLive([sam])).map((d) => d.endpoint)).toEqual([other]);
+		expect(await devices().findByEndpoint(endpoint)).toMatchObject({ signedOutAt: at });
+
+		await devices().save({ id: ids.next(), userId: sam, endpoint, keys, label: 'x' });
+		expect(await devices().listLive([sam])).toHaveLength(2);
+		expect(await devices().signOutAll(sam, at)).toBe(2);
+		expect(await devices().listLive([sam])).toEqual([]);
+		expect(await devices().listForUser(sam)).toHaveLength(2);
 	});
 
 	it('is deleted 30 days after it was last seen or reached, or 14 after it stopped (D43)', async () => {
