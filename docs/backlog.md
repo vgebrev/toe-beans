@@ -1,8 +1,8 @@
 # Toe Beans — Backlog
 
-**Version:** 0.72 (draft for iteration)
+**Version:** 0.73 (draft for iteration)
 **Date:** 20 November 2026
-**Inputs:** `docs/requirements.md` v1.0, `docs/architecture.md` v1.31, `docs/ui.md` v0.39
+**Inputs:** `docs/requirements.md` v1.0, `docs/architecture.md` v1.32, `docs/ui.md` v0.39
 
 **Changes in 0.3:** spike results S-1.0 to S-1.4 and S0.1–S0.2 recorded as they landed (see Current progress). S-1.4b dropped as not needed, S-1.5 parked, S-1.4a retargeted to `toebeans.co.za`.
 
@@ -123,6 +123,8 @@
 **Changes in 0.71:** S14.7 done: release acceptance passed on both phones, S14 closed and 1.0.0 cut (D40). S17.5 and S17.6 closed by the owner.
 
 **Changes in 0.72:** S17.2 built: not seen again since S17.5, and its 404s found: the new service worker deleted the old build's cache while a page on that build was still open (architecture 1.31 D31). S17.8 from the owner, logged and built: *Can't reach Toe Beans* whether the phone or the app is down, and *Connecting to* rather than *Waking up* (ui 0.39 §5.2). Inputs moved to architecture 1.31 and ui 0.39.
+
+**Changes in 0.73:** S17.1 built: browser error reports go through the app's own origin, past ad blockers (architecture 1.32 D41). Inputs moved to architecture 1.32.
 
 **Changes in 0.51:** S15.1 gains (k), fresh data on coming back to the app and on Back to a page Chrome kept whole (ui 0.35 §5.2), from the owner, after Today stayed stale behind a reminder. Live updates over WebSockets were considered and left out for cost. The offline banner's check backs off from 1 s (architecture 1.23 D31), found through a flaky e2e check. Built with e2e checks and closed by the owner, so S15.1 stays done. Inputs moved to architecture 1.23 and ui 0.35.
 
@@ -252,6 +254,7 @@ Work is organised as **vertical slices**: each delivers a usable end-to-end incr
 | 2026-11-19 | S17.7 logged: an uninstalled app's push device stays in the database. |
 | 2026-11-19 | S17.5 and S17.6 done. S14.7 done: release acceptance passed on both phones; S14 closed and 1.0.0 cut. |
 | 2026-11-20 | S17.2 built: a page open on the old build keeps its files after a deploy. S17.8 built: *Can't reach Toe Beans* for an offline phone or a down app, and *Connecting to Toe Beans…*. |
+| 2026-11-20 | S17.1 built: browser error reports go through the app's own origin, so ad blockers don't drop them. |
 
 **Next up:** 1.0.0 to prod, then S17 refinements (S17.1–S17.3, S17.7, S17.8) and P1. Snags from using the app go to S17.
 
@@ -483,7 +486,7 @@ Work is organised as **vertical slices**: each delivers a usable end-to-end incr
 
 | # | Task | Status |
 |---|---|---|
-| S17.1 | **Browser errors past ad blockers:** ad blockers' lists block `*.ingest.sentry.io`, so a household member with one never reports browser errors (found in S14.4's check). Send them through the app's own origin with the SDK's `tunnel` option: a small route that forwards only envelopes for our DSN's project to Sentry's EU ingest, rate limited, and keeps the CSP's `connect-src` to `'self'` (architecture §9, §7). | ⬜ |
+| S17.1 | **Browser errors past ad blockers:** ad blockers' lists block `*.ingest.sentry.io`, so a household member with one never reports browser errors (found in S14.4's check). Send them through the app's own origin with the SDK's `tunnel` option: a small route that forwards only envelopes for our DSN's project to Sentry's EU ingest, rate limited, and keeps the CSP's `connect-src` to `'self'` (architecture §9, §7). **Built (20 Nov):** the SDK posts to `/oops`, which sends an envelope on only if its DSN is the app's own, to that DSN's ingest host, up to 256 KB and 30 per address per 10 minutes, passing on nothing about the phone's request; `connect-src` is `'self'`, and the browser SDK sends errors only, without a session per page load (architecture 1.32 D41). Unit tests for the relay and the route; e2e checks that a thrown error is posted to the app's origin and nowhere else, and that the route refuses another project's envelope and a cross-site post. To close: after the deploy, the runbook's browser check (`sentry.md` §3) with an ad blocker on. | 🟨 |
 | S17.2 | **Stuck after a deploy:** after a new deployment, the installed app asks for the old build's files, gets 404s and stays on *Waking up Toe Beans* with loading skeletons. The update banner does come up (S15.1 (j)), so *Refresh* gets the person out, but the app shouldn't get stuck. Find out why from the service worker's handling of an old build's chunks and the waking page's retry (architecture D31). **Not seen again (20 Nov)** since S17.5, whose broken waking page at a nested address likely accounts for being stuck; kept open to watch. **The 404s found:** the new worker skips waiting, takes over the open page and deleted every other cache, so the old build's page asked the server for its lazily loaded route chunks, which the new image doesn't have. Kit then reloads only if a navigation fails and `version.json` has changed; a failed preload or a component's import just 404s. **Built (20 Nov):** the new worker keeps the previous build's cache too and serves an `_app/immutable/` file it doesn't precache from any cache before the network (architecture 1.31 D31). Unit tests for which caches go; an e2e check fetches a file only an older build's cache holds. | 🟨 |
 | S17.3 | **Scanners stopped at the edge:** Cloudflare's analytics show bots probing for `/.env*`, `/.git/config`, `*.php`, `/wp-*`, `/actuator/*`, `/graphql`, `/v2/_catalog` and similar. Spot checks on 18 Nov found nothing exposed: the image holds only the build, `node_modules` and the exercises; unknown paths give 404, the API 401, and the tick's POST without its token 401. Each probe still wakes Cloud Run and renders the 13 KB app shell. (a) A free Cloudflare WAF custom rule blocks the obvious patterns before they reach the Worker. (b) A short plain 404 for paths outside the app's routes and assets, in place of the app shell. (c) `/.well-known/security.txt` with a contact and expiry. The full defensive review waits for the v1.0.0 release (architecture §7, D32). | ⬜ |
 | S17.4 | **Signed up, then "Signing in didn't work":** the owner signed up with email on prod and verified from the email, and Auth0 finished the sign-in in the mail app's browser, where the app had no sign-in in progress (logs: `no pending sign-in`), so the page said only that it failed. **Built (19 Nov):** such a callback, if it carries a code, starts a sign-in in that browser once (a 60-second `tb_resumed` cookie stops a loop), and the provider's session usually signs the person straight in. Auth0's *Application Login URI* (`auth0.md` §2) gives its verified and password-changed pages a button back. Unit and e2e tests. **Tried (19 Nov):** with the login URI set, the owner signed up on the phone (refused as unverified, as it should be), verified in a desktop browser and was signed in there through Auth0's button: the login URI fixes the case seen on prod, and the restart covers what's left (a sign-in past 10 minutes, a link in another app's browser). **Done (19 Nov):** closed by the owner as the fix deploys. | ✅ |

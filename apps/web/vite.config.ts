@@ -76,8 +76,8 @@ export default defineConfig({
 					// blob: is the photo cropper's preview; data: covers inline SVG in the CSS.
 					'img-src': ['self', 'blob:', 'data:'],
 					'font-src': ['self'],
-					// Browser error reports go to Sentry's ingest hosts (architecture §9).
-					'connect-src': ['self', 'https://*.sentry.io'],
+					// Browser error reports go through the app's own origin too (architecture D41).
+					'connect-src': ['self'],
 					'worker-src': ['self'],
 					'manifest-src': ['self'],
 					'object-src': ['none'],

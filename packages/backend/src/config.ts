@@ -89,6 +89,9 @@ const Env = z
 		WRITE_RATE_LIMIT: z.coerce.number().int().min(1).max(100_000).default(300),
 		// Dog photos one person may upload per hour, per instance (architecture D32).
 		PHOTO_RATE_LIMIT: z.coerce.number().int().min(1).max(100_000).default(20),
+		// Browser error reports one client address may send per 10 minutes, per instance
+		// (architecture D41). The SDK already drops repeats of the same error.
+		ERROR_REPORT_RATE_LIMIT: z.coerce.number().int().min(1).max(100_000).default(30),
 		// The header secret the Cloudflare Worker adds to every request (architecture §7, D32).
 		// Set, the app refuses requests without it, so nobody can reach run.app directly and set
 		// the client address header the rate limits key on. Required in prod.
@@ -228,6 +231,8 @@ export interface Config {
 	writeRateLimit: { limit: number; windowMs: number };
 	/** Dog photo uploads per person per `windowMs`. */
 	photoRateLimit: { limit: number; windowMs: number };
+	/** Browser error reports per client address per `windowMs`. */
+	errorReportRateLimit: { limit: number; windowMs: number };
 	/** The secret the proxy in front sends in `x-toe-beans-proxy`; unset takes any request. */
 	proxySecret?: string;
 	email: EmailConfig;
@@ -339,6 +344,7 @@ export function loadConfig(env: Record<string, string | undefined>): Config {
 		inviteRateLimit: { limit: e.INVITE_RATE_LIMIT, windowMs: 10 * 60_000 },
 		writeRateLimit: { limit: e.WRITE_RATE_LIMIT, windowMs: 10 * 60_000 },
 		photoRateLimit: { limit: e.PHOTO_RATE_LIMIT, windowMs: 60 * 60_000 },
+		errorReportRateLimit: { limit: e.ERROR_REPORT_RATE_LIMIT, windowMs: 10 * 60_000 },
 		...(e.PROXY_SECRET && { proxySecret: e.PROXY_SECRET }),
 		email: emailConfig(e),
 		photos: photoConfig(e),

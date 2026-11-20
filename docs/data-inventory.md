@@ -1,8 +1,8 @@
 # Toe Beans — Data inventory
 
-**Version:** 0.4 (draft)
-**Date:** 19 November 2026
-**Inputs:** `docs/requirements.md` v1.0, `docs/architecture.md` v1.28, `docs/runbooks/accounts.md`
+**Version:** 0.5 (draft)
+**Date:** 20 November 2026
+**Inputs:** `docs/requirements.md` v1.0, `docs/architecture.md` v1.32, `docs/runbooks/accounts.md`
 
 **Changes in 0.1:** first draft for backlog S16.1. Lists the personal data Toe Beans holds, where it is, why, and how long it's kept, worked out from the code and the accounts inventory. It's the source for the privacy policy (S16.2) and for deletion (S16.5). §6 lists the open points those slices have to settle.
 
@@ -11,6 +11,8 @@
 **Changes in 0.3:** the privacy contact (S16.2): mail to `privacy@toebeans.co.za` is forwarded by Cloudflare Email Routing to the owner's Gmail, and replies go out through Resend. §4 gains the row, and §6 point 9 settles how long that correspondence is kept: a year after it's answered.
 
 **Changes in 0.4:** Auth0's login page (`auth.toebeans.co.za`) loads the Nunito font from Google Fonts, so §4 gains Google Fonts. The app itself still loads nothing from other sites. The Gmail row covers `support@toebeans.co.za` too: invitations carry it as their reply address, and Auth0's emails come from it.
+
+**Changes in 0.5:** §3, error reports: the browser's reports now reach Sentry through the app's own server (architecture 1.32 D41), so Sentry no longer receives the phone's address at all.
 
 This file is public. It describes kinds of data and where they are, never values. It isn't legal
 advice. The owner has it read with the policy before other households join (backlog S16).
@@ -58,7 +60,7 @@ The rate limiter keys on the client's address in process memory only, and forget
 | Backups | R2 `toe-beans-backups`, Europe. The dump is encrypted with `age` to the owner's key | Everything in §2 except `sessions` and `pendingSignIns`, plus every photo | Dumps 30 days; replaced or deleted photos 30 days in `photos/replaced/`; current photos while they exist (D36) |
 | App logs | Google Cloud Logging, project `toe-beans-co-za` | Internal user, household and item IDs, route IDs and errors. Emails, tokens, cookies and push endpoints are redacted (NFR-12) | 30 days |
 | Platform request logs | Cloud Logging (Cloud Run request logs) | Full URLs (which can hold an invitation token, D34), user agent, timing | 30 days, readable by the owner only |
-| Error reports | Sentry, EU (Frankfurt) | Stack traces and scrubbed messages. Request, user, cookies, headers and IP are dropped before sending, and the IP is also blocked by a project setting | 30 days (free plan) |
+| Error reports | Sentry, EU (Frankfurt) | Stack traces and scrubbed messages. Request, user, cookies, headers and IP are dropped before sending. The browser's reports go through the app's server, which passes on nothing about the phone's request, so Sentry never sees its address, and storing IPs is also blocked by a project setting | 30 days (free plan) |
 | In the browser | The phone | The session cookie (`__Host-` prefixed, HTTP-only), a sign-in cookie for 10 minutes, `localStorage` for theme, banners dismissed and the active dog, and the service worker's cache of the app and photos | Until signed out, cleared or uninstalled |
 
 ## 4. Operators and transfers abroad

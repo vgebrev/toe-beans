@@ -1,6 +1,7 @@
 import type { RequestEvent } from '@sveltejs/kit';
 import type { Handle, HandleServerError, ServerInit } from '@sveltejs/kit/hooks';
 import { PROXY_SECRET_HEADER, REQUEST_ID_HEADER, requestIdFrom } from '@toe-beans/backend';
+import { ERROR_RELAY_PATH } from '@toe-beans/contracts';
 import { backend, startBackend } from '#lib/server/backend.js';
 import { toResponse, unauthenticated } from '#lib/server/respond.js';
 
@@ -37,6 +38,9 @@ const machineRoutes = new Set(['/internal/tick']);
 // The join page says what an invitation is for before asking anyone to sign in (ui.md J2). The
 // token is what allows it; accepting is a separate route and needs a session.
 const publicApiRoutes = new Set(['/api/v1/invitations/[token]']);
+
+// The browser's error reports (architecture D41): sent signed in or not, so no session lookup.
+const noViewerRoutes = new Set([...quietRoutes, ERROR_RELAY_PATH]);
 
 /**
  * Gives each request an ID, puts it on every log line and error report the request causes and
@@ -102,8 +106,8 @@ async function authenticated(
 	});
 	if (refused) return toResponse(refused);
 
-	// Probes don't need a viewer, so they never touch the sessions.
-	if (quietRoutes.has(route)) return resolve(event, resolveOptions);
+	// Probes and error reports don't need a viewer, so they never touch the sessions.
+	if (noViewerRoutes.has(route)) return resolve(event, resolveOptions);
 
 	const { viewer, cookies } = await auth.authenticate((name) => event.cookies.get(name));
 	event.locals.viewer = viewer;

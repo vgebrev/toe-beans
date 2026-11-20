@@ -15,3 +15,4 @@ export * from './history.js';
 export * from './care-tasks.js';
 export * from './today.js';
 export * from './reminders.js';
+export * from './error-reports.js';

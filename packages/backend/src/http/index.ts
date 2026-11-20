@@ -23,6 +23,7 @@ import { createCareTasksHttp, type CareTasksHttp } from './care-tasks.js';
 import { createCuesHttp, type CuesHttp } from './cues.js';
 import { createDogsHttp, type DogsHttp } from './dogs.js';
 import { createEdgeHttp, type EdgeHttp } from './edge.js';
+import { createErrorRelayHttp, type ErrorRelayHttp } from './error-relay.js';
 import { createExercisesHttp, type ExercisesHttp } from './exercises.js';
 import { createHealthHttp, type HealthHttp } from './health.js';
 import { createHistoryHttp, type HistoryHttp } from './history.js';
@@ -37,6 +38,8 @@ export interface Http {
 	/** Checks before any route, and the headers on every response (architecture §7). */
 	edge: EdgeHttp;
 	health: HealthHttp;
+	/** The browser's error reports, sent on to error tracking (architecture D41). */
+	errorRelay: ErrorRelayHttp;
 	auth: AuthHttp;
 	account: AccountHttp;
 	household: HouseholdHttp;
@@ -85,6 +88,11 @@ export function createHttp(
 			logger: ports.logger
 		}),
 		health: createHealthHttp(ports),
+		errorRelay: createErrorRelayHttp({
+			relay: ports.errorRelay,
+			rateLimit: ports.errorReportRateLimit,
+			logger: ports.logger
+		}),
 		auth: createAuthHttp(auth, {
 			publicOrigin,
 			rateLimit: ports.authRateLimit,
