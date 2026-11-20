@@ -1,9 +1,10 @@
 // Whether saves can reach Toe Beans right now (ui.md §6.1, NFR-04), for the offline banner. The
 // device's own online flag is the first sign; requests are the second, since a phone can say
 // it's online with no way out (a captive portal, a dead mobile signal). After a request fails,
-// /healthz is asked again after 1, 2, 4 and 8 s, then every 15 s, until one gets through: the
+// the server is asked again after 1, 2, 4 and 8 s, then every 15 s, until one gets through: the
 // phone's `online` comes a moment before its network works, so the first check often fails.
 import { observeConnection } from '#lib/api-client/index.js';
+import { checkServer } from '#lib/offline/reachable.js';
 
 export type ConnectionState = 'online' | 'offline' | 'unreachable';
 
@@ -51,12 +52,7 @@ class Connection {
 	/** Not while the phone says it's offline: its `online` event checks again. */
 	async #check(): Promise<void> {
 		if (!navigator.onLine) return;
-		try {
-			const response = await fetch('/healthz', { cache: 'no-store' });
-			this.#reached(response.ok);
-		} catch {
-			this.#reached(false);
-		}
+		this.#reached((await checkServer()) === 'answered');
 	}
 }
 

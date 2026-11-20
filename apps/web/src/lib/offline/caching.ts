@@ -24,6 +24,12 @@ export const isGatewayError = (status: number): boolean =>
 export const WAKING_AFTER_MS = 1000;
 export const QUIET_FOR_MS = 60_000;
 
+/**
+ * How long a page load may go unanswered before *Can't reach Toe Beans* stands in for it (S17.11):
+ * a request on a connection that died while the phone slept can otherwise hang for minutes.
+ */
+export const PAGE_TIMEOUT_MS = 20_000;
+
 /** Whether a page load should race the waking page, given when the server last answered. */
 export const mayBeCold = (now: number, lastAnswered: number | null): boolean =>
 	lastAnswered === null || now - lastAnswered >= QUIET_FOR_MS;

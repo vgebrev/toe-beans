@@ -10,6 +10,18 @@ for fixes. Candidates (`-rc.N`) go to prod for the owner to try before the relea
 
 ## Unreleased
 
+## 1.0.3 - 2026-11-20
+
+### Fixed
+
+- Toe Beans no longer gets stuck on *Connecting to Toe Beans…* when it opens: it carries on to
+  your page as soon as it gets through, and says it can't reach Toe Beans rather than waiting
+  forever.
+
+### Added
+
+- More shows the version of the app files saved on your phone next to the app's version.
+
 ## 1.0.2 - 2026-11-20
 
 ### Added

@@ -2,6 +2,7 @@
 // connection and new-version banners, the fallback pages, saves while offline (scenario 8), the loading
 // skeleton, installing and the home screen shortcuts. Each test brings its own household.
 import { expect, test, type Page } from '@playwright/test';
+import { ERROR_RELAY_PATH } from '@toe-beans/contracts';
 import { blockMockFonts, ownHousehold } from './mock-sign-in.js';
 
 test.use({ storageState: { cookies: [], origins: [] } });
@@ -163,9 +164,103 @@ test('a navigation stuck past 20 s offers Refresh, which loads the page it was g
 	await page.clock.fastForward(20_000);
 	await expect(page.getByText('Toe Beans is taking longer than usual to connect…')).toBeVisible();
 
+	// Reported once the page it loads has started error reporting (S17.11).
+	const report = stuckReport(page);
 	await page.getByRole('button', { name: 'Refresh' }).click();
 	await expect(page).toHaveURL(/\/plan$/);
 	await expect(page.getByRole('heading', { level: 1 })).toHaveText('Plan');
+	const body = await report;
+	expect(body).toContain('A load was stuck past 20 s on the navigation');
+	expect(body).toContain('"route":"/(app)/plan"');
+});
+
+/** The next report of a stuck load sent to the error relay (S17.11), as its envelope. */
+const stuckReport = (page: Page) =>
+	page
+		.waitForRequest(
+			(r) =>
+				new URL(r.url()).pathname === ERROR_RELAY_PATH &&
+				(r.postData() ?? '').includes('A load was stuck past 20 s'),
+			{ timeout: 15_000 }
+		)
+		.then((r) => r.postData() ?? '');
+
+test.describe('the waking page in place of a slow page load (S17.11)', () => {
+	// Without the worker, so the page's own requests can be held; the first load of / gets the
+	// waking page, as the worker gives it after a quiet spell.
+	test.use({ serviceWorkers: 'block' });
+
+	async function wakingOnFirstLoad(page: Page) {
+		const waking = await page.request.get('/waking');
+		let served = false;
+		await page.route(
+			(url) => url.pathname === '/',
+			(route) => {
+				if (served || route.request().resourceType() !== 'document') return route.continue();
+				served = true;
+				return route.fulfill({ response: waking });
+			}
+		);
+	}
+
+	test('it loads the page asked for once Toe Beans answers', async ({ page, baseURL }) => {
+		await ownHousehold(page, baseURL!);
+		await wakingOnFirstLoad(page);
+		// The path that reaches the app on prod, unlike /healthz, which Cloud Run keeps.
+		const checked = page.waitForRequest((r) => new URL(r.url()).pathname === '/readyz');
+		await page.goto('/');
+		await checked;
+		await expect(page.getByRole('heading', { level: 1 })).toHaveText('Today');
+		await expect(page).toHaveURL('/');
+	});
+
+	test('a check with no answer gives up after 10 s; stuck past 20 s, it is reported on the next start', async ({
+		page,
+		baseURL
+	}) => {
+		await page.clock.install();
+		await ownHousehold(page, baseURL!);
+		await wakingOnFirstLoad(page);
+		// Held, as on a connection that died while the phone slept, until let through.
+		let through = false;
+		let checks = 0;
+		await page.route('**/readyz', (route) => {
+			checks++;
+			if (through) return route.continue();
+		});
+
+		await page.goto('/');
+		await expect(page.getByText('Connecting to Toe Beans…')).toBeVisible();
+		expect(checks).toBe(1);
+		// The stuck check gives up, and the next goes a second later.
+		await page.clock.fastForward(10_000);
+		await page.clock.fastForward(1_000);
+		await expect.poll(() => checks).toBe(2);
+
+		await page.clock.fastForward(10_000);
+		await expect(page.getByText('Toe Beans is taking longer than usual to connect…')).toBeVisible();
+		await expect(page.getByRole('button', { name: 'Refresh' })).toBeVisible();
+
+		// Back: the next check gets through and the page loads by itself, then reports the wait.
+		through = true;
+		const report = stuckReport(page);
+		await expect(async () => {
+			await page.clock.fastForward(1_000);
+			await expect(page.getByRole('heading', { level: 1 })).toHaveText('Today', { timeout: 500 });
+		}).toPass();
+		const body = await report;
+		expect(body).toContain('A load was stuck past 20 s on the waking page');
+		expect(body).toContain('"lastCheck":"timed out"');
+		expect(body).toContain('"worker":"none"');
+	});
+});
+
+test("More shows the service worker's build next to the page's", async ({ page, baseURL }) => {
+	await ownHousehold(page, baseURL!);
+	await page.goto('/');
+	await waitForServiceWorker(page);
+	await page.goto('/more');
+	await expect(page.getByText(/^Version (\S+)\s+·\s+offline files \1$/)).toBeVisible();
 });
 
 test("with the service worker in place, a page load with no connection shows Can't reach Toe Beans", async ({

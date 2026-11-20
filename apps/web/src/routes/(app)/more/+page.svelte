@@ -12,6 +12,7 @@
 	import * as Sheet from '#lib/components/ui/sheet/index.js';
 	import { currentEndpoint, unsubscribe } from '#lib/push/browser.js';
 	import { createApiClient, problemStatus } from '#lib/api-client/index.js';
+	import { workerVersion } from '#lib/offline/worker-version.js';
 	import type { PageProps } from './$types';
 
 	let { data }: PageProps = $props();
@@ -21,6 +22,12 @@
 	 * phone the next person shouldn't get them. The browser stays subscribed, so they resume when
 	 * the person signs in here again (architecture D43).
 	 */
+	// The service worker's build, which lags the page's until its update installs (S17.11).
+	let offlineFiles = $state<string | null>(null);
+	$effect(() => {
+		void workerVersion().then((v) => (offlineFiles = v));
+	});
+
 	let signingOut = false;
 	let everywhereOpen = $state(false);
 	async function signOut(event: SubmitEvent) {
@@ -283,7 +290,9 @@
 
 	<footer class="flex flex-col items-center gap-1 pt-4 text-sm text-muted-foreground">
 		<Logo wordmark size={28} />
-		<p>Version {version}</p>
+		<p>
+			Version {version}{#if offlineFiles}&ensp;·&ensp;offline files {offlineFiles}{/if}
+		</p>
 		<p class="flex gap-4">
 			<a href={resolve('/privacy')} class="flex min-h-12 items-center underline">Privacy policy</a>
 			<a href={resolve('/terms')} class="flex min-h-12 items-center underline">Terms of service</a>

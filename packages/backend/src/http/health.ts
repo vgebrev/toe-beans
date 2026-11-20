@@ -1,5 +1,5 @@
-// Readiness for `/readyz` (architecture §8.1). Liveness (`/healthz`) needs no backend: the host
-// answers it directly.
+// Readiness for `/readyz` (architecture §8.1): the deploy, the uptime monitor and the browser's own
+// checks that the server answers (D31). There's no `/healthz`: Cloud Run's front end keeps it.
 import type { Ports } from '../application/ports/index.js';
 import { json, type HttpResponse } from './response.js';
 

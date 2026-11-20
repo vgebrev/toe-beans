@@ -17,6 +17,7 @@
 	} from '#lib/components/shell/LoadingSkeleton.svelte';
 	import { tabs } from '#lib/components/shell/nav.js';
 	import { createApiClient } from '#lib/api-client/index.js';
+	import { noteStuckLoad } from '#lib/client/stuck-load.js';
 	import { ActiveDog, setActiveDog } from '#lib/dogs/active-dog.svelte.js';
 	import { isForm, setTrail, Trail } from '#lib/navigation/trail.svelte.js';
 	import { seenBody } from '#lib/push/browser.js';
@@ -93,6 +94,11 @@
 				wakeAfterMs={WAKE_AFTER_MS - SLOW_AFTER_MS}
 				longAfterMs={LONG_AFTER_MS - SLOW_AFTER_MS}
 				refreshTo={navigating.to?.url.href}
+				onLong={() =>
+					void noteStuckLoad({
+						where: 'navigation',
+						route: navigating.to?.route.id ?? '(unmatched)'
+					})}
 			/>
 		{/if}
 		<!-- Hidden rather than removed, so the page keeps its state if the navigation stays on it. -->
