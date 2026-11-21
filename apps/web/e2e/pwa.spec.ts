@@ -221,6 +221,8 @@ test.describe('the waking page in place of a slow page load (S17.11)', () => {
 	}) => {
 		await ownHousehold(page, baseURL!);
 		await wakingOnFirstLoad(page);
+		// No answer, so the waking page keeps checking rather than loading the page.
+		await page.route('**/readyz', (route) => route.abort());
 		const checked = page.waitForRequest((r) => new URL(r.url()).pathname === '/readyz');
 		await page.goto('/');
 		await checked;
