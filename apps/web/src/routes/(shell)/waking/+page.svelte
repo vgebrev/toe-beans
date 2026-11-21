@@ -4,7 +4,8 @@
 	// service worker shows this skeleton meanwhile, then it checks the server answers (/readyz,
 	// #lib/offline/reachable.ts) and loads the page that was asked for (the address bar still
 	// shows it). The service worker lets that load through without waiting, so this can't come
-	// round again. A check gives up after 10 s, so one stuck request can't hold up the rest.
+	// round again. A check gives up after 10 s, so one stuck request can't hold up the rest. Offline,
+	// it reloads too, for the worker's *Can't reach Toe Beans* page.
 	import { onMount } from 'svelte';
 	import LoadingSkeleton, {
 		LONG_AFTER_MS,
@@ -32,6 +33,13 @@
 				return;
 			}
 			if (stopped) return;
+			// Offline, the reload gets the worker's *Can't reach Toe Beans* page, which opens the
+			// page once it's back, rather than a skeleton that looks as if it's still loading
+			// (S17.12). Opened as itself, it says so here instead.
+			if (!navigator.onLine && location.pathname !== '/waking') {
+				location.reload();
+				return;
+			}
 			// After 20 s the skeleton itself says it's taking longer than usual, with Refresh.
 			message = navigator.onLine
 				? null
