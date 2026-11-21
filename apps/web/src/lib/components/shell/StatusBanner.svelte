@@ -5,10 +5,16 @@
 	// - Once a new version is deployed: Kit's `updated` checks `_app/version.json` when the app
 	//   comes back to the front, on its hourly poll and on page data responses. *Refresh* loads
 	//   the new build. Never while Toe Beans can't be reached, as a reload would only find the
-	//   *Can't reach Toe Beans* page.
+	//   *Can't reach Toe Beans* page. It also has Chrome fetch the new service worker straight
+	//   away, so the offline files follow the deploy (S17.12).
 	import { updated } from '$app/state';
 	import Icon from '#lib/components/icon/Icon.svelte';
 	import { connection } from '#lib/client/connection.svelte.js';
+	import { updateWorker } from '#lib/offline/worker-update.js';
+
+	$effect(() => {
+		if (updated.current) void updateWorker();
+	});
 
 	// One message whether the phone is offline or the app is down: the phone's own flag isn't
 	// always right, and the person can't tell the difference from here either.

@@ -214,6 +214,27 @@ test.describe('the waking page in place of a slow page load (S17.11)', () => {
 		await expect(page).toHaveURL('/');
 	});
 
+	test("offline, it reloads, for the worker's Can't reach Toe Beans page (S17.12)", async ({
+		page,
+		context,
+		baseURL
+	}) => {
+		await ownHousehold(page, baseURL!);
+		await wakingOnFirstLoad(page);
+		// No answer, so the waking page keeps checking rather than loading the page.
+		await page.route('**/readyz', (route) => route.abort());
+		const checked = page.waitForRequest((r) => new URL(r.url()).pathname === '/readyz');
+		await page.goto('/');
+		await checked;
+		await expect(page.locator('[aria-busy="true"]')).toBeVisible();
+		// The worker (blocked here) answers the reload with *Can't reach Toe Beans*.
+		const reload = page.waitForRequest(
+			(r) => r.isNavigationRequest() && new URL(r.url()).pathname === '/'
+		);
+		await context.setOffline(true);
+		await reload;
+	});
+
 	test('a check with no answer gives up after 10 s; stuck past 20 s, it is reported on the next start', async ({
 		page,
 		baseURL
@@ -376,6 +397,18 @@ test("the service worker's waking page is a skeleton that says it's connecting",
 	await page.goto('/waking');
 	await expect(page.locator('[aria-busy="true"]')).toBeVisible();
 	await expect(page.getByText('Connecting to Toe Beans…')).toBeVisible();
+});
+
+test("the waking page opened as itself stops pulsing once it says it can't connect (S17.12)", async ({
+	page,
+	context
+}) => {
+	await page.goto('/waking');
+	await expect(page.locator('[class*="animate-pulse"]').first()).toBeVisible();
+	await context.setOffline(true);
+	await expect(page.getByText("Can't reach Toe Beans at the moment.")).toBeVisible();
+	await expect(page.locator('[class*="animate-pulse"]')).toHaveCount(0);
+	await context.setOffline(false);
 });
 
 test('the waking page, past 20 s, says it is taking longer than usual and offers Refresh', async ({

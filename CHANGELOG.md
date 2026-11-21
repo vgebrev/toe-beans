@@ -10,6 +10,15 @@ for fixes. Candidates (`-rc.N`) go to prod for the owner to try before the relea
 
 ## Unreleased
 
+## 1.0.4 - 2026-11-21
+
+### Fixed
+
+- A new version's offline files reach your phone within minutes of opening Toe Beans, instead
+  of up to a day later.
+- With no connection, opening Toe Beans goes straight to *Can't reach Toe Beans* rather than a
+  loading screen that keeps flashing.
+
 ## 1.0.3 - 2026-11-20
 
 ### Fixed

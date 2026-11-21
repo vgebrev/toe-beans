@@ -25,8 +25,14 @@ redeploy the app so it picks up the new version.
 
 ## Checks (S14.1)
 
-- `curl -sI https://toe-beans-1047834821273.africa-south1.run.app/` answers 403: nothing goes round
-  the Worker.
+- `curl -sI https://toebeans.co.za/service-worker.js` shows `cache-control: no-cache` and no
+  `cf-cache-status: HIT` (S17.12): Cloudflare would otherwise cache it for hours, and phones
+  keep the build before a deploy.
+
+- `curl -sI https://toe-beans-1047834821273.africa-south1.run.app/` answers 403: no page or API
+  call goes round the Worker. The build's static files (`/_app/`, `/service-worker.js`, icons)
+  still answer there, as adapter-node serves them before the app checks the secret (backlog
+  S17.13).
 - `curl -s https://toebeans.co.za/readyz` answers `{"status":"ready"}`.
 - The rate limit keys on the phone, not on Cloudflare (the address is never logged, NFR-02): open
   `https://toebeans.co.za/auth/sign-in` 16 times quickly on mobile data until it says to wait, then

@@ -64,7 +64,8 @@
 		else location.reload();
 	}
 
-	const block = 'rounded-2xl bg-soft motion-safe:animate-pulse';
+	// Still, once it says it can't connect: nothing is loading any more (S17.12).
+	const block = $derived(`rounded-2xl bg-soft ${message ? '' : 'motion-safe:animate-pulse'}`);
 </script>
 
 <div aria-busy="true" class="flex flex-col gap-6 px-4 pt-5 pb-8">
