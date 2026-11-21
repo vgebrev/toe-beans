@@ -1,6 +1,6 @@
 # Toe Beans — Backlog
 
-**Version:** 0.80 (draft for iteration)
+**Version:** 0.81 (draft for iteration)
 **Date:** 21 November 2026
 **Inputs:** `docs/requirements.md` v1.0, `docs/architecture.md` v1.39, `docs/ui.md` v0.43
 
@@ -140,6 +140,8 @@
 
 **Changes in 0.80:** S17.8, S17.11 and S17.12 done, closed by the owner on 1.0.4: offline files follow a deploy and the waking page no longer sticks. S17.13 done: static files answering at `run.app` without the header secret accepted (architecture 1.39 D32). Inputs moved to architecture 1.39.
 
+**Changes in 0.81:** S17 closed by the owner with all thirteen items done, and with it P0: the MVP has been live since 17 Nov 2026 and runs 1.0.4. Snags found from here on belong to the next phase, planned in its own session.
+
 **Changes in 0.51:** S15.1 gains (k), fresh data on coming back to the app and on Back to a page Chrome kept whole (ui 0.35 §5.2), from the owner, after Today stayed stale behind a reminder. Live updates over WebSockets were considered and left out for cost. The offline banner's check backs off from 1 s (architecture 1.23 D31), found through a flaky e2e check. Built with e2e checks and closed by the owner, so S15.1 stays done. Inputs moved to architecture 1.23 and ui 0.35.
 
 **Changes in 0.50:** S15.1 gains (j), a banner offering *Refresh* once a new version is deployed (ui 0.34 §5.2), from the owner. Built and covered by an e2e check; it can only be seen across a real deploy, so the owner tries it on prod after the next one. Inputs moved to ui 0.34.
@@ -278,6 +280,7 @@ Work is organised as **vertical slices**: each delivers a usable end-to-end incr
 | 2026-11-20 | S17.11 built: the waking page loads the page once the server answers (`/readyz`; `/healthz` never reached the app on prod), checks and page loads have time limits, stuck loads reach Sentry, and More shows the offline files' build. |
 | 2026-11-21 | S17.12 built: the edge no longer caches the service worker's script, the app asks for a worker update once it sees a new version, and the waking page offline goes to *Can't reach Toe Beans*. |
 | 2026-11-21 | S17.8, S17.11, S17.12 and S17.13 done, closed by the owner: the connecting and *Can't reach Toe Beans* wording seen on the phones, updates after a deploy are solid on 1.0.4, and static files at `run.app` accepted (D32). |
+| 2026-11-21 | S17 closed by the owner, and with it **P0**: the first usable MVP is complete, live at `toebeans.co.za` on 1.0.4. Next: planning the next phase (P1). |
 
 **Next up:** the owner tries S17.8 on the phones and watches where the next backups land, then P1. Snags from using the app go to S17.
 
@@ -294,7 +297,9 @@ Work is organised as **vertical slices**: each delivers a usable end-to-end incr
 
 ---
 
-## P0 — First usable MVP
+## P0 — First usable MVP ✅
+
+*Complete on 21 Nov 2026, closed by the owner: live at `toebeans.co.za` since 17 Nov, release 1.0.4, every slice below done.*
 
 ### S-1 Spikes: de-risk hosting and push ✅
 *Goal: decide D9 (hosting) with evidence. Throwaway code is allowed.*
@@ -504,8 +509,8 @@ Work is organised as **vertical slices**: each delivers a usable end-to-end incr
 
 ---
 
-### S17 Refinements 🟨
-*Open-ended, after go-live: the owner's running list of small fixes and polish found while using the live app, as S15.1 was before release. Each lands as its own numbered item (S17.1, S17.2, …) with its e2e check and is closed by the owner on a phone. Anything bigger becomes its own slice, and anything on the P2 list stays there.*
+### S17 Refinements ✅
+*Closed by the owner on 21 Nov 2026, with S17.1–S17.13 done; it closed P0. After go-live: the owner's running list of small fixes and polish found while using the live app, as S15.1 was before release. Each lands as its own numbered item (S17.1, S17.2, …) with its e2e check and is closed by the owner on a phone. Anything bigger becomes its own slice, and anything on the P2 list stays there.*
 
 | # | Task | Status |
 |---|---|---|
@@ -557,4 +562,4 @@ S0 ─────────┴─► S1 ─► S2 ─► S3 ─► S4 ─► 
                                                                             └─► S16 ────┘
 ```
 
-The first usable checkpoint ("we can train with it") is the end of S8, without push or care. The P0 MVP is complete at S14.7, after S16.
+The first usable checkpoint ("we can train with it") is the end of S8, without push or care. The P0 MVP was released at S14.7, after S16, and closed with S17's refinements on 21 Nov 2026.

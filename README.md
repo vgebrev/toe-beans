@@ -23,11 +23,12 @@ dogs from the start, each with its own history.
 It aims to answer three questions: **What should we do today? How is our puppy progressing?
 What should we work on next?**
 
-> **Status:** the first usable MVP is built and live at [toebeans.co.za](https://toebeans.co.za)
-> (since 17 Nov 2026) and released as 1.0.0 after acceptance on both phones. Backups with a tested
-> restore, monitoring, the [privacy policy](https://toebeans.co.za/privacy) and
-> [terms](https://toebeans.co.za/terms), and account deletion are in place. Next: small fixes from
-> using the app, then the Phase 1 follow-on. See [the backlog](docs/backlog.md) for progress.
+> **Status:** the first usable MVP (P0) is complete. It has been live at
+> [toebeans.co.za](https://toebeans.co.za) since 17 Nov 2026, released as 1.0.0 after acceptance on
+> both phones, and refined since from using it (now 1.0.4). Backups with a tested restore,
+> monitoring, the [privacy policy](https://toebeans.co.za/privacy) and
+> [terms](https://toebeans.co.za/terms), and account deletion are in place. Next: planning the
+> Phase 1 follow-on. See [the backlog](docs/backlog.md) for progress.
 
 ## What it does
 
