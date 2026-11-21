@@ -1,8 +1,8 @@
 # Toe Beans — Backlog
 
-**Version:** 0.81 (draft for iteration)
+**Version:** 0.82 (draft for iteration)
 **Date:** 21 November 2026
-**Inputs:** `docs/requirements.md` v1.0, `docs/architecture.md` v1.39, `docs/ui.md` v0.43
+**Inputs:** `docs/requirements.md` v1.0, `docs/architecture.md` v1.40, `docs/ui.md` v0.43
 
 **Changes in 0.3:** spike results S-1.0 to S-1.4 and S0.1–S0.2 recorded as they landed (see Current progress). S-1.4b dropped as not needed, S-1.5 parked, S-1.4a retargeted to `toebeans.co.za`.
 
@@ -142,6 +142,8 @@
 
 **Changes in 0.81:** S17 closed by the owner with all thirteen items done, and with it P0: the MVP has been live since 17 Nov 2026 and runs 1.0.4. Snags found from here on belong to the next phase, planned in its own session.
 
+**Changes in 0.82:** the nightly backup moves to 20:17 UTC, a follow-up to S17.9: on 02:17 UTC GitHub still started it about 7½ hours late, so the hour makes no difference to the delay, and from the evening a late run lands before office hours (architecture 1.40 D36).
+
 **Changes in 0.51:** S15.1 gains (k), fresh data on coming back to the app and on Back to a page Chrome kept whole (ui 0.35 §5.2), from the owner, after Today stayed stale behind a reminder. Live updates over WebSockets were considered and left out for cost. The offline banner's check backs off from 1 s (architecture 1.23 D31), found through a flaky e2e check. Built with e2e checks and closed by the owner, so S15.1 stays done. Inputs moved to architecture 1.23 and ui 0.35.
 
 **Changes in 0.50:** S15.1 gains (j), a banner offering *Refresh* once a new version is deployed (ui 0.34 §5.2), from the owner. Built and covered by an e2e check; it can only be seen across a real deploy, so the owner tries it on prod after the next one. Inputs moved to ui 0.34.
@@ -280,6 +282,7 @@ Work is organised as **vertical slices**: each delivers a usable end-to-end incr
 | 2026-11-20 | S17.11 built: the waking page loads the page once the server answers (`/readyz`; `/healthz` never reached the app on prod), checks and page loads have time limits, stuck loads reach Sentry, and More shows the offline files' build. |
 | 2026-11-21 | S17.12 built: the edge no longer caches the service worker's script, the app asks for a worker update once it sees a new version, and the waking page offline goes to *Can't reach Toe Beans*. |
 | 2026-11-21 | S17.8, S17.11, S17.12 and S17.13 done, closed by the owner: the connecting and *Can't reach Toe Beans* wording seen on the phones, updates after a deploy are solid on 1.0.4, and static files at `run.app` accepted (D32). |
+| 2026-11-21 | Backup moved to 20:17 UTC (S17.9 follow-up): the first night at 02:17 started 7½ hours late, like the nights at 00:17. |
 | 2026-11-21 | S17 closed by the owner, and with it **P0**: the first usable MVP is complete, live at `toebeans.co.za` on 1.0.4. Next: planning the next phase (P1). |
 
 **Next up:** the owner tries S17.8 on the phones and watches where the next backups land, then P1. Snags from using the app go to S17.

@@ -21,9 +21,10 @@ name: Backup
 
 on:
   schedule:
-    # 02:17 UTC, 04:17 in South Africa, between ticks. Not near 00:00 UTC, when many repos'
-    # schedules start: there GitHub started this run about 7 hours late (S17.9).
-    - cron: '17 2 * * *'
+    # 20:17 UTC, 22:17 in South Africa, between ticks. GitHub starts it about 7 to 8 hours late
+    # whatever the hour (S17.9: at 00:17 and at 02:17 UTC alike), so from 22:17 it still lands
+    # before office hours most days. The heartbeat's 12 hours' grace covers the delay.
+    - cron: '17 20 * * *'
   workflow_dispatch:
 
 permissions:
