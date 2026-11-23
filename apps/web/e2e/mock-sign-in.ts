@@ -21,7 +21,7 @@ export function newPerson(label = 'sam'): TestPerson {
 }
 
 /** The mock provider's origin (playwright.config.ts `OIDC_ISSUER`). */
-const MOCK_PROVIDER = 'http://localhost:8090';
+export const MOCK_PROVIDER = 'http://localhost:8090';
 
 /**
  * Fills in the mock provider's sign-in form, which the page must be on. Back at the app, someone

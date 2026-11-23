@@ -4,6 +4,7 @@ import { PROXY_SECRET_HEADER, REQUEST_ID_HEADER, requestIdFrom } from '@toe-bean
 import { ERROR_RELAY_PATH } from '@toe-beans/contracts';
 import { backend, startBackend } from '#lib/server/backend.js';
 import { terms } from '#lib/server/legal.js';
+import { SIGN_IN_FONT_PATH } from '#lib/server/sign-in-font.js';
 import { toResponse, unauthenticated } from '#lib/server/respond.js';
 
 export const init: ServerInit = async () => {
@@ -47,8 +48,14 @@ const publicApiRoutes = new Set(['/api/v1/invitations/[token]']);
  */
 const termsFreeWrites = new Set(['POST /api/v1/me/terms', 'DELETE /api/v1/me']);
 
-// The browser's error reports (architecture D41) and security.txt: no session lookup.
-const noViewerRoutes = new Set([...quietRoutes, ERROR_RELAY_PATH, '/.well-known/security.txt']);
+// The browser's error reports (architecture D41), security.txt and the login page's font (S19.2):
+// no session lookup.
+const noViewerRoutes = new Set([
+	...quietRoutes,
+	ERROR_RELAY_PATH,
+	'/.well-known/security.txt',
+	SIGN_IN_FONT_PATH
+]);
 
 /**
  * Scanners' probes (`/.env`, `/wp-login.php`…) match no route (backlog S17.3). Rendering the app

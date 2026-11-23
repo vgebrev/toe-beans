@@ -1,8 +1,8 @@
 # Toe Beans — Privacy policy
 
-**Version:** 0.6 (reviewed draft)
+**Version:** 0.7 (reviewed draft)
 **Date:** 23 November 2026
-**Inputs:** `docs/data-inventory.md` v0.7, `docs/architecture.md` v1.35 (D36, D38, D39, D43)
+**Inputs:** `docs/data-inventory.md` v0.9, `docs/architecture.md` v1.35 (D36, D38, D39, D43)
 
 **Changes in 0.1:** first draft for backlog S16.2, written from the data inventory. S16.4 publishes
 the text below the line at `/privacy`. The owner reviews it, and fills in the points marked
@@ -29,6 +29,9 @@ after it stopped accepting reminders (data inventory 0.6, architecture D43).
 until you sign in there again (data inventory 0.7, architecture 1.35 D43).
 
 **Changes in 0.6:** §2's account row gains the record of which terms you accepted and when, with the confirmation that you're 18 or older (data inventory 0.8, architecture D47).
+
+**Changes in 0.7:** §4 no longer lists Google Fonts: the sign-in page's font now comes from
+`toebeans.co.za` (backlog S19.2, data inventory 0.9).
 
 Before publishing:
 
@@ -122,7 +125,6 @@ where we can.
 | Resend | Sends invitation emails, and the sign-in service's verification and password emails | EU (Ireland) |
 | Sentry | Receives error reports with personal details removed | EU (Germany) |
 | Your browser's push service (Google's, for Chrome) | Delivers reminders. Each one is encrypted so the service can't read it | Worldwide |
-| Google Fonts | Serves the font of the sign-in page at `auth.toebeans.co.za`, so it sees your device's address and browser when the page loads, but not who you are | Worldwide |
 | Google (Gmail) | Holds the emails you send us, at privacy@toebeans.co.za or support@toebeans.co.za, and our replies (§5) | Worldwide |
 | Google | If you choose to sign in with Google, Google knows you signed in to Toe Beans, under Google's own privacy policy | Worldwide |
 

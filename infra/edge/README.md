@@ -75,7 +75,7 @@ or starts_with(lower(http.request.uri.path), "/boaform")
 ```
 
 None of the app's paths fall under it: its routes, `/_app/…` build files, `/icons/…`,
-`/manifest.webmanifest`, `/robots.txt` and `/.well-known/security.txt` (a `/.` anywhere else is a
+`/fonts/…` (the login page's font, S19.2), `/manifest.webmanifest`, `/robots.txt` and `/.well-known/security.txt` (a `/.` anywhere else is a
 dotfile or `..`). A route added later under one of those prefixes would need the rule changed.
 
 Checks, once deployed:

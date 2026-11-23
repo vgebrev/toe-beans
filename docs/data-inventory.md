@@ -1,6 +1,6 @@
 # Toe Beans — Data inventory
 
-**Version:** 0.8 (draft)
+**Version:** 0.9 (draft)
 **Date:** 23 November 2026
 **Inputs:** `docs/requirements.md` v1.0, `docs/architecture.md` v1.35, `docs/runbooks/accounts.md`
 
@@ -19,6 +19,8 @@
 **Changes in 0.7:** §2, `pushDevices` (architecture 1.35 D43): signing out no longer removes the device; it's marked signed out and sent nothing until the person signs in there again, and the 30-day deletion still applies. The row records when it was signed out.
 
 **Changes in 0.8:** §2, `users` (architecture 1.44 D47): the version of the terms the person accepted, which confirms they're 18 or older, and when.
+
+**Changes in 0.9:** §4 loses Google Fonts (backlog S19.2): Auth0's login page loads Nunito from the app at `toebeans.co.za`, which serves it with CORS for `auth.toebeans.co.za`. Nothing Toe Beans shows now loads from Google's font servers.
 
 This file is public. It describes kinds of data and where they are, never values. It isn't legal
 advice. The owner has it read with the policy before other households join (backlog S16).
@@ -83,7 +85,6 @@ with protection substantially similar to POPIA. The EU's GDPR is accepted as tha
 | Cloudflare | Every request passes the edge: address, URL, user agent. R2 holds photos and backups. Worker logs are off | Global edge; R2 in Europe | EU storage; Cloudflare's DPA with SCCs for the edge | Request analytics are aggregate. Security events (S17.3's WAF rule) keep addresses for 30 days |
 | Google Cloud | Runs the app. Sees requests and holds logs (§3) and secrets | South Africa (`africa-south1`); Scheduler in `me-central1` carries no personal data | Not a transfer for the app and its logs | 30 days for logs |
 | The owner's Gmail, through Cloudflare Email Routing (in) and Resend (out) | Mail to and from `privacy@toebeans.co.za` and `support@toebeans.co.za` (where replies to invitations and Auth0's emails go): the sender's address and whatever they write, such as a request to see or delete their data. Cloudflare forwards it without keeping it | Google: US and global; Resend: EU | The person chooses to write to us | A year after the request is answered, then deleted by the owner |
-| Google Fonts | The address and user agent of whoever opens Auth0's login page, which loads its font from `fonts.gstatic.com`. No cookies | Global | Only technical data, needed to serve the file; Google's terms | Google's own |
 | Resend | Invitation emails: the invitee's address, the inviter's name, household name and link. Auth0's verification and password emails: the person's address | EU: the domain sends from Ireland (`eu-west-1`) | GDPR-adequate region | Email logs 30 days |
 | Sentry | §3 | EU | GDPR-adequate region | 30 days |
 | Web push services (Google FCM for Chrome) | The endpoint, and each reminder encrypted end to end, so the service can't read it | Global | Chosen by the browser, not the app; the content is encrypted | Undelivered messages until the reminder's TTL |

@@ -81,7 +81,7 @@ Names follow the project convention: kebab-case words (`toe-beans`), not run tog
    | | Widget border | `#e6d8c6` |
    | | Error | `#b3261e` |
    | | Success | `#1e5b2e` |
-   | Fonts | Font URL | `https://fonts.gstatic.com/s/nunito/v32/XRXV3I6Li01BKofINeaB.woff2` |
+   | Fonts | Font URL | `https://toebeans.co.za/fonts/nunito-latin.woff2` |
    | | Title, buttons | Bold |
    | Borders | Buttons | Pill |
    | | Input style, radius | Rounded, 10 px (the editor's maximum; the app uses 12) |
@@ -90,10 +90,12 @@ Names follow the project convention: kebab-case words (`toe-beans`), not run tog
    | Branding | Favicon URL | `https://toebeans.co.za/icons/icon-192.png` (the app's own favicon is inlined, so it has no URL) |
    | Page background | Colour | `#fffbf5` |
 
-   The font is Nunito's Latin file from Google Fonts, which allows other sites to load it; the
-   privacy policy lists Google Fonts for this (§4 there). If Google ever retires that URL, get the
-   current one from `https://fonts.googleapis.com/css2?family=Nunito:wght@200..1000` (the
-   `/* latin */` block). Fredoka, the app's heading font, can't come too: the theme takes one font.
+   The font is the app's own Latin Nunito, served at a fixed address with CORS for the issuer's
+   origin only (S19.2; `routes/fonts/nunito-latin.woff2`), so no visitor's address goes to Google
+   Fonts. On the dev tenant the same URL works only from a local app's issuer, so leave the dev
+   theme's font at its default. Check after saving: the login page's network tab shows the font
+   from `toebeans.co.za` with status 200, and its text is in Nunito. Fredoka, the app's heading
+   font, can't come too: the theme takes one font.
 3. **Privacy and terms links.** The free plan doesn't offer custom sign-up prompts ("Customize
    Signup & Login" is paid), so the login page has no links of its own. The app's sign-in page
    links to both just before handing over, which is where people agree (S16.4).
