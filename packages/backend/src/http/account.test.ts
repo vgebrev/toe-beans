@@ -23,13 +23,18 @@ describe('versionFromIfMatch', () => {
 		expect(versionFromIfMatch(' "12" ')).toEqual(ok(12));
 	});
 
+	it('reads our ETags weakened on the way, as an edge does when it compresses', () => {
+		expect(versionFromIfMatch('W/"7"')).toEqual(ok(7));
+	});
+
 	it('needs the header', () => {
 		expect(versionFromIfMatch(null)).toEqual(err({ kind: 'precondition-required' }));
 		expect(versionFromIfMatch('')).toEqual(err({ kind: 'precondition-required' }));
 	});
 
-	it.each(['*', 'W/"7"', '"7", "8"', '7', '"0"', '"x"'])('treats %j as stale', (header) =>
-		expect(versionFromIfMatch(header)).toEqual(err({ kind: 'stale-version' }))
+	it.each(['*', 'W/"7", "8"', 'w/"7"', '"7", "8"', '7', '"0"', '"x"', 'W/"x"'])(
+		'treats %j as stale',
+		(header) => expect(versionFromIfMatch(header)).toEqual(err({ kind: 'stale-version' }))
 	);
 });
 

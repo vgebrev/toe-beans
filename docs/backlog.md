@@ -1,8 +1,8 @@
 # Toe Beans — Backlog
 
-**Version:** 0.83 (draft for iteration)
+**Version:** 0.84 (draft for iteration)
 **Date:** 23 November 2026
-**Inputs:** `docs/requirements.md` v1.0, `docs/architecture.md` v1.40, `docs/ui.md` v0.43
+**Inputs:** `docs/requirements.md` v1.0, `docs/architecture.md` v1.41, `docs/ui.md` v0.44
 
 **Changes in 0.3:** spike results S-1.0 to S-1.4 and S0.1–S0.2 recorded as they landed (see Current progress). S-1.4b dropped as not needed, S-1.5 parked, S-1.4a retargeted to `toebeans.co.za`.
 
@@ -146,6 +146,8 @@
 
 **Changes in 0.83:** S18 added as P1's prerequisite: an outside-in pentest of prod, the code, the repo's history and CI, run from an isolated container with only the public's view. S18.1 built: `docs/runbooks/pentest.md` and `infra/pentest`. S18.2 run on 22 November: no critical, high or medium findings, one low and one informational, carried over to `docs/security-audit.md` 0.3 §7 for triage (S18.3).
 
+**Changes in 0.84:** S18.3: the pentest's two findings fixed, P1 by revoking a leaver's invitations (architecture 1.41 D18, ui 0.44 §4.8) and P2 by reading a weakened ETag (§3.3); `security-audit.md` 0.4. S18.2 closed on the owner's checks after cleanup, and S18 is done. Inputs moved to architecture 1.41 and ui 0.44.
+
 **Changes in 0.51:** S15.1 gains (k), fresh data on coming back to the app and on Back to a page Chrome kept whole (ui 0.35 §5.2), from the owner, after Today stayed stale behind a reminder. Live updates over WebSockets were considered and left out for cost. The offline banner's check backs off from 1 s (architecture 1.23 D31), found through a flaky e2e check. Built with e2e checks and closed by the owner, so S15.1 stays done. Inputs moved to architecture 1.23 and ui 0.35.
 
 **Changes in 0.50:** S15.1 gains (j), a banner offering *Refresh* once a new version is deployed (ui 0.34 §5.2), from the owner. Built and covered by an e2e check; it can only be seen across a real deploy, so the owner tries it on prod after the next one. Inputs moved to ui 0.34.
@@ -288,8 +290,9 @@ Work is organised as **vertical slices**: each delivers a usable end-to-end incr
 | 2026-11-21 | S17 closed by the owner, and with it **P0**: the first usable MVP is complete, live at `toebeans.co.za` on 1.0.4. Next: planning the next phase (P1). |
 | 2026-11-21 | S18 added as P1's prerequisite: a pentest of prod from outside. S18.1 built: the runbook and the isolated container. |
 | 2026-11-22 | S18.2: the pentest ran. No critical, high or medium findings; household isolation held live. One low and one informational finding go to triage (S18.3). |
+| 2026-11-23 | S18 done: the owner's checks after the pentest are clean, and its two findings are fixed (architecture 1.41, ui 0.44), shipping in 1.0.5. |
 
-**Next up:** S18.3, fixing the pentest's two findings (`security-audit.md` §7), and the owner's post-cleanup checks for S18.2; then P1's planning.
+**Next up:** planning P1, now that S18, its prerequisite, is done.
 
 ---
 
@@ -537,14 +540,14 @@ Work is organised as **vertical slices**: each delivers a usable end-to-end incr
 
 ## P1 — Phase 1 follow-on
 
-### S18 Pentest (P1 prerequisite)
+### S18 Pentest (P1 prerequisite) ✅
 *Before P1 builds on the MVP: an outside-in security assessment of prod, its code, the repo's full history, CI and the live edge, with the same view as any outsider (the public repo, the app and accounts anyone can sign up for), not the owner's tooling. It runs against prod rather than a clone: one household with a few days of data and a fresh backup, and a clone would test different edge, Auth0 and Worker settings. `docs/security-audit.md` was the first, code-only, review (S15.2).*
 
 | # | Task | Status |
 |---|---|---|
 | S18.1 | **The runbook and the container.** `docs/runbooks/pentest.md`: rules of engagement (writes only to the test accounts' own data, no DoS, providers out of scope, credentials never used), budgets for the shared free tiers, a gate on the tester's plan before any signed-in or live test, preparation, cleanup and triage, and a review of the owner's draft brief. `infra/pentest`: the tester's image (pinned tools, release binaries checked by hash, no repo files), `network.sh` for a network that reaches only the internet, and `preflight.sh` to check the container has an outsider's view. **Built (21 Nov):** the image builds and its tools run; the preflight on Docker's default network fails as it should, reaching the host's Mongo and the router. **Done (22 Nov):** the engagement ran from it on the locked-down network. | ✅ |
-| S18.2 | **The engagement.** The owner prepares (backup, test accounts, API key, the brief with the runbook's rules), runs it and cleans up (runbook §2–§6). **Run (22 Nov):** household isolation confirmed live; one low finding (P1) and one informational (P2); the tester deleted the test accounts. To close: the owner's checks after cleanup (runbook §6.2–§6.3). | 🟨 |
-| S18.3 | **Triage.** Each finding fixed, accepted with a recorded decision, or dismissed; fixed and decided findings go into `docs/security-audit.md` as a new version (runbook §7). **Started (23 Nov):** `security-audit.md` 0.3 §7 holds the summary; P1's detail waits for its fix. | 🟨 |
+| S18.2 | **The engagement.** The owner prepares (backup, test accounts, API key, the brief with the runbook's rules), runs it and cleans up (runbook §2–§6). **Run (22 Nov):** household isolation confirmed live; one low finding (P1) and one informational (P2); the tester deleted the test accounts. **Done (23 Nov):** the owner's checks found no test users at Auth0 and no test documents in Atlas; the container's network, image, setup token and environment file are gone. | ✅ |
+| S18.3 | **Triage.** Each finding fixed, accepted with a recorded decision, or dismissed; fixed and decided findings go into `docs/security-audit.md` as a new version (runbook §7). **Fixed (23 Nov):** P1, leaving or deleting an account revokes the person's invitations (architecture 1.41 D18); P2, `If-Match` reads a weakened ETag (§3.3); written up in `security-audit.md` 0.4 §7. Ships in 1.0.5. | ✅ |
 
 
 | Slice | Requirement | Notes | Status |

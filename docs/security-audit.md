@@ -1,8 +1,8 @@
 # Toe Beans — Security Audit
 
-**Version:** 0.3
+**Version:** 0.4
 **Date:** 23 November 2026
-**Status:** §1–§6, the code review: every finding fixed or decided (S15.2). §7, the external pentest: findings in triage (S18.3).
+**Status:** §1–§6, the code review: every finding fixed or decided (S15.2). §7, the external pentest: both findings fixed (S18.3).
 **Inputs:** `docs/requirements.md` v1.0, `docs/architecture.md` v1.21, the code at commit `1ea686e` (`develop`); for §7, prod on 1.0.4 and the repo at `main` `904516e`
 
 **Changes in 0.1:** first audit of the attack surface before release.
@@ -10,6 +10,8 @@
 **Changes in 0.2:** a resolution under each finding and in the summary: F1–F7 fixed in code (architecture D32, D33), C3 fixed with a per-person write budget, C1, C2 and C4 accepted with checks moved to S14.1 (D34). A seventh advisory, in `@sveltejs/adapter-node`, appeared after the audit and is fixed.
 
 **Changes in 0.3:** §7, the first external pentest (S18.2, 22 November 2026), run on prod from outside as `docs/runbooks/pentest.md` describes: no critical, high or medium findings, household isolation confirmed live, one low finding and one informational, and a suspected lockout disproved. Open findings are summarised without detail until fixed (runbook §7).
+
+**Changes in 0.4:** §7: both pentest findings fixed (S18.3, architecture 1.41): P1, now described, by revoking the invitations of someone who leaves or deletes their account (D18); P2 by reading a weakened ETag in `If-Match` (§3.3).
 
 ---
 
@@ -168,15 +170,21 @@ No critical, high or medium findings. No way was found for one household, or a p
 
 | # | Finding | Severity | Confidence | Resolution |
 |---|---|---|---|---|
-| P1 | A gap in the invitation lifecycle around leaving a household | Low | Confirmed live | Open: details once fixed |
-| P2 | `If-Match` refuses the weak form of an ETag the edge has weakened | Info | Confirmed live | Open |
+| P1 | Leaving a household by choice keeps the leaver's invitations open | Low | Confirmed live | Fixed (D18) |
+| P2 | `If-Match` refuses the weak form of an ETag the edge has weakened | Info | Confirmed live | Fixed (§3.3) |
 | — | A sole owner leaving strands the household with no owner | — | Confirmed live | Not a finding: the longest-standing member takes over (D18) |
 
 "Confirmed live" means exercised against prod as the test accounts; "code only" means traced by reading the code.
 
 ### 7.2 Findings
 
-**P2. Weak ETags and `If-Match` — info.** Responses leave the origin with a strong ETag (`"2"`, `packages/backend/src/http/etag.ts`) and can arrive weakened (`W/"2"`), as an edge does when it compresses a body. Sent back as `If-Match: W/"2"`, a change is refused as stale (412, *Someone else changed this*), because `versionFromIfMatch` reads anything but the strong form as a version that can't match. No access is gained; the risk is a legitimate save refused. The fix is to read the version from either form.
+**P1. Leaving a household by choice keeps the leaver's invitations open — low.** `removeMember` (`packages/backend/src/application/household/household.ts`) revoked the invitations a member made or was sent only when an owner removed them, as D18 then said: someone leaving by choice kept theirs, in case they were for a person the household still wanted. Live, a caregiver made a link invitation, left while the owner stayed, and the invitation still previewed as open, with the household's and dogs' names. A link is a bearer token that outlives its maker's membership, so the person who left, or anyone they had handed it to, could join again with no current member acting. Members could see and revoke it in the household's list, which kept it low. Deleting an account while others stayed in the household had the same gap, and someone who signed up again could have used their old link.
+
+- **Resolution (0.4, D18):** leaving by choice and deleting an account now revoke the person's invitations, those they made and those sent to their address, as removal does. The *Leave household* sheet says so, and the household invites anyone it still wants again.
+
+**P2. Weak ETags and `If-Match` — info.** Responses leave the origin with a strong ETag (`"2"`, `packages/backend/src/http/etag.ts`) and can arrive weakened (`W/"2"`), as an edge does when it compresses a body. Sent back as `If-Match: W/"2"`, a change is refused as stale (412, *Someone else changed this*), because `versionFromIfMatch` reads anything but the strong form as a version that can't match. No access is gained; the risk is a legitimate save refused. The app itself echoes the ETag it was sent, so a save could have been refused this way whenever a response was compressed on its way.
+
+- **Resolution (0.4, §3.3):** `versionFromIfMatch` reads the version from `W/"7"` as from `"7"`. Anything else that can't be ours (`*`, a list) is still a 412.
 
 ### 7.3 Defences confirmed live
 

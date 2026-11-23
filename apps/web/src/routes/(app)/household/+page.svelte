@@ -44,7 +44,7 @@
 		if (!next) {
 			return `Nobody will be left in ${household}, so it's deactivated and its pending invites stop working. You can rejoin it within 30 days; after that it's deleted with its dogs, photos and history.`;
 		}
-		const back = "You'll need a new invite to come back.";
+		const back = "Invites you sent stop working, and you'll need a new invite to come back.";
 		const lastOwner = you?.role === 'owner' && !others.some((m) => m.role === 'owner');
 		return lastOwner ? `${next.displayName} becomes the owner. ${back}` : back;
 	}

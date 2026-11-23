@@ -186,6 +186,18 @@ describe('deleting an account (S16.5, D38)', () => {
 
 	it('deletes their own data, leaves a shared household and hands it on (D18)', async () => {
 		const h = await withData([sam, alex]);
+		const invite = (id: string, createdBy: Id) =>
+			h.invitations.insert({
+				id: id as Id,
+				householdId: 'h1' as Id,
+				kind: 'link',
+				tokenHash: id,
+				expiresAt: new Date('2026-12-01'),
+				maxUses: 1,
+				createdBy
+			});
+		await invite('theirs', sam.id);
+		await invite('alexs', alex.id);
 		expect(await h.account.delete(ctx)).toEqual({ ok: true, value: undefined });
 
 		expect(h.identityAccounts.deleted).toEqual([google]);
@@ -198,6 +210,11 @@ describe('deleting an account (S16.5, D38)', () => {
 
 		const shared = (await h.households.find('h1' as Id))!;
 		expect(shared.memberships.map((m) => [m.userId, m.role])).toEqual([[alex.id, 'owner']]);
+		// Signed up again, they could come back with their own links; the others' stay.
+		expect(h.invitations.all().map((i) => [i.id, i.revokedAt])).toEqual([
+			['theirs', at],
+			['alexs', undefined]
+		]);
 		// The household they left stays, photos and all; the one only they could bring back goes.
 		expect(h.householdData.erased).toEqual(['old']);
 		expect(h.photos.keys()).toEqual(['households/h1/a.webp', 'households/h2/c.webp']);
