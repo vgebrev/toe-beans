@@ -50,7 +50,10 @@ test('pages carry the CSP with a nonce and the other security headers (architect
 	const response = (await page.goto('/more'))!;
 	const headers = response.headers();
 	const csp = headers['content-security-policy']!;
-	expect(csp).toMatch(/script-src 'self' 'nonce-[\w+/=]+'/);
+	// No other host may load scripts or receive data (S19.3): a beacon Cloudflare injected at
+	// the edge would be blocked even if its Web Analytics were turned on.
+	expect(csp).toMatch(/script-src 'self' 'nonce-[\w+/=]+'(;|$)/);
+	expect(csp).toMatch(/connect-src 'self'(;|$)/);
 	expect(csp).toContain("frame-ancestors 'none'");
 	expect(csp).toContain("object-src 'none'");
 	// app.html's inline theme script runs under it: theme.spec.ts checks the override applies.

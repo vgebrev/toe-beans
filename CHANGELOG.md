@@ -16,6 +16,11 @@ for fixes. Candidates (`-rc.N`) go to prod for the owner to try before the relea
   start. If you already use it, you're asked once the next time you open it, and again only when
   the terms change.
 
+### Security
+
+- Fixed a flaw at Toe Beans' edge that could give away a key its servers share. The key is
+  replaced.
+
 ### Changed
 
 - The terms of service say how to tell us about content that infringes your rights.

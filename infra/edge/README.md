@@ -40,6 +40,43 @@ redeploy the app so it picks up the new version.
 - Worker logs stay off (`observability` in `wrangler.jsonc`); Cloudflare's own request analytics
   are visible only to the account owner.
 
+## No scripts added at the edge (S19.3)
+
+Cloudflare can add a script to the app's pages without any change in our code: Web Analytics
+(its beacon, `static.cloudflareinsights.com`, which sends page views and timings to
+`cloudflareinsights.com`), Real User Measurements (the same beacon), Zaraz and Rocket Loader.
+All of them stay off; Toe Beans tracks nobody (privacy policy). The app's CSP would block their scripts anyway
+(`script-src 'self'` with a nonce, `connect-src 'self'`; `e2e/smoke.spec.ts` keeps it so), but
+then each page would log a CSP error, so turn them off rather than rely on the block.
+
+In the dashboard:
+
+- **Account home → Analytics & Logs → Web Analytics**: `toebeans.co.za` is not listed, or its
+  *Manage site* shows it disabled (not *Enable* or *Enable, excluding visitor data in the EU*).
+  On a proxied zone it can be switched on there automatically, with no snippet in our pages.
+- **toebeans.co.za → Speed → Observatory**: Real User Measurements (RUM) are off; they use the
+  same beacon.
+- **toebeans.co.za → Zaraz** has no tools, and **Speed → Settings** has Rocket Loader off.
+
+Email address obfuscation (**Scrape Shield**) is left at Cloudflare's default, on. It isn't
+tracking: its script is served from our own address under `/cdn-cgi/` and sends nothing. It doesn't
+touch the Worker's responses either: the terms and privacy policy show `support@` and `privacy@` in
+plain text. If it ever did, those pages would hide the addresses until the script ran.
+
+Then, after any change at Cloudflare, check the pages carry nothing extra:
+
+```sh
+for p in terms privacy; do curl -s https://toebeans.co.za/$p | grep -c 'cloudflareinsights\|zaraz\|rocket-loader'; done
+```
+
+Each line prints `0`. Checked 23 Nov 2026, after Web Analytics (it was on for the zone) and RUM
+were turned off.
+
+What stays without the beacon: the zone's request analytics (**toebeans.co.za → Analytics &
+Logs**: requests, bandwidth, status codes, countries, cache), counted at the edge with no script
+and seen only by the account owner; the Worker's request and error counts; Cloud Run's metrics and
+logs; and Sentry for errors in the browser and on the server.
+
 ## Scanners blocked before the Worker (S17.3)
 
 Bots probe for secrets and other software's admin pages. The app answers them with a plain 404,

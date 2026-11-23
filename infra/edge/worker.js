@@ -29,7 +29,9 @@ export default {
 		headers.set('x-toe-beans-proxy', env.PROXY_SECRET);
 		headers.set('x-toe-beans-client', request.headers.get('cf-connecting-ip') ?? '');
 		const script = url.pathname === WORKER_SCRIPT;
-		const response = await fetch(new URL(url.pathname + url.search, ORIGIN), {
+		// Joined as text, never new URL(path, ORIGIN): a path starting // would resolve to another
+		// host (//attacker.example/), and the secret above would go there with the request.
+		const response = await fetch(ORIGIN + url.pathname + url.search, {
 			method: request.method,
 			headers,
 			body: request.body,
