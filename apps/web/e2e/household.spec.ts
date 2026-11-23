@@ -586,7 +586,9 @@ test('with two owners, one leaving hands nothing on (D19)', async ({ page, brows
 
 	await page.getByRole('button', { name: 'Leave household' }).click();
 	const sheet = page.getByRole('dialog');
-	await expect(sheet).toContainText("You'll need a new invite to come back.");
+	await expect(sheet).toContainText(
+		"Invites you sent stop working, and you'll need a new invite to come back."
+	);
 	await expect(sheet).not.toContainText('becomes the owner');
 	await caregiver.context().close();
 });

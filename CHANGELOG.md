@@ -10,6 +10,19 @@ for fixes. Candidates (`-rc.N`) go to prod for the owner to try before the relea
 
 ## Unreleased
 
+## 1.0.5 - 2026-11-23
+
+### Security
+
+- Leaving a household, or deleting your account while others stay in it, now stops the invites
+  you sent, as being removed already did. Your household can invite anyone it still wants
+  again.
+
+### Fixed
+
+- Saving a change is no longer at risk of a false *Someone else changed this* when the response
+  was compressed on its way to your phone.
+
 ## 1.0.4 - 2026-11-21
 
 ### Fixed

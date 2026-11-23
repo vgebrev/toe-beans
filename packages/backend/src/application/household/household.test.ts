@@ -191,16 +191,19 @@ describe('people leaving a household (D18)', () => {
 		expect(household(h).version).toBe(2);
 	});
 
-	it('leaves the owner alone when a caregiver leaves, and keeps their invitations', async () => {
+	it('leaves the owner alone when a caregiver leaves, and stops the invitations they could come back with', async () => {
 		const h = await shared(alex);
-		await h.invite('i1', alex.id);
+		await h.invite('their-link', alex.id);
+		await h.invite('their-email', alex.id, 'friend@example.com');
+		await h.invite('to-them', sam.id, alex.email);
+		await h.invite('someone-elses', sam.id, 'neighbour@example.com');
 		const left = await h.service.removeMember(asCaregiver(alex), {
 			memberId: alex.id,
 			expectedVersion: 1
 		});
 		expect(left.ok).toBe(true);
 		expect(household(h).memberships.map((m) => [m.userId, m.role])).toEqual([[sam.id, 'owner']]);
-		expect(h.revoked()).toEqual([]);
+		expect(h.revoked().sort()).toEqual(['their-email', 'their-link', 'to-them']);
 	});
 
 	it('deactivates the household when the last person leaves, and stops every invitation', async () => {

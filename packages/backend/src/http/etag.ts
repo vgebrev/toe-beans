@@ -11,13 +11,15 @@ import { err, ok, type Result } from '../domain/result.js';
 export const etag = (version: number): string => `"${version}"`;
 
 /**
- * The version an If-Match header names. Missing is a 428. Anything that can't be one of our
- * ETags (`*`, a list, a weak tag) can't match the current version either, so it's a 412.
+ * The version an If-Match header names. Missing is a 428. Our ETag weakened on the way (`W/"7"`,
+ * as an edge does when it compresses a response) still names the version: the client echoes what
+ * it was sent. Anything else that can't be one of our ETags (`*`, a list) can't match the current
+ * version either, so it's a 412.
  */
 export function versionFromIfMatch(
 	header: string | null
 ): Result<number, PreconditionRequiredError | StaleVersionError> {
 	if (header === null || header.trim() === '') return err(preconditionRequired);
-	const match = /^\s*"([1-9][0-9]{0,15})"\s*$/.exec(header);
+	const match = /^\s*(?:W\/)?"([1-9][0-9]{0,15})"\s*$/.exec(header);
 	return match ? ok(Number(match[1])) : err(staleVersion);
 }

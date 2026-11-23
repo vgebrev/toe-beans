@@ -10,8 +10,8 @@ resources but never secret values.
 | The photo bucket (`toe-beans-photos`), synced | `photos/current/` | While the photo exists |
 | Photos gone from the source (replaced or deleted) | `photos/replaced/<UTC time>/` | 30 days (lifecycle rule) |
 
-- **How it runs:** `.github/workflows/backup.yml` runs `backup.sh` at 02:17 UTC (04:17 in South
-  Africa), and also by hand.
+- **How it runs:** `.github/workflows/backup.yml` runs `backup.sh` at 20:17 UTC (22:17 in South
+  Africa; GitHub usually starts it 7 to 8 hours late), and also by hand.
 - **Credentials:** it gets them keylessly, through its own Workload Identity pool. The secrets stay
   in Secret Manager, and GitHub holds none.
 - **The private key** lives only with the owner. Neither GitHub nor GCP can read a dump.

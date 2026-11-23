@@ -163,6 +163,11 @@ export function createAccount(
 						at: clock.now()
 					});
 					if (!left.ok) return left;
+					// Signed up again, they could come back with these (D18).
+					await invitations.revokeOpen(household.id, clock.now(), {
+						createdBy: userId,
+						email: user.email
+					});
 				}
 				let documents = 0;
 				for (const householdId of erase) documents += await erasure.eraseRecords(householdId);

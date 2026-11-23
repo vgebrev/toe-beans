@@ -1,13 +1,17 @@
 # Toe Beans — Security Audit
 
-**Version:** 0.2
-**Date:** 16 November 2026
-**Status:** Every finding fixed or decided (S15.2); the deployed settings are checked in S14.1.
-**Inputs:** `docs/requirements.md` v1.0, `docs/architecture.md` v1.21, the code at commit `1ea686e` (`develop`)
+**Version:** 0.4
+**Date:** 23 November 2026
+**Status:** §1–§6, the code review: every finding fixed or decided (S15.2). §7, the external pentest: both findings fixed (S18.3).
+**Inputs:** `docs/requirements.md` v1.0, `docs/architecture.md` v1.21, the code at commit `1ea686e` (`develop`); for §7, prod on 1.0.4 and the repo at `main` `904516e`
 
 **Changes in 0.1:** first audit of the attack surface before release.
 
 **Changes in 0.2:** a resolution under each finding and in the summary: F1–F7 fixed in code (architecture D32, D33), C3 fixed with a per-person write budget, C1, C2 and C4 accepted with checks moved to S14.1 (D34). A seventh advisory, in `@sveltejs/adapter-node`, appeared after the audit and is fixed.
+
+**Changes in 0.3:** §7, the first external pentest (S18.2, 22 November 2026), run on prod from outside as `docs/runbooks/pentest.md` describes: no critical, high or medium findings, household isolation confirmed live, one low finding and one informational, and a suspected lockout disproved. Open findings are summarised without detail until fixed (runbook §7).
+
+**Changes in 0.4:** §7: both pentest findings fixed (S18.3, architecture 1.41): P1, now described, by revoking the invitations of someone who leaves or deletes their account (D18); P2 by reading a weakened ETag in `If-Match` (§3.3).
 
 ---
 
@@ -155,3 +159,54 @@ Anyone can register, create a household and write unlimited logs, events, link i
 1. **F1, rate-limit keying:** set the client address correctly and require the Worker's header secret, so one person can't lock everyone out of sign-in.
 2. **F2, invite email abuse:** limit per user and globally before real mail is switched on.
 3. **F3, security headers:** turn on the CSP and set the other headers. It is a small change, and the architecture document already claims it.
+
+## 7. External pentest, 22 November 2026 (S18)
+
+An outside-in assessment of prod on 1.0.4, the public repo with its full history, and CI, run under `docs/runbooks/pentest.md` from its isolated container. The tester had only what any member of the public has: the repo, the app, and three test accounts signed up with email and password (two each owning a household, one in none). Its report stays private (runbook §7); this section carries its findings over.
+
+### 7.1 Summary
+
+No critical, high or medium findings. No way was found for one household, or a person in none, to read or change another household's data: the core promise (NFR-01, NFR-02, scenario 9) holds, confirmed against the running system.
+
+| # | Finding | Severity | Confidence | Resolution |
+|---|---|---|---|---|
+| P1 | Leaving a household by choice keeps the leaver's invitations open | Low | Confirmed live | Fixed (D18) |
+| P2 | `If-Match` refuses the weak form of an ETag the edge has weakened | Info | Confirmed live | Fixed (§3.3) |
+| — | A sole owner leaving strands the household with no owner | — | Confirmed live | Not a finding: the longest-standing member takes over (D18) |
+
+"Confirmed live" means exercised against prod as the test accounts; "code only" means traced by reading the code.
+
+### 7.2 Findings
+
+**P1. Leaving a household by choice keeps the leaver's invitations open — low.** `removeMember` (`packages/backend/src/application/household/household.ts`) revoked the invitations a member made or was sent only when an owner removed them, as D18 then said: someone leaving by choice kept theirs, in case they were for a person the household still wanted. Live, a caregiver made a link invitation, left while the owner stayed, and the invitation still previewed as open, with the household's and dogs' names. A link is a bearer token that outlives its maker's membership, so the person who left, or anyone they had handed it to, could join again with no current member acting. Members could see and revoke it in the household's list, which kept it low. Deleting an account while others stayed in the household had the same gap, and someone who signed up again could have used their old link.
+
+- **Resolution (0.4, D18):** leaving by choice and deleting an account now revoke the person's invitations, those they made and those sent to their address, as removal does. The *Leave household* sheet says so, and the household invites anyone it still wants again.
+
+**P2. Weak ETags and `If-Match` — info.** Responses leave the origin with a strong ETag (`"2"`, `packages/backend/src/http/etag.ts`) and can arrive weakened (`W/"2"`), as an edge does when it compresses a body. Sent back as `If-Match: W/"2"`, a change is refused as stale (412, *Someone else changed this*), because `versionFromIfMatch` reads anything but the strong form as a version that can't match. No access is gained; the risk is a legitimate save refused. The app itself echoes the ETag it was sent, so a save could have been refused this way whenever a response was compressed on its way.
+
+- **Resolution (0.4, §3.3):** `versionFromIfMatch` reads the version from `W/"7"` as from `"7"`. Anything else that can't be ours (`*`, a list) is still a 412.
+
+### 7.3 Defences confirmed live
+
+- **Household isolation.** Signed in to another household and to none, the tester sent `GET`, `PATCH` and `DELETE` for the exact IDs of a dog, cue, planned session, session log, behaviour event and care task in the first household, and its dog's photo. Every one was a 404 (a `PATCH` failed the strict body check first, a 400). None read or wrote anything.
+- **Scope can't be widened by input.** A `householdId` query parameter was ignored; create bodies carrying `householdId`, `_id`, `id` or `version` were refused by the strict contracts (no mass assignment).
+- **CSRF.** A write with a foreign `Origin`, or with `Sec-Fetch-Site: cross-site` and no `Origin`, is a 403; the same-origin control succeeds.
+- **Push SSRF.** Device endpoints on an attacker's host, the metadata address, a look-alike of a push service's host and a URL with credentials were all refused (400) and never fetched.
+- **Cookies.** `__Host-` session cookie, `HttpOnly`, `Secure`, `SameSite=Lax`; the sign-in cookies are cleared on callback; no tokens in browser storage.
+- **The origin behind the Worker (F1).** Cloud Run refuses app routes without the Worker's header secret (403); only the probe and `/internal/tick` answer, and the tick is a 401 without a valid bearer. The rate limits' client address can't be spoofed by going around the edge.
+- **Headers (F3).** CSP in nonce mode with `object-src 'none'`, `base-uri 'self'` and `frame-ancestors 'none'`; HSTS for two years, `Referrer-Policy`, `nosniff`, COOP and `Permissions-Policy`.
+- **Auth0 (C2).** The hosted login offers only Google and the database connection, with Authorization Code, PKCE (S256), state and nonce; unverified emails are refused at callback.
+- **Probes.** Scanner paths are refused at the edge; unknown API paths stay behind sign-in (401); `www` redirects to the apex.
+- **Write budget (C3).** A paced run of invalid writes stayed healthy and stored nothing. The limit itself wasn't driven to its threshold.
+- **Invitation email (F2).** The subject is fixed server-side and caps are counted from stored invitations.
+
+### 7.4 Reviewed in code, no issue found
+
+- **Secrets:** none in the repo or any commit, pull-request ref or tag GitHub serves; only labelled placeholders and e2e constants.
+- **CI:** a read-only token and no secrets in CI, no `pull_request_target` or `workflow_run`; deploy and backup are gated on the owner's approval and use Workload Identity Federation, so GitHub holds no cloud keys; actions pinned by commit SHA.
+- **`/oops`:** forwards only envelopes for the server's own DSN, only to its ingest host; bounded, rate-limited, and stripped of the sender's address, Referer and cookies.
+- **Sign-in and sessions, invitations, photos, injection and role checks:** as §5 describes.
+
+### 7.5 The engagement
+
+The runbook's rules held: writes only to the test accounts' own data, nothing aimed at the providers, no load, nothing published, and no credential found or used. All budgets stayed well inside their limits: about 170 requests to the app (of 5,000), 5 straight to Cloud Run, 3 sign-ins, 1 invitation email, 2 tick requests, no photo uploads or error reports, and about 18 documents. `/readyz` stayed 2xx throughout, so no uptime alert was expected; the platform logs were expected to show the refused origin and tick requests. The tester deleted the three test accounts with *Delete account* at the end, which erased their households.

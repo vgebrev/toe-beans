@@ -1,9 +1,9 @@
 # Toe Beans — UI and Interaction Design
 
-**Version:** 0.43 (draft for iteration)
-**Date:** 21 November 2026
+**Version:** 0.44 (draft for iteration)
+**Date:** 23 November 2026
 **Status:** Proposed. Review-round decisions in §8 are accepted.
-**Inputs:** `docs/requirements.md` v1.0, `docs/architecture.md` v1.38
+**Inputs:** `docs/requirements.md` v1.0, `docs/architecture.md` v1.41
 
 **Changes in 0.7:** the logo landed (S0.9). The mark is now a **TB monogram** with four toe beans above it and a heart-shaped bean in the B, from the AI-assisted design board (Monogram Iteration B), replacing the placeholder paw. It was traced from the board and cleaned up rather than redrawn by hand; the variants are the brown-on-cream mark, a cream-on-brown app-icon tile (favicon and maskable) and a white badge. The wordmark uses Fredoka Bold to match the board (§6.4 Logo).
 
@@ -68,6 +68,8 @@
 **Changes in 0.42:** S17.11 (§5.2, §4.7): the waking page loads the page by itself once the server answers, which on prod it never did (architecture 1.37 D31); a first load with no answer in 20 s shows *Can't reach Toe Beans*. More's footer shows the offline files' build next to the app's version.
 
 **Changes in 0.43:** S17.12, from the owner (§5.2): a skeleton that says Toe Beans can't be reached stops pulsing, as nothing is loading any more, and the waking page goes to *Can't reach Toe Beans* when the phone is offline rather than staying a skeleton. Inputs moved to architecture 1.38.
+
+**Changes in 0.44:** §4.8: the *Leave household* sheet says the invites you sent stop working, as leaving now revokes them (architecture 1.41 D18, the pentest's P1).
 
 **Changes in 0.12:** S3 built. J1 step 4 as built: *Take photo* or *Gallery*, then a framing square with the circle overlay (drag, pinch, a zoom slider and arrow keys), and birth date as *I know the date* or *Approximate* with months old. J2 names the dogs. §2.2: the switcher shows on Today, Plan, History and Care, with name chips. §5.1 gains two rules from using it: one confirm button per context (a sheet is its own context), and a control is never disabled without the reason on screen; the photo moved into its own sheet in J1 to follow the first, and the household, name and email-invite buttons stopped greying out for missing input to follow the second. §4.5: editing is its own page and the overflow sheet holds *Edit details* and *Archive*; the Recent sections wait for their slices. The dog accent palette is defined (§6.4), and More gains *Dogs* (§2.1). The custom dog icon read as a monkey, so it's replaced by Phosphor's *Dog*, the documented fallback library (§6.4).
 
@@ -382,7 +384,7 @@ On More as **Household & invites**, showing the household's name; the page keeps
 - **Members:** display name, "(you)", and role. No emails: the household knows each other by name. An owner sees *Make owner* and *Remove* on each caregiver, each confirmed in a bottom sheet (§5.3): *Remove* says they lose access and that their invites stop working, and *Make owner* says owners can't remove each other, so only they can step down. An owner sees *Step down* on their own row while another owner stays (architecture D19). Afterwards the result shows at the top of the page.
 - **Pending invites:** invitations that can still be used, showing the address or "Invite link", who sent it and until when. *Revoke* appears for an owner, or on your own invitation (architecture D17), and confirms in a bottom sheet naming it (§5.3). If it failed the sheet stays open with **Retry**; if the invitation changed meanwhile, nothing is revoked, the sheet closes and the page says so above the refreshed list.
 - **Invite a caregiver:** the same controls as J1 step 5. *Create an invite link* shows the link once, in a read-only field, with its terms and *Share link* (the share sheet, or copy as the fallback). It's only ever available on this screen at creation, because only its hash is kept (architecture §5.2). *Send invite* keeps the address after a failure, and shows "Invite sent to …" politely once the server has sent it.
-- **Leave household:** at the foot of the page, for everyone, confirmed in a bottom sheet that says what follows: who becomes the owner, that coming back takes a new invite, or for the last person, that the household is deactivated and they can rejoin it within 30 days, after which it's deleted with its dogs, photos and history (D38). Leaving goes to *Create household* (J1 step 3).
+- **Leave household:** at the foot of the page, for everyone, confirmed in a bottom sheet that says what follows: who becomes the owner, that the invites they sent stop working and coming back takes a new invite (*amended in 0.44*, D18), or for the last person, that the household is deactivated and they can rejoin it within 30 days, after which it's deleted with its dogs, photos and history (D38). Leaving goes to *Create household* (J1 step 3).
 - *Added in 0.36:* **Delete household:** under *Leave household*, a red text button, only for someone alone in it (architecture D38). Its sheet, "Delete [household] for good?", says its dogs, photos, training and care history, cues and invites are deleted and can't be brought back, and that the account stays. Deleting goes to *Create household*. If someone joined meanwhile, nothing is deleted and the page says the household changed.
 - If the household changed while a sheet was open, nothing is done, the sheet closes and the top of the page says so above the refreshed members. A failure keeps the sheet open with **Retry**, as for revoking.
 

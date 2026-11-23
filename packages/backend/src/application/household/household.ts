@@ -138,9 +138,11 @@ export function createHouseholds(
 
 		/**
 		 * Takes someone out, which is leaving when it's the person asking; removing a caregiver
-		 * takes an owner, and owners can't remove each other (D19). Someone removed loses the invitations they could come back with. The last
-		 * person out deactivates the household, and with nobody left to watch its invitations, they
-		 * all stop working: a link accepted now would hand a stranger the household.
+		 * takes an owner, and owners can't remove each other (D19). Whether they leave or are
+		 * removed, the invitations they made or were sent stop working, as they could come back
+		 * with them (D18). The last person out deactivates the household, and with nobody left to
+		 * watch its invitations, they all stop working: a link accepted now would hand a stranger
+		 * the household.
 		 */
 		async removeMember(
 			ctx: MemberContext,
@@ -166,14 +168,12 @@ export function createHouseholds(
 				}
 				const saved = await households.setMembers(householdId, remaining, written);
 				if (!saved.ok) return saved;
-				if (!leaving) {
-					const user = await users.findById(member.userId);
-					if (user) {
-						await invitations.revokeOpen(householdId, at, {
-							createdBy: user.id,
-							email: user.email
-						});
-					}
+				const user = await users.findById(member.userId);
+				if (user) {
+					await invitations.revokeOpen(householdId, at, {
+						createdBy: user.id,
+						email: user.email
+					});
 				}
 				return ok(undefined);
 			});
