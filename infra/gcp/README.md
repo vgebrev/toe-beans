@@ -20,7 +20,7 @@ what's missing. It never prints or reads back a secret value.
 | Workload Identity Federation | Pool `github`, provider `toe-beans-github`, accepting only tokens from repo ID 1441749392 (`vgebrev/toe-beans`), environment `production`, ref `main`. Those tokens (bound by repository ID, not by subject) may act as `toe-beans-deploy` | Keyless deploys; without the condition any GitHub repo could get a token (D15) |
 | Backups (S14.2) | Secrets `backup-mongodb-uri`, `backup-r2-secret-access-key`, `photos-r2-read-secret-access-key`, `backup-heartbeat-url` (empty, for the owner), readable only by `toe-beans-backup`. Pool `github-backups`, provider `toe-beans-backups`, accepting only tokens from the same repo ID, environment `backups`, ref `main`; those may act as `toe-beans-backup` | Keyless nightly backups (`infra/backup/README.md`, D36). A pool of its own, because a binding names a pool, not a provider: in the deploy's pool, backup tokens could act as the deploy account |
 | Scheduler | Job `toe-beans-tick`, `*/5 * * * *` UTC, POST `/internal/tick` with an OIDC token from `toe-beans-tick`, audience the service URL. **Created paused** | Resume it after the first real deploy |
-| Budget | `toe-beans`, US$1 (`BUDGET_USD`), mails at 50% and 100% of spend and 100% forecast | Cost alarm on the billing account |
+| Budget | `toe-beans`, US$1 (`BUDGET_USD`), mails at 50% and 100% of spend and 100% forecast | Cost alarm on the billing account. `infra/spending-cap/provision.sh` then connects it to the cap, which takes the app down at 100% of spend (D45) |
 | Checks | Prints log retention, who holds project roles, and which secrets are still empty | Audit D34: request logs (which can hold invite tokens) readable by the owner only, retention known (30 days) |
 
 App settings that come out of it: `TICK_AUDIENCE=https://toe-beans-1047834821273.africa-south1.run.app`,
@@ -55,5 +55,5 @@ gcloud scheduler jobs resume toe-beans-tick --location me-central1
 
 ## Spike leftovers
 
-`toe-beans-build` (with `roles/run.builder` on the project) is from S-1.3 and unused by prod.
-Delete it once prod runs. The spike's secret `atlas-app-password` was deleted on 17 Nov 2026.
+`toe-beans-build` (with `roles/run.builder` on the project) was S-1.3's; the spending cap's
+source deploys now build as it (`infra/spending-cap`), so it stays. The spike's secret `atlas-app-password` was deleted on 17 Nov 2026.

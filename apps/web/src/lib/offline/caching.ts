@@ -17,6 +17,17 @@ export const isGatewayError = (status: number): boolean =>
 	status === 502 || status === 503 || status === 504;
 
 /**
+ * Marks the edge's maintenance page, shown once the spending cap has taken the app down
+ * (architecture D45, `infra/edge/worker.js`). It's a 503, but it says more than *Can't reach Toe
+ * Beans* would, so a page load shows it as it is.
+ */
+export const MAINTENANCE_HEADER = 'x-toe-beans-maintenance';
+
+/** Whether a page load's answer gives way to *Can't reach Toe Beans* (ui.md §5.2). */
+export const showsUnreachable = (response: { status: number; headers: Headers }): boolean =>
+	isGatewayError(response.status) && !response.headers.has(MAINTENANCE_HEADER);
+
+/**
  * How long a page load may take before the waking page stands in for it, and only after the
  * server has been quiet this long: then it's likely a cold start (architecture §8.4). Warm page
  * loads take a few hundred milliseconds on the phones (S-1.4), so a second is clearly slow.

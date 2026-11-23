@@ -1,0 +1,5 @@
+# Only the service's own files go up to Cloud Build.
+*
+!package.json
+!cap.js
+!server.js

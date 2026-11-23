@@ -15,6 +15,8 @@ for fixes. Candidates (`-rc.N`) go to prod for the owner to try before the relea
 - Toe Beans now asks you to confirm you're 18 or older and accept the terms of service before you
   start. If you already use it, you're asked once the next time you open it, and again only when
   the terms change.
+- If Toe Beans ever has to be stopped to keep its costs in check, it shows *Toe Beans is paused*
+  instead of saying it can't be reached. Your records stay safe while it's paused.
 
 ### Security
 

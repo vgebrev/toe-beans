@@ -23,7 +23,6 @@ PROVIDER=toe-beans-github
 # The backup workflow's own pool (S14.2), so its tokens can never act as the deploy account.
 BACKUP_POOL=github-backups
 BACKUP_PROVIDER=toe-beans-backups
-BILLING_ACCOUNT=01479B-1DAED2-C5A37D
 BUDGET_USD=${BUDGET_USD:-1}
 # Cloud Run's sample container, so the service exists (and the deploy account can be scoped to it)
 # before the first real image is built.
@@ -34,6 +33,9 @@ sa() { echo "$1@$PROJECT.iam.gserviceaccount.com"; }
 say() { printf '\n== %s\n' "$*"; }
 exists() { "$@" >/dev/null 2>&1; }
 PROJECT_NUMBER=$(gc projects describe "$PROJECT" --format='value(projectNumber)')
+# Looked up rather than written here: not a secret (IAM guards the account), but no need to publish it.
+BILLING_ACCOUNT=$(gcloud billing projects describe "$PROJECT" --format='value(billingAccountName)')
+BILLING_ACCOUNT=${BILLING_ACCOUNT#billingAccounts/}
 
 say "APIs"
 gc services enable run.googleapis.com artifactregistry.googleapis.com secretmanager.googleapis.com \

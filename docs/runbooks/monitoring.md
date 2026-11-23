@@ -10,7 +10,7 @@ file is public. It names monitors and settings, never URLs that hold a token.
 | Backups being made | Better Stack heartbeat `toe-beans-backup`, called by the backup workflow after a run that worked | No good run for a day and 12 hours, including a run that never started | §4 |
 | A failed backup run | GitHub's own mail to the owner | At once | Nothing to do |
 | Errors in the app | Sentry, `New or regressed issue` | A new kind of error, or one coming back | `sentry.md` §4 |
-| Spend | GCP budget `toe-beans` (US$1) | 50% and 100% of spend, 100% forecast | `provision.sh` |
+| Spend | GCP budget `toe-beans` (US$1) | 50% and 100% of spend, 100% forecast. At 100% of spend the cap also takes the app down, so the monitor and the tick's heartbeat alert too | `provision.sh`, `spending-cap.md` |
 
 ## 1. The account
 
