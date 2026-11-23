@@ -1,8 +1,8 @@
 # Toe Beans — Backlog
 
-**Version:** 0.85 (draft for iteration)
+**Version:** 0.86 (draft for iteration)
 **Date:** 23 November 2026
-**Inputs:** `docs/requirements.md` v1.0, `docs/architecture.md` v1.42, `docs/ui.md` v0.45
+**Inputs:** `docs/requirements.md` v1.1, `docs/architecture.md` v1.43, `docs/ui.md` v0.45
 
 **Changes in 0.3:** spike results S-1.0 to S-1.4 and S0.1–S0.2 recorded as they landed (see Current progress). S-1.4b dropped as not needed, S-1.5 parked, S-1.4a retargeted to `toebeans.co.za`.
 
@@ -150,6 +150,8 @@
 
 **Changes in 0.85:** S18 widened from the pentest to P1's prerequisites, for the owner's further items before P1. S18.4 built: care marked done or cancelled today stays on Today (architecture 1.42 D30, ui 0.45 §4.1). S18.5 built: *Plan the next one* offers tomorrow and next week, for weekly classes (D30, ui J6). Inputs moved to architecture 1.42 and ui 0.45.
 
+**Changes in 0.86:** P1 planned with the owner. S18 closed, its five items done. Three slices come before the rest of P1: S19, liability safeguards (terms accepted with an age confirmation, the sign-in page's font served by us, a guard against tracking, a takedown route for photos, a spending cap and each service's billing limits) with FR-16's export brought forward (requirements 1.1); S20, the stop-go exercise for loose-lead walking from puppy school; S21, the landing page. P1's order is F, D, A, C, B, H, and P1-E is S19.7. Architecture 1.43: D44 (the landing page at the edge, on the same address), D45 (the spending cap), D46 (the export). Inputs moved to requirements 1.1 and architecture 1.43.
+
 **Changes in 0.51:** S15.1 gains (k), fresh data on coming back to the app and on Back to a page Chrome kept whole (ui 0.35 §5.2), from the owner, after Today stayed stale behind a reminder. Live updates over WebSockets were considered and left out for cost. The offline banner's check backs off from 1 s (architecture 1.23 D31), found through a flaky e2e check. Built with e2e checks and closed by the owner, so S15.1 stays done. Inputs moved to architecture 1.23 and ui 0.35.
 
 **Changes in 0.50:** S15.1 gains (j), a banner offering *Refresh* once a new version is deployed (ui 0.34 §5.2), from the owner. Built and covered by an e2e check; it can only be seen across a real deploy, so the owner tries it on prod after the next one. Inputs moved to ui 0.34.
@@ -294,8 +296,9 @@ Work is organised as **vertical slices**: each delivers a usable end-to-end incr
 | 2026-11-22 | S18.2: the pentest ran. No critical, high or medium findings; household isolation held live. One low and one informational finding go to triage (S18.3). |
 | 2026-11-23 | S18 done: the owner's checks after the pentest are clean, and its two findings are fixed (architecture 1.41, ui 0.44), shipping in 1.0.5. |
 | 2026-11-23 | S18 widened to P1's prerequisites, reopened for the owner's items. S18.4 built: care settled today stays on Today. S18.5 built: *Plan the next one* offers *Tomorrow* and *Next week*. |
+| 2026-11-23 | P1 planned with the owner. S18 closed. S19 (liability safeguards and the export), S20 (training content from puppy school) and S21 (the landing page) come first, then P1-F → D → A → C → B → H. Landing page on the same address (D44), a spending cap at the US$1 budget (D45), the export as a ZIP download (D46). |
 
-**Next up:** the rest of S18, P1's prerequisites, then planning P1.
+**Next up:** S19, with S20 alongside; S21 once S19.1 and S19.5 are in.
 
 ---
 
@@ -543,7 +546,7 @@ Work is organised as **vertical slices**: each delivers a usable end-to-end incr
 
 ## P1 — Phase 1 follow-on
 
-### S18 P1 prerequisites
+### S18 P1 prerequisites ✅
 *What's settled before P1 builds on the MVP: the pentest (S18.1–S18.3), then the owner's further items from using the live app (S18.4 on).*
 
 *The pentest: an outside-in security assessment of prod, its code, the repo's full history, CI and the live edge, with the same view as any outsider (the public repo, the app and accounts anyone can sign up for), not the owner's tooling. It runs against prod rather than a clone: one household with a few days of data and a fresh backup, and a clone would test different edge, Auth0 and Worker settings. `docs/security-audit.md` was the first, code-only, review (S15.2).*
@@ -556,16 +559,47 @@ Work is organised as **vertical slices**: each delivers a usable end-to-end incr
 | S18.4 | **Care settled today stays on Today:** the owner marked a *Puppy school* task done and it vanished from Today, showing only in History. Today showed care only under *Coming up*, so done or cancelled care left it straight away. **Built (23 Nov):** a task marked done today is under *Done*, after the practices, and one cancelled today under *Skipped*, whatever day it was due or done on, until the day ends (architecture 1.42 D30, ui 0.45 §4.1). **Done (23 Nov):** tried on a phone by the owner. | ✅ |
 | S18.5 | **Plan the next one for a weekly class:** marking a care task done offered the next one in 1, 3 or 12 months, which doesn't fit puppy school. **Built (23 Nov):** *Not now*, *Tomorrow*, *Next week*, *In a month*, *In a year* and *Pick a date*; *Tomorrow* is the day after today, the rest count from *Done on* (architecture 1.42 D30, ui 0.45 J6). **Done (23 Nov):** tried on a phone by the owner. | ✅ |
 
+### S19 Liability safeguards and the export
+*Before the landing page invites strangers: the owner's liability review (23 Nov), each item fixed, guarded or decided, and FR-16's export brought forward as the household's way to get its data out (requirements 1.1).*
+
+| # | Task | Status |
+|---|---|---|
+| S19.1 | **Terms accepted, with an age confirmation.** Today the terms are only linked from sign-in and More, so nobody accepts them and nothing records it, and their 18+ rule is never put to anyone; POPIA treats under-18s as children, whose data needs a guardian's consent. Onboarding and joining by invite get a required *I'm 18 or older and accept the Terms and the Privacy Policy*, linking both; the user stores the terms version and when it was accepted. A new terms version asks again on the next open; existing members are asked once. No age verification beyond that. | ⬜ |
+| S19.2 | **The sign-in page's font from our own address.** Auth0's login page loads Nunito from Google Fonts, which sees each visitor's address. Serve the font from `toebeans.co.za` with CORS for `auth.toebeans.co.za`, point the Auth0 theme at it, and take Google Fonts out of the privacy policy §4 and the data inventory §4 (new versions of both). | ⬜ |
+| S19.3 | **No tracking, guarded.** The browser's Sentry sends errors only, with no tracing or replay; a test keeps it so. Confirm Cloudflare Web Analytics (and its edge-injected beacon) is off for the zone and say so in `infra/edge/README.md`, since it can add a script without any change in our code. | ⬜ |
+| S19.4 | **Photos and copyright.** Decided: no scanning of uploads. Photos are dog profile pictures, private to a household and never published, and scanning would cost privacy for little protection. The terms already ask for only content people have the right to share; they gain a route for complaints and takedowns (`support@`), since South Africa's ECT Act protects hosts only through an industry body we're not in. Recorded as a decision. | ⬜ |
+| S19.5 | **A spending cap (D45).** The US$1 budget publishes to Pub/Sub; a function takes the app down to a maintenance page at the edge, pauses the tick and stops Cloud Run taking traffic. A runbook to bring it back after looking at why. Tested by sending the function a budget message by hand, on prod, in a quiet hour. | ⬜ |
+| S19.6 | **Every service's billing limit (D45).** `docs/runbooks/accounts.md` lists which services can bill and what stops each. R2: a usage alert and a lifecycle rule on backups. Artifact Registry: a cleanup policy under its free 0.5 GB. Secret Manager versions counted. | ⬜ |
+| S19.7 | **The household's export (FR-16, was P1-E; D46).** An owner downloads a ZIP from More: `household.json` with every record of the household, schema-versioned, and the dogs' photos; no provider IDs, sessions, push endpoints, invitation tokens or secrets. Not emailed. Rate limited. The privacy policy says how to get your data. | ⬜ |
+
+### S20 Training content from puppy school
+*From the owner's first two weeks of puppy school: the name game and loose-lead walking held up; the stop-go (red light, green light) technique for pulling joins the library.*
+
+| # | Task | Status |
+|---|---|---|
+| S20.1 | **Stop-go for loose-lead walking.** A new `loose-leash` exercise: the lead goes tight, you stop; it slackens, you go on and reward beside you. Written in our own words from freely available reward-based sources, cited in `sources`, nothing copied from the school's material, and checked against `content/README.md` and the content gate (§3.8). Linked from *Loose lead, first steps* as the next step if that reads well. The owner reviews and signs it off (`reviewedBy`, `reviewedAt`). | ⬜ |
+
+### S21 The landing page
+*The public face at `toebeans.co.za` (requirements 1.1): what Toe Beans is, who it's for, and how to start, served at the edge to visitors who aren't signed in (D44). After S19.1 and S19.5, as it invites strangers.*
+
+| # | Task | Status |
+|---|---|---|
+| S21.1 | **Copy and design.** What it says (the three questions in requirements §1, shared caregivers, reminders, reward-based training, free, private, made in South Africa) and how it looks, in the brand tokens; a mock-up for the owner, in both themes and at phone width first. `ui.md` gains the page. | ⬜ |
+| S21.2 | **Built and served at the edge.** Static files from the repo, deployed with `infra/edge` as Workers static assets; `/` without the session cookie gets the brochure, everything else the app. The manifest's `start_url` moves off `/` so the installed app never opens on it. No third-party scripts, our own fonts, a strict CSP, no analytics. Sign-in links back to it. | ⬜ |
+| S21.3 | **Found and shared.** Title, description, a share image, `robots.txt` and a sitemap for the public pages (landing, terms, privacy); the app's pages stay unindexed. | ⬜ |
+
+### P1 proper
+*Order agreed with the owner (23 Nov): F, D, A, C, B, H. F is small and makes forms safer; D fits what puppy school is recording now; C builds on A; B needs the library tagged by age and level, which it does itself.*
 
 | Slice | Requirement | Notes | Status |
 |---|---|---|---|
-| P1-A Goals and milestones | FR-11 | Per dog × skill. Stages: introduced → developing → reliable in context. | ⬜ |
-| P1-B Age-aware starter plan | FR-13 | Suggestions with accept/edit/dismiss. No universal vet dates. | ⬜ |
-| P1-C Progress summary | FR-14 | Weekly practice consistency vs outcome distribution. `Not assessed` is never counted as success. | ⬜ |
-| P1-D Care records and contacts | FR-15 | Vet details, weight entries, health notes | ⬜ |
-| P1-E Data export | FR-16 | Owner-only JSON export of household records, with no secrets or push endpoints | ⬜ |
 | P1-F Draft persistence | NFR-04 | Unsent form drafts survive an app kill (`ui.md` §5.2) | ⬜ |
+| P1-D Care records and contacts | FR-15 | Vet details, weight entries, health notes | ⬜ |
+| P1-A Goals and milestones | FR-11 | Per dog × skill. Stages: introduced → developing → reliable in context. | ⬜ |
+| P1-C Progress summary | FR-14 | Weekly practice consistency vs outcome distribution. `Not assessed` is never counted as success. | ⬜ |
+| P1-B Age-aware starter plan | FR-13 | Suggestions with accept/edit/dismiss. No universal vet dates. Tags each exercise with the ages and levels it suits. | ⬜ |
 | P1-H Quiet hours | FR-12 | Per-member reminder suppression window | ⬜ |
+| P1-E Data export | FR-16 | Moved to S19.7 (requirements 1.1) | → S19.7 |
 
 ## Later phase (beyond Phase 1, not P2 scope cuts)
 

@@ -1,10 +1,12 @@
 # Toe Beans — Product Requirements
 
-**Version:** 1.0
-**Date:** 25 October 2026  
+**Version:** 1.1
+**Date:** 23 November 2026  
 **Status:** Baselined
 **Baseline date:** 25 October 2026
 **Initial users:** Two caregivers sharing responsibility for one or more dogs
+
+**Changes in 1.1:** the first recorded scope change (§2, *Scope changes after the baseline*): a public landing page at the canonical address, without analytics, and FR-16's export brought forward to before the rest of P1. No FR or NFR is reworded.
 
 This document represents the agreed requirements baseline for the Toe Beans MVP. Requirements may evolve through implementation, with material scope changes recorded and versioned.
 
@@ -33,6 +35,10 @@ The product should answer three questions: **What should we do today? How is our
 - Prefer a genuinely free cloud deployment; **self-hosted containers behind IIS reverse proxy** are the fallback if cloud options are unsuitable or not free.
 - Record **B (qualitative outcome)** with **optional D (emotional state and environment)** for completed training sessions; do not require a success assessment. Quantitative repetition/success counts are deferred.
 - The **MVP target platform** is **Android**, using **Google Chrome** and an installable PWA. The primary physical acceptance-test devices are **Samsung Galaxy S23 FE** and **Redmi Note 12 Pro**. Other platforms are best effort rather than release blockers.
+
+### Scope changes after the baseline
+
+- **1.1 (23 Nov 2026, owner):** a **public landing page** at `toebeans.co.za` tells visitors what Toe Beans is and how to sign up, ahead of inviting households beyond the first. It's in scope for Phase 1 as the product's public face, not a feature of the app, and carries **no analytics or tracking** (those stay P2, and need consent first). **FR-16 (data export)** stays P1 but is built before the rest of P1, as the household's way to get its data out and the answer to a POPIA access request.
 
 ## 3. Functional requirements
 
