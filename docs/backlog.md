@@ -1,8 +1,8 @@
 # Toe Beans — Backlog
 
-**Version:** 0.89 (draft for iteration)
+**Version:** 0.90 (draft for iteration)
 **Date:** 23 November 2026
-**Inputs:** `docs/requirements.md` v1.1, `docs/architecture.md` v1.44, `docs/ui.md` v0.46
+**Inputs:** `docs/requirements.md` v1.1, `docs/architecture.md` v1.45, `docs/ui.md` v0.46
 
 **Changes in 0.3:** spike results S-1.0 to S-1.4 and S0.1–S0.2 recorded as they landed (see Current progress). S-1.4b dropped as not needed, S-1.5 parked, S-1.4a retargeted to `toebeans.co.za`.
 
@@ -157,6 +157,8 @@
 **Changes in 0.88:** S19.2 built: the app serves Nunito for Auth0's login page at `/fonts/nunito-latin.woff2`, with CORS for the issuer's origin only, so Google Fonts leaves the privacy policy (0.7) and the data inventory (0.9). It's done once the prod theme points at it (`auth0.md` §5).
 
 **Changes in 0.89:** S19.3 built: a unit test keeps the browser's Sentry to errors only, the e2e CSP check allows no other host for scripts or data, and `infra/edge/README.md` says which Cloudflare features would add a script and how to check they're off. Found while checking: the Worker sent the proxy secret to any host named by a path starting `//`; fixed and deployed, and the secret rotated. Done: the owner turned off Web Analytics and RUM.
+
+**Changes in 0.90:** S19.3 recorded in the docs: architecture 1.45 (D39 at the edge), security audit 0.5 §8 (E1, the Worker's proxy secret), data inventory 0.10 and privacy policy 0.8 (Cloudflare's analytics off, Network Error Logging listed) and a pentest runbook check for paths that change the upstream host. Inputs moved to architecture 1.45.
 
 **Changes in 0.51:** S15.1 gains (k), fresh data on coming back to the app and on Back to a page Chrome kept whole (ui 0.35 §5.2), from the owner, after Today stayed stale behind a reminder. Live updates over WebSockets were considered and left out for cost. The offline banner's check backs off from 1 s (architecture 1.23 D31), found through a flaky e2e check. Built with e2e checks and closed by the owner, so S15.1 stays done. Inputs moved to architecture 1.23 and ui 0.35.
 

@@ -26,6 +26,8 @@ for fixes. Candidates (`-rc.N`) go to prod for the owner to try before the relea
 - The terms of service say how to tell us about content that infringes your rights.
 - The sign-in page now loads its font from Toe Beans itself, so Google no longer sees your
   device's address when you open it. The privacy policy no longer lists Google Fonts.
+- The privacy policy now says that your browser tells Cloudflare when a request to Toe Beans fails,
+  so it can find network problems.
 
 - A care task you mark done or cancel stays on Today for the rest of the day, under *Done* or
   *Skipped*, instead of disappearing straight away.
