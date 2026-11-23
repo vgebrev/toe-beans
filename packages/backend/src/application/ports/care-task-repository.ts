@@ -55,6 +55,11 @@ export interface CareTaskRepository {
 	listUpcoming(householdId: Id, options?: { until?: PlainDate }): Promise<CareTask[]>;
 	/** Completed and cancelled tasks, latest due first, at most `limit`. */
 	listClosed(householdId: Id, limit: number): Promise<CareTask[]>;
+	/**
+	 * Completed and cancelled tasks last changed at or after `since`, which includes every one
+	 * closed since then (Today's *Done* and *Skipped*), at most `limit`.
+	 */
+	listClosedSince(householdId: Id, since: Date, limit: number): Promise<CareTask[]>;
 	/** History's care source: completed tasks, latest day done first, then by ID (D35). */
 	listCompletedTimeline(householdId: Id, query: CareTimelineQuery): Promise<CareTask[]>;
 	/**

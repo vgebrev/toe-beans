@@ -136,6 +136,8 @@ describe('today http', () => {
 			overdue: [],
 			planned: [],
 			comingUp: [],
+			careDone: [],
+			careCancelled: [],
 			done: [],
 			skipped: []
 		});

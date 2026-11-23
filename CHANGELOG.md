@@ -10,6 +10,13 @@ for fixes. Candidates (`-rc.N`) go to prod for the owner to try before the relea
 
 ## Unreleased
 
+### Changed
+
+- A care task you mark done or cancel stays on Today for the rest of the day, under *Done* or
+  *Skipped*, instead of disappearing straight away.
+- When you mark a care task done, you can plan the next one for tomorrow or next week, handy
+  for a weekly puppy school class. *In 3 months* is gone; *Pick a date* still covers it.
+
 ## 1.0.5 - 2026-11-23
 
 ### Security

@@ -84,9 +84,14 @@ test('scenario 7: a vaccination for one dog shows on Care and Today, and is mark
 	await expect(page.getByRole('heading', { level: 1 })).toHaveText('Second puppy vaccination');
 	await expect(page.getByRole('button', { name: 'Mark done' })).toBeVisible();
 
-	// Off Today's Coming up now, and under Done on Care.
+	// Off Today's Coming up now, under Done there for the rest of the day, and under Done on Care.
 	await page.goto('/');
 	await expect(page.getByRole('region', { name: 'Coming up' })).toBeHidden();
+	await expect(
+		page.getByRole('region', { name: 'Done' }).getByRole('link', {
+			name: /Second puppy vaccination.*Done/
+		})
+	).toBeVisible();
 	await page.goto('/care');
 	// A year off isn't coming up: it waits under Later, with its year.
 	await expect(page.getByRole('region', { name: 'Coming up' })).toContainText('Nothing coming up');
@@ -98,6 +103,38 @@ test('scenario 7: a vaccination for one dog shows on Care and Today, and is mark
 	).toBeVisible();
 	await page.getByText(/Done and cancelled \(1\)/).click();
 	await expect(page.getByRole('link', { name: /Second puppy vaccination.*Done/ })).toBeVisible();
+});
+
+test('a weekly class plans the next one a week on, from the Mark done sheet', async ({
+	page,
+	baseURL
+}) => {
+	const [rosie] = await ownHousehold(page, baseURL!);
+	const task = await addCare(page, baseURL!, {
+		dogId: rosie!.id,
+		category: 'puppy_school',
+		dueDate: dayFromToday(0)
+	});
+	await page.goto(`/care/${task.id}`);
+	await page.getByRole('button', { name: 'Mark done' }).click();
+	const sheet = page.getByRole('dialog', { name: /Mark Puppy school done/ });
+	await expect(sheet.locator('label:has(input[type=radio])')).toHaveText([
+		'Not now',
+		'Tomorrow',
+		'Next week',
+		'In a month',
+		'In a year',
+		'Pick a date'
+	]);
+	await sheet.getByRole('radio', { name: 'Next week' }).check({ force: true });
+	await sheet.getByRole('button', { name: 'Mark done' }).click();
+	await expect(sheet).toBeHidden();
+	await expect(page.getByText(/Done\. The next one is planned for .+\./)).toBeVisible();
+	await page.getByRole('link', { name: 'See the next one' }).click();
+	await page.waitForURL((url) => !url.pathname.endsWith(task.id));
+	const next = page.url().split('/').pop()!;
+	const response = await page.request.get(`/api/v1/care-tasks/${next}`);
+	expect(((await response.json()) as { dueDate: string }).dueDate).toBe(dayFromToday(7));
 });
 
 test('an overdue task says so on Care and Today, and a move goes into its history', async ({
@@ -148,7 +185,7 @@ test('a change made elsewhere is never overwritten (NFR-13)', async ({ page, bas
 	await expect(page.getByLabel(/Notes/)).toHaveValue('From the other phone');
 });
 
-test('scenario 5: a cancelled task’s page says so, and it can be put back', async ({
+test('scenario 5: a cancelled task’s page says so, Today keeps it under Skipped, and it can be put back', async ({
 	page,
 	baseURL
 }) => {
@@ -163,7 +200,11 @@ test('scenario 5: a cancelled task’s page says so, and it can be put back', as
 	await page.getByRole('button', { name: 'Cancel…' }).click();
 	await page.getByRole('button', { name: 'Cancel care task' }).click();
 	await expect(page.getByText('This care task was cancelled.')).toBeVisible();
-	await expect(page.getByRole('link', { name: 'Go to Today' })).toBeVisible();
+	// Today keeps it for the rest of the day, folded under Skipped.
+	await page.getByRole('link', { name: 'Go to Today' }).click();
+	await expect(page.getByRole('region', { name: 'Coming up' })).toBeHidden();
+	await page.getByText('Skipped (1)').click();
+	await page.getByRole('link', { name: /Vet appointment.*Cancelled/ }).click();
 
 	await page.getByRole('button', { name: 'Put it back' }).click();
 	await expect(page.getByText(/Put back as upcoming, tomorrow at 10:00\./)).toBeVisible();

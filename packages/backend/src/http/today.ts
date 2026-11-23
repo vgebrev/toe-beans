@@ -1,4 +1,4 @@
-// /api/v1/today (architecture §5.1, D26, FR-06). Someone with no household gets a 404, like every
+// /api/v1/today (architecture §5.1, D26, D30, FR-06). Someone with no household gets a 404, like every
 // household resource (§4.4).
 import type { Today as TodayDto } from '@toe-beans/contracts';
 import type { Viewer } from '../application/auth/auth.js';
@@ -25,7 +25,9 @@ export function createTodayHttp(today: Today): TodayHttp {
 					planned: view.planned.map((v) => sessionDto(v, timeZone)),
 					done: view.done.map((v) => sessionLogDto(v, timeZone)),
 					skipped: view.skipped.map((v) => sessionDto(v, timeZone)),
-					comingUp: view.comingUp.map((v) => careTaskDto(v, view.date))
+					comingUp: view.comingUp.map((v) => careTaskDto(v, view.date)),
+					careDone: view.careDone.map((v) => careTaskDto(v, view.date)),
+					careCancelled: view.careCancelled.map((v) => careTaskDto(v, view.date))
 				} satisfies TodayDto)
 			);
 		}

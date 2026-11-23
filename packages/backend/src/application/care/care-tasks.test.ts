@@ -404,4 +404,48 @@ describe('the care list and Today’s Coming up', () => {
 		const coming = await care.comingUp(sam, '2026-11-10' as never);
 		expect(coming.map((v) => v.task.id)).toEqual([overdue.id, today.id, week.id]);
 	});
+
+	it('Today has the tasks marked done or cancelled today, whatever day they were due or done on', async () => {
+		const { clock, care, add, dogs, miso } = await setup();
+		const lastWeek = await add('2026-11-03');
+		const nextWeek = await add('2026-11-17');
+		const yesterdays = await add('2026-11-09');
+		const reopened = await add('2026-11-10');
+		const misos = await add('2026-11-10', { dogId: miso.id });
+		const earlier = await add('2026-11-08');
+
+		// Done and cancelled on Monday: not today's.
+		clock.set(new Date('2026-11-09T10:00:00Z'));
+		await care.complete(sam, { id: earlier.id, expectedVersion: 1 });
+		// Today, 17:00 in Johannesburg. Yesterday's task done today, as done on its day.
+		clock.set(at);
+		await care.complete(sam, { id: yesterdays.id, expectedVersion: 1, completedOn: '2026-11-09' });
+		await care.complete(alex, { id: lastWeek.id, expectedVersion: 1 });
+		await care.update(sam, {
+			id: nextWeek.id,
+			expectedVersion: 1,
+			changes: { status: 'cancelled' }
+		});
+		await care.complete(sam, { id: reopened.id, expectedVersion: 1 });
+		await care.update(sam, {
+			id: reopened.id,
+			expectedVersion: 2,
+			changes: { status: 'upcoming' }
+		});
+		await care.complete(sam, { id: misos.id, expectedVersion: 1 });
+		const m = await dogs.findById('h1' as Id, miso.id);
+		await dogs.update('h1' as Id, miso.id, m!.version, { archivedAt: at });
+
+		const closed = await care.closedToday(sam, '2026-11-10' as never);
+		expect(closed.done.map((v) => v.task.id)).toEqual([lastWeek.id, yesterdays.id]);
+		expect(closed.cancelled.map((v) => v.task.id)).toEqual([nextWeek.id]);
+		expect(await care.closedToday(outsider, '2026-11-10' as never)).toEqual({
+			done: [],
+			cancelled: []
+		});
+
+		// The next day, they've gone from Today.
+		clock.set(new Date('2026-11-10T22:30:00Z'));
+		expect(await care.closedToday(sam, '2026-11-11' as never)).toEqual({ done: [], cancelled: [] });
+	});
 });

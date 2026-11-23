@@ -1,8 +1,8 @@
 # Toe Beans — Backlog
 
-**Version:** 0.84 (draft for iteration)
+**Version:** 0.85 (draft for iteration)
 **Date:** 23 November 2026
-**Inputs:** `docs/requirements.md` v1.0, `docs/architecture.md` v1.41, `docs/ui.md` v0.44
+**Inputs:** `docs/requirements.md` v1.0, `docs/architecture.md` v1.42, `docs/ui.md` v0.45
 
 **Changes in 0.3:** spike results S-1.0 to S-1.4 and S0.1–S0.2 recorded as they landed (see Current progress). S-1.4b dropped as not needed, S-1.5 parked, S-1.4a retargeted to `toebeans.co.za`.
 
@@ -148,6 +148,8 @@
 
 **Changes in 0.84:** S18.3: the pentest's two findings fixed, P1 by revoking a leaver's invitations (architecture 1.41 D18, ui 0.44 §4.8) and P2 by reading a weakened ETag (§3.3); `security-audit.md` 0.4. S18.2 closed on the owner's checks after cleanup, and S18 is done. Inputs moved to architecture 1.41 and ui 0.44.
 
+**Changes in 0.85:** S18 widened from the pentest to P1's prerequisites, for the owner's further items before P1. S18.4 built: care marked done or cancelled today stays on Today (architecture 1.42 D30, ui 0.45 §4.1). S18.5 built: *Plan the next one* offers tomorrow and next week, for weekly classes (D30, ui J6). Inputs moved to architecture 1.42 and ui 0.45.
+
 **Changes in 0.51:** S15.1 gains (k), fresh data on coming back to the app and on Back to a page Chrome kept whole (ui 0.35 §5.2), from the owner, after Today stayed stale behind a reminder. Live updates over WebSockets were considered and left out for cost. The offline banner's check backs off from 1 s (architecture 1.23 D31), found through a flaky e2e check. Built with e2e checks and closed by the owner, so S15.1 stays done. Inputs moved to architecture 1.23 and ui 0.35.
 
 **Changes in 0.50:** S15.1 gains (j), a banner offering *Refresh* once a new version is deployed (ui 0.34 §5.2), from the owner. Built and covered by an e2e check; it can only be seen across a real deploy, so the owner tries it on prod after the next one. Inputs moved to ui 0.34.
@@ -291,8 +293,9 @@ Work is organised as **vertical slices**: each delivers a usable end-to-end incr
 | 2026-11-21 | S18 added as P1's prerequisite: a pentest of prod from outside. S18.1 built: the runbook and the isolated container. |
 | 2026-11-22 | S18.2: the pentest ran. No critical, high or medium findings; household isolation held live. One low and one informational finding go to triage (S18.3). |
 | 2026-11-23 | S18 done: the owner's checks after the pentest are clean, and its two findings are fixed (architecture 1.41, ui 0.44), shipping in 1.0.5. |
+| 2026-11-23 | S18 widened to P1's prerequisites, reopened for the owner's items. S18.4 built: care settled today stays on Today. S18.5 built: *Plan the next one* offers *Tomorrow* and *Next week*. |
 
-**Next up:** planning P1, now that S18, its prerequisite, is done.
+**Next up:** the rest of S18, P1's prerequisites, then planning P1.
 
 ---
 
@@ -540,14 +543,18 @@ Work is organised as **vertical slices**: each delivers a usable end-to-end incr
 
 ## P1 — Phase 1 follow-on
 
-### S18 Pentest (P1 prerequisite) ✅
-*Before P1 builds on the MVP: an outside-in security assessment of prod, its code, the repo's full history, CI and the live edge, with the same view as any outsider (the public repo, the app and accounts anyone can sign up for), not the owner's tooling. It runs against prod rather than a clone: one household with a few days of data and a fresh backup, and a clone would test different edge, Auth0 and Worker settings. `docs/security-audit.md` was the first, code-only, review (S15.2).*
+### S18 P1 prerequisites
+*What's settled before P1 builds on the MVP: the pentest (S18.1–S18.3), then the owner's further items from using the live app (S18.4 on).*
+
+*The pentest: an outside-in security assessment of prod, its code, the repo's full history, CI and the live edge, with the same view as any outsider (the public repo, the app and accounts anyone can sign up for), not the owner's tooling. It runs against prod rather than a clone: one household with a few days of data and a fresh backup, and a clone would test different edge, Auth0 and Worker settings. `docs/security-audit.md` was the first, code-only, review (S15.2).*
 
 | # | Task | Status |
 |---|---|---|
 | S18.1 | **The runbook and the container.** `docs/runbooks/pentest.md`: rules of engagement (writes only to the test accounts' own data, no DoS, providers out of scope, credentials never used), budgets for the shared free tiers, a gate on the tester's plan before any signed-in or live test, preparation, cleanup and triage, and a review of the owner's draft brief. `infra/pentest`: the tester's image (pinned tools, release binaries checked by hash, no repo files), `network.sh` for a network that reaches only the internet, and `preflight.sh` to check the container has an outsider's view. **Built (21 Nov):** the image builds and its tools run; the preflight on Docker's default network fails as it should, reaching the host's Mongo and the router. **Done (22 Nov):** the engagement ran from it on the locked-down network. | ✅ |
 | S18.2 | **The engagement.** The owner prepares (backup, test accounts, API key, the brief with the runbook's rules), runs it and cleans up (runbook §2–§6). **Run (22 Nov):** household isolation confirmed live; one low finding (P1) and one informational (P2); the tester deleted the test accounts. **Done (23 Nov):** the owner's checks found no test users at Auth0 and no test documents in Atlas; the container's network, image, setup token and environment file are gone. | ✅ |
 | S18.3 | **Triage.** Each finding fixed, accepted with a recorded decision, or dismissed; fixed and decided findings go into `docs/security-audit.md` as a new version (runbook §7). **Fixed (23 Nov):** P1, leaving or deleting an account revokes the person's invitations (architecture 1.41 D18); P2, `If-Match` reads a weakened ETag (§3.3); written up in `security-audit.md` 0.4 §7. Ships in 1.0.5. | ✅ |
+| S18.4 | **Care settled today stays on Today:** the owner marked a *Puppy school* task done and it vanished from Today, showing only in History. Today showed care only under *Coming up*, so done or cancelled care left it straight away. **Built (23 Nov):** a task marked done today is under *Done*, after the practices, and one cancelled today under *Skipped*, whatever day it was due or done on, until the day ends (architecture 1.42 D30, ui 0.45 §4.1). **Done (23 Nov):** tried on a phone by the owner. | ✅ |
+| S18.5 | **Plan the next one for a weekly class:** marking a care task done offered the next one in 1, 3 or 12 months, which doesn't fit puppy school. **Built (23 Nov):** *Not now*, *Tomorrow*, *Next week*, *In a month*, *In a year* and *Pick a date*; *Tomorrow* is the day after today, the rest count from *Done on* (architecture 1.42 D30, ui 0.45 J6). **Done (23 Nov):** tried on a phone by the owner. | ✅ |
 
 
 | Slice | Requirement | Notes | Status |

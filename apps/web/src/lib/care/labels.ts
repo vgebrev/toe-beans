@@ -2,7 +2,7 @@
 // the form pre-fills, in the order the form offers them, and how the history reads.
 import type { CareCategory, CareHistoryEntry, CareTask } from '@toe-beans/contracts';
 import type { IconName } from '#lib/components/icon/icons.js';
-import { dayPhrase, formatDate } from '#lib/planner/dates.js';
+import { addDays, addMonths, dayPhrase, formatDate } from '#lib/planner/dates.js';
 
 export const careLabels: Record<CareCategory, { label: string; icon: IconName; title: string }> = {
 	vaccination: { label: 'Vaccination', icon: 'vaccination', title: 'Vaccination' },
@@ -53,9 +53,20 @@ export function historyLine(entry: CareHistoryEntry): string {
 	}
 }
 
-/** The choices for "Plan the next one" (D30): months after the day it was done. */
+/**
+ * The choices for "Plan the next one" (D30). *Tomorrow* is the day after today; the rest count
+ * from the day it was done, so a weekly class done on Tuesday comes back the next Tuesday.
+ */
 export const NEXT_CHOICES = [
-	{ months: 1, label: 'In a month' },
-	{ months: 3, label: 'In 3 months' },
-	{ months: 12, label: 'In a year' }
+	{ value: 'tomorrow', label: 'Tomorrow', from: 'today', days: 1 },
+	{ value: 'week', label: 'Next week', from: 'done', days: 7 },
+	{ value: 'month', label: 'In a month', from: 'done', months: 1 },
+	{ value: 'year', label: 'In a year', from: 'done', months: 12 }
 ] as const;
+export type NextChoice = (typeof NEXT_CHOICES)[number];
+
+/** The day a choice plans the next one for, given today and the day it was done. */
+export function nextDueDate(choice: NextChoice, today: string, completedOn: string): string {
+	const from = choice.from === 'today' ? today : completedOn;
+	return 'months' in choice ? addMonths(from, choice.months) : addDays(from, choice.days);
+}

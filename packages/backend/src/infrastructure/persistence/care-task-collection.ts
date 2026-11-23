@@ -56,6 +56,14 @@ export function mongoCareTasks(db: Db, clock: Clock): CareTaskRepository {
 			);
 			return docs.map(toTask);
 		},
+		async listClosedSince(householdId, since, limit) {
+			const docs = await tasks.find(
+				householdId,
+				{ status: { $in: ['completed', 'cancelled'] }, updatedAt: { $gte: since } },
+				{ sort: soonest, limit }
+			);
+			return docs.map(toTask);
+		},
 		// History's care source (D35), on the (householdId, status, completedOn, _id) index from
 		// migration 0014.
 		async listCompletedTimeline(householdId, { dogId, categories, from, to, before, limit }) {

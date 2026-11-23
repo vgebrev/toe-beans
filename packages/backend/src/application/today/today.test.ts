@@ -94,7 +94,8 @@ async function setup() {
 	};
 	const planner = createPlanner(ports);
 	const sessionLogs = createSessionLogs(ports);
-	const today = createToday(ports, { planner, sessionLogs, careTasks: createCareTasks(ports) });
+	const careTasks = createCareTasks(ports);
+	const today = createToday(ports, { planner, sessionLogs, careTasks });
 	const plan = async (
 		dogId: Id,
 		date: string,
@@ -115,7 +116,7 @@ async function setup() {
 		if (!created.ok) throw new Error(JSON.stringify(created.error));
 		return created.value.session;
 	};
-	return { clock, ports, planner, sessionLogs, today, plan, ripley, miso, theirs };
+	return { clock, ports, planner, sessionLogs, careTasks, today, plan, ripley, miso, theirs };
 }
 
 const read = async (today: ReturnType<typeof createToday>, who = sam) => {
@@ -240,6 +241,37 @@ describe('Today', () => {
 		expect(view.overdue).toEqual([]);
 		expect(view.planned).toEqual([]);
 		expect(view.done).toEqual([]);
+	});
+
+	it('keeps care marked done or cancelled today, out of Coming up', async () => {
+		const { clock, today, careTasks, ripley } = await setup();
+		clock.set(tuesday);
+		const add = async (dueDate: string) => {
+			const made = await careTasks.create(sam, {
+				dogId: ripley.id,
+				category: 'puppy_school',
+				dueDate
+			});
+			if (!made.ok) throw new Error(JSON.stringify(made.error));
+			return made.value.task;
+		};
+		const yesterdays = await add('2026-11-09');
+		const nextWeeks = await add('2026-11-17');
+		const coming = await add('2026-11-12');
+		await careTasks.complete(sam, {
+			id: yesterdays.id,
+			expectedVersion: 1,
+			completedOn: '2026-11-09'
+		});
+		await careTasks.update(sam, {
+			id: nextWeeks.id,
+			expectedVersion: 1,
+			changes: { status: 'cancelled' }
+		});
+		const view = await read(today);
+		expect(view.careDone.map((v) => v.task.id)).toEqual([yesterdays.id]);
+		expect(view.careCancelled.map((v) => v.task.id)).toEqual([nextWeeks.id]);
+		expect(view.comingUp.map((v) => v.task.id)).toEqual([coming.id]);
 	});
 
 	it('leaves out an archived dog’s sessions', async () => {

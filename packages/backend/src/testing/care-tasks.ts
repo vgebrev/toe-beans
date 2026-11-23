@@ -32,6 +32,13 @@ export function memoryCareTasks(now: () => Date): CareTaskRepository & { all(): 
 					.sort((a, b) => soonest(b, a))
 					.slice(0, limit)
 			),
+		listClosedSince: async (householdId, since, limit) =>
+			structuredClone(
+				inHousehold(householdId)
+					.filter((t) => t.status !== 'upcoming' && t.updatedAt >= since)
+					.sort(soonest)
+					.slice(0, limit)
+			),
 		listCompletedTimeline: async (householdId, { dogId, categories, from, to, before, limit }) =>
 			structuredClone(
 				inHousehold(householdId)

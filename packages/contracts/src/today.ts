@@ -17,6 +17,10 @@ export const Today = z.object({
 	/** Today's skipped and cancelled sessions, which never count as done. */
 	skipped: z.array(PlannedSession),
 	/** Care tasks still upcoming: overdue ones, and those due within 7 days (D30). */
-	comingUp: z.array(CareTask)
+	comingUp: z.array(CareTask),
+	/** Care tasks marked done today, whatever day they were due or done on (D30). */
+	careDone: z.array(CareTask),
+	/** Care tasks cancelled today, whatever day they were due on. */
+	careCancelled: z.array(CareTask)
 });
 export type Today = z.infer<typeof Today>;

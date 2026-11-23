@@ -17,8 +17,15 @@
 	import { Label } from '#lib/components/ui/label/index.js';
 	import * as Sheet from '#lib/components/ui/sheet/index.js';
 	import { type ApiError, createApiClient, problemStatus } from '#lib/api-client/index.js';
-	import { careLabels, duePhrase, historyLine, NEXT_CHOICES } from '#lib/care/labels.js';
-	import { addMonths, dayName, dayPhrase, formatDate } from '#lib/planner/dates.js';
+	import {
+		careLabels,
+		duePhrase,
+		historyLine,
+		NEXT_CHOICES,
+		nextDueDate,
+		type NextChoice
+	} from '#lib/care/labels.js';
+	import { dayName, dayPhrase, formatDate } from '#lib/planner/dates.js';
 	import type { PageProps } from './$types';
 	import { dogNameOf } from '#lib/dogs/name.js';
 
@@ -35,11 +42,19 @@
 
 	// Mark done: the day it was done, and whether to plan the next one.
 	let completedOn = $state('');
-	let next = $state<'none' | 1 | 3 | 12 | 'pick'>('none');
+	let next = $state<'none' | NextChoice['value'] | 'pick'>('none');
 	let pickedDate = $state('');
 	let fieldError = $state<{ field: 'completedOn' | 'next'; message: string } | null>(null);
 	const nextDate = $derived(
-		next === 'none' ? null : next === 'pick' ? pickedDate || null : addMonths(completedOn, next)
+		next === 'none'
+			? null
+			: next === 'pick'
+				? pickedDate || null
+				: nextDueDate(
+						NEXT_CHOICES.find((c) => c.value === next)!,
+						data.today,
+						completedOn
+					)
 	);
 
 	function open(which: 'complete' | 'cancel') {
@@ -305,7 +320,7 @@
 				<fieldset class="flex flex-col gap-2">
 					<legend class="mb-2 font-bold">Plan the next one?</legend>
 					<div class="grid grid-cols-2 gap-2">
-						{#each [{ value: 'none' as const, label: 'Not now' }, ...NEXT_CHOICES.map( (c) => ({ value: c.months, label: c.label }) ), { value: 'pick' as const, label: 'Pick a date' }] as choice (choice.value)}
+						{#each [{ value: 'none' as const, label: 'Not now' }, ...NEXT_CHOICES.map( (c) => ({ value: c.value, label: c.label }) ), { value: 'pick' as const, label: 'Pick a date' }] as choice (choice.value)}
 							<label class={[pill, 'justify-center', next === choice.value ? on : 'border-border']}>
 								<input
 									type="radio"
