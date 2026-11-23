@@ -1,7 +1,7 @@
 # Toe Beans — Privacy policy
 
-**Version:** 0.5 (reviewed draft)
-**Date:** 20 November 2026
+**Version:** 0.6 (reviewed draft)
+**Date:** 23 November 2026
 **Inputs:** `docs/data-inventory.md` v0.7, `docs/architecture.md` v1.35 (D36, D38, D39, D43)
 
 **Changes in 0.1:** first draft for backlog S16.2, written from the data inventory. S16.4 publishes
@@ -27,6 +27,8 @@ after it stopped accepting reminders (data inventory 0.6, architecture D43).
 
 **Changes in 0.5:** §5: signing out no longer removes a device's registration; reminders pause
 until you sign in there again (data inventory 0.7, architecture 1.35 D43).
+
+**Changes in 0.6:** §2's account row gains the record of which terms you accepted and when, with the confirmation that you're 18 or older (data inventory 0.8, architecture D47).
 
 Before publishing:
 
@@ -62,7 +64,7 @@ You give us all of it, except what your sign-in provider passes on and what your
 
 | What | Why |
 |---|---|
-| **Your account:** your email address, your name, and, if you sign in with Google, your profile picture's address. We also keep an ID from the sign-in service for each way you sign in | So you can sign in, and your household can see who did what |
+| **Your account:** your email address, your name, and, if you sign in with Google, your profile picture's address. We also keep an ID from the sign-in service for each way you sign in, and which version of the terms you accepted, confirming you're 18 or older, and when | So you can sign in, and your household can see who did what; the terms record shows what you agreed to |
 | **Your household:** its name, time zone and members, with each member's role and the date they joined | So you can share your dogs with the people you choose, and get reminders at the right local time |
 | **Your dogs:** names, dates of birth and adoption, notes and a photo each | Your dogs' profiles |
 | **Training and care records:** sessions and how they went, behaviour, plans, care tasks, cue words and notes, with who recorded or changed each one | The point of the app: a shared history and plan for each dog |

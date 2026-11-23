@@ -10,7 +10,15 @@ for fixes. Candidates (`-rc.N`) go to prod for the owner to try before the relea
 
 ## Unreleased
 
+### Added
+
+- Toe Beans now asks you to confirm you're 18 or older and accept the terms of service before you
+  start. If you already use it, you're asked once the next time you open it, and again only when
+  the terms change.
+
 ### Changed
+
+- The terms of service say how to tell us about content that infringes your rights.
 
 - A care task you mark done or cancel stays on Today for the rest of the day, under *Done* or
   *Skipped*, instead of disappearing straight away.

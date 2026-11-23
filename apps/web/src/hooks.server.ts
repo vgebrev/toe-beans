@@ -3,6 +3,7 @@ import type { Handle, HandleServerError, ServerInit } from '@sveltejs/kit/hooks'
 import { PROXY_SECRET_HEADER, REQUEST_ID_HEADER, requestIdFrom } from '@toe-beans/backend';
 import { ERROR_RELAY_PATH } from '@toe-beans/contracts';
 import { backend, startBackend } from '#lib/server/backend.js';
+import { terms } from '#lib/server/legal.js';
 import { toResponse, unauthenticated } from '#lib/server/respond.js';
 
 export const init: ServerInit = async () => {
@@ -39,6 +40,12 @@ const machineRoutes = new Set(['/internal/tick']);
 // The join page says what an invitation is for before asking anyone to sign in (ui.md J2). The
 // token is what allows it; accepting is a separate route and needs a session.
 const publicApiRoutes = new Set(['/api/v1/invitations/[token]']);
+
+/**
+ * API writes that work before the current terms are accepted (backlog S19.1): accepting them, and
+ * deleting the account, for someone who would rather leave than agree.
+ */
+const termsFreeWrites = new Set(['POST /api/v1/me/terms', 'DELETE /api/v1/me']);
 
 // The browser's error reports (architecture D41) and security.txt: no session lookup.
 const noViewerRoutes = new Set([...quietRoutes, ERROR_RELAY_PATH, '/.well-known/security.txt']);
@@ -101,7 +108,8 @@ export const handle: Handle = ({ event, resolve }) => {
  * Refuses requests that bypassed the proxy and cross-origin writes, then resolves the session
  * cookie to `locals.viewer` (architecture §3.4). Signed-out API calls get a 401 here; signed-out
  * pages are sent to sign-in by the `(app)` layout, so client-side navigation gets a proper
- * redirect too. A signed-in person's API writes count against their budget (D32).
+ * redirect too. A signed-in person's API writes count against their budget (D32), and wait for
+ * them to accept the current terms (S19.1); pages send them to accept from their loads.
  */
 async function authenticated(
 	event: RequestEvent,
@@ -142,8 +150,17 @@ async function authenticated(
 	}
 	if (viewer && isApi) {
 		const userId = viewer.auth.userId;
-		const limited = edge.checkWriteRate({ method: event.request.method, userId });
+		const { method } = event.request;
+		const limited = edge.checkWriteRate({ method, userId });
 		if (limited) return toResponse(limited);
+		if (!termsFreeWrites.has(`${method} ${route}`)) {
+			const refused = auth.checkTerms({
+				method,
+				accepted: viewer.termsVersion,
+				current: terms.version
+			});
+			if (refused) return toResponse(refused);
+		}
 	}
 	return resolve(event, resolveOptions);
 }

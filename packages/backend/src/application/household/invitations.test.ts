@@ -39,6 +39,7 @@ const member = (
 	auth: { userId: user.id },
 	displayName: user.displayName,
 	email: user.email,
+	termsVersion: null,
 	member: {
 		userId: user.id,
 		householdId,

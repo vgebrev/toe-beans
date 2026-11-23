@@ -1,10 +1,15 @@
 // The signed-in person's own account (architecture §5.2). The display name is the app's once the
 // person sets it: sign-ins only fill in a missing real name (domain/user.ts, nameAfterSignIn).
 // Deleting it is S16.5's route to erase personal data (NFR-02, architecture §5.3, D38).
-import { validationError } from '../../domain/errors.js';
+import { conflictError, validationError, type ConflictError } from '../../domain/errors.js';
 import { membersAfterLeaving } from '../../domain/household.js';
 import type { Id } from '../../domain/id.js';
-import { DISPLAY_NAME_MAX, cleanDisplayName, type User } from '../../domain/user.js';
+import {
+	DISPLAY_NAME_MAX,
+	cleanDisplayName,
+	isTermsVersion,
+	type User
+} from '../../domain/user.js';
 import { err, ok, type Result } from '../../domain/result.js';
 import type { AuthContext } from '../auth/auth.js';
 import {
@@ -121,6 +126,30 @@ export function createAccount(
 			}
 			log.info('display name changed', { userId: ctx.userId });
 			return ok(profileOf(renamed.value));
+		},
+
+		/**
+		 * Records that the person accepted the terms, and with them confirmed they're 18 or older
+		 * (S19.1). `version` is what the person was shown and `current` the terms the app serves: if
+		 * the terms changed in between, what they agreed to isn't what's in force, so it's refused
+		 * and they read them again.
+		 */
+		async acceptTerms(
+			ctx: AuthContext,
+			{ version, current }: { version: string; current: string }
+		): Promise<Result<void, ValidationError | ConflictError | NotFoundError>> {
+			if (!isTermsVersion(version)) {
+				return err(
+					validationError('The terms version is not valid.', { version: ['Not a date.'] })
+				);
+			}
+			if (version !== current) {
+				return err(conflictError('The terms have changed since you opened them.'));
+			}
+			const accepted = await users.acceptTerms(ctx.userId, { version, at: clock.now() });
+			if (!accepted.ok) return err(notFound('account'));
+			log.info('terms accepted', { userId: ctx.userId, version });
+			return ok(undefined);
 		},
 
 		/**

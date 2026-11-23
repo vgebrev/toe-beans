@@ -1,8 +1,8 @@
 # Toe Beans — Backlog
 
-**Version:** 0.86 (draft for iteration)
+**Version:** 0.87 (draft for iteration)
 **Date:** 23 November 2026
-**Inputs:** `docs/requirements.md` v1.1, `docs/architecture.md` v1.43, `docs/ui.md` v0.45
+**Inputs:** `docs/requirements.md` v1.1, `docs/architecture.md` v1.44, `docs/ui.md` v0.46
 
 **Changes in 0.3:** spike results S-1.0 to S-1.4 and S0.1–S0.2 recorded as they landed (see Current progress). S-1.4b dropped as not needed, S-1.5 parked, S-1.4a retargeted to `toebeans.co.za`.
 
@@ -152,6 +152,8 @@
 
 **Changes in 0.86:** P1 planned with the owner. S18 closed, its five items done. Three slices come before the rest of P1: S19, liability safeguards (terms accepted with an age confirmation, the sign-in page's font served by us, a guard against tracking, a takedown route for photos, a spending cap and each service's billing limits) with FR-16's export brought forward (requirements 1.1); S20, the stop-go exercise for loose-lead walking from puppy school; S21, the landing page. P1's order is F, D, A, C, B, H, and P1-E is S19.7. Architecture 1.43: D44 (the landing page at the edge, on the same address), D45 (the spending cap), D46 (the export). Inputs moved to requirements 1.1 and architecture 1.43.
 
+**Changes in 0.87:** S19.1 built: the terms accepted in the app with an age confirmation, and required before anything is set up or saved (architecture 1.44 D47, ui 0.46 J1 step 1a); terms 0.4, privacy policy 0.6, data inventory 0.8. S19.4 done with it: no scanning of photos (D48), and the terms' takedown route ships in the same terms version, so everyone is asked to accept once. S20 gains two exercises from the owner's puppy: car rides for a car-sick or anxious puppy (S20.2) and *Stay* (S20.3). Inputs moved to architecture 1.44 and ui 0.46.
+
 **Changes in 0.51:** S15.1 gains (k), fresh data on coming back to the app and on Back to a page Chrome kept whole (ui 0.35 §5.2), from the owner, after Today stayed stale behind a reminder. Live updates over WebSockets were considered and left out for cost. The offline banner's check backs off from 1 s (architecture 1.23 D31), found through a flaky e2e check. Built with e2e checks and closed by the owner, so S15.1 stays done. Inputs moved to architecture 1.23 and ui 0.35.
 
 **Changes in 0.50:** S15.1 gains (j), a banner offering *Refresh* once a new version is deployed (ui 0.34 §5.2), from the owner. Built and covered by an e2e check; it can only be seen across a real deploy, so the owner tries it on prod after the next one. Inputs moved to ui 0.34.
@@ -297,8 +299,9 @@ Work is organised as **vertical slices**: each delivers a usable end-to-end incr
 | 2026-11-23 | S18 done: the owner's checks after the pentest are clean, and its two findings are fixed (architecture 1.41, ui 0.44), shipping in 1.0.5. |
 | 2026-11-23 | S18 widened to P1's prerequisites, reopened for the owner's items. S18.4 built: care settled today stays on Today. S18.5 built: *Plan the next one* offers *Tomorrow* and *Next week*. |
 | 2026-11-23 | P1 planned with the owner. S18 closed. S19 (liability safeguards and the export), S20 (training content from puppy school) and S21 (the landing page) come first, then P1-F → D → A → C → B → H. Landing page on the same address (D44), a spending cap at the US$1 budget (D45), the export as a ZIP download (D46). |
+| 2026-11-23 | S19.1 done, tried on a phone by the owner: terms accepted with an age confirmation before anything is set up or saved (D47). S19.4 done: no scanning of photos, a takedown route in the terms (D48). |
 
-**Next up:** S19, with S20 alongside; S21 once S19.1 and S19.5 are in.
+**Next up:** S19.2, S19.3 and S20.1–S20.3; S21 once S19.1 and S19.5 are in.
 
 ---
 
@@ -564,20 +567,22 @@ Work is organised as **vertical slices**: each delivers a usable end-to-end incr
 
 | # | Task | Status |
 |---|---|---|
-| S19.1 | **Terms accepted, with an age confirmation.** Today the terms are only linked from sign-in and More, so nobody accepts them and nothing records it, and their 18+ rule is never put to anyone; POPIA treats under-18s as children, whose data needs a guardian's consent. Onboarding and joining by invite get a required *I'm 18 or older and accept the Terms and the Privacy Policy*, linking both; the user stores the terms version and when it was accepted. A new terms version asks again on the next open; existing members are asked once. No age verification beyond that. | ⬜ |
+| S19.1 | **Terms accepted, with an age confirmation.** Today the terms are only linked from sign-in and More, so nobody accepts them and nothing records it, and their 18+ rule is never put to anyone; POPIA treats under-18s as children, whose data needs a guardian's consent. Onboarding and joining by invite get a required *I'm 18 or older and accept the Terms and the Privacy Policy*, linking both; the user stores the terms version and when it was accepted. A new terms version asks again on the next open; existing members are asked once. No age verification beyond that. **Built (23 Nov):** `/agree` (*Before you start*, *Please accept our terms* for members from before, *We've updated our terms* after a new date) with one box and *Continue*; the app, onboarding and invite pages send a signed-in person there until they accept, More staying open so a member can delete their account instead, and the API refuses their writes with `toe-beans/terms-required` except accepting and deleting the account. The terms' date is the version (architecture 1.44 D47, ui 0.46 J1 step 1a); terms 0.4 say how it works, and the privacy policy (0.6) and data inventory (0.8) list the record. Unit, integration and e2e tests, including an invitee coming back to the invite. **Done (23 Nov):** tried on a phone by the owner. | ✅ |
 | S19.2 | **The sign-in page's font from our own address.** Auth0's login page loads Nunito from Google Fonts, which sees each visitor's address. Serve the font from `toebeans.co.za` with CORS for `auth.toebeans.co.za`, point the Auth0 theme at it, and take Google Fonts out of the privacy policy §4 and the data inventory §4 (new versions of both). | ⬜ |
 | S19.3 | **No tracking, guarded.** The browser's Sentry sends errors only, with no tracing or replay; a test keeps it so. Confirm Cloudflare Web Analytics (and its edge-injected beacon) is off for the zone and say so in `infra/edge/README.md`, since it can add a script without any change in our code. | ⬜ |
-| S19.4 | **Photos and copyright.** Decided: no scanning of uploads. Photos are dog profile pictures, private to a household and never published, and scanning would cost privacy for little protection. The terms already ask for only content people have the right to share; they gain a route for complaints and takedowns (`support@`), since South Africa's ECT Act protects hosts only through an industry body we're not in. Recorded as a decision. | ⬜ |
+| S19.4 | **Photos and copyright.** Decided: no scanning of uploads. Photos are dog profile pictures, private to a household and never published, and scanning would cost privacy for little protection. The terms already ask for only content people have the right to share; they gain a route for complaints and takedowns (`support@`), since South Africa's ECT Act protects hosts only through an industry body we're not in. Recorded as a decision. **Done (23 Nov):** D48; the takedown route is in terms 0.4 §4, in the same version S19.1 asks everyone to accept. | ✅ |
 | S19.5 | **A spending cap (D45).** The US$1 budget publishes to Pub/Sub; a function takes the app down to a maintenance page at the edge, pauses the tick and stops Cloud Run taking traffic. A runbook to bring it back after looking at why. Tested by sending the function a budget message by hand, on prod, in a quiet hour. | ⬜ |
 | S19.6 | **Every service's billing limit (D45).** `docs/runbooks/accounts.md` lists which services can bill and what stops each. R2: a usage alert and a lifecycle rule on backups. Artifact Registry: a cleanup policy under its free 0.5 GB. Secret Manager versions counted. | ⬜ |
 | S19.7 | **The household's export (FR-16, was P1-E; D46).** An owner downloads a ZIP from More: `household.json` with every record of the household, schema-versioned, and the dogs' photos; no provider IDs, sessions, push endpoints, invitation tokens or secrets. Not emailed. Rate limited. The privacy policy says how to get your data. | ⬜ |
 
 ### S20 Training content from puppy school
-*From the owner's first two weeks of puppy school: the name game and loose-lead walking held up; the stop-go (red light, green light) technique for pulling joins the library.*
+*From the owner's first two weeks of puppy school and their puppy: the name game and loose-lead walking held up; the stop-go (red light, green light) technique for pulling joins the library, with car rides for a car-sick or anxious puppy and a first *Stay*. Each is written in our own words from freely available reward-based sources, cited, checked against `content/README.md` and the content gate (§3.8), and signed off by the owner (`reviewedBy`, `reviewedAt`).*
 
 | # | Task | Status |
 |---|---|---|
 | S20.1 | **Stop-go for loose-lead walking.** A new `loose-leash` exercise: the lead goes tight, you stop; it slackens, you go on and reward beside you. Written in our own words from freely available reward-based sources, cited in `sources`, nothing copied from the school's material, and checked against `content/README.md` and the content gate (§3.8). Linked from *Loose lead, first steps* as the next step if that reads well. The owner reviews and signs it off (`reviewedBy`, `reviewedAt`). | ⬜ |
+| S20.2 | **Car rides, calmly** (`settling`). Gradual exposure for a puppy that's anxious or sick in the car: treats and a meal near the parked car, sitting in it with the engine off, engine on, a trip to the end of the road, then short trips that end somewhere good, each step only once the last is relaxed. Practical safety notes: a crate or harness clipped in, not the front seat, fresh air, a light meal hours before rather than just before, breaks on longer drives. Sickness can be motion sickness rather than fear: the exercise says to ask a vet, who can advise on medication, and stops short of recommending any (NFR-14). | ⬜ |
+| S20.3 | **A first *Stay*** (`settling`, the area for calm and self-control). Duration first, then distance, then distraction, one at a time and in small steps, with a release word, and the reward brought to the dog in position rather than calling them out of it; ends before the puppy breaks. Reward-based only: no corrections for breaking, just a step back to what was easy. A cue for the household's cue dictionary (*Stay* and the release word). | ⬜ |
 
 ### S21 The landing page
 *The public face at `toebeans.co.za` (requirements 1.1): what Toe Beans is, who it's for, and how to start, served at the edge to visitors who aren't signed in (D44). After S19.1 and S19.5, as it invites strangers.*

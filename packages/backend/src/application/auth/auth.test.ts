@@ -307,9 +307,18 @@ describe('auth', () => {
 					auth: { userId: t.users.all()[0]!.id },
 					displayName: 'Sam Doe',
 					email: 'sam@example.com',
+					termsVersion: null,
 					member: null
 				}
 			});
+		});
+
+		it('carries the version of the terms the person accepted', async () => {
+			const token = await session();
+			const user = t.users.all()[0]!;
+			await t.users.acceptTerms(user.id, { version: '2026-11-19', at: t.clock.now() });
+			const found = await t.auth.authenticate(token);
+			expect(found?.viewer.termsVersion).toBe('2026-11-19');
 		});
 
 		it('resolves the household from the membership, never from the request', async () => {

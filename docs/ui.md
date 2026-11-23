@@ -1,9 +1,9 @@
 # Toe Beans — UI and Interaction Design
 
-**Version:** 0.45 (draft for iteration)
+**Version:** 0.46 (draft for iteration)
 **Date:** 23 November 2026
 **Status:** Proposed. Review-round decisions in §8 are accepted.
-**Inputs:** `docs/requirements.md` v1.0, `docs/architecture.md` v1.42
+**Inputs:** `docs/requirements.md` v1.1, `docs/architecture.md` v1.44
 
 **Changes in 0.7:** the logo landed (S0.9). The mark is now a **TB monogram** with four toe beans above it and a heart-shaped bean in the B, from the AI-assisted design board (Monogram Iteration B), replacing the placeholder paw. It was traced from the board and cleaned up rather than redrawn by hand; the variants are the brown-on-cream mark, a cream-on-brown app-icon tile (favicon and maskable) and a white badge. The wordmark uses Fredoka Bold to match the board (§6.4 Logo).
 
@@ -72,6 +72,8 @@
 **Changes in 0.44:** §4.8: the *Leave household* sheet says the invites you sent stop working, as leaving now revokes them (architecture 1.41 D18, the pentest's P1).
 
 **Changes in 0.45:** §4.1, from the owner (backlog S18.4): Today keeps a care task marked done today under *Done* and one cancelled today under *Skipped*, so settling it no longer makes it vanish (architecture 1.42 D30). J6: *Plan the next one?* offers *Tomorrow*, *Next week*, *In a month* and *In a year*, replacing *In 3 months*, for weekly classes (S18.5). Inputs moved to architecture 1.42.
+
+**Changes in 0.46:** J1 step 1a, accepting the terms (backlog S19.1, architecture 1.44 D47): after signing in, and before anything else, *Before you start* asks for one box, *I'm 18 or older and I accept the terms of service*, with the policy and terms linked, and *Continue* stays disabled until it's ticked. The same page asks a member from before S19.1 (*Please accept our terms*) and everyone after a new terms date (*We've updated our terms*), and J2's invitee meets it after signing in, coming back to the invite. Declining is *Sign out*, or deleting the account: on the page for someone with no household yet, on More for a member, which stays open to them. Inputs moved to requirements 1.1 and architecture 1.44.
 
 **Changes in 0.12:** S3 built. J1 step 4 as built: *Take photo* or *Gallery*, then a framing square with the circle overlay (drag, pinch, a zoom slider and arrow keys), and birth date as *I know the date* or *Approximate* with months old. J2 names the dogs. §2.2: the switcher shows on Today, Plan, History and Care, with name chips. §5.1 gains two rules from using it: one confirm button per context (a sheet is its own context), and a control is never disabled without the reason on screen; the photo moved into its own sheet in J1 to follow the first, and the household, name and email-invite buttons stopped greying out for missing input to follow the second. §4.5: editing is its own page and the overflow sheet holds *Edit details* and *Archive*; the Recent sections wait for their slices. The dog accent palette is defined (§6.4), and More gains *Dogs* (§2.1). The custom dog icon read as a monkey, so it's replaced by Phosphor's *Dog*, the documented fallback library (§6.4).
 
@@ -170,6 +172,7 @@ Each journey maps to a requirements acceptance scenario (§5 there).
 ### J1 — First run and onboarding (scenario 1)
 
 1. **Welcome.** Short value statement. **Sign in** → IdP (Google or email). Links to the privacy policy and terms sit under it (*added in 0.37*).
+   1a. **Accept the terms** (*added in 0.46*, D47): *Before you start* (`/agree`), outside the shell: "Toe Beans is for adults", links to the terms and the policy, and one box in a 48 px row, **I'm 18 or older and I accept the terms of service**, with "I've read the privacy policy" under it. *Continue* is disabled until it's ticked, the reason being the unticked box beside it (§5.1), and goes on to wherever the person was going. A failed save keeps the box ticked and offers *Retry*; terms that changed while the page was open untick it and say so. Under *Don't want to accept?*: *Sign out*, and for someone with no household *Delete my account*, confirmed in a sheet. Every page of the app, onboarding and an invite sends a signed-in person here until they accept the current terms, with the same page worded *Please accept our terms* for a member from before it was asked, or *We've updated our terms* with the new date; a member deletes from More, which stays open to them.
 2. **Your name:** "What should your household call you?", filled in with the name from sign-in, which for an email sign-up is only the start of the address. Saved like Account's name field (§4.7). Built with S2.
 3. **Create household:** name and time zone (detected from the device, editable). Someone who was the last to leave a household also sees *Rejoin [household]* above the form, which brings it back with them as owner (architecture D18), with "Otherwise it's deleted on [date]" (30 days after they left, D38) and a quieter red *Delete it now*, confirmed in a bottom sheet that names what goes. Once deleted, "Household deleted." replaces the panel.
 4. **Add your dog:** photo first (camera or gallery, crop to a circle preview), then name, birth date or estimated age (toggle *I know the date* / *Approximate: months old*), adoption date, notes. A dog can't be saved without a photo. The UI explains why ("helps everyone see at a glance which dog an entry is for").

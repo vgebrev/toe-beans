@@ -1,7 +1,7 @@
 # Toe Beans — Data inventory
 
-**Version:** 0.7 (draft)
-**Date:** 20 November 2026
+**Version:** 0.8 (draft)
+**Date:** 23 November 2026
 **Inputs:** `docs/requirements.md` v1.0, `docs/architecture.md` v1.35, `docs/runbooks/accounts.md`
 
 **Changes in 0.1:** first draft for backlog S16.1. Lists the personal data Toe Beans holds, where it is, why, and how long it's kept, worked out from the code and the accounts inventory. It's the source for the privacy policy (S16.2) and for deletion (S16.5). §6 lists the open points those slices have to settle.
@@ -17,6 +17,8 @@
 **Changes in 0.6:** §2, `pushDevices` (architecture 1.34 D43): a device is removed when the person signs out in that browser, and deleted 30 days after it was last used or 14 days after the push service reported it gone, so an uninstalled or lost phone no longer stays on file indefinitely. It also records when the app last opened on it.
 
 **Changes in 0.7:** §2, `pushDevices` (architecture 1.35 D43): signing out no longer removes the device; it's marked signed out and sent nothing until the person signs in there again, and the 30-day deletion still applies. The row records when it was signed out.
+
+**Changes in 0.8:** §2, `users` (architecture 1.44 D47): the version of the terms the person accepted, which confirms they're 18 or older, and when.
 
 This file is public. It describes kinds of data and where they are, never values. It isn't legal
 advice. The owner has it read with the policy before other households join (backlog S16).
@@ -38,7 +40,7 @@ that household's members can reach it (NFR-01, NFR-02).
 
 | Collection | Personal data | Whose, who sees it | Why | Kept |
 |---|---|---|---|---|
-| `users` | Email, display name, avatar URL (from Google), the provider's subject IDs, when each was linked | The person. Fellow members see the name and avatar | Sign-in, linking Google and email sign-ins by verified email, showing who did what | Until the person deletes their account (D38). Leaving a household doesn't remove it |
+| `users` | Email, display name, avatar URL (from Google), the provider's subject IDs, when each was linked, and which version of the terms they accepted (confirming they're 18 or older) and when | The person. Fellow members see the name and avatar | Sign-in, linking Google and email sign-ins by verified email, showing who did what | Until the person deletes their account (D38). Leaving a household doesn't remove it |
 | `households` | Household name, time zone, members (user ID, role, joined date) | Members | Sharing dogs between caregivers; reminders in local time | While it has members. The last to leave deactivates it (D18); it's deleted with everything in it when its only member deletes it or their account, or 30 days after it was deactivated (D38) |
 | `invitations` | The invitee's email (email invitations only), who invited, expiry and use. The token is stored only as a hash | The household's members | Inviting a caregiver (FR-02) | 7 days to use, then removed 30 days after it expires (TTL) |
 | `dogs` | Name, birth date, adoption date, notes, the photo's ID | Household | The dog's profile | Until its household is deleted (D38). Archiving keeps it |

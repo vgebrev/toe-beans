@@ -113,6 +113,49 @@ describe('account', () => {
 	});
 });
 
+describe('accepting the terms (S19.1)', () => {
+	const ctx = { userId: sam.id };
+	const current = '2026-11-19';
+
+	it('records the version and when', async () => {
+		const { account, users, clock } = await setup();
+		clock.advance(1000);
+		expect(await account.acceptTerms(ctx, { version: current, current })).toEqual({
+			ok: true,
+			value: undefined
+		});
+		expect(users.all()[0]).toMatchObject({
+			termsAccepted: { version: current, at: clock.now() },
+			version: 5
+		});
+	});
+
+	it('refuses terms other than those in force, so what was agreed is what applies', async () => {
+		const { account, users } = await setup();
+		expect(await account.acceptTerms(ctx, { version: '2026-10-01', current })).toMatchObject({
+			ok: false,
+			error: { kind: 'conflict' }
+		});
+		expect(users.all()[0]!.termsAccepted).toBeUndefined();
+	});
+
+	it('refuses a version that is not a date', async () => {
+		const { account } = await setup();
+		expect(await account.acceptTerms(ctx, { version: 'latest', current })).toMatchObject({
+			ok: false,
+			error: { kind: 'validation' }
+		});
+	});
+
+	it("doesn't find a deleted user", async () => {
+		const { account } = await setup({ ...sam, deletedAt: at });
+		expect(await account.acceptTerms(ctx, { version: current, current })).toEqual({
+			ok: false,
+			error: { kind: 'not-found', resource: 'account' }
+		});
+	});
+});
+
 describe('deleting an account (S16.5, D38)', () => {
 	const ctx = { userId: sam.id };
 	const alex: User = { ...sam, id: 'u2' as Id, email: 'alex@example.com', displayName: 'Alex' };

@@ -22,6 +22,8 @@ export interface User {
 	displayName: string;
 	displayNameSource: DisplayNameSource;
 	avatarUrl?: string;
+	/** The terms the person last accepted, confirming they're 18 or older (S19.1). */
+	termsAccepted?: TermsAcceptance;
 	deletedAt?: Date;
 	/** Starts at 1 and goes up by one on every write; the ETag (architecture §3.3). */
 	version: number;
@@ -41,6 +43,17 @@ export interface DisplayName {
 }
 
 export const DISPLAY_NAME_MAX = 100;
+
+/**
+ * Accepting the terms of service, which includes confirming the person is 18 or older (backlog
+ * S19.1). `version` is the date the terms are dated, `YYYY-MM-DD`: a new date asks everyone again.
+ */
+export interface TermsAcceptance {
+	version: string;
+	at: Date;
+}
+
+export const isTermsVersion = (value: string): boolean => /^\d{4}-\d{2}-\d{2}$/.test(value);
 
 /**
  * Emails compare case-insensitively. Nothing else is folded (no Gmail dot or plus rules), so two
