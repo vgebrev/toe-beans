@@ -10,6 +10,8 @@ for fixes. Candidates (`-rc.N`) go to prod for the owner to try before the relea
 
 ## Unreleased
 
+## 1.0.5 - 2026-11-23
+
 ### Security
 
 - Leaving a household, or deleting your account while others stay in it, now stops the invites
