@@ -1,22 +1,53 @@
 import { readFileSync } from 'node:fs';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { markHeart, markLetters } from '../../apps/web/src/lib/assets/brand/mark.ts';
 import worker from './worker.js';
 
 const ORIGIN = 'https://toe-beans-1047834821273.africa-south1.run.app';
-const env = { PROXY_SECRET: 's3cret' };
 
-/** Stubs the Worker's fetch of the origin with one answer, and records what it asked for. */
-function origin(/** @type {Response} */ answer) {
+const { privateKey } = await crypto.subtle.generateKey(
+	{
+		name: 'RSASSA-PKCS1-v1_5',
+		modulusLength: 2048,
+		publicExponent: new Uint8Array([1, 0, 1]),
+		hash: 'SHA-256'
+	},
+	true,
+	['sign']
+);
+const jwk = await crypto.subtle.exportKey('jwk', privateKey);
+const ID_TOKEN = `h.${Buffer.from(JSON.stringify({ exp: 4102444800 })).toString('base64url')}.s`;
+
+// A new key ID per test, so each starts without the isolate's kept token.
+let keys = 0;
+/** @type {{ PROXY_SECRET: string, EDGE_KEY: string }} */
+let env;
+beforeEach(() => {
+	env = { PROXY_SECRET: 's3cret', EDGE_KEY: JSON.stringify({ ...jwk, kid: `k${++keys}` }) };
+});
+
+/**
+ * Stubs the Worker's fetches: Google's token exchange (refused with `google`'s status, if given)
+ * and the origin, which gives one answer. Records the origin requests and counts the exchanges.
+ */
+function origin(/** @type {Response} */ answer, { google = 200 } = {}) {
 	const seen = /** @type {{ url: string, headers: Headers }[]} */ ([]);
+	const exchanges = { count: 0 };
 	vi.stubGlobal(
 		'fetch',
 		vi.fn(async (/** @type {string} */ url, /** @type {RequestInit} */ init) => {
+			if (!url.startsWith(ORIGIN)) {
+				exchanges.count++;
+				if (google !== 200) return new Response('{}', { status: google });
+				return url.startsWith('https://sts.')
+					? Response.json({ access_token: 'federated' })
+					: Response.json({ token: ID_TOKEN });
+			}
 			seen.push({ url, headers: new Headers(init.headers) });
-			return answer;
+			return answer.clone();
 		})
 	);
-	return seen;
+	return Object.assign(seen, { exchanges });
 }
 
 const get = (/** @type {string} */ path, /** @type {Record<string, string>} */ headers = {}) =>
@@ -42,6 +73,51 @@ describe('the edge Worker', () => {
 		expect(response.status).toBe(200);
 		expect(seen[0].url).toBe(`${ORIGIN}//attacker.example/x?y=1`);
 		expect(seen[0].headers.get('x-toe-beans-proxy')).toBe('s3cret');
+	});
+
+	describe("Google's invoker check (D45, security audit R1)", () => {
+		it("sends the Worker's ID token, leaving the client's Authorization alone", async () => {
+			const seen = origin(fromApp(200));
+			await get('/internal/tick', {
+				authorization: 'Bearer from-the-client',
+				'x-serverless-authorization': 'Bearer forged'
+			});
+			expect(seen[0].headers.get('x-serverless-authorization')).toBe(`Bearer ${ID_TOKEN}`);
+			expect(seen[0].headers.get('authorization')).toBe('Bearer from-the-client');
+		});
+
+		it('mints the token once for many requests', async () => {
+			const seen = origin(fromApp(200));
+			await Promise.all([get('/'), get('/today'), get('/api/v1/me')]);
+			await get('/dogs');
+			expect(seen.exchanges.count).toBe(2);
+		});
+
+		it("answers 502, not the paused page, when Google won't issue a token", async () => {
+			const seen = origin(fromApp(200), { google: 403 });
+			const response = await get('/', { accept: 'text/html' });
+			expect(response.status).toBe(502);
+			expect(response.headers.get('x-toe-beans-maintenance')).toBeNull();
+			expect(seen).toHaveLength(0);
+		});
+
+		it('answers 502 when Cloud Run rejects the token, and mints a new one next time', async () => {
+			const seen = origin(refused(401));
+			const response = await get('/', { accept: 'text/html' });
+			expect(response.status).toBe(502);
+			expect(response.headers.get('x-toe-beans-maintenance')).toBeNull();
+			await get('/');
+			expect(seen.exchanges.count).toBe(4);
+		});
+
+		it('refuses to run without its key', async () => {
+			origin(fromApp(200));
+			const response = await worker.fetch(new Request('https://toebeans.co.za/'), {
+				PROXY_SECRET: 's3cret',
+				EDGE_KEY: ''
+			});
+			expect(response.status).toBe(500);
+		});
 	});
 
 	it("passes the app's own 404s and 403s through", async () => {

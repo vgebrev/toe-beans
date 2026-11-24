@@ -51,14 +51,17 @@ const config = {
 	service: 'toe-beans',
 	schedulerRegion: 'me-central1',
 	job: 'toe-beans-tick',
-	budget: 'toe-beans'
+	budget: 'toe-beans',
+	edge: 'toe-beans-edge@p.iam.gserviceaccount.com'
 };
 const SERVICE =
 	'https://run.googleapis.com/v2/projects/p/locations/africa-south1/services/toe-beans';
 const JOB =
 	'https://cloudscheduler.googleapis.com/v1/projects/p/locations/me-central1/jobs/toe-beans-tick';
 
-const PUBLIC = { role: 'roles/run.invoker', members: ['allUsers'] };
+const EDGE = 'serviceAccount:toe-beans-edge@p.iam.gserviceaccount.com';
+const TICK = 'serviceAccount:toe-beans-tick@p.iam.gserviceaccount.com';
+const INVOKERS = { role: 'roles/run.invoker', members: [EDGE, TICK] };
 const CAP_ROLE = {
 	role: 'projects/p/roles/toe_beans_cap_run',
 	members: ['serviceAccount:toe-beans-cap@p.iam.gserviceaccount.com']
@@ -66,7 +69,7 @@ const CAP_ROLE = {
 
 /** A fake of Google's APIs, holding the service's access list and the job's state. */
 function google({
-	bindings = [PUBLIC, CAP_ROLE],
+	bindings = [INVOKERS, CAP_ROLE],
 	invokerIamDisabled = false,
 	state = 'ENABLED',
 	fail = ''
@@ -102,10 +105,13 @@ function google({
 }
 
 describe('takeDown', () => {
-	it('takes the public off the service, then pauses the tick', async () => {
+	it("takes the Worker off the service's invokers, then pauses the tick", async () => {
 		const api = google();
 		expect(await takeDown(config, api.deps)).toEqual({ access: 'closed', tick: 'paused' });
-		expect(api.state()).toEqual({ bindings: [CAP_ROLE], state: 'PAUSED' });
+		expect(api.state()).toEqual({
+			bindings: [{ role: 'roles/run.invoker', members: [TICK] }, CAP_ROLE],
+			state: 'PAUSED'
+		});
 		expect(api.calls).toEqual([
 			`GET ${SERVICE}`,
 			`GET ${SERVICE}:getIamPolicy`,
@@ -115,18 +121,28 @@ describe('takeDown', () => {
 		]);
 	});
 
-	it('sends the etag back and keeps the other invokers', async () => {
-		const tick = 'serviceAccount:toe-beans-tick@p.iam.gserviceaccount.com';
-		const api = google({ bindings: [{ role: 'roles/run.invoker', members: ['allUsers', tick] }] });
+	it('takes allUsers off too, sends the etag back and keeps the other invokers', async () => {
+		const api = google({
+			bindings: [{ role: 'roles/run.invoker', members: ['allUsers', EDGE, TICK] }]
+		});
 		await takeDown(config, api.deps);
 		expect(api.written()).toEqual({
 			etag: 'e1',
-			bindings: [{ role: 'roles/run.invoker', members: [tick] }]
+			bindings: [{ role: 'roles/run.invoker', members: [TICK] }]
 		});
 	});
 
+	it('drops the invoker binding once nobody is left in it', async () => {
+		const api = google({ bindings: [{ role: 'roles/run.invoker', members: [EDGE] }, CAP_ROLE] });
+		await takeDown(config, api.deps);
+		expect(api.state().bindings).toEqual([CAP_ROLE]);
+	});
+
 	it('changes nothing the second time', async () => {
-		const api = google({ bindings: [CAP_ROLE], state: 'PAUSED' });
+		const api = google({
+			bindings: [{ role: 'roles/run.invoker', members: [TICK] }, CAP_ROLE],
+			state: 'PAUSED'
+		});
 		expect(await takeDown(config, api.deps)).toEqual({ access: 'already', tick: 'already' });
 		expect(api.calls).toEqual([`GET ${SERVICE}`, `GET ${SERVICE}:getIamPolicy`, `GET ${JOB}`]);
 	});
@@ -151,7 +167,8 @@ describe('configFrom', () => {
 			APP_SERVICE: 'toe-beans',
 			SCHEDULER_REGION: 'me-central1',
 			TICK_JOB: 'toe-beans-tick',
-			BUDGET_NAME: 'toe-beans'
+			BUDGET_NAME: 'toe-beans',
+			EDGE_INVOKER: 'toe-beans-edge@p.iam.gserviceaccount.com'
 		};
 		expect(configFrom(env)).toEqual(config);
 		expect(() => configFrom({ ...env, TICK_JOB: '' })).toThrow('TICK_JOB is not set');

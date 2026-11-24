@@ -27,7 +27,8 @@ export interface EdgeHttpOptions {
 export interface EdgeHttp {
 	/**
 	 * Refuses a request that didn't come through the proxy, so one sent to `run.app` directly can't
-	 * set the client address header the rate limits key on. Returns the 403, or null to carry on.
+	 * set the client address header the rate limits key on. Cloud Run's invoker check turns those
+	 * away first (D45); this is the second lock. Returns the 403, or null to carry on.
 	 */
 	checkProxy(secret: string | null): HttpResponse | null;
 	/** Refuses a write over the person's budget (429), or null to carry on. */

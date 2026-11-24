@@ -1,9 +1,9 @@
 # Toe Beans — Security Audit
 
-**Version:** 0.6
-**Date:** 23 November 2026
-**Status:** §1–§6, the code review: every finding fixed or decided (S15.2). §7, the external pentest: both findings fixed (S18.3). §8, found since: fixed.
-**Inputs:** `docs/requirements.md` v1.0, `docs/architecture.md` v1.21, the code at commit `1ea686e` (`develop`); for §7, prod on 1.0.4 and the repo at `main` `904516e`
+**Version:** 0.7
+**Date:** 24 November 2026
+**Status:** §1–§6, the code review: every finding fixed or decided (S15.2). §7, the external pentest: both findings fixed (S18.3). §8, found since: fixed. §9, the second review of code and infrastructure: open, for triage.
+**Inputs:** `docs/requirements.md` v1.0, `docs/architecture.md` v1.21, the code at commit `1ea686e` (`develop`); for §7, prod on 1.0.4 and the repo at `main` `904516e`; for §9, `docs/architecture.md` v1.48, the repo at `develop` `c965642`, and prod on 1.1.0 with its GCP, Cloudflare and GitHub settings as read on 24 November 2026
 
 **Changes in 0.1:** first audit of the attack surface before release.
 
@@ -16,6 +16,8 @@
 **Changes in 0.5:** §8, findings since the pentest: E1, the edge Worker sending its proxy secret to a host named in the path, found while checking the edge for S19.3 and fixed the same day.
 
 **Changes in 0.6:** §7.4's CI note: since S19.6 the nightly backup holds its own credentials as secrets of GitHub's `backups` environment instead of reading them from Secret Manager through Workload Identity Federation (architecture 1.47, D36). The app's secrets stay in GCP.
+
+**Changes in 0.7:** §9, a second defensive review of the code and the infrastructure after S19 (the spending cap, the single app secret, the backup's move to GitHub secrets): no critical or high findings and household isolation still holds; three medium findings about availability, cost and dependency alerts rather than data (R1 to R3), eight low (R4 to R11), and five items to check where this review couldn't read the setting (C5 to C9). R1 (its IAM fix) and R4 were then built as backlog S19.8, not yet on prod.
 
 ---
 
@@ -224,3 +226,217 @@ The runbook's rules held: writes only to the test accounts' own data, nothing ai
 **E1. The Worker sends its proxy secret to a host named in the path — medium.** Found on 23 November 2026 while checking the edge for tracking scripts (backlog S19.3): `https://toebeans.co.za//` answered Cloudflare's error 1101, an exception in the Worker. `infra/edge/worker.js` built the upstream URL as `new URL(url.pathname + url.search, ORIGIN)`. A path starting `//` is a scheme-relative reference, so `//attacker.example/x` resolved to `https://attacker.example/x`, and the Worker sent the request there with `x-toe-beans-proxy` (D32) and `x-toe-beans-client` set; a bare `//` threw. Anyone could have collected the secret with one request. With it they could call Cloud Run directly, past the WAF rule (D42), and set `x-toe-beans-client` to anything, getting round the per-address rate limits (§7, F1). Sign-in, the session and the household checks still apply to every route, so it gave no access to data. Confirmed with Node's URL parser rather than against prod, which would have sent the secret out. Whether anyone used it can't be known: Worker logs are off (D34), and Cloud Run sees the Worker's requests and any made with the secret alike. The pentest (§7) tested the origin with no secret and with a wrong one, not how the Worker builds its upstream URL.
 
 - **Resolution:** the Worker joins the origin and path as text (`ORIGIN + url.pathname + url.search`), so the host is always the Cloud Run service; deployed, and `proxy-secret` rotated and the app redeployed onto it. Live afterwards, `//` redirects to sign-in and `//example.com/x` is the app's own 404. The pentest runbook (§5) now has the tester try paths that could change the upstream host.
+
+## 9. Second review, 24 November 2026: code and infrastructure
+
+A read-only review after S19, following a request from the internet to the data: Cloudflare, then Cloud Run and the rest of GCP, then the app, with GitHub alongside. It covers what changed since §7 (the spending cap, D45; one app secret, `app-secrets`; the backup's credentials in GitHub; the terms gate, S19.1; the edge's maintenance page) and re-reads the settings no earlier review could see.
+
+**Method.** `gcloud` describes, lists and IAM reads; `gh api` GETs; Cloudflare API GETs with wrangler's own sign-in; plain browser-style GET and HEAD requests, DNS lookups and TLS handshakes against prod; `pnpm audit`. Nothing was created, changed or deployed, and no secret value was read. No build or tests were run. Limits:
+
+- wrangler's sign-in can read Workers, R2 and Access but not the zone's settings, DNS records, rulesets or DNSSEC. Those were judged from outside (DNS, TLS and response headers), and what can't be seen that way is under §9.3.
+- The `gh` token lacks `admin:repo_hook`, so webhooks and secret-scanning alerts weren't listed.
+- Atlas and Auth0 have no CLI here; they rest on §7 and on `docs/runbooks/accounts.md`.
+
+"Confirmed" means seen in the live configuration, traced in code, or shown by a live request; how is named in each case.
+
+### 9.1 Summary
+
+No critical or high findings. Nothing found lets one household reach another's data, or anyone reach the app's secrets: the code added since §7 keeps every query inside the viewer's household, and the cloud identities are narrow. What's open is mostly availability and cost. Since S19 the app has a kill switch, the spending cap, and anyone who can send cheap requests to `run.app` can pull it.
+
+| # | Finding | Severity | Confidence |
+|---|---|---|---|
+| R1 | A flood straight at `run.app` runs up the bill, and the spending cap then closes the app | Medium | Confirmed in config and live; the spend rate is estimated |
+| R2 | Dependabot alerts and security updates are off | Medium | Confirmed |
+| R3 | The site fails for the rest of the day after 100,000 Worker requests, a quota shared with two other sites | Medium | Confirmed in config; the quota wasn't exhausted |
+| R4 | `/readyz` answers at `run.app` without the proxy secret and pings Atlas on every call | Low | Confirmed live and in code |
+| R5 | Plain `http://toebeans.co.za` serves the app; HSTS isn't preloaded | Low | Confirmed live |
+| R6 | TLS 1.0 and 1.1 are accepted at the edge | Low | Confirmed live |
+| R7 | Firebase leftovers: a service account that can impersonate every other, an API key, a Hosting site | Low | Confirmed in config |
+| R8 | Pages carry no `Cache-Control`, and the edge caches any response at a static-looking extension | Low | Caching confirmed live; no leaking page found |
+| R9 | `main` doesn't require a pull request, admins bypass it, any action may run, and there's no code scanning | Low | Confirmed |
+| R10 | Reads of `app-secrets` aren't audit-logged | Low | Confirmed |
+| R11 | No CAA records or DNSSEC | Low | Confirmed live |
+| C5 | Cloudflare settings this review couldn't read: rate limiting, WAF rules, SSL mode | — | Worth checking |
+| C6 | `send.toebeans.co.za` is a CNAME to `send.forge.rmta.net` | Low | Worth checking |
+| C7 | The backup's R2 token can delete every backup; no bucket lock | Low | Worth checking |
+| C8 | Atlas is reachable from anywhere, guarded by its password | Low | Known (accounts.md R3); worth checking |
+| C9 | Webhooks, secret-scanning alerts and the Auth0 tenant weren't re-read | — | Not checked |
+
+### 9.2 Confirmed findings
+
+**R1. A flood straight at `run.app` runs up the bill, and the spending cap then closes the app — medium.**
+
+- **Where:** Cloud Run `toe-beans`: ingress `all`, `allUsers` holds `roles/run.invoker`, `max-instances=1`, request-based billing. The `toe-beans` budget is US$1 (`infra/gcp/provision.sh`), and the cap acts on it (`infra/spending-cap/cap.js`). `packages/backend/src/http/edge.ts:68` logs a warning for every refused request.
+- **What an attacker could do:** send a steady stream of requests to `https://toe-beans-1047834821273.africa-south1.run.app/` (or the hashed `…-bq.a.run.app` URL). Cloudflare isn't in that path, so neither the WAF, the Worker's quota nor any edge rate limit applies. Every request is a 403 (checked live) but still bills. After the free 2 million requests a month, each further million costs US$0.40, and that isn't bounded by `max-instances`. At a few hundred requests a second from one machine, the free allowance and the US$1 budget are both gone within hours. When the late budget figure arrives, the cap takes `allUsers` off and the app shows *Toe Beans is paused* until the owner restores it by hand. Each refused request also writes two log entries (Cloud Run's request log and the app's warning), and Cloud Logging bills ingestion past 50 GiB a month, so a long flood costs more in logs than in requests. No data is exposed. The harm is an outage for everyone, at the attacker's choosing, plus whatever is spent before the budget figure catches up.
+- **Also:** D45 says `max-instances=1` bounds Cloud Run "at roughly US$60–100 a month at worst". That bound covers instance time only, not per-request fees or log ingestion, so the cap is the only real bound, and it acts late.
+- **Fix:**
+  1. Make a refused request cost less. Log the refusal at `debug`, or at most once a minute, in `edge.ts`. Add a log exclusion for the platform's request log of refused direct calls, which costs nothing and stops their ingestion:
+     `gcloud logging sinks update _Default --project toe-beans-co-za --add-exclusion=name=origin-refused,filter='resource.type="cloud_run_revision" AND resource.labels.service_name="toe-beans" AND httpRequest.status=403 AND NOT httpRequest.requestUrl:"toebeans.co.za"'`.
+     Check the filter in Logs Explorer first: if the request URL doesn't show the public host, filter on `httpRequest.userAgent` or drop that clause and accept losing all 403 request lines.
+  2. Correct D45's bound in the decision log, and say there that a flood can trip the cap on purpose. The runbook (`spending-cap.md`) should then expect "someone flooded `run.app`" as a cause.
+  3. To close the gap fully, put Google's IAM in front of the app instead of the header secret. Remove `allUsers`, give a dedicated service account `run.invoker`, and have the Worker send a Google ID token for it. Requests without one are refused by Google's front end before any instance starts. Worth checking: whether such refusals bill at all. The cost is a service account key held as a Worker secret (narrow, only able to invoke, but a key, against D15's keyless stance), and the cap would remove that account instead of `allUsers`. Record the choice either way in D32/D45.
+- **Status (24 Nov): fix 3 built, not yet on prod (backlog S19.8, architecture 1.49 D45).** The app's invokers become `toe-beans-edge` and `toe-beans-tick`. The org refuses service account keys, so the Worker holds no Google key. It signs its own JWT, which the Workload Identity Federation pool `cloudflare` swaps for an ID token, sent as `x-serverless-authorization`. The cap takes `toe-beans-edge` off instead of `allUsers`, and D45's bound is corrected. Fixes 1 and 2's log measures are left until the switch shows what a refused request still costs: Google's assistant says invoker refusals aren't billed, which the switch's check confirms in the request metrics and billing report (`infra/edge/README.md`).
+
+**R2. Dependabot alerts and security updates are off — medium.**
+
+- **Where:** repository settings: `GET /repos/vgebrev/toe-beans/vulnerability-alerts` answers 404 (off), `automated-security-fixes` is `enabled: false`, and the alerts API answers "Dependabot alerts are disabled for this repository".
+- **What an attacker could do:** nothing directly. But D34 accepted the remaining advisories because "Dependabot brings the fixes", and `.github/dependabot.yml` says "security updates aren't delayed". With alerts off, a new advisory in a runtime dependency (adapter-node, `web-push`, the Mongo driver, sharp) only surfaces at the monthly version update, a week's cooldown later, or never if it's ignored there. The 6.0.0 adapter-node crash (§4, C4) is the kind that would be missed. `pnpm audit` today shows only the four accepted moderates (`glob`, `minimatch` twice through `@sentry/bundler-plugins` and dev tooling), none in the server bundle (D34).
+- **Fix:** `gh api -X PUT repos/vgebrev/toe-beans/vulnerability-alerts`, then optionally `gh api -X PUT repos/vgebrev/toe-beans/automated-security-fixes`. Security update PRs target `main`, against the develop-first flow; if that's unwanted, keep alerts on and security updates off, and take each alert through `develop` by hand.
+
+**R3. The site fails for the rest of the day after 100,000 Worker requests, a quota shared with two other sites — medium.**
+
+- **Where:** Cloudflare account `470d…c05b` on Workers Free (`docs/runbooks/accounts.md` "Billing limits": "requests past the day's allowance fail"). The account runs three Workers on custom domains: `toe-beans-edge`, `gebrev-com` (`gebrev.com`, `veli.gebrev.com`) and `swimwellza` (`swimwellza.co.za`). Every request to `toebeans.co.za` runs the Worker, cached `/_app/` files included, except the WAF's scanner blocks (D42) and the maintenance fonts (static assets).
+- **What an attacker could do:** send about 100,000 requests in a day, about 1.2 a second, to any of the three sites. From then until midnight UTC, Cloudflare answers every request on all three with an error page. The installed app shows *Can't reach Toe Beans*, and reminders still go out, since the tick calls `run.app` directly. Unlike R1, this costs nothing and needs no bandwidth to speak of. Cloudflare's automatic DDoS protection acts on far higher rates. Whether a rate-limiting rule exists couldn't be read (C5), and none is in the repo.
+- **Fix:**
+  1. A rate-limiting rule at the edge. The free plan allows one, and requests it blocks never run the Worker. In the dashboard: **toebeans.co.za → Security → WAF → Rate limiting rules**, matching `http.host eq "toebeans.co.za"`, counting by IP, 10-second period, action Block for 10 seconds. Set the threshold above a cold start of the app (count the requests one phone makes on a fresh install, likely 40 to 80) with margin, for example 150. It slows a single source; a spread-out flood still gets through.
+  2. Separate the quota. Move the other two sites to another Cloudflare account, so a flood on them can't take Toe Beans down, or take Workers Paid (US$5 a month, 10 million requests) when the free tier stops being a requirement (NFR-07). Record the choice against D13.
+
+**R4. `/readyz` answers at `run.app` without the proxy secret and pings Atlas on every call — low.**
+
+- **Where:** `apps/web/src/hooks.server.ts:133`: `quietRoutes` skips the proxy check. `packages/backend/src/infrastructure/persistence/mongo.ts:32` runs `db.command({ ping: 1 })` on each call. Live, `GET https://toe-beans-1047834821273.africa-south1.run.app/readyz` answers `{"status":"ready"}` with no secret.
+- **What an attacker could do:** turn each request into a command on the M0 cluster, which Atlas throttles at about 100 operations a second for the whole cluster, with no edge, rate limit or session in the way. A modest flood slows every household's reads and writes, and adds to R1. It reveals nothing beyond "ready".
+- **Fix:** memoise the result for a few seconds in `createHealthHttp` (or `mongoReadiness`), so a flood costs one ping per interval:
+
+  ```ts
+  let last: { at: number; ok: boolean } | null = null;
+  async readiness() {
+    const now = Date.now();
+    if (!last || now - last.at > 5_000) {
+      try { await readiness.check(); last = { at: now, ok: true }; }
+      catch (err) { logger.warn('not ready', { err }); last = { at: now, ok: false }; }
+    }
+    return last.ok ? json({ status: 'ready' }) : json({ status: 'unavailable' }, 503);
+  }
+  ```
+
+  Concurrent first calls can still each ping, which is fine. The uptime monitor already goes through the Worker; the deploy's check could too, after which `/readyz` could require the secret like everything else.
+- **Status (24 Nov): built, not yet on prod (backlog S19.8).** `createHealthHttp` answers every call within 5 s from one check (`READINESS_FRESH_MS`). Once R1's switch is made, `run.app` refuses everyone but the invokers, so the exemption stays only for local checks (Playwright's, compose's). The deploy now checks `/readyz` through the Worker.
+
+**R5. Plain `http://toebeans.co.za` serves the app; HSTS isn't preloaded — low.**
+
+- **Where:** Cloudflare's *Always Use HTTPS* is evidently off. `infra/edge/worker.js:117` redirects only a non-apex host (`www`), so a plain-http request to the apex is proxied like any other. Live, `curl http://toebeans.co.za/sign-in` returns 200 with the full sign-in page over plain HTTP. The app's HSTS header goes along, but browsers ignore it over http. HSTS has no `preload` (D32).
+- **What an attacker could do:** on a first visit, or any visit after the two-year HSTS lapses, someone on the network path (public Wi-Fi) who intercepts a plain-http request can serve a modified page, such as a look-alike sign-in, and keep the victim on http. The session cookie is `__Host-` and `Secure`, so it never travels over http, and a write from an `http://` origin fails the origin check. Chrome on Android upgrades typed addresses to https by itself, which narrows this to links and to attackers who block https.
+- **Fix:** turn on **SSL/TLS → Edge Certificates → Always Use HTTPS**. Or, in the Worker, before the host check: `if (url.protocol === 'http:') return Response.redirect(\`https://${APEX}${url.pathname}${url.search}\`, 301);` Afterwards, consider HSTS preload. It needs `includeSubDomains; preload`, which D32 left out; today's subdomains are `www`, `auth` (Auth0, https) and `send` (mail only), so it would hold.
+
+**R6. TLS 1.0 and 1.1 are accepted at the edge — low.**
+
+- **Where:** the zone's minimum TLS version, Cloudflare's default 1.0. `openssl s_client -tls1` and `-tls1_1` both complete a handshake with `toebeans.co.za`.
+- **What an attacker could do:** little in practice, since browsers no longer offer these versions. It's a known-weak protocol on offer, and scanners and compliance checks flag it.
+- **Fix:** **SSL/TLS → Edge Certificates → Minimum TLS Version: TLS 1.2**. Every supported phone uses 1.3.
+
+**R7. Firebase leftovers: a service account that can impersonate every other, an API key, a Hosting site — low.**
+
+- **Where:** the project was added to Firebase during S-1.4a (31 Oct 2026), and Firebase was then ruled out. Left behind:
+  - `firebase-adminsdk-fbsvc@toe-beans-co-za.iam.gserviceaccount.com` holds `roles/iam.serviceAccountTokenCreator` on the whole project;
+  - a *Browser key (auto created by Firebase)* (`279f6a3e-…`) with no referrer restriction, enabled for Identity Toolkit, Firestore, Firebase Storage and others;
+  - a default Hosting site, `toe-beans-co-za.web.app` (empty, 404);
+  - about a dozen Firebase APIs enabled (`firebase`, `firebasehosting`, `identitytoolkit`, `securetoken`, `firebaserules`, `firebaseinstallations`, `firebaseremoteconfig*`).
+
+  Nothing in the app uses any of it (`git grep -i firebase` finds only docs and a spike).
+- **What an attacker could do:** nothing today. The account has no keys and no one but the owner can act as it, and Identity Toolkit isn't configured. But project-wide Token Creator lets it mint tokens as `toe-beans-run` (reads `app-secrets`) and `toe-beans-deploy` (deploys the app). So anything that ever gains use of it, such as a key someone downloads from the Firebase console's *Generate new private key*, holds the whole project. That undoes the narrow roles of D15 and D45.
+- **Fix:**
+
+  ```sh
+  gcloud projects remove-iam-policy-binding toe-beans-co-za \
+    --member=serviceAccount:firebase-adminsdk-fbsvc@toe-beans-co-za.iam.gserviceaccount.com \
+    --role=roles/iam.serviceAccountTokenCreator --condition=None
+  gcloud iam service-accounts disable firebase-adminsdk-fbsvc@toe-beans-co-za.iam.gserviceaccount.com --project toe-beans-co-za
+  gcloud services api-keys delete 279f6a3e-7569-4d14-a139-bfaccf65ba30 --project toe-beans-co-za
+  gcloud services disable firebasehosting.googleapis.com identitytoolkit.googleapis.com securetoken.googleapis.com \
+    firebaserules.googleapis.com firebaseinstallations.googleapis.com firebaseremoteconfig.googleapis.com \
+    firebaseremoteconfigrealtime.googleapis.com --project toe-beans-co-za
+  ```
+
+  Leave `fcm.googleapis.com` alone; Web Push doesn't need it in this project, but there's no gain in testing that on prod. The default Hosting site can't be deleted; with the API off, it serves nothing.
+
+**R8. Pages carry no `Cache-Control`, and the edge caches any response at a static-looking extension — low.**
+
+- **Where:** SvelteKit's page responses carry no `Cache-Control`. Only the API (`no-store`, `packages/backend/src/http/response.ts:41`), photos (`private`), probes and a few fixed files set one. The Worker's `fetch` to Cloud Run is cached by Cloudflare by file extension (as `infra/edge/worker.js` notes for `.js`). Live: two plain GETs of `/audit-<n>.png` with `Sec-Fetch-Dest: document` returned the app's HTML 404 as `MISS`, then `HIT`, with Cloudflare adding `cache-control: max-age=14400`.
+- **What an attacker could do:** today, nothing found. Cloudflare doesn't cache a response that sets a cookie. An `[id]` page that fails (`/dogs/x.png`) renders the root error page, outside the `(app)` layout, so its HTML holds none of the viewer's name, email, household or dogs. Signed out, those paths redirect, and Cloudflare bypasses the redirect. But the safety is accidental. A route whose page renders successfully at a path ending in `.png`, `.css`, `.js` or similar, or a `(app)/+error.svelte` added later, would be cached with one person's data and served to the next person to ask (web cache deception). A cached page also reuses one CSP nonce for everyone.
+- **Fix:** in `handle` (`apps/web/src/hooks.server.ts`), after `resolve`, give any response without a `Cache-Control` the value `private, no-cache`:
+
+  ```ts
+  if (!response.headers.has('cache-control')) response.headers.set('cache-control', 'private, no-cache');
+  ```
+
+  Build files never reach the hook (adapter-node serves them), so their caching is unchanged. Check that the service worker still caches the `(shell)` pages, since the Cache API ignores the header when it stores a response itself.
+
+**R9. `main` doesn't require a pull request, admins bypass it, any action may run, and there's no code scanning — low.**
+
+- **Where:**
+  - Ruleset *Main branch protection* has `deletion`, `non_fast_forward` and the five required checks, but no `pull_request` rule, and Repository admin bypasses with mode `always`. The `production` environment has `can_admins_bypass: true`.
+  - Actions permissions are `allowed_actions: all` and `sha_pinning_required: false`. Every workflow pins SHAs today, but nothing enforces it.
+  - Code scanning answers "no analysis found".
+- **What an attacker could do:** with the owner's GitHub session or a token with `repo` scope (a laptop, a CLI, an agent), push straight to `main`, which starts the deploy. The environment's approval is then the one remaining gate, and an admin can skip it. That's a single control where the docs (CLAUDE.md, D15) promise "main moves only by pull request". An unpinned action added by mistake would run without complaint.
+- **Fix:**
+  - Add a `pull_request` rule to the ruleset (0 approvals is enough for a sole maintainer), and set the admin bypass to `pull_request` mode, or remove it.
+  - Set `production`'s *Allow administrators to bypass* off.
+  - Enforce pins and limit actions:
+    `gh api -X PUT repos/vgebrev/toe-beans/actions/permissions -F enabled=true -f allowed_actions=selected -F sha_pinning_required=true`,
+    then list the owners in use (`actions/*`, `docker/*`, `google-github-actions/*`, `pnpm/*`) under *selected actions*.
+  - Turn on CodeQL's default setup (free on a public repo):
+    `gh api -X PATCH repos/vgebrev/toe-beans/code-scanning/default-setup -f state=configured`.
+
+**R10. Reads of `app-secrets` aren't audit-logged — low.**
+
+- **Where:** the project's IAM policy has no `auditConfigs`, so Data Access audit logs are off. Admin Activity logs (on by default, 400 days) record IAM and deploy changes, but not `AccessSecretVersion`.
+- **What an attacker could do:** someone who read the secret through a misused identity (R7, or the deploy account) would leave no record of the read. Rotation after an incident (§8, E1) would have nothing to scope it by.
+- **Fix:** turn on `DATA_READ` for Secret Manager only, which is a handful of entries a day (one per instance start). `gcloud projects get-iam-policy toe-beans-co-za --format=yaml > policy.yaml`, add
+
+  ```yaml
+  auditConfigs:
+  - service: secretmanager.googleapis.com
+    auditLogConfigs:
+    - logType: DATA_READ
+  ```
+
+  and `gcloud projects set-iam-policy toe-beans-co-za policy.yaml` (the etag in the file guards against a concurrent change).
+
+**R11. No CAA records or DNSSEC — low.**
+
+- **Where:** `dig CAA toebeans.co.za` and `dig DS toebeans.co.za` are both empty.
+- **What an attacker could do:** without CAA, any public CA may issue for the domain, so a mis-issuance (a CA fooled by a DNS or BGP attack) has nothing to stop it. Without DNSSEC, a resolver on the path can be fed forged records. Both are low-likelihood attacks, but each control costs a few minutes.
+- **Also:** DMARC aggregate reports go to `dmarc_rua@onsecureserver.net`, GoDaddy's collector, a leftover of the registrar. It's harmless, but it's a third party receiving the domain's mail statistics, and the owner never sees them.
+- **Fix:**
+  - In Cloudflare DNS, add `CAA 0 issue "letsencrypt.org"` and `CAA 0 issue "pki.goog"`; Cloudflare adds its other CAs itself once any CAA record exists. Check that Auth0's custom domain (`auth`, a CNAME to Auth0) still renews, because CAA for a name under a CNAME follows the target first.
+  - **DNS → Settings → DNSSEC: Enable**, then add the DS record at GoDaddy.
+  - Point DMARC's `rua` at an address the owner reads, or drop it.
+
+### 9.3 Worth checking (not verified)
+
+**C5. Cloudflare settings this review couldn't read.** wrangler's sign-in has no zone-settings or rulesets scope. In the dashboard, confirm:
+
+- whether any rate-limiting rule exists (R3);
+- that `toe-beans-scanners` (D42) is the only custom rule and has no *Skip* action;
+- that no Page Rules, Cache Rules or Transform Rules exist that touch `/api/` or add `Cache-Control`;
+- that Bot Fight Mode is on.
+
+SSL mode (Flexible, Full or Strict) doesn't apply. The Worker fetches `run.app` itself over https, with Cloudflare checking the certificate, and no proxied origin record exists for the apex.
+
+**C6. `send.toebeans.co.za` is a CNAME to `send.forge.rmta.net`.** Through it, that name's SPF (`ip4:52.3.252.119 ip4:44.222.39.36 ip4:199.249.231.0/24`) and MX belong to whoever runs `rmta.net`. Under DMARC's relaxed alignment (`aspf=r`), mail with an envelope sender at `send.toebeans.co.za` from those addresses passes DMARC as `@toebeans.co.za`. Fine if it's Resend's current setup, but nothing in the repo records it. Confirm it matches the records Resend's dashboard shows as verified for the domain, and delete it if not.
+
+**C7. Backups can be deleted with the nightly job's token.** The `toe-beans-backup` R2 token (Object Read & Write on `toe-beans-backups`) is a `backups` environment secret. With it, or a malicious change merged to `main` that runs in that environment, all dumps can be deleted. The bucket has no lock rule. Also check, in **R2 → Manage API tokens**, that the app's token (`S3_ACCESS_KEY_ID`) is limited to `toe-beans-photos`, so the app can't touch backups. Fix: an R2 bucket lock rule on the `mongo/` prefix with a 29-day retention, which keeps within the 30-day lifecycle that D36 and the privacy policy rely on.
+
+**C8. Atlas is reachable from anywhere.** Network access is `0.0.0.0/0` (accounts.md, R3), because Cloud Run has no fixed egress address on the free tier. The database is then guarded by its two users' passwords and Atlas's mandatory TLS. Confirm that the app's user has `readWrite` on `toe-beans` only and the backup user `read` only (accounts.md says so), that no other database users exist, and that the owner's Atlas login uses two-factor authentication.
+
+**C9. Not checked.** Repository webhooks and secret-scanning alerts (the token lacks `admin:repo_hook`; `gh auth refresh -s admin:repo_hook` and `gh api repos/vgebrev/toe-beans/hooks`). The Auth0 tenant's connections (C2), last checked live in §7.
+
+### 9.4 Areas that look solid
+
+- **Household isolation in new code:** S19's terms gate, *closed today* care (`listClosedSince`) and the revocations on leaving all go through `HouseholdCollection` with the session's household.
+- **Origin protection, as designed:** without the Worker's secret `run.app` refuses every route (403, live), except `/readyz` (R4), the tick (its own OIDC check) and the build's static files (D32). `ADDRESS_HEADER` is honoured only behind the secret, so the rate limits' address can't be forged directly.
+- **The Worker:** the secret and client address overwrite anything the client sent, and the upstream host is fixed (E1's fix holds). `workers.dev` and preview URLs are off, logs are off, the one binding is a secret, and the maintenance page has a `default-src 'none'` CSP.
+- **R2:** both buckets are private (no `r2.dev` URL, no custom domain, no CORS), and the backups' 30-day lifecycle rules are in place.
+- **Cloud Run identities:** `toe-beans-run` holds no project role, and only it can read `app-secrets`. Only `toe-beans-deploy` can act as it, and that only through WIF pinned to the repository ID, the `production` environment and `refs/heads/main`. No service account has a user-managed key. No primitive roles are held except the owner's.
+- **The spending cap:** internal ingress, invokable only by its own account through Pub/Sub's signed push. The budget topic is publishable only by Cloud Billing. Its custom roles hold exactly the five permissions it uses, and the Run one is on the app's service alone. `setIamPolicy` could also add bindings, but none it could add reaches the secrets without `actAs`. It refuses to act if the invoker check is off.
+- **Secrets:** one secret, regionally replicated, one enabled version. Config errors name keys, never values; `app-secrets.sh` passes values through the environment, never arguments.
+- **GitHub Actions:** read-only default token; no repository secrets; `production` holds no secrets and needs the owner's approval; `backups` runs on `main` only. CI never uses `pull_request_target` or `workflow_run`, actions are pinned by SHA, first-time contributors need approval, no deploy keys, and secret scanning with push protection is on.
+- **Dependencies:** `pnpm audit` shows four moderate advisories, all accepted in D34, and none in the server bundle.
+- **Headers:** HSTS, CSP with nonces, `frame-ancestors 'none'`, `nosniff`, COOP and `Referrer-Policy` on every app response (live).
+- **Logs:** 30-day retention, readable only by the owner (C1 holds).
+
+### 9.5 Fix first
+
+1. **R1 and R4, the cost of a refused request.** Make refusals and `/readyz` cheap (debug-level log, a log exclusion, a memoised ping), and correct D45's bound. Then decide whether the origin should sit behind Google's IAM.
+2. **R3, the shared Worker quota.** Add the free rate-limiting rule and move the other two sites off this account, so a cheap flood on any of them doesn't take Toe Beans down for a day.
+3. **R2, Dependabot alerts.** One command, and D34's acceptance of the open advisories rests on it.

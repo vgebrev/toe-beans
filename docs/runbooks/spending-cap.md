@@ -1,8 +1,8 @@
 # Runbook: The spending cap
 
 When the month's GCP spend reaches the `toe-beans` budget, the cap takes the app down: the edge
-shows *Toe Beans is paused*, Cloud Run takes internal traffic only, and the tick's Scheduler job is
-paused (architecture D45; backlog S19.5). How it works and how it's set up:
+shows *Toe Beans is paused*, Cloud Run turns the edge Worker away (its account `toe-beans-edge` is
+off the app's invokers), and the tick's Scheduler job is paused (architecture D45; backlog S19.5). How it works and how it's set up:
 `infra/spending-cap/README.md`. This file is public; it names resources, never values.
 
 Coming back is always by hand, after you know why it tripped.
@@ -20,7 +20,8 @@ gcloud logging read 'resource.type="cloud_run_revision" AND resource.labels.serv
 	--limit 5 --freshness 2d --format='value(timestamp,jsonPayload.message,jsonPayload.cost,jsonPayload.budget)'
 ```
 
-The access list has no `allUsers`, the job reads `PAUSED`, and the log has *spending cap reached*.
+The access list has no `toe-beans-edge` (and no `allUsers`), the job reads `PAUSED`, and the log
+has *spending cap reached*.
 
 ## 2. Testing it (on prod, in a quiet hour)
 
@@ -72,7 +73,8 @@ gcloud billing budgets update "$budget" --billing-project toe-beans-co-za --bill
 Then open the app and resume the tick, in that order:
 
 ```sh
-gcloud run services add-iam-policy-binding toe-beans --region africa-south1 --member=allUsers --role=roles/run.invoker
+gcloud run services add-iam-policy-binding toe-beans --region africa-south1 \
+	--member=serviceAccount:toe-beans-edge@toe-beans-co-za.iam.gserviceaccount.com --role=roles/run.invoker
 curl -s https://toebeans.co.za/readyz                               # {"status":"ready"}
 gcloud scheduler jobs resume toe-beans-tick --location me-central1
 ```
@@ -91,9 +93,9 @@ in.
   change: on the 24 Nov test the app kept answering, saves included, for about 70 seconds after
   the cap's change, then refused everything at the same moment, open apps included. It can take
   up to about 7 minutes. Check §1 after that, not straight away.
-- **Deploying while it's down fails** at *Check it's ready* (the deploy calls `run.app` directly,
-  which Cloud Run turns away without `allUsers`), and the app stays closed: a deploy doesn't touch
-  the access list. That's on purpose. Neither does `infra/gcp/provision.sh` once the service
+- **Deploying while it's down fails** at *Check it's ready* (the deploy checks `/readyz` through
+  the Worker, which shows the paused page), and the app stays closed: a deploy doesn't touch the
+  access list. That's on purpose. Neither does `infra/gcp/provision.sh` once the service
   exists, so re-running it doesn't reopen the app.
 - The cap only acts on the `toe-beans` budget's messages, and only on spend, never on the
   forecast. A message it can't read is acknowledged and ignored.

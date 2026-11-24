@@ -1,9 +1,10 @@
 # The app's Cloudflare Worker
 
 Serves `toebeans.co.za` by forwarding every request to the Cloud Run service, and redirects `www`
-to the apex (architecture §8.4, D13). It adds the header secret the app requires (`PROXY_SECRET`,
-D32) and the phone's address for the rate limits (`x-toe-beans-client`, §7). It replaces the
-holding page (`infra/holding-page`).
+to the apex (architecture §8.4, D13). It adds a Google ID token, without which Cloud Run turns the
+request away (`x-serverless-authorization`, D45; below), the header secret the app requires
+(`PROXY_SECRET`, D32) and the phone's address for the rate limits (`x-toe-beans-client`, §7). It
+replaces the holding page (`infra/holding-page`).
 
 ## Deploy
 
@@ -12,6 +13,8 @@ Needs `gcloud` signed in as the project owner, and `npx wrangler@4 login` once. 
 ```sh
 # The Worker's copy of the secret, straight from Secret Manager; it never touches a file.
 ../gcp/app-secrets.sh get PROXY_SECRET | npx wrangler@4 secret put PROXY_SECRET
+# Its signing key (below), once; it answers 500 without one.
+node edge-key.mjs
 npx wrangler@4 deploy
 ```
 
@@ -22,16 +25,76 @@ which leaves the site down until this deploy finishes.
 After rotating the secret (`infra/gcp/app-secrets.sh generate PROXY_SECRET`), put it here again, then
 redeploy the app so it picks up the new version.
 
+## Google's invoker check (D45, security audit R1)
+
+Only Cloud Run's invokers reach the app: this Worker, as the service account `toe-beans-edge`, and
+the tick. Google turns everyone else away with a 403 before an instance starts, so a flood sent
+straight to `run.app` costs nothing and can't trip the spending cap, and `/readyz` there can't
+be used to ping the database.
+
+The Worker has no identity Google knows, and the org refuses service account keys, so it proves
+itself through Workload Identity Federation (`google-identity.js`):
+
+1. It signs a five-minute JWT (`iss` `https://toebeans.co.za`, `sub` `toe-beans-edge`) with its
+   private key, the Worker secret `EDGE_KEY`.
+2. Google's STS checks it against the public key in the provider `toe-beans-edge` of the pool
+   `cloudflare`, and returns a federated token.
+3. With that token, the IAM Credentials API issues an ID token for `toe-beans-edge`, audience the
+   `run.app` URL, valid for an hour.
+
+Each isolate keeps the ID token in memory and gets a new one five minutes before it expires: a
+few exchanges an hour, all free. It goes in `x-serverless-authorization`, so a client's own
+`Authorization` reaches the app untouched. If Google won't issue a token, or Cloud Run rejects
+it (401), the Worker answers 502, which the app's service worker shows as *Can't reach Toe
+Beans*, not the paused page.
+
+**The key.** `node edge-key.mjs` makes an RSA pair in memory, puts the public half in the provider
+(making it the first time), keeping the previous key so the Worker can still use it until the
+new secret is live, and pipes the private half to `wrangler secret put EDGE_KEY`. Nothing is
+written to disk or printed. Rotate by running it again (each run retires the key before the
+last); do so if `EDGE_KEY` may have leaked. What a leaked key allows: calling the app the way the
+Worker does, which is also all `PROXY_SECRET` allows today.
+
+### Switching it on (once, from `allUsers`)
+
+In this order, so the app stays up throughout:
+
+1. `infra/gcp/provision.sh`: makes `toe-beans-edge` and the pool, and adds `toe-beans-edge` and
+   `toe-beans-tick` to the app's invokers next to `allUsers`.
+2. From here: `node edge-key.mjs`, then `npx wrangler@4 deploy`. The Worker now sends its token;
+   with `allUsers` still an invoker, nothing changes yet. `curl -s https://toebeans.co.za/readyz`
+   answers `{"status":"ready"}` (a 502 means the exchange failed: check the provider).
+3. `infra/spending-cap/provision.sh`: the cap now closes `toe-beans-edge` as well as `allUsers`.
+4. Release the app with the deploy's new check, which goes through the Worker, as usual.
+5. Take `allUsers` off:
+
+   ```sh
+   gcloud run services remove-iam-policy-binding toe-beans --region africa-south1 \
+   	--member=allUsers --role=roles/run.invoker
+   ```
+
+   It takes a minute or two to bite (`docs/runbooks/spending-cap.md` §5). Then the checks below,
+   and within 15 minutes the `toe-beans-tick` heartbeat in Better Stack: Scheduler's token now
+   goes through Cloud Run's check before the app checks it again. If the app shows a 502 or the
+   heartbeat stays quiet, put `allUsers` back (`add-iam-policy-binding`, same flags) and look.
+6. Run the cap's test (`docs/runbooks/spending-cap.md` §2) and reopen it with §4 there.
+7. Check that a refusal really is free: send a few plain requests to `run.app`, then look at
+   Cloud Run `toe-beans` **Metrics → Request count** (by response code) and, a day later,
+   **Billing → Reports** grouped by SKU. Google's assistant says invoker refusals are never
+   billed; if the 403s show up as billable requests, R1's log measures (security audit §9) are next.
+
+`PROXY_SECRET` stays as the app's second lock behind Google's.
+
 ## Checks (S14.1)
 
 - `curl -sI https://toebeans.co.za/service-worker.js` shows `cache-control: no-cache` and no
   `cf-cache-status: HIT` (S17.12): Cloudflare would otherwise cache it for hours, and phones
   keep the build before a deploy.
 
-- `curl -sI https://toe-beans-1047834821273.africa-south1.run.app/` answers 403: no page or API
-  call goes round the Worker. The build's static files (`/_app/`, `/service-worker.js`, icons)
-  still answer there, as adapter-node serves them before the app checks the secret (backlog
-  S17.13).
+- `curl -sI https://toe-beans-1047834821273.africa-south1.run.app/readyz` answers 403 without
+  an `x-request-id`: Google turned it away, not the app. So does every other path, the build's
+  static files included (before D45's invoker check, adapter-node served those without the
+  secret, backlog S17.13).
 - `curl -s https://toebeans.co.za/readyz` answers `{"status":"ready"}`.
 - The rate limit keys on the phone, not on Cloudflare (the address is never logged, NFR-02): open
   `https://toebeans.co.za/auth/sign-in` 16 times quickly on mobile data until it says to wait, then
@@ -41,7 +104,7 @@ redeploy the app so it picks up the new version.
 
 ## The maintenance page (S19.5)
 
-When the spending cap takes `allUsers` off the app's invokers (architecture D45,
+When the spending cap takes `toe-beans-edge` off the app's invokers (architecture D45,
 `infra/spending-cap`), Cloud Run turns the Worker's fetches away itself, with a 403 (or 404) that
 lacks the app's `x-request-id`.
 The Worker answers those with *Toe Beans is paused* (503, `no-store`, `x-toe-beans-maintenance`,
