@@ -24,17 +24,21 @@ gc() { gcloud --project "$PROJECT" --quiet "$@"; }
 sa() { echo "$1@$PROJECT.iam.gserviceaccount.com"; }
 say() { printf '\n== %s\n' "$*"; }
 exists() { "$@" >/dev/null 2>&1; }
+# Billing calls count against this project's quota, not the gcloud CLI's shared one, which runs out
+# (429 RESOURCE_EXHAUSTED on cloudbilling.googleapis.com).
+bill() { gc --billing-project "$PROJECT" billing "$@"; }
 PROJECT_NUMBER=$(gc projects describe "$PROJECT" --format='value(projectNumber)')
-# Looked up rather than written here: not a secret (IAM guards the account), but no need to publish it.
-BILLING_ACCOUNT=$(gcloud billing projects describe "$PROJECT" --format='value(billingAccountName)')
-BILLING_ACCOUNT=${BILLING_ACCOUNT#billingAccounts/}
 
 say "APIs"
 gc services enable pubsub.googleapis.com run.googleapis.com cloudbuild.googleapis.com \
-	artifactregistry.googleapis.com cloudscheduler.googleapis.com billingbudgets.googleapis.com
+	artifactregistry.googleapis.com cloudscheduler.googleapis.com billingbudgets.googleapis.com \
+	cloudbilling.googleapis.com
+# Looked up rather than written here: not a secret (IAM guards the account), but no need to publish it.
+BILLING_ACCOUNT=$(bill projects describe "$PROJECT" --format='value(billingAccountName)')
+BILLING_ACCOUNT=${BILLING_ACCOUNT#billingAccounts/}
 
 say "Service accounts"
-# toe-beans-cap: the cap's identity; it may close the app's ingress and pause the tick, nothing
+# toe-beans-cap: the cap's identity; it may close the app to the public and pause the tick, nothing
 # else. toe-beans-build: Cloud Build's identity for the cap's source deploys (it was the S-1.3
 # spike's; roles/run.builder is the role Google made for exactly this).
 for name in "$CAP" toe-beans-build; do
@@ -46,8 +50,9 @@ gc projects add-iam-policy-binding "$PROJECT" --condition=None \
 
 say "The cap's roles"
 # Custom roles hold only the permissions the cap uses (cap.js). Scheduler has no IAM on a single
-# job, so its role is on the project; the Run role is on the app's service alone. No actAs on
-# toe-beans-run: changing ingress makes no revision, and without it the cap can't deploy code.
+# job, so its role is on the project; the Run role is on the app's service alone. It edits the
+# service's access list, not the service: any change to the service, ingress included, needs actAs
+# on toe-beans-run, which would let the cap deploy code that reads the app's secrets.
 role() {
 	local id=$1 title=$2 permissions=$3
 	if exists gc iam roles describe "$id"; then
@@ -58,7 +63,8 @@ role() {
 }
 role toe_beans_cap_scheduler "Toe Beans: cap pauses the tick" \
 	cloudscheduler.jobs.get,cloudscheduler.jobs.pause
-role toe_beans_cap_run "Toe Beans: cap closes the app's ingress" run.services.get,run.services.update
+role toe_beans_cap_run "Toe Beans: cap closes the app to the public" \
+	run.services.get,run.services.getIamPolicy,run.services.setIamPolicy
 gc projects add-iam-policy-binding "$PROJECT" --condition=None \
 	--member="serviceAccount:$(sa "$CAP")" \
 	--role="projects/$PROJECT/roles/toe_beans_cap_scheduler" >/dev/null
@@ -109,10 +115,10 @@ fi
 
 say "Budget"
 # From here on, the budget's messages reach the cap. Its mails to the owner stay as they are.
-budget=$(gc billing budgets list --billing-account="$BILLING_ACCOUNT" \
+budget=$(bill budgets list --billing-account="$BILLING_ACCOUNT" \
 	--filter="displayName=$BUDGET_NAME" --format='value(name)')
 [ -n "$budget" ] || { echo "No budget named $BUDGET_NAME: run infra/gcp/provision.sh" >&2; exit 1; }
-gc billing budgets update "$budget" --billing-account="$BILLING_ACCOUNT" \
+bill budgets update "$budget" --billing-account="$BILLING_ACCOUNT" \
 	--notifications-rule-pubsub-topic="projects/$PROJECT/topics/$TOPIC" >/dev/null
 
 cat <<EOF

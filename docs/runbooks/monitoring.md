@@ -76,7 +76,7 @@ Then run **Actions → Backup → Run workflow** on `main`; the heartbeat goes *
 
 | Alert | Look first at |
 |---|---|
-| `toe-beans` down | Open `https://toebeans.co.za`. Then Cloud Run's logs (`gcloud run services logs read toe-beans --region africa-south1 --project toe-beans-co-za --limit 50`), Atlas's cluster status, and Cloudflare's status page. A 503 from `/readyz` is the database; a 403 is the Worker's header secret (`infra/edge/README.md`) |
+| `toe-beans` down | Open `https://toebeans.co.za`. Then Cloud Run's logs (`gcloud run services logs read toe-beans --region africa-south1 --project toe-beans-co-za --limit 50`), Atlas's cluster status, and Cloudflare's status page. A 503 from `/readyz` is the database; a 403 is the Worker's header secret (`infra/edge/README.md`); *Toe Beans is paused* is the spending cap (`spending-cap.md`) |
 | `toe-beans-tick` silent | `gcloud scheduler jobs describe toe-beans-tick --location me-central1 --project toe-beans-co-za`: paused? Its last attempt's status? Then Cloud Run's logs for `tick refused` (the token's audience or invoker) or `heartbeat failed` (Better Stack unreachable, so the ticks themselves ran) |
 | `toe-beans-backup` silent | **Actions → Backup**: did it run? GitHub turns schedules off after 60 days without commits; turn it back on there. A failed run has already mailed you |
 | Sentry | `sentry.md` |

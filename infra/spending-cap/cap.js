@@ -3,16 +3,20 @@
 // subscription sends each message here. When the month's actual spend has reached the budget, the
 // app is taken down:
 //
-//   1. the app's Cloud Run service takes internal traffic only, so nothing from outside reaches it
-//      and no instance starts; the edge Worker sees Cloud Run's refusal and shows a maintenance
-//      page in place of the app (infra/edge/worker.js)
+//   1. the app's Cloud Run service loses its public invoker (`allUsers`), so Cloud Run refuses
+//      every request from outside before an instance starts; the edge Worker sees that refusal
+//      and shows a maintenance page in place of the app (infra/edge/worker.js)
 //   2. the tick's Scheduler job is paused, the one thing inside Google that would still call it
 //
+// Why the access list and not ingress: Cloud Run checks actAs on the runtime account for any
+// change to a service, ingress included, and actAs would let the cap deploy code that reads the
+// app's secrets. Changing a service's IAM policy needs no actAs.
 // Forecasts never trip it, only spend. Bringing the app back is the owner's, by hand, after
 // looking at why (docs/runbooks/spending-cap.md). No dependencies: Google's APIs over fetch, with
 // a token from the metadata server for this service's own account.
 
-const INTERNAL_ONLY = 'INGRESS_TRAFFIC_INTERNAL_ONLY';
+const PUBLIC = 'allUsers';
+const INVOKER = 'roles/run.invoker';
 
 /**
  * @typedef {object} CapConfig
@@ -62,7 +66,7 @@ export function decide(body, budgetName) {
  * the push fails and Pub/Sub tries again.
  * @param {CapConfig} config
  * @param {{ fetch: typeof fetch, token: () => Promise<string> }} deps
- * @returns {Promise<{ ingress: 'changed' | 'already', tick: 'paused' | 'already' }>}
+ * @returns {Promise<{ access: 'closed' | 'already', tick: 'paused' | 'already' }>}
  */
 export async function takeDown(config, { fetch, token }) {
 	const bearer = await token();
@@ -86,14 +90,28 @@ export async function takeDown(config, { fetch, token }) {
 
 	// The service first: it's what costs money.
 	const service = `https://run.googleapis.com/v2/projects/${config.project}/locations/${config.region}/services/${config.service}`;
-	let ingress = /** @type {'changed' | 'already'} */ ('already');
-	if ((await call(service)).ingress !== INTERNAL_ONLY) {
-		// Only the service's ingress: no new revision, nothing else about the service changes.
-		await call(`${service}?updateMask=ingress`, {
-			method: 'PATCH',
-			body: JSON.stringify({ ingress: INTERNAL_ONLY })
+	// With the invoker check off, the access list lets everyone in whatever it says.
+	if ((await call(service)).invokerIamDisabled) {
+		throw new Error(
+			`${config.service} has the invoker check off, so removing ${PUBLIC} would not close it`
+		);
+	}
+	let access = /** @type {'closed' | 'already'} */ ('already');
+	const policy = await call(`${service}:getIamPolicy`);
+	/** @type {{ role: string, members?: string[] }[]} */
+	const bindings = policy.bindings ?? [];
+	if (bindings.some((b) => b.role === INVOKER && b.members?.includes(PUBLIC))) {
+		const kept = bindings
+			.map((b) =>
+				b.role === INVOKER ? { ...b, members: (b.members ?? []).filter((m) => m !== PUBLIC) } : b
+			)
+			.filter((b) => (b.members ?? []).length > 0);
+		// The etag makes Google refuse the write if the policy changed since it was read.
+		await call(`${service}:setIamPolicy`, {
+			method: 'POST',
+			body: JSON.stringify({ policy: { ...policy, bindings: kept } })
 		});
-		ingress = 'changed';
+		access = 'closed';
 	}
 
 	const job = `https://cloudscheduler.googleapis.com/v1/projects/${config.project}/locations/${config.schedulerRegion}/jobs/${config.job}`;
@@ -102,7 +120,7 @@ export async function takeDown(config, { fetch, token }) {
 		await call(`${job}:pause`, { method: 'POST', body: '{}' });
 		tick = 'paused';
 	}
-	return { ingress, tick };
+	return { access, tick };
 }
 
 /**

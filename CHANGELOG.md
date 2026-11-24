@@ -10,6 +10,33 @@ for fixes. Candidates (`-rc.N`) go to prod for the owner to try before the relea
 
 ## Unreleased
 
+## 1.1.0 - 2026-11-24
+
+### Added
+
+- Toe Beans now asks you to confirm you're 18 or older and accept the terms of service before you
+  start. If you already use it, you're asked once the next time you open it, and again only when
+  the terms change.
+- If Toe Beans ever has to be stopped to keep its costs in check, it shows *Toe Beans is paused*
+  instead of saying it can't be reached. Your records stay safe while it's paused.
+
+### Security
+
+- Fixed a flaw at Toe Beans' edge that could give away a key its servers share. The key is
+  replaced.
+
+### Changed
+
+- The terms of service say how to tell us about content that infringes your rights.
+- The sign-in page now loads its font from Toe Beans itself, so Google no longer sees your
+  device's address when you open it. The privacy policy no longer lists Google Fonts.
+- The privacy policy now says that your browser tells Cloudflare when a request to Toe Beans fails,
+  so it can find network problems.
+- A care task you mark done or cancel stays on Today for the rest of the day, under *Done* or
+  *Skipped*, instead of disappearing straight away.
+- When you mark a care task done, you can plan the next one for tomorrow or next week, handy
+  for a weekly puppy school class. *In 3 months* is gone; *Pick a date* still covers it.
+
 ## 1.1.0-rc.1 - 2026-11-24
 
 ### Added

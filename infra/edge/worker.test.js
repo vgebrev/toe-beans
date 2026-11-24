@@ -1,4 +1,6 @@
+import { readFileSync } from 'node:fs';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { markHeart, markLetters } from '../../apps/web/src/lib/assets/brand/mark.ts';
 import worker from './worker.js';
 
 const ORIGIN = 'https://toe-beans-1047834821273.africa-south1.run.app';
@@ -24,7 +26,7 @@ const get = (/** @type {string} */ path, /** @type {Record<string, string>} */ h
 const fromApp = (/** @type {number} */ status) =>
 	new Response('app', { status, headers: { 'x-request-id': 'r1' } });
 
-/** Cloud Run turning the request away at its ingress, before the app. */
+/** Cloud Run turning the request away before the app. */
 const refused = (/** @type {number} */ status = 404) =>
 	new Response('<html>Error: Page not found</html>', {
 		status,
@@ -58,6 +60,29 @@ describe('the edge Worker', () => {
 			expect(response.headers.get('cache-control')).toBe('no-store');
 			expect(response.headers.get('content-type')).toMatch(/^text\/html/);
 			expect(await response.text()).toContain('Toe Beans is paused');
+		});
+
+		it("draws the app's mark and loads the app's fonts from the Worker's own files", async () => {
+			origin(refused(403));
+			const response = await get('/', { accept: 'text/html' });
+			const html = await response.text();
+			expect(html).toContain(`fill-rule="evenodd" d="${markLetters}"`);
+			expect(html).toContain(`d="${markHeart}"`);
+			expect(html.match(/<ellipse /g)).toHaveLength(4);
+			expect(response.headers.get('content-security-policy')).toContain("font-src 'self'");
+			const fonts = [...html.matchAll(/url\(\/(edge-fonts\/[^)]+)\)/g)].map((m) => m[1]);
+			expect(fonts).toEqual(['edge-fonts/nunito-latin.woff2', 'edge-fonts/fredoka-latin.woff2']);
+		});
+
+		it.each([
+			['nunito-latin.woff2', 'nunito/files/nunito-latin-wght-normal.woff2'],
+			['fredoka-latin.woff2', 'fredoka/files/fredoka-latin-wght-normal.woff2']
+		])("serves %s as the app's own copy of the font", (file, source) => {
+			const ours = readFileSync(new URL(`assets/edge-fonts/${file}`, import.meta.url));
+			const app = readFileSync(
+				new URL(`../../apps/web/node_modules/@fontsource-variable/${source}`, import.meta.url)
+			);
+			expect(ours.equals(app), `copy ${source} over ${file}`).toBe(true);
 		});
 
 		it('answers API calls in plain text, which the app reads as unreachable', async () => {

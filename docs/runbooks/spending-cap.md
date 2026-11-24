@@ -14,13 +14,13 @@ You'll hear from the budget's mail (100% of spend) and from Better Stack (`toe-b
 
 ```sh
 curl -sI https://toebeans.co.za/ | grep -i 'x-toe-beans-maintenance'      # present: the cap
-gcloud run services describe toe-beans --region africa-south1 --format="value(metadata.annotations.'run.googleapis.com/ingress')"
+gcloud run services get-iam-policy toe-beans --region africa-south1 --format='value(bindings.members)'
 gcloud scheduler jobs describe toe-beans-tick --location me-central1 --format='value(state)'
 gcloud logging read 'resource.type="cloud_run_revision" AND resource.labels.service_name="toe-beans-cap" AND severity>=WARNING' \
 	--limit 5 --freshness 2d --format='value(timestamp,jsonPayload.message,jsonPayload.cost,jsonPayload.budget)'
 ```
 
-The ingress reads `internal`, the job `PAUSED`, and the log has *spending cap reached*.
+The access list has no `allUsers`, the job reads `PAUSED`, and the log has *spending cap reached*.
 
 ## 2. Testing it (on prod, in a quiet hour)
 
@@ -63,16 +63,16 @@ budget, the next budget message trips the cap again within hours, so first raise
 what's been spent, and lower it again next month:
 
 ```sh
-account=$(gcloud billing projects describe toe-beans-co-za --format='value(billingAccountName)')
+account=$(gcloud billing projects describe toe-beans-co-za --billing-project toe-beans-co-za --format='value(billingAccountName)')
 account=${account#billingAccounts/}
-budget=$(gcloud billing budgets list --billing-account="$account" --filter=displayName=toe-beans --format='value(name)')
-gcloud billing budgets update "$budget" --billing-account="$account" --budget-amount=5USD
+budget=$(gcloud billing budgets list --billing-project toe-beans-co-za --billing-account="$account" --filter=displayName=toe-beans --format='value(name)')
+gcloud billing budgets update "$budget" --billing-project toe-beans-co-za --billing-account="$account" --budget-amount=5USD
 ```
 
 Then open the app and resume the tick, in that order:
 
 ```sh
-gcloud run services update toe-beans --region africa-south1 --ingress=all
+gcloud run services add-iam-policy-binding toe-beans --region africa-south1 --member=allUsers --role=roles/run.invoker
 curl -s https://toebeans.co.za/readyz                               # {"status":"ready"}
 gcloud scheduler jobs resume toe-beans-tick --location me-central1
 ```
@@ -88,15 +88,18 @@ in.
 ## 5. Things to know
 
 - **Deploying while it's down fails** at *Check it's ready* (the deploy calls `run.app` directly,
-  which the internal ingress turns away), and the ingress stays closed. That's on purpose.
+  which Cloud Run turns away without `allUsers`), and the app stays closed: a deploy doesn't touch
+  the access list. That's on purpose. Neither does `infra/gcp/provision.sh` once the service
+  exists, so re-running it doesn't reopen the app.
 - The cap only acts on the `toe-beans` budget's messages, and only on spend, never on the
   forecast. A message it can't read is acknowledged and ignored.
 - Only the owner can publish to the topic, so nobody else can trip it.
 - **Turning it off** (don't, but if it misfires), with `$account` and `$budget` from §4: `gcloud billing budgets update "$budget"
-  --billing-account="$account" --clear-notifications-rule-pubsub-topic`. The mails
+  --billing-project toe-beans-co-za --billing-account="$account" --clear-notifications-rule-pubsub-topic`. The mails
   stay; `infra/spending-cap/provision.sh` reconnects it.
 
 ## 6. Log
 
 | Date | What | Notes |
 |---|---|---|
+| 24 Nov 2026 | §2 test on prod (1.1.0-rc.1) | The first build's ingress change was refused (`actAs`); rebuilt to take `allUsers` off the access list. Then: under budget, no action; at budget, the app closed and the tick paused; the phone showed *Toe Beans is paused*; reopened with §4. |
