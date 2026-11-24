@@ -10,6 +10,13 @@ for fixes. Candidates (`-rc.N`) go to prod for the owner to try before the relea
 
 ## Unreleased
 
+## 1.1.1 - 2026-11-24
+
+### Security
+
+- Toe Beans' server now only answers requests that come through toebeans.co.za, so nobody can
+  slow it down, run up its costs or get it paused by calling the server directly.
+
 ## 1.1.0 - 2026-11-24
 
 ### Added
