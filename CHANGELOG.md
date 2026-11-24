@@ -10,6 +10,8 @@ for fixes. Candidates (`-rc.N`) go to prod for the owner to try before the relea
 
 ## Unreleased
 
+## 1.1.0-rc.1 - 2026-11-24
+
 ### Added
 
 - Toe Beans now asks you to confirm you're 18 or older and accept the terms of service before you
