@@ -11,11 +11,12 @@ every running instance is replaced by a fresh one.
 
 ## 1. Before
 
-1. **Counts.** From the repo root, with the backup user's read-only string:
+1. **Counts.** From the repo root, with the backup user's read-only string (your password manager;
+   GitHub can't show its copy):
 
    ```sh
-   SOURCE_URI="$(gcloud secrets versions access latest --secret=backup-mongodb-uri --project=toe-beans-co-za)" \
-   	infra/backup/counts.sh > ~/durability-before.txt
+   read -rsp 'Read-only string: ' SOURCE_URI && export SOURCE_URI && echo
+   infra/backup/counts.sh > ~/durability-before.txt
    ```
 
 2. **On the phone,** with the installed app, note what you'll look for afterwards:

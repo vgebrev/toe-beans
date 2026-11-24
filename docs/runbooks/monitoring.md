@@ -48,15 +48,13 @@ Check it: the monitor shows *Up* within a few minutes. The README shows its stat
 - **On-call escalation:** email.
 
 Copy its URL (`https://uptime.betterstack.com/api/v1/heartbeat/…`). The end of it is the token, so
-it goes in Secret Manager, not GitHub (D15):
+it's kept secret, in `app-secrets` (D45):
 
 ```sh
-infra/gcp/provision.sh                        # creates tick-heartbeat-url if it's missing
-infra/gcp/set-secret.sh tick-heartbeat-url    # paste the URL
+infra/gcp/app-secrets.sh set TICK_HEARTBEAT_URL    # paste the URL
 ```
 
-The deploy mounts it as `TICK_HEARTBEAT_URL`, so **fill it before the next deploy**, or the deploy
-fails on a secret with no version. After the deploy, the startup log line `backend started` shows
+The app reads it when an instance starts, so redeploy to use it straight away. After the deploy, the startup log line `backend started` shows
 `tickHeartbeat: true`, and the heartbeat goes *Up* with the next tick.
 
 ## 4. The backup's heartbeat
@@ -68,8 +66,7 @@ fails on a secret with no version. After the deploy, the startup log line `backe
 - **On-call escalation:** email.
 
 ```sh
-infra/gcp/provision.sh                          # creates backup-heartbeat-url, readable by toe-beans-backup only
-infra/gcp/set-secret.sh backup-heartbeat-url    # paste its URL
+gh secret set BACKUP_HEARTBEAT_URL --env backups    # paste its URL
 ```
 
 Fill it before the next run from `main`: without a value, the run's last step fails and mails you.
@@ -90,5 +87,5 @@ look-back, architecture §6.3); older ones don't. Today always shows what's due.
 ## Changing a heartbeat's URL
 
 If a URL leaks, someone could call it and hide a real silence. Delete the heartbeat in Better
-Stack, make a new one with the same settings, put its URL in the secret with `set-secret.sh`, and
+Stack, make a new one with the same settings, put its URL in its secret (as in §3 or §4), and
 redeploy (the tick's) or wait for the next run (the backup's).

@@ -1,6 +1,6 @@
 # Toe Beans — Security Audit
 
-**Version:** 0.5
+**Version:** 0.6
 **Date:** 23 November 2026
 **Status:** §1–§6, the code review: every finding fixed or decided (S15.2). §7, the external pentest: both findings fixed (S18.3). §8, found since: fixed.
 **Inputs:** `docs/requirements.md` v1.0, `docs/architecture.md` v1.21, the code at commit `1ea686e` (`develop`); for §7, prod on 1.0.4 and the repo at `main` `904516e`
@@ -14,6 +14,8 @@
 **Changes in 0.4:** §7: both pentest findings fixed (S18.3, architecture 1.41): P1, now described, by revoking the invitations of someone who leaves or deletes their account (D18); P2 by reading a weakened ETag in `If-Match` (§3.3).
 
 **Changes in 0.5:** §8, findings since the pentest: E1, the edge Worker sending its proxy secret to a host named in the path, found while checking the edge for S19.3 and fixed the same day.
+
+**Changes in 0.6:** §7.4's CI note: since S19.6 the nightly backup holds its own credentials as secrets of GitHub's `backups` environment instead of reading them from Secret Manager through Workload Identity Federation (architecture 1.47, D36). The app's secrets stay in GCP.
 
 ---
 
@@ -205,7 +207,7 @@ No critical, high or medium findings. No way was found for one household, or a p
 ### 7.4 Reviewed in code, no issue found
 
 - **Secrets:** none in the repo or any commit, pull-request ref or tag GitHub serves; only labelled placeholders and e2e constants.
-- **CI:** a read-only token and no secrets in CI, no `pull_request_target` or `workflow_run`; deploy and backup are gated on the owner's approval and use Workload Identity Federation, so GitHub holds no cloud keys; actions pinned by commit SHA.
+- **CI:** a read-only token and no secrets in CI, no `pull_request_target` or `workflow_run`; deploy and backup are gated on the owner's approval and use Workload Identity Federation, so GitHub holds no cloud keys (since S19.6 the backup holds its own credentials as `backups` environment secrets instead, D36); actions pinned by commit SHA.
 - **`/oops`:** forwards only envelopes for the server's own DSN, only to its ingest host; bounded, rate-limited, and stripped of the sender's address, Referer and cookies.
 - **Sign-in and sessions, invitations, photos, injection and role checks:** as §5 describes.
 

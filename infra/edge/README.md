@@ -11,8 +11,7 @@ Needs `gcloud` signed in as the project owner, and `npx wrangler@4 login` once. 
 
 ```sh
 # The Worker's copy of the secret, straight from Secret Manager; it never touches a file.
-gcloud secrets versions access latest --secret=proxy-secret --project=toe-beans-co-za |
-	npx wrangler@4 secret put PROXY_SECRET
+../gcp/app-secrets.sh get PROXY_SECRET | npx wrangler@4 secret put PROXY_SECRET
 npx wrangler@4 deploy
 ```
 
@@ -20,7 +19,7 @@ The first deploy takes over the custom domains from the holding page's Worker; i
 because they're attached there, delete that one first (`npx wrangler@4 delete --name toe-beans-holding`),
 which leaves the site down until this deploy finishes.
 
-After rotating the secret (`infra/gcp/set-secret.sh proxy-secret`), put it here again, then
+After rotating the secret (`infra/gcp/app-secrets.sh generate PROXY_SECRET`), put it here again, then
 redeploy the app so it picks up the new version.
 
 ## Checks (S14.1)

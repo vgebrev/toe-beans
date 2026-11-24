@@ -8,6 +8,8 @@
 #    The bucket's lifecycle deletes these after 30 days.
 # 2. rclone sync of the photo bucket into photos/current. A photo gone from the source (replaced or
 #    deleted) moves to photos/replaced/<UTC time>/, which the lifecycle also deletes after 30 days.
+# 3. R2's storage, both buckets together, against STORAGE_ALERT_GB (architecture D45): over it,
+#    the run fails after the backup is made, so the owner hears long before R2's free 10 GB bills.
 #
 # Inputs (environment):
 #   MONGODB_URI      a read-only user's connection string; never printed
@@ -17,6 +19,8 @@
 #   PHOTOS_SOURCE    rclone path of the photos, e.g. photos:toe-beans-photos
 #   MAX_PHOTO_MOVES  optional (default 50): stop rather than move more photos out of
 #                    photos/current in one run, in case the source has been emptied by mistake
+#   STORAGE_ALERT_GB optional (default 5, half of R2's free 10 GB-month): fail the run when the
+#                    photo bucket and the backup bucket hold more than this together
 # The remotes are defined by RCLONE_CONFIG_<NAME>_* variables (see the workflow), so no rclone
 # config file is written.
 set -euo pipefail
@@ -56,3 +60,14 @@ rclone sync "$PHOTOS_SOURCE" "$BACKUP_DEST/photos/current" \
 	--backup-dir "$BACKUP_DEST/photos/replaced/$stamp" \
 	--checksum --max-delete "${MAX_PHOTO_MOVES:-50}"
 echo "Photos in sync"
+
+echo "== Storage"
+# Not printed: the log is public, and the size says roughly how many households there are.
+bytes() { rclone size "$1" --json | sed -nE 's/.*"bytes":([0-9]+).*/\1/p'; }
+total=$(($(bytes "$PHOTOS_SOURCE") + $(bytes "$BACKUP_DEST")))
+limit=${STORAGE_ALERT_GB:-5}
+if [ "$total" -gt $((limit * 1000 * 1000 * 1000)) ]; then
+	echo "R2 holds more than $limit GB across the photo and backup buckets: see docs/runbooks/accounts.md, Billing limits" >&2
+	exit 1
+fi
+echo "Under $limit GB"

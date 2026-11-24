@@ -123,7 +123,7 @@ The custom domain must be in place **before the first real user signs in**. User
 |---|---|---|
 | `OIDC_ISSUER` | the dev issuer from the table above | Cloud Run env var |
 | `OIDC_CLIENT_ID` | from step 2 | Cloud Run env var |
-| `OIDC_CLIENT_SECRET` | from step 2 | Secret Manager, mounted by Cloud Run (D15) |
+| `OIDC_CLIENT_SECRET` | from step 2 | `app-secrets` in Secret Manager (`infra/gcp/app-secrets.sh set OIDC_CLIENT_SECRET`), mounted by Cloud Run (D15) |
 | `PUBLIC_BASE_URL` | `http://localhost:7877` | `https://toebeans.co.za` |
 
 Never commit the dev client secret. `.env` is gitignored, and `.env.example` holds only placeholders.
@@ -145,7 +145,7 @@ through the Management API, with an application that can do nothing else.
 |---|---|---|
 | `AUTH0_DOMAIN` | `toe-beans-dev.eu.auth0.com` | `toe-beans.eu.auth0.com`, set in the Deploy workflow. The tenant's own domain: the Management API isn't on the custom domain |
 | `AUTH0_MANAGEMENT_CLIENT_ID` | from step 3 | the `production` environment variable in GitHub |
-| `AUTH0_MANAGEMENT_CLIENT_SECRET` | from step 3 | Secret Manager `auth0-management-client-secret` (`infra/gcp/set-secret.sh`) |
+| `AUTH0_MANAGEMENT_CLIENT_SECRET` | from step 3 | `app-secrets` (`infra/gcp/app-secrets.sh set AUTH0_MANAGEMENT_CLIENT_SECRET`) |
 
 Prod refuses to start without all three, so set them **before** the release that brings S16.5
 reaches `main`. Re-run `infra/gcp/provision.sh` first if the secret doesn't exist yet.
@@ -172,4 +172,4 @@ again; the log says `could not delete the provider accounts` with the status, an
 
 ## Rotating the client secret
 
-Under **Applications → Toe Beans → Credentials**, choose **Rotate**, then update `.env` or the Secret Manager version, and redeploy. Signed-in users keep their sessions, because sessions don't depend on the client secret.
+Under **Applications → Toe Beans → Credentials**, choose **Rotate**, then update `.env` or prod's (`infra/gcp/app-secrets.sh set OIDC_CLIENT_SECRET`), and redeploy. Signed-in users keep their sessions, because sessions don't depend on the client secret.

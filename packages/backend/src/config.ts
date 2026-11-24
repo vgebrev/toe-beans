@@ -1,5 +1,6 @@
 // Configuration comes from env vars only, validated once at startup (architecture §7). The backend
 // owns the schema, not the SvelteKit app, so another host (Fastify, the worker process) reuses it.
+import { createECDH } from 'node:crypto';
 import { z } from 'zod';
 import { PUSH_SERVICES } from './domain/reminders.js';
 
@@ -37,6 +38,64 @@ const workerModeOf = (e: { APP_ENV: string; WORKER_MODE?: 'inline' | 'http' | un
 
 const base64url = (length: number) =>
 	z.string().regex(new RegExp(`^[A-Za-z0-9_-]{${length}}$`), 'must be a base64url VAPID key');
+
+/**
+ * The variables prod's one secret, `APP_SECRETS`, may hold (architecture D45): a JSON object, so
+ * Secret Manager bills one version rather than one per value. Each key also works on its own.
+ */
+const BUNDLED = [
+	'MONGODB_URI',
+	'OIDC_CLIENT_SECRET',
+	'AUTH0_MANAGEMENT_CLIENT_SECRET',
+	'RESEND_API_KEY',
+	'S3_SECRET_ACCESS_KEY',
+	'PROXY_SECRET',
+	'VAPID_PRIVATE_KEY',
+	'TICK_HEARTBEAT_URL'
+] as const;
+
+/** Spreads `APP_SECRETS` into the variables, or names what's wrong with it (never a value). */
+function unbundle(env: Record<string, string>): {
+	env: Record<string, string>;
+	problems: string[];
+} {
+	const { APP_SECRETS: raw, ...rest } = env;
+	if (raw === undefined) return { env: rest, problems: [] };
+	let bundle: unknown;
+	try {
+		bundle = JSON.parse(raw);
+	} catch {
+		return { env: rest, problems: ['APP_SECRETS: must be a JSON object'] };
+	}
+	if (typeof bundle !== 'object' || bundle === null || Array.isArray(bundle)) {
+		return { env: rest, problems: ['APP_SECRETS: must be a JSON object'] };
+	}
+	const problems: string[] = [];
+	const merged = { ...rest };
+	for (const [key, value] of Object.entries(bundle)) {
+		if (!(BUNDLED as readonly string[]).includes(key)) {
+			problems.push(`APP_SECRETS: ${key} doesn't belong in it`);
+		} else if (typeof value !== 'string') {
+			problems.push(`APP_SECRETS: ${key} must be a string`);
+		} else if (key in rest) {
+			problems.push(`${key}: set both on its own and in APP_SECRETS`);
+		} else if (value !== '') {
+			merged[key] = value;
+		}
+	}
+	return { env: merged, problems };
+}
+
+/** The VAPID public key for a private one (P-256), or undefined if it isn't a valid key. */
+function vapidPublicKeyOf(privateKey: string): string | undefined {
+	try {
+		const ecdh = createECDH('prime256v1');
+		ecdh.setPrivateKey(Buffer.from(privateKey, 'base64url'));
+		return ecdh.getPublicKey().toString('base64url');
+	} catch {
+		return undefined;
+	}
+}
 
 /** Relative to where the server starts: apps/web for `pnpm dev`. Gitignored. */
 const LOCAL_PHOTO_DIR = '.data/photos';
@@ -119,7 +178,8 @@ const Env = z
 		S3_ACCESS_KEY_ID: z.string().max(200).optional(),
 		S3_SECRET_ACCESS_KEY: z.string().max(200).optional(),
 		// Web Push (architecture §6.2). Keep the same pair for good: changing it breaks every
-		// device's subscription until the app next opens. `pnpm vapid` makes one.
+		// device's subscription until the app next opens. `pnpm vapid` makes one. The public key
+		// follows from the private one; if given as well, it must match.
 		VAPID_PUBLIC_KEY: base64url(87).optional(),
 		VAPID_PRIVATE_KEY: base64url(43).optional(),
 		VAPID_SUBJECT: z
@@ -189,15 +249,22 @@ const Env = z
 		if (senderOf(e) === 'resend' && !e.RESEND_API_KEY) {
 			required('RESEND_API_KEY', 'required to send through Resend');
 		}
-		if (Boolean(e.VAPID_PUBLIC_KEY) !== Boolean(e.VAPID_PRIVATE_KEY)) {
-			required('VAPID_PRIVATE_KEY', 'set both VAPID keys, or neither');
+		if (e.VAPID_PUBLIC_KEY && !e.VAPID_PRIVATE_KEY) {
+			required('VAPID_PRIVATE_KEY', 'required with VAPID_PUBLIC_KEY');
+		}
+		if (e.VAPID_PRIVATE_KEY) {
+			const derived = vapidPublicKeyOf(e.VAPID_PRIVATE_KEY);
+			if (!derived) required('VAPID_PRIVATE_KEY', 'must be a P-256 private key');
+			else if (e.VAPID_PUBLIC_KEY && e.VAPID_PUBLIC_KEY !== derived) {
+				required('VAPID_PUBLIC_KEY', "doesn't match VAPID_PRIVATE_KEY");
+			}
 		}
 		if (Boolean(e.TICK_AUDIENCE) !== Boolean(e.TICK_INVOKER)) {
 			required('TICK_INVOKER', 'set TICK_AUDIENCE and TICK_INVOKER together');
 		}
 		if (e.APP_ENV === 'prod') {
 			// A fresh key pair each start would break every subscription on each deploy.
-			if (!e.VAPID_PUBLIC_KEY) required('VAPID_PUBLIC_KEY', 'required in prod');
+			if (!e.VAPID_PRIVATE_KEY) required('VAPID_PRIVATE_KEY', 'required in prod');
 			if (e.PUSH_SERVICE_ORIGINS) required('PUSH_SERVICE_ORIGINS', 'not allowed in prod');
 			if (workerModeOf(e) === 'http' && !e.TICK_SECRET && !e.TICK_AUDIENCE) {
 				required('TICK_AUDIENCE', 'required with WORKER_MODE=http (or TICK_SECRET)');
@@ -316,10 +383,18 @@ export class ConfigError extends Error {
  */
 export function loadConfig(env: Record<string, string | undefined>): Config {
 	// An empty variable counts as unset, as `FOO=` in a .env file usually means.
-	const present = Object.fromEntries(Object.entries(env).filter(([, v]) => v !== ''));
-	const parsed = Env.safeParse(present, { reportInput: false });
-	if (!parsed.success) {
-		const problems = parsed.error.issues.map((i) => `${i.path.join('.')}: ${i.message}`);
+	const present = Object.fromEntries(
+		Object.entries(env).filter(
+			(entry): entry is [string, string] => entry[1] !== undefined && entry[1] !== ''
+		)
+	);
+	const unbundled = unbundle(present);
+	const parsed = Env.safeParse(unbundled.env, { reportInput: false });
+	const problems = [
+		...unbundled.problems,
+		...(parsed.success ? [] : parsed.error.issues.map((i) => `${i.path.join('.')}: ${i.message}`))
+	];
+	if (!parsed.success || problems.length > 0) {
 		throw new ConfigError(`Invalid configuration:\n  ${problems.join('\n  ')}`);
 	}
 	const e = parsed.data;
@@ -350,10 +425,12 @@ export function loadConfig(env: Record<string, string | undefined>): Config {
 		photos: photoConfig(e),
 		...(e.CONTENT_DIR && { contentDir: e.CONTENT_DIR }),
 		push: {
-			...(e.VAPID_PUBLIC_KEY &&
-				e.VAPID_PRIVATE_KEY && {
-					vapid: { publicKey: e.VAPID_PUBLIC_KEY, privateKey: e.VAPID_PRIVATE_KEY }
-				}),
+			...(e.VAPID_PRIVATE_KEY && {
+				vapid: {
+					publicKey: vapidPublicKeyOf(e.VAPID_PRIVATE_KEY)!,
+					privateKey: e.VAPID_PRIVATE_KEY
+				}
+			}),
 			subject:
 				e.VAPID_SUBJECT ??
 				(e.PUBLIC_BASE_URL?.startsWith('https:')

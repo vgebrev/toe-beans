@@ -2,8 +2,8 @@
 # move by pull request after CI passes, and by hand. The job runs in the `production` environment
 # (main only, owner approval), the one place with `id-token: write`. It gets GCP credentials by
 # Workload Identity Federation, pinned to this repo's ID, that environment and main
-# (infra/gcp/provision.sh). GitHub holds no secrets: the runtime secrets stay in Secret Manager and
-# Cloud Run mounts them.
+# (infra/gcp/provision.sh). This environment holds no secrets: the runtime secrets stay in Secret
+# Manager, in one secret (app-secrets), and Cloud Run mounts it.
 #
 # Non-secret settings come from the production environment's variables:
 #   OIDC_CLIENT_ID     the prod Auth0 application's client ID
@@ -142,18 +142,9 @@ jobs:
             "ADDRESS_HEADER=x-toe-beans-client"
           )
           [ -z "$SENTRY_DSN" ] || vars+=("SENTRY_DSN=$SENTRY_DSN")
-          secrets=(
-            "MONGODB_URI=mongodb-uri:latest"
-            "OIDC_CLIENT_SECRET=oidc-client-secret:latest"
-            "AUTH0_MANAGEMENT_CLIENT_SECRET=auth0-management-client-secret:latest"
-            "RESEND_API_KEY=resend-api-key:latest"
-            "S3_SECRET_ACCESS_KEY=r2-secret-access-key:latest"
-            "PROXY_SECRET=proxy-secret:latest"
-            "VAPID_PUBLIC_KEY=vapid-public-key:latest"
-            "VAPID_PRIVATE_KEY=vapid-private-key:latest"
-            # Better Stack's heartbeat for the tick (S14.4, docs/runbooks/monitoring.md).
-            "TICK_HEARTBEAT_URL=tick-heartbeat-url:latest"
-          )
+          # Every secret is in one, a JSON object the app spreads into its variables, so Secret
+          # Manager bills one version, not one per value (architecture D45, infra/gcp/app-secrets.sh).
+          secrets=("APP_SECRETS=app-secrets:latest")
           # Values can hold commas (none do today); ^|^ makes | the list separator instead.
           gcloud run deploy "$SERVICE" --project "$PROJECT" --region "$REGION" --quiet \
             --image "$IMAGE@$DIGEST" \

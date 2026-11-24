@@ -1,3 +1,4 @@
+import { createECDH } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
 import { ConfigError, loadConfig } from './config.js';
 import { PUSH_SERVICES } from './domain/reminders.js';
@@ -24,7 +25,10 @@ const local = {
 	push: { subject: 'mailto:hello@toebeans.co.za', allowedEndpoints: [...PUSH_SERVICES] },
 	worker: { mode: 'inline', intervalMs: 300_000, auth: {} }
 };
-const vapid = { VAPID_PUBLIC_KEY: 'B'.repeat(87), VAPID_PRIVATE_KEY: 'p'.repeat(43) };
+const vapidPair = createECDH('prime256v1');
+vapidPair.generateKeys();
+const vapidPublicKey = vapidPair.getPublicKey().toString('base64url');
+const vapid = { VAPID_PRIVATE_KEY: vapidPair.getPrivateKey().toString('base64url') };
 const scheduler = {
 	TICK_AUDIENCE: 'https://toebeans.co.za/internal/tick',
 	TICK_INVOKER: 'toe-beans-tick@toe-beans-co-za.iam.gserviceaccount.com'
@@ -110,7 +114,7 @@ describe('loadConfig', () => {
 				secretAccessKey: 'key-secret'
 			},
 			push: {
-				vapid: { publicKey: vapid.VAPID_PUBLIC_KEY, privateKey: vapid.VAPID_PRIVATE_KEY },
+				vapid: { publicKey: vapidPublicKey, privateKey: vapid.VAPID_PRIVATE_KEY },
 				subject: 'https://toebeans.co.za',
 				allowedEndpoints: [...PUSH_SERVICES]
 			},
@@ -124,8 +128,8 @@ describe('loadConfig', () => {
 
 	describe('reminders', () => {
 		it('need lasting VAPID keys and a way to run the tick in prod', () => {
-			const noKeys = { ...prod, VAPID_PUBLIC_KEY: '', VAPID_PRIVATE_KEY: '' };
-			expect(() => loadConfig(noKeys)).toThrow(/VAPID_PUBLIC_KEY: required in prod/);
+			const noKeys = { ...prod, VAPID_PRIVATE_KEY: '' };
+			expect(() => loadConfig(noKeys)).toThrow(/VAPID_PRIVATE_KEY: required in prod/);
 			const noTick = { ...prod, TICK_AUDIENCE: '', TICK_INVOKER: '' };
 			expect(() => loadConfig(noTick)).toThrow(/TICK_AUDIENCE: required with WORKER_MODE=http/);
 			const secret = 's'.repeat(32);
@@ -142,9 +146,23 @@ describe('loadConfig', () => {
 			);
 		});
 
-		it('take both VAPID keys or neither, and both scheduler settings or neither', () => {
-			expect(() => loadConfig({ VAPID_PUBLIC_KEY: vapid.VAPID_PUBLIC_KEY })).toThrow(
-				/VAPID_PRIVATE_KEY: set both/
+		it('work out the VAPID public key, which must match if given too', () => {
+			expect(loadConfig(vapid).push.vapid?.publicKey).toBe(vapidPublicKey);
+			const both = { ...vapid, VAPID_PUBLIC_KEY: vapidPublicKey };
+			expect(loadConfig(both).push.vapid?.publicKey).toBe(vapidPublicKey);
+			const other = createECDH('prime256v1');
+			other.generateKeys();
+			const mismatch = { ...vapid, VAPID_PUBLIC_KEY: other.getPublicKey().toString('base64url') };
+			expect(() => loadConfig(mismatch)).toThrow(/VAPID_PUBLIC_KEY: doesn't match/);
+			// Zero isn't a P-256 private key.
+			expect(() => loadConfig({ VAPID_PRIVATE_KEY: 'A'.repeat(43) })).toThrow(
+				/VAPID_PRIVATE_KEY: must be a P-256 private key/
+			);
+		});
+
+		it('take a private VAPID key with any public one, and both scheduler settings or neither', () => {
+			expect(() => loadConfig({ VAPID_PUBLIC_KEY: vapidPublicKey })).toThrow(
+				/VAPID_PRIVATE_KEY: required with VAPID_PUBLIC_KEY/
 			);
 			expect(() => loadConfig({ TICK_AUDIENCE: scheduler.TICK_AUDIENCE })).toThrow(/TICK_INVOKER/);
 			expect(() => loadConfig({ VAPID_PUBLIC_KEY: 'short', VAPID_PRIVATE_KEY: 'x' })).toThrow(
@@ -333,6 +351,37 @@ describe('loadConfig', () => {
 		expect(() => loadConfig({ PUBLIC_BASE_URL: 'https://toebeans.co.za/app' })).toThrow(
 			/PUBLIC_BASE_URL: must be an origin/
 		);
+	});
+
+	describe('APP_SECRETS', () => {
+		const { MONGODB_URI, RESEND_API_KEY, PROXY_SECRET, VAPID_PRIVATE_KEY, ...rest } = prod;
+		const bundle = { MONGODB_URI, RESEND_API_KEY, PROXY_SECRET, VAPID_PRIVATE_KEY };
+
+		it('spreads into the variables it holds', () => {
+			const config = loadConfig({ ...rest, APP_SECRETS: JSON.stringify(bundle) });
+			expect(config).toEqual(loadConfig(prod));
+		});
+
+		it('refuses what is not a JSON object of known strings, naming no value', () => {
+			const secret = 'not-json-s3cr3t';
+			const bad = (raw: string) => () => loadConfig({ APP_SECRETS: raw });
+			expect(bad(secret)).toThrow(/APP_SECRETS: must be a JSON object/);
+			expect(bad('["x"]')).toThrow(/APP_SECRETS: must be a JSON object/);
+			expect(bad('{"OIDC_CLIENT_ID":"x"}')).toThrow(/APP_SECRETS: OIDC_CLIENT_ID doesn't belong/);
+			expect(bad('{"RESEND_API_KEY":1}')).toThrow(/APP_SECRETS: RESEND_API_KEY must be a string/);
+			try {
+				bad(secret)();
+			} catch (e) {
+				expect(String(e)).not.toContain(secret);
+			}
+		});
+
+		it('refuses a variable set both on its own and in it', () => {
+			const twice = { ...prod, APP_SECRETS: JSON.stringify({ MONGODB_URI }) };
+			expect(() => loadConfig(twice)).toThrow(
+				/MONGODB_URI: set both on its own and in APP_SECRETS/
+			);
+		});
 	});
 
 	it('lists every bad variable without echoing values', () => {

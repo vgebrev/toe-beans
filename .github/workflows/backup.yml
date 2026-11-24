@@ -1,10 +1,14 @@
 # Nightly backup (architecture §10, D36; backlog S14.2): the prod database, encrypted with age, and
 # a copy of the photo bucket, both into the R2 bucket toe-beans-backups (infra/backup/README.md).
 #
-# Keyless, like the deploy: the job runs in the `backups` environment (main only, no approval, so
-# it can run unattended) and gets GCP credentials by Workload Identity Federation, from a pool of
-# its own that accepts only that environment on main. They act as toe-beans-backup, which can read
-# the three backup secrets and nothing else (infra/gcp/provision.sh). GitHub holds no secrets.
+# The job runs in the `backups` environment (main only, no approval, so it can run unattended),
+# whose secrets only that environment's jobs on main can read (architecture D36, S19.6; they were in
+# Secret Manager until then, where each cost US$0.06 a month):
+#   BACKUP_MONGODB_URI           the read-only toe-beans-backup user's Atlas connection string
+#   BACKUP_R2_SECRET_ACCESS_KEY  the toe-beans-backup R2 token's secret (Object Read & Write)
+#   PHOTOS_R2_SECRET_ACCESS_KEY  the toe-beans-photos-read R2 token's secret (Object Read)
+#   BACKUP_HEARTBEAT_URL         Better Stack's toe-beans-backup heartbeat
+# It needs no cloud credentials.
 #
 # Non-secret settings come from the backups environment's variables:
 #   AGE_RECIPIENT              the owner's age public key (age1…); the private key never comes here
@@ -35,7 +39,6 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  PROJECT: toe-beans-co-za
   # Each download is pinned by its SHA-256. Never name these RCLONE_*: rclone reads every
   # RCLONE_<FLAG> variable as that flag, so RCLONE_VERSION became --version.
   TOOLS_MONGO_VERSION: 100.19.1
@@ -55,7 +58,6 @@ jobs:
     environment: backups
     permissions:
       contents: read
-      id-token: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -73,17 +75,16 @@ jobs:
           cp mongodb-database-tools-*/bin/mongodump age/age "rclone-$TOOLS_RCLONE_VERSION-linux-amd64/rclone" "$RUNNER_TEMP/bin/"
           echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
 
-      - uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3.0.0
-        with:
-          workload_identity_provider: projects/1047834821273/locations/global/workloadIdentityPools/github-backups/providers/toe-beans-backups
-          service_account: toe-beans-backup@toe-beans-co-za.iam.gserviceaccount.com
-
       - name: Back up
         env:
           AGE_RECIPIENT: ${{ vars.AGE_RECIPIENT }}
           R2_ACCOUNT_ID: ${{ vars.R2_ACCOUNT_ID }}
           BACKUP_R2_ACCESS_KEY_ID: ${{ vars.BACKUP_R2_ACCESS_KEY_ID }}
           PHOTOS_R2_ACCESS_KEY_ID: ${{ vars.PHOTOS_R2_ACCESS_KEY_ID }}
+          # GitHub masks these in the log.
+          MONGODB_URI: ${{ secrets.BACKUP_MONGODB_URI }}
+          RCLONE_CONFIG_BACKUP_SECRET_ACCESS_KEY: ${{ secrets.BACKUP_R2_SECRET_ACCESS_KEY }}
+          RCLONE_CONFIG_PHOTOS_SECRET_ACCESS_KEY: ${{ secrets.PHOTOS_R2_SECRET_ACCESS_KEY }}
           MONGODB_DB: toe-beans
           BACKUP_DEST: backup:toe-beans-backups
           PHOTOS_SOURCE: photos:toe-beans-photos
@@ -99,21 +100,12 @@ jobs:
           for name in AGE_RECIPIENT R2_ACCOUNT_ID BACKUP_R2_ACCESS_KEY_ID PHOTOS_R2_ACCESS_KEY_ID; do
             [ -n "${!name}" ] || { echo "::error::Set $name in the backups environment's variables"; exit 1; }
           done
-          # Each value is masked in the log, then exported; never inside $(…), where the mask
-          # command would end up in the value instead of reaching the runner.
-          read_secret() {
-            local value
-            value=$(gcloud secrets versions access latest --secret="$1" --project="$PROJECT")
-            echo "::add-mask::$value"
-            printf -v "$2" %s "$value"
-            export "${2?}"
-          }
-          read_secret backup-mongodb-uri MONGODB_URI
+          for name in MONGODB_URI RCLONE_CONFIG_BACKUP_SECRET_ACCESS_KEY RCLONE_CONFIG_PHOTOS_SECRET_ACCESS_KEY; do
+            [ -n "${!name}" ] || { echo "::error::A secret for $name is missing in the backups environment"; exit 1; }
+          done
           # The password on its own, too, in case a message quotes it apart from the URI.
           password=$(sed -nE 's#^[^:]+://[^:@/]+:([^@/]+)@.*#\1#p' <<<"$MONGODB_URI")
           [ -z "$password" ] || echo "::add-mask::$password"
-          read_secret backup-r2-secret-access-key RCLONE_CONFIG_BACKUP_SECRET_ACCESS_KEY
-          read_secret photos-r2-read-secret-access-key RCLONE_CONFIG_PHOTOS_SECRET_ACCESS_KEY
           endpoint="https://$R2_ACCOUNT_ID.r2.cloudflarestorage.com"
           export RCLONE_CONFIG_BACKUP_ENDPOINT="$endpoint" RCLONE_CONFIG_PHOTOS_ENDPOINT="$endpoint"
           export RCLONE_CONFIG_BACKUP_ACCESS_KEY_ID="$BACKUP_R2_ACCESS_KEY_ID"
@@ -123,8 +115,9 @@ jobs:
       # Only after a run that worked: Better Stack alerts when a night passes without one, which
       # catches a run that never started, such as a schedule GitHub turned off (S14.4).
       - name: Report the run to the heartbeat
+        env:
+          URL: ${{ secrets.BACKUP_HEARTBEAT_URL }}
         run: |
           set -euo pipefail
-          url=$(gcloud secrets versions access latest --secret=backup-heartbeat-url --project="$PROJECT")
-          echo "::add-mask::$url"
-          curl --fail --silent --show-error --output /dev/null --max-time 10 --retry 3 "$url"
+          [ -n "$URL" ] || { echo "::error::Set the BACKUP_HEARTBEAT_URL secret in the backups environment"; exit 1; }
+          curl --fail --silent --show-error --output /dev/null --max-time 10 --retry 3 "$URL"

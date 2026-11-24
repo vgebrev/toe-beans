@@ -12,8 +12,10 @@ resources but never secret values.
 
 - **How it runs:** `.github/workflows/backup.yml` runs `backup.sh` at 20:17 UTC (22:17 in South
   Africa; GitHub usually starts it 7 to 8 hours late), and also by hand.
-- **Credentials:** it gets them keylessly, through its own Workload Identity pool. The secrets stay
-  in Secret Manager, and GitHub holds none.
+- **Credentials:** secrets of the GitHub `backups` environment, which only this workflow's job on
+  `main` can read; it needs no cloud credentials (D36, changed in S19.6 to keep Secret Manager in
+  its free tier). GitHub can't show them again, so the read-only string is also in the owner's
+  password manager for restore checks.
 - **The private key** lives only with the owner. Neither GitHub nor GCP can read a dump.
 - **The photo sync stops** rather than move more than 50 photos out of `photos/current/` in one run,
   in case the source has been emptied by mistake. The run fails, and a failed run sends mail.
@@ -23,6 +25,11 @@ resources but never secret values.
 - **A night with no run** (a schedule GitHub turned off, say) sends no mail of its own. After each
   run that worked, the workflow calls Better Stack's `toe-beans-backup` heartbeat, which alerts when
   a day passes without one (`docs/runbooks/monitoring.md` §4).
+- **R2's storage is checked** after each backup: past 5 GB across the photo and backup buckets
+  (half of R2's free 10 GB, `STORAGE_ALERT_GB`), the run fails and so mails the owner, before R2
+  bills (architecture D45, `docs/runbooks/accounts.md` *Billing limits*). The size isn't printed,
+  as the log is public. A run that fails this way has still made the backup, but sends no
+  heartbeat, so Better Stack alerts too while it keeps failing.
 - **What 30 days means:** anything deleted in the app is gone from backups after 30 days. The
   privacy policy (S16.2) relies on that.
 
@@ -40,7 +47,7 @@ age-keygen -o toe-beans-backup.key   # prints "Public key: age1…"
   It must never go into the repo, GitHub or GCP.
 - **If it's lost,** every backup is unreadable. Make a new key, then change `AGE_RECIPIENT`.
   Backups made from then on use the new key.
-- **The public key** goes into GitHub in step 5.
+- **The public key** goes into GitHub in step 4.
 
 ### 2. The bucket and its retention (Cloudflare)
 
@@ -74,16 +81,7 @@ Database Access → Add new database user:
 The connection string is the app's, with this user:
 `mongodb+srv://toe-beans-backup:<password>@<cluster host>/`.
 
-### 4. GCP
-
-```sh
-infra/gcp/provision.sh          # adds toe-beans-backup, its pool and three empty secrets
-infra/gcp/set-secret.sh backup-mongodb-uri                 # the string from step 3
-infra/gcp/set-secret.sh backup-r2-secret-access-key        # toe-beans-backup's secret
-infra/gcp/set-secret.sh photos-r2-read-secret-access-key   # toe-beans-photos-read's secret
-```
-
-### 5. GitHub
+### 4. GitHub
 
 1. Make the `backups` environment, open to `main` only and with no reviewers, so it runs
    unattended.
@@ -101,7 +99,17 @@ gh variable set BACKUP_R2_ACCESS_KEY_ID --env backups --body '<toe-beans-backup 
 gh variable set PHOTOS_R2_ACCESS_KEY_ID --env backups --body '<toe-beans-photos-read access key ID>'
 ```
 
-### 6. First run
+3. Set its secrets. `gh` prompts for each without echoing it; GitHub masks them in the log and
+   can't show them again, so keep the read-only string in your password manager too.
+
+```sh
+gh secret set BACKUP_MONGODB_URI --env backups            # the string from step 3
+gh secret set BACKUP_R2_SECRET_ACCESS_KEY --env backups   # toe-beans-backup's secret
+gh secret set PHOTOS_R2_SECRET_ACCESS_KEY --env backups   # toe-beans-photos-read's secret
+gh secret set BACKUP_HEARTBEAT_URL --env backups          # docs/runbooks/monitoring.md §4
+```
+
+### 5. First run
 
 Schedules run from `main`, so the workflow starts once it has been merged there. Then:
 
