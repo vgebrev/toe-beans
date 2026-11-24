@@ -72,7 +72,7 @@ In production the app runs on Google Cloud Run in Johannesburg behind a Cloudfla
 email through Resend and error reports in Sentry. Cloud Scheduler calls the reminder tick every
 5 minutes. Pushes to `main` (by pull request from `develop`, once CI passes) deploy through the
 [Deploy workflow](.github/workflows/deploy.yml) after the owner approves; it signs in to GCP by
-Workload Identity Federation, so GitHub holds no secrets. [`infra/`](infra) has the provisioning
+Workload Identity Federation, so the app's secrets stay in GCP. [`infra/`](infra) has the provisioning
 script and the Worker.
 
 ## Getting started

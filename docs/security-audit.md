@@ -1,8 +1,8 @@
 # Toe Beans — Security Audit
 
-**Version:** 0.4
+**Version:** 0.6
 **Date:** 23 November 2026
-**Status:** §1–§6, the code review: every finding fixed or decided (S15.2). §7, the external pentest: both findings fixed (S18.3).
+**Status:** §1–§6, the code review: every finding fixed or decided (S15.2). §7, the external pentest: both findings fixed (S18.3). §8, found since: fixed.
 **Inputs:** `docs/requirements.md` v1.0, `docs/architecture.md` v1.21, the code at commit `1ea686e` (`develop`); for §7, prod on 1.0.4 and the repo at `main` `904516e`
 
 **Changes in 0.1:** first audit of the attack surface before release.
@@ -12,6 +12,10 @@
 **Changes in 0.3:** §7, the first external pentest (S18.2, 22 November 2026), run on prod from outside as `docs/runbooks/pentest.md` describes: no critical, high or medium findings, household isolation confirmed live, one low finding and one informational, and a suspected lockout disproved. Open findings are summarised without detail until fixed (runbook §7).
 
 **Changes in 0.4:** §7: both pentest findings fixed (S18.3, architecture 1.41): P1, now described, by revoking the invitations of someone who leaves or deletes their account (D18); P2 by reading a weakened ETag in `If-Match` (§3.3).
+
+**Changes in 0.5:** §8, findings since the pentest: E1, the edge Worker sending its proxy secret to a host named in the path, found while checking the edge for S19.3 and fixed the same day.
+
+**Changes in 0.6:** §7.4's CI note: since S19.6 the nightly backup holds its own credentials as secrets of GitHub's `backups` environment instead of reading them from Secret Manager through Workload Identity Federation (architecture 1.47, D36). The app's secrets stay in GCP.
 
 ---
 
@@ -203,10 +207,20 @@ No critical, high or medium findings. No way was found for one household, or a p
 ### 7.4 Reviewed in code, no issue found
 
 - **Secrets:** none in the repo or any commit, pull-request ref or tag GitHub serves; only labelled placeholders and e2e constants.
-- **CI:** a read-only token and no secrets in CI, no `pull_request_target` or `workflow_run`; deploy and backup are gated on the owner's approval and use Workload Identity Federation, so GitHub holds no cloud keys; actions pinned by commit SHA.
+- **CI:** a read-only token and no secrets in CI, no `pull_request_target` or `workflow_run`; deploy and backup are gated on the owner's approval and use Workload Identity Federation, so GitHub holds no cloud keys (since S19.6 the backup holds its own credentials as `backups` environment secrets instead, D36); actions pinned by commit SHA.
 - **`/oops`:** forwards only envelopes for the server's own DSN, only to its ingest host; bounded, rate-limited, and stripped of the sender's address, Referer and cookies.
 - **Sign-in and sessions, invitations, photos, injection and role checks:** as §5 describes.
 
 ### 7.5 The engagement
 
 The runbook's rules held: writes only to the test accounts' own data, nothing aimed at the providers, no load, nothing published, and no credential found or used. All budgets stayed well inside their limits: about 170 requests to the app (of 5,000), 5 straight to Cloud Run, 3 sign-ins, 1 invitation email, 2 tick requests, no photo uploads or error reports, and about 18 documents. `/readyz` stayed 2xx throughout, so no uptime alert was expected; the platform logs were expected to show the refused origin and tick requests. The tester deleted the three test accounts with *Delete account* at the end, which erased their households.
+
+## 8. Found since the pentest
+
+| # | Finding | Severity | Confidence | Resolution |
+|---|---|---|---|---|
+| E1 | The edge Worker sends its proxy secret to a host named in the path | Medium | Confirmed in code; the crash on `//` confirmed live | Fixed, secret rotated (23 November 2026) |
+
+**E1. The Worker sends its proxy secret to a host named in the path — medium.** Found on 23 November 2026 while checking the edge for tracking scripts (backlog S19.3): `https://toebeans.co.za//` answered Cloudflare's error 1101, an exception in the Worker. `infra/edge/worker.js` built the upstream URL as `new URL(url.pathname + url.search, ORIGIN)`. A path starting `//` is a scheme-relative reference, so `//attacker.example/x` resolved to `https://attacker.example/x`, and the Worker sent the request there with `x-toe-beans-proxy` (D32) and `x-toe-beans-client` set; a bare `//` threw. Anyone could have collected the secret with one request. With it they could call Cloud Run directly, past the WAF rule (D42), and set `x-toe-beans-client` to anything, getting round the per-address rate limits (§7, F1). Sign-in, the session and the household checks still apply to every route, so it gave no access to data. Confirmed with Node's URL parser rather than against prod, which would have sent the secret out. Whether anyone used it can't be known: Worker logs are off (D34), and Cloud Run sees the Worker's requests and any made with the secret alike. The pentest (§7) tested the origin with no secret and with a wrong one, not how the Worker builds its upstream URL.
+
+- **Resolution:** the Worker joins the origin and path as text (`ORIGIN + url.pathname + url.search`), so the host is always the Cloud Run service; deployed, and `proxy-secret` rotated and the app redeployed onto it. Live afterwards, `//` redirects to sign-in and `//example.com/x` is the app's own 404. The pentest runbook (§5) now has the tester try paths that could change the upstream host.

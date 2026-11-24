@@ -11,7 +11,7 @@ import type {
 import { notFound, staleVersion } from '../../application/errors.js';
 import type { Id } from '../../domain/id.js';
 import { err, ok } from '../../domain/result.js';
-import type { DisplayNameSource, Identity, User } from '../../domain/user.js';
+import type { DisplayNameSource, Identity, TermsAcceptance, User } from '../../domain/user.js';
 import { currentSession } from './unit-of-work.js';
 
 export const USERS = 'users';
@@ -31,6 +31,8 @@ interface UserDoc {
 	/** Since schema 2. */
 	displayNameSource?: DisplayNameSource;
 	avatarUrl?: string;
+	/** Since schema 3; absent until the person accepts the terms. */
+	termsAccepted?: TermsAcceptance;
 	deletedAt?: Date;
 	version: number;
 	createdAt: Date;
@@ -38,8 +40,8 @@ interface UserDoc {
 	schemaVersion: number;
 }
 
-/** 2 added `displayNameSource`. */
-const USER_SCHEMA = 2;
+/** 2 added `displayNameSource`, 3 `termsAccepted`. */
+const USER_SCHEMA = 3;
 
 /**
  * Schema 1 didn't record where the name came from. It was always the provider's, or the email's
@@ -68,6 +70,9 @@ function toUser(doc: UserDoc): User {
 		updatedAt: doc.updatedAt
 	};
 	if (doc.avatarUrl) user.avatarUrl = doc.avatarUrl;
+	if (doc.termsAccepted) {
+		user.termsAccepted = { version: doc.termsAccepted.version, at: doc.termsAccepted.at };
+	}
 	if (doc.deletedAt) user.deletedAt = doc.deletedAt;
 	return user;
 }
@@ -150,6 +155,21 @@ export function mongoUsers(db: Db): UserRepository {
 			if (doc) return ok(toUser(doc));
 			const exists = await users.countDocuments(live, { limit: 1, session: currentSession() });
 			return err(exists ? staleVersion : notFound('user'));
+		},
+		async acceptTerms(id, { version, at }) {
+			const doc = await users.findOneAndUpdate(
+				{ _id: id, deletedAt: { $exists: false } },
+				{
+					$set: {
+						termsAccepted: { version, at },
+						updatedAt: at,
+						schemaVersion: USER_SCHEMA
+					},
+					$inc: { version: 1 }
+				},
+				{ returnDocument: 'after', session: currentSession() }
+			);
+			return doc ? ok(toUser(doc)) : err(notFound('user'));
 		},
 		async delete(id) {
 			await users.deleteOne({ _id: id }, { session: currentSession() });

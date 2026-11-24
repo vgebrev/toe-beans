@@ -13,6 +13,7 @@ function fakeAccount(overrides: Partial<Account> = {}): Account {
 		profile: vi.fn(async () => ok(profile)),
 		rename: vi.fn(async (_ctx, { displayName }) => ok({ ...profile, displayName, version: 8 })),
 		delete: vi.fn(async () => ok(undefined)),
+		acceptTerms: vi.fn(async () => ok(undefined)),
 		...overrides
 	};
 }
@@ -96,6 +97,29 @@ describe('account http', () => {
 		expect(await createAccountHttp(unreachable).delete(ctx)).toMatchObject({
 			status: 503,
 			body: { type: 'toe-beans/unavailable' }
+		});
+	});
+
+	it('POST terms accepts the version in force: a 204, a 409 for others, a 400 for no body', async () => {
+		const account = fakeAccount();
+		const http = createAccountHttp(account);
+		const current = '2026-11-19';
+		expect(await http.acceptTerms(ctx, { body: { version: current }, current })).toMatchObject({
+			status: 204
+		});
+		expect(account.acceptTerms).toHaveBeenCalledWith(ctx, { version: current, current });
+		const changed = fakeAccount({
+			acceptTerms: async () => err({ kind: 'conflict', message: 'The terms have changed.' })
+		});
+		expect(
+			await createAccountHttp(changed).acceptTerms(ctx, {
+				body: { version: '2026-01-01' },
+				current
+			})
+		).toMatchObject({ status: 409, body: { type: 'toe-beans/conflict' } });
+		expect(await http.acceptTerms(ctx, { body: undefined, current })).toMatchObject({
+			status: 400,
+			body: { type: 'toe-beans/validation' }
 		});
 	});
 });

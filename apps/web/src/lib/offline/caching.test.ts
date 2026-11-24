@@ -2,9 +2,11 @@ import { describe, expect, it } from 'vitest';
 import {
 	cachesToDelete,
 	isGatewayError,
+	MAINTENANCE_HEADER,
 	mayBeCold,
 	precachePaths,
-	QUIET_FOR_MS
+	QUIET_FOR_MS,
+	showsUnreachable
 } from './caching.js';
 
 describe('precachePaths', () => {
@@ -35,6 +37,20 @@ describe('isGatewayError', () => {
 	it('is the platform answering for the app, not the app itself', () => {
 		expect([502, 503, 504].every(isGatewayError)).toBe(true);
 		expect([200, 404, 500].some(isGatewayError)).toBe(false);
+	});
+});
+
+describe('showsUnreachable', () => {
+	const answer = (status: number, headers: Record<string, string> = {}) => ({
+		status,
+		headers: new Headers(headers)
+	});
+
+	it("stands in for a gateway error, but not for the edge's maintenance page", () => {
+		expect(showsUnreachable(answer(503))).toBe(true);
+		expect(showsUnreachable(answer(502))).toBe(true);
+		expect(showsUnreachable(answer(503, { [MAINTENANCE_HEADER]: '1' }))).toBe(false);
+		expect(showsUnreachable(answer(200))).toBe(false);
 	});
 });
 

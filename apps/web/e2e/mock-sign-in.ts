@@ -20,8 +20,20 @@ export function newPerson(label = 'sam'): TestPerson {
 	return { subject: `${label}-${id}`, email: `${label}+${id}@example.com`, name: `Test ${label}` };
 }
 
-/** Fills in the mock provider's sign-in form, which the page must be on. */
-export async function signInAtMockProvider(page: Page, person: TestPerson): Promise<void> {
+/** The mock provider's origin (playwright.config.ts `OIDC_ISSUER`). */
+export const MOCK_PROVIDER = 'http://localhost:8090';
+
+/**
+ * Fills in the mock provider's sign-in form, which the page must be on. Back at the app, someone
+ * who hasn't accepted the terms is asked to (S19.1); `agree` accepts them as a person would, so
+ * suites about other things land where the app sends them next. Without it, the page is left
+ * wherever the sign-in ended.
+ */
+export async function signInAtMockProvider(
+	page: Page,
+	person: TestPerson,
+	{ agree = true }: { agree?: boolean } = {}
+): Promise<void> {
 	await expect(page.getByRole('heading', { name: 'Mock OAuth2 Server Sign-in' })).toBeVisible();
 	await page.getByPlaceholder('Enter any user/subject').fill(person.subject);
 	await page.locator('textarea[name="claims"]').fill(
@@ -32,6 +44,18 @@ export async function signInAtMockProvider(page: Page, person: TestPerson): Prom
 		})
 	);
 	await page.getByRole('button', { name: 'Sign-in' }).click();
+	if (!agree) return;
+	await page.waitForURL(
+		(url) => url.origin !== MOCK_PROVIDER && !url.pathname.startsWith('/auth/')
+	);
+	if (new URL(page.url()).pathname === '/agree') await acceptTerms(page);
+}
+
+/** Ticks the age and terms box on the agree page and carries on (S19.1). */
+export async function acceptTerms(page: Page): Promise<void> {
+	await page.getByRole('checkbox', { name: /18 or older/ }).check();
+	await page.getByRole('button', { name: 'Continue' }).click();
+	await page.waitForURL((url) => url.pathname !== '/agree');
 }
 
 /** The time zone every household made through `createHousehold` keeps its clocks in. */
@@ -65,12 +89,20 @@ export async function createHousehold(
 	expect(response.status()).toBe(201);
 }
 
-/** Signs in as someone new from the sign-in page, landing wherever the app sends them. */
-export async function signIn(page: Page, person: TestPerson, returnTo?: string): Promise<void> {
+/**
+ * Signs in as someone new from the sign-in page, accepting the terms unless `agree` is false,
+ * landing wherever the app sends them.
+ */
+export async function signIn(
+	page: Page,
+	person: TestPerson,
+	returnTo?: string,
+	{ agree = true }: { agree?: boolean } = {}
+): Promise<void> {
 	const query = returnTo ? `?returnTo=${encodeURIComponent(returnTo)}` : '';
 	await page.goto(`/sign-in${query}`);
 	await page.getByRole('link', { name: 'Sign in' }).click();
-	await signInAtMockProvider(page, person);
+	await signInAtMockProvider(page, person, { agree });
 }
 
 /** The mock's page loads a web font from Google; tests don't need it to reach the internet. */

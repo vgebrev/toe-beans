@@ -42,21 +42,54 @@ export interface LegalDocument {
 	title: string;
 	/** As the doc writes it, e.g. "19 November 2026". */
 	updated: string;
+	/**
+	 * The same date as `YYYY-MM-DD`: the version people accept (backlog S19.1), so a new date on the
+	 * terms asks everyone again.
+	 */
+	version: string;
 	/** Rendered from our own Markdown, so it's trusted. */
 	html: string;
+}
+
+const MONTHS = [
+	'January',
+	'February',
+	'March',
+	'April',
+	'May',
+	'June',
+	'July',
+	'August',
+	'September',
+	'October',
+	'November',
+	'December'
+];
+
+/** "19 November 2026" as "2026-11-19", or null if it isn't a date written that way. */
+export function isoDate(written: string): string | null {
+	const match = /^(\d{1,2}) ([A-Z][a-z]+) (\d{4})$/.exec(written);
+	const month = match ? MONTHS.indexOf(match[2]!) + 1 : 0;
+	if (!match || month === 0) return null;
+	const iso = `${match[3]}-${String(month).padStart(2, '0')}-${match[1]!.padStart(2, '0')}`;
+	return new Date(`${iso}T00:00:00Z`).toISOString().startsWith(iso) ? iso : null;
 }
 
 export function legalDocument(source: string): LegalDocument {
 	const updated = /^\*\*Date:\*\* (.+)$/m.exec(source)?.[1]?.trim();
 	const start = source.search(/^---$/m);
 	const heading = /^# (.+)\n/m.exec(source.slice(start));
-	if (!updated || start < 0 || !heading) {
-		throw new Error('A legal doc needs a **Date:** line, then a --- line, then a # title');
+	const version = updated && isoDate(updated);
+	if (!version || start < 0 || !heading) {
+		throw new Error(
+			'A legal doc needs a **Date:** line (e.g. 19 November 2026), then a --- line, then a # title'
+		);
 	}
 	const body = source.slice(start + heading.index + heading[0].length);
 	return {
 		title: heading[1]!.trim(),
-		updated,
+		updated: updated!,
+		version,
 		html: markdown.parse(body, { async: false })
 	};
 }

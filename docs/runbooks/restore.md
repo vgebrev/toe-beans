@@ -46,11 +46,12 @@ age -d -i /path/to/toe-beans-backup.key dump.age |
 		--nsFrom='toe-beans.*' --nsTo='restore-check.*'
 ```
 
-Compare it with prod, using the backup user's read-only string (Secret Manager
-`backup-mongodb-uri`). Run this from the repo root:
+Compare it with prod, using the backup user's read-only string. It's in your password manager:
+GitHub keeps the `backups` environment's copy (`BACKUP_MONGODB_URI`) but can't show it. Run this
+from the repo root, pasting the string at the prompt:
 
 ```sh
-SOURCE_URI="$(gcloud secrets versions access latest --secret=backup-mongodb-uri --project=toe-beans-co-za)" \
+read -rsp 'Read-only string: ' SOURCE_URI && export SOURCE_URI && echo
 SOURCE_DB=toe-beans RESTORED_URI="$LOCAL" RESTORED_DB=restore-check infra/backup/compare.sh
 ```
 
@@ -82,11 +83,11 @@ Do §3 first, so you know the dump is good before prod changes.
    ```
 
 2. **Restore the database.** Use the app's own user, `toe-beans-app`, which can write to `toe-beans`
-   (Secret Manager `mongodb-uri`). `--drop` replaces each collection in the dump with its backed-up
+   (`MONGODB_URI` in Secret Manager's `app-secrets`). `--drop` replaces each collection in the dump with its backed-up
    contents, indexes included. `_migrations` comes back too, so the app won't migrate again.
 
    ```sh
-   PROD="$(gcloud secrets versions access latest --secret=mongodb-uri --project=toe-beans-co-za)"
+   PROD="$(infra/gcp/app-secrets.sh get MONGODB_URI)"
    age -d -i /path/to/toe-beans-backup.key dump.age |
    	mongorestore --uri="$PROD" --archive --gzip --drop --nsInclude='toe-beans.*'
    unset PROD
@@ -99,7 +100,7 @@ Do §3 first, so you know the dump is good before prod changes.
      for that.
 
 3. **Photos, if the bucket lost them.** Copy them back with a token that can write to
-   `toe-beans-photos`. The app's own token can (its secret is `r2-secret-access-key`, its key ID
+   `toe-beans-photos`. The app's own token can (its secret is `S3_SECRET_ACCESS_KEY` in `app-secrets`, its key ID
    the `production` environment's `R2_ACCESS_KEY_ID`). Copying leaves photos already in the bucket
    alone:
 
@@ -133,8 +134,9 @@ Do §3 first, so you know the dump is good before prod changes.
    - `toe-beans-app` with `readWrite` on `toe-beans`
    - `toe-beans-backup` with `read` on `toe-beans`
 2. **Update the secrets** with the new connection strings:
-   `infra/gcp/set-secret.sh mongodb-uri` and `infra/gcp/set-secret.sh backup-mongodb-uri`.
+   `infra/gcp/app-secrets.sh set MONGODB_URI`, and the `backups` environment's secret with
+   `gh secret set BACKUP_MONGODB_URI --env backups` (and in your password manager).
 3. **Restore.** Follow §5 steps 1, 2 and 4, against the new string.
 4. **Redeploy.** Re-run the Deploy workflow on `main` (Actions → Deploy → Run workflow). Cloud Run
-   reads `mongodb-uri:latest` when an instance starts, and the redeploy makes sure none still holds
+   reads `app-secrets:latest` when an instance starts, and the redeploy makes sure none still holds
    the old one.

@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project status
 
-Toe Beans is a mobile-first, installable PWA for puppy training and care, shared by caregivers in one household. The requirements are `docs/requirements.md` (baselined v1.0, 25 Oct 2026). P0, the first usable MVP, is complete (21 Nov 2026): every P0 slice in `docs/backlog.md` (S-1 to S17) is done, and it's live at `toebeans.co.za` on 1.0.4. The next phase (P1 in the backlog) is still to be planned; its prerequisite, S18, a pentest of prod from outside (`docs/runbooks/pentest.md`), is done. `spikes/` holds throwaway de-risking spikes, each installed separately (see each spike's README).
+Toe Beans is a mobile-first, installable PWA for puppy training and care, shared by caregivers in one household. The requirements are `docs/requirements.md` (baselined v1.0, 25 Oct 2026). P0, the first usable MVP, is complete (21 Nov 2026): every P0 slice in `docs/backlog.md` (S-1 to S17) is done, and it's live at `toebeans.co.za` on 1.0.4. The next phase (P1 in the backlog) is still to be planned; its prerequisites are S18: the pentest of prod from outside (`docs/runbooks/pentest.md`, done) and the owner's further items from using the live app (S18.4 on). `spikes/` holds throwaway de-risking spikes, each installed separately (see each spike's README).
 
 ## Commands
 

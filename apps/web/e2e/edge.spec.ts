@@ -1,6 +1,7 @@
 // Scanners' probes get a plain 404 rather than the app shell, and security.txt says where to report
-// a problem (backlog S17.3).
+// a problem (backlog S17.3). The login page's font comes from us, not Google Fonts (S19.2).
 import { expect, test } from '@playwright/test';
+import { MOCK_PROVIDER } from './mock-sign-in.js';
 
 test.use({ storageState: { cookies: [], origins: [] } });
 
@@ -39,4 +40,44 @@ test('security.txt gives the contact and an expiry within a year', async ({ requ
 	const expires = Date.parse(/^Expires: (.+)$/m.exec(text)?.[1] ?? '');
 	expect(expires).toBeGreaterThan(Date.now());
 	expect(expires).toBeLessThanOrEqual(Date.now() + 366 * 24 * 60 * 60 * 1000);
+});
+
+test.describe("the identity provider's login page", () => {
+	// The proxy's header goes on at the network layer instead, as the Worker adds it beyond the
+	// browser: sent from the page, a custom header makes the font load a preflighted request.
+	test.use({ extraHTTPHeaders: {} });
+
+	test('can load Nunito from us, and no other site can', async ({ page, baseURL }) => {
+		const proxy = test.info().project.use.extraHTTPHeaders ?? {};
+		const font = new URL('/fonts/nunito-latin.woff2', baseURL).href;
+		await page.route(font, (route) =>
+			route.continue({ headers: { ...route.request().headers(), ...proxy } })
+		);
+		const load = (url: string) =>
+			page.evaluate(async (url) => {
+				try {
+					await new FontFace('Sign-in Nunito', `url(${url})`).load();
+					return 'loaded';
+				} catch {
+					return 'refused';
+				}
+			}, url);
+
+		// A page on the provider's origin, as Auth0's login page is on auth.toebeans.co.za.
+		await page.goto(`${MOCK_PROVIDER}/default/.well-known/openid-configuration`);
+		expect(await load(font)).toBe('loaded');
+
+		// The same file from another origin: without our CORS header for it, the browser refuses.
+		await page.goto('http://127.0.0.1:8090/default/.well-known/openid-configuration');
+		expect(await load(font)).toBe('refused');
+	});
+});
+
+test('the login page font is a woff2 served without a session', async ({ request }) => {
+	const response = await request.get('/fonts/nunito-latin.woff2');
+	expect(response.status()).toBe(200);
+	expect(response.headers()['content-type']).toBe('font/woff2');
+	expect(response.headers()['access-control-allow-origin']).toBe(MOCK_PROVIDER);
+	expect(response.headers()['set-cookie']).toBeUndefined();
+	expect((await response.body()).subarray(0, 4).toString('latin1')).toBe('wOF2');
 });

@@ -97,6 +97,13 @@ export function memoryUsers(): UserRepository & { all(): User[] } {
 			u.version++;
 			return ok(structuredClone(u));
 		},
+		async acceptTerms(id, acceptance) {
+			const u = users.get(id);
+			if (!u || u.deletedAt) return err(notFound('user'));
+			Object.assign(u, { termsAccepted: { ...acceptance }, updatedAt: acceptance.at });
+			u.version++;
+			return ok(structuredClone(u));
+		},
 		async delete(id) {
 			users.delete(id);
 		}

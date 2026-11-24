@@ -2,10 +2,10 @@
 # S14.6: prints how many documents each collection holds, and how many dogs have a photo, so a
 # durability check (docs/runbooks/durability.md, scenario 10) can compare before and after a
 # redeploy. Counts only, never contents. Run it on your own machine with the backup user's
-# read-only string:
+# read-only string, from the owner's password manager:
 #
-#   SOURCE_URI="$(gcloud secrets versions access latest --secret=backup-mongodb-uri --project=toe-beans-co-za)" \
-#   	infra/backup/counts.sh > before.txt
+#   read -rsp 'Read-only string: ' SOURCE_URI && export SOURCE_URI && echo
+#   infra/backup/counts.sh > before.txt
 set -euo pipefail
 [ -n "${SOURCE_URI:-}" ] || { echo "Set SOURCE_URI" >&2; exit 2; }
 export SOURCE_URI SOURCE_DB="${SOURCE_DB:-toe-beans}"

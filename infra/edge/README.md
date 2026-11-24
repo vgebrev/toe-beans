@@ -11,8 +11,7 @@ Needs `gcloud` signed in as the project owner, and `npx wrangler@4 login` once. 
 
 ```sh
 # The Worker's copy of the secret, straight from Secret Manager; it never touches a file.
-gcloud secrets versions access latest --secret=proxy-secret --project=toe-beans-co-za |
-	npx wrangler@4 secret put PROXY_SECRET
+../gcp/app-secrets.sh get PROXY_SECRET | npx wrangler@4 secret put PROXY_SECRET
 npx wrangler@4 deploy
 ```
 
@@ -20,7 +19,7 @@ The first deploy takes over the custom domains from the holding page's Worker; i
 because they're attached there, delete that one first (`npx wrangler@4 delete --name toe-beans-holding`),
 which leaves the site down until this deploy finishes.
 
-After rotating the secret (`infra/gcp/set-secret.sh proxy-secret`), put it here again, then
+After rotating the secret (`infra/gcp/app-secrets.sh generate PROXY_SECRET`), put it here again, then
 redeploy the app so it picks up the new version.
 
 ## Checks (S14.1)
@@ -39,6 +38,53 @@ redeploy the app so it picks up the new version.
   check a laptop on Wi-Fi still signs in.
 - Worker logs stay off (`observability` in `wrangler.jsonc`); Cloudflare's own request analytics
   are visible only to the account owner.
+
+## The maintenance page (S19.5)
+
+When the spending cap closes Cloud Run's ingress (architecture D45, `infra/spending-cap`), Cloud
+Run turns the Worker's fetches away itself, with a 404 or 403 that lacks the app's `x-request-id`.
+The Worker answers those with *Toe Beans is paused* (503, `no-store`, `x-toe-beans-maintenance`,
+which the app's service worker lets through), or plain text to a request that doesn't accept
+HTML. `/_app/` files are left as they are, since adapter-node answers a missing one without the
+app's header. Nothing to set up here; `worker.test.js` covers it, and the cap's runbook
+(`docs/runbooks/spending-cap.md` §2) checks it live.
+
+## No scripts added at the edge (S19.3)
+
+Cloudflare can add a script to the app's pages without any change in our code: Web Analytics
+(its beacon, `static.cloudflareinsights.com`, which sends page views and timings to
+`cloudflareinsights.com`), Real User Measurements (the same beacon), Zaraz and Rocket Loader.
+All of them stay off; Toe Beans tracks nobody (privacy policy). The app's CSP would block their scripts anyway
+(`script-src 'self'` with a nonce, `connect-src 'self'`; `e2e/smoke.spec.ts` keeps it so), but
+then each page would log a CSP error, so turn them off rather than rely on the block.
+
+In the dashboard:
+
+- **Account home → Analytics & Logs → Web Analytics**: `toebeans.co.za` is not listed, or its
+  *Manage site* shows it disabled (not *Enable* or *Enable, excluding visitor data in the EU*).
+  On a proxied zone it can be switched on there automatically, with no snippet in our pages.
+- **toebeans.co.za → Speed → Observatory**: Real User Measurements (RUM) are off; they use the
+  same beacon.
+- **toebeans.co.za → Zaraz** has no tools, and **Speed → Settings** has Rocket Loader off.
+
+Email address obfuscation (**Scrape Shield**) is left at Cloudflare's default, on. It isn't
+tracking: its script is served from our own address under `/cdn-cgi/` and sends nothing. It doesn't
+touch the Worker's responses either: the terms and privacy policy show `support@` and `privacy@` in
+plain text. If it ever did, those pages would hide the addresses until the script ran.
+
+Then, after any change at Cloudflare, check the pages carry nothing extra:
+
+```sh
+for p in terms privacy; do curl -s https://toebeans.co.za/$p | grep -c 'cloudflareinsights\|zaraz\|rocket-loader'; done
+```
+
+Each line prints `0`. Checked 23 Nov 2026, after Web Analytics (it was on for the zone) and RUM
+were turned off.
+
+What stays without the beacon: the zone's request analytics (**toebeans.co.za → Analytics &
+Logs**: requests, bandwidth, status codes, countries, cache), counted at the edge with no script
+and seen only by the account owner; the Worker's request and error counts; Cloud Run's metrics and
+logs; and Sentry for errors in the browser and on the server.
 
 ## Scanners blocked before the Worker (S17.3)
 
@@ -75,7 +121,7 @@ or starts_with(lower(http.request.uri.path), "/boaform")
 ```
 
 None of the app's paths fall under it: its routes, `/_app/…` build files, `/icons/…`,
-`/manifest.webmanifest`, `/robots.txt` and `/.well-known/security.txt` (a `/.` anywhere else is a
+`/fonts/…` (the login page's font, S19.2), `/manifest.webmanifest`, `/robots.txt` and `/.well-known/security.txt` (a `/.` anywhere else is a
 dotfile or `..`). A route added later under one of those prefixes would need the rule changed.
 
 Checks, once deployed:

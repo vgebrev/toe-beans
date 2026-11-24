@@ -6,6 +6,7 @@ export const noHousehold: Viewer = {
 	auth: { userId: 'u' as Id },
 	displayName: 'Sam',
 	email: 'sam@example.com',
+	termsVersion: '2026-11-19',
 	member: null
 };
 

@@ -81,7 +81,7 @@ Names follow the project convention: kebab-case words (`toe-beans`), not run tog
    | | Widget border | `#e6d8c6` |
    | | Error | `#b3261e` |
    | | Success | `#1e5b2e` |
-   | Fonts | Font URL | `https://fonts.gstatic.com/s/nunito/v32/XRXV3I6Li01BKofINeaB.woff2` |
+   | Fonts | Font URL | `https://toebeans.co.za/fonts/nunito-latin.woff2` |
    | | Title, buttons | Bold |
    | Borders | Buttons | Pill |
    | | Input style, radius | Rounded, 10 px (the editor's maximum; the app uses 12) |
@@ -90,10 +90,12 @@ Names follow the project convention: kebab-case words (`toe-beans`), not run tog
    | Branding | Favicon URL | `https://toebeans.co.za/icons/icon-192.png` (the app's own favicon is inlined, so it has no URL) |
    | Page background | Colour | `#fffbf5` |
 
-   The font is Nunito's Latin file from Google Fonts, which allows other sites to load it; the
-   privacy policy lists Google Fonts for this (§4 there). If Google ever retires that URL, get the
-   current one from `https://fonts.googleapis.com/css2?family=Nunito:wght@200..1000` (the
-   `/* latin */` block). Fredoka, the app's heading font, can't come too: the theme takes one font.
+   The font is the app's own Latin Nunito, served at a fixed address with CORS for the issuer's
+   origin only (S19.2; `routes/fonts/nunito-latin.woff2`), so no visitor's address goes to Google
+   Fonts. On the dev tenant the same URL works only from a local app's issuer, so leave the dev
+   theme's font at its default. Check after saving: the login page's network tab shows the font
+   from `toebeans.co.za` with status 200, and its text is in Nunito. Fredoka, the app's heading
+   font, can't come too: the theme takes one font.
 3. **Privacy and terms links.** The free plan doesn't offer custom sign-up prompts ("Customize
    Signup & Login" is paid), so the login page has no links of its own. The app's sign-in page
    links to both just before handing over, which is where people agree (S16.4).
@@ -121,7 +123,7 @@ The custom domain must be in place **before the first real user signs in**. User
 |---|---|---|
 | `OIDC_ISSUER` | the dev issuer from the table above | Cloud Run env var |
 | `OIDC_CLIENT_ID` | from step 2 | Cloud Run env var |
-| `OIDC_CLIENT_SECRET` | from step 2 | Secret Manager, mounted by Cloud Run (D15) |
+| `OIDC_CLIENT_SECRET` | from step 2 | `app-secrets` in Secret Manager (`infra/gcp/app-secrets.sh set OIDC_CLIENT_SECRET`), mounted by Cloud Run (D15) |
 | `PUBLIC_BASE_URL` | `http://localhost:7877` | `https://toebeans.co.za` |
 
 Never commit the dev client secret. `.env` is gitignored, and `.env.example` holds only placeholders.
@@ -143,7 +145,7 @@ through the Management API, with an application that can do nothing else.
 |---|---|---|
 | `AUTH0_DOMAIN` | `toe-beans-dev.eu.auth0.com` | `toe-beans.eu.auth0.com`, set in the Deploy workflow. The tenant's own domain: the Management API isn't on the custom domain |
 | `AUTH0_MANAGEMENT_CLIENT_ID` | from step 3 | the `production` environment variable in GitHub |
-| `AUTH0_MANAGEMENT_CLIENT_SECRET` | from step 3 | Secret Manager `auth0-management-client-secret` (`infra/gcp/set-secret.sh`) |
+| `AUTH0_MANAGEMENT_CLIENT_SECRET` | from step 3 | `app-secrets` (`infra/gcp/app-secrets.sh set AUTH0_MANAGEMENT_CLIENT_SECRET`) |
 
 Prod refuses to start without all three, so set them **before** the release that brings S16.5
 reaches `main`. Re-run `infra/gcp/provision.sh` first if the secret doesn't exist yet.
@@ -170,4 +172,4 @@ again; the log says `could not delete the provider accounts` with the status, an
 
 ## Rotating the client secret
 
-Under **Applications → Toe Beans → Credentials**, choose **Rotate**, then update `.env` or the Secret Manager version, and redeploy. Signed-in users keep their sessions, because sessions don't depend on the client secret.
+Under **Applications → Toe Beans → Credentials**, choose **Rotate**, then update `.env` or prod's (`infra/gcp/app-secrets.sh set OIDC_CLIENT_SECRET`), and redeploy. Signed-in users keep their sessions, because sessions don't depend on the client secret.

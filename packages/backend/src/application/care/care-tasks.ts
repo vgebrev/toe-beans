@@ -7,7 +7,7 @@
 //
 // While a dog is archived its tasks stay as they are, but drop out of the Care list, Today and
 // reminders; they come back with the dog (D30).
-import { addDays, todayIn, type PlainDate } from '../../domain/calendar.js';
+import { addDays, startOfDay, todayIn, type PlainDate } from '../../domain/calendar.js';
 import {
 	changesFrom,
 	checkCompletedOn,
@@ -56,6 +56,12 @@ export interface CareCompletion {
 	completedOn?: string | undefined;
 	/** "Plan the next one": the same dog, category and title, due then. */
 	next?: { dueDate: string; dueTime?: string | null | undefined } | undefined;
+}
+
+/** Today's care that's settled: tasks marked done or cancelled today, soonest due first. */
+export interface CareClosedToday {
+	done: CareView[];
+	cancelled: CareView[];
 }
 
 export interface CareList {
@@ -141,6 +147,30 @@ export function createCareTasks({
 				currentDogIds(ctx)
 			]);
 			return views(upcoming.filter((t) => current.has(t.dogId)));
+		},
+
+		/**
+		 * Tasks someone marked done or cancelled today, whatever day they were due or done on, so a
+		 * task doesn't leave Today the moment it's settled (D30). Still done or cancelled, of
+		 * current dogs.
+		 */
+		async closedToday(ctx: PlannerContext, today: PlainDate): Promise<CareClosedToday> {
+			const since = startOfDay(today, ctx.timeZone);
+			const [closed, current] = await Promise.all([
+				tasks.listClosedSince(ctx.householdId, since, CLOSED_LIMIT),
+				currentDogIds(ctx)
+			]);
+			const settledToday = (t: CareTask) => {
+				const kind = t.status === 'completed' ? 'completed' : 'cancelled';
+				const last = t.history.findLast((h) => h.kind === kind);
+				return !!last && last.at >= since && current.has(t.dogId);
+			};
+			const mine = closed.filter(settledToday);
+			const all = await views(mine);
+			return {
+				done: all.filter((v) => v.task.status === 'completed'),
+				cancelled: all.filter((v) => v.task.status === 'cancelled')
+			};
 		},
 
 		async get(ctx: PlannerContext, id: string): Promise<Result<CareView, NotFoundError>> {

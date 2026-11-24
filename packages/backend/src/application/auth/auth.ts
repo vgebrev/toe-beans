@@ -32,6 +32,8 @@ export interface Viewer {
 	auth: AuthContext;
 	displayName: string;
 	email: string;
+	/** The version of the terms they last accepted, or null if they never have (S19.1). */
+	termsVersion: string | null;
 	/** Null until they create or join a household. */
 	member: (MemberContext & { householdName: string; timeZone: string }) | null;
 }
@@ -285,6 +287,7 @@ export function createAuth(
 				auth: { userId: user.id },
 				displayName: user.displayName,
 				email: user.email,
+				termsVersion: user.termsAccepted?.version ?? null,
 				member: memberOf(household, user.id)
 			};
 

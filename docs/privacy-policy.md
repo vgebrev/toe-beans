@@ -1,8 +1,8 @@
 # Toe Beans — Privacy policy
 
-**Version:** 0.5 (reviewed draft)
-**Date:** 20 November 2026
-**Inputs:** `docs/data-inventory.md` v0.7, `docs/architecture.md` v1.35 (D36, D38, D39, D43)
+**Version:** 0.8 (reviewed draft)
+**Date:** 23 November 2026
+**Inputs:** `docs/data-inventory.md` v0.10, `docs/architecture.md` v1.45 (D36, D38, D39, D43)
 
 **Changes in 0.1:** first draft for backlog S16.2, written from the data inventory. S16.4 publishes
 the text below the line at `/privacy`. The owner reviews it, and fills in the points marked
@@ -27,6 +27,14 @@ after it stopped accepting reminders (data inventory 0.6, architecture D43).
 
 **Changes in 0.5:** §5: signing out no longer removes a device's registration; reminders pause
 until you sign in there again (data inventory 0.7, architecture 1.35 D43).
+
+**Changes in 0.6:** §2's account row gains the record of which terms you accepted and when, with the confirmation that you're 18 or older (data inventory 0.8, architecture D47).
+
+**Changes in 0.7:** §4 no longer lists Google Fonts: the sign-in page's font now comes from
+`toebeans.co.za` (backlog S19.2, data inventory 0.9).
+
+**Changes in 0.8:** §4's Cloudflare row says your browser tells Cloudflare when a request to the
+app fails (Network Error Logging; backlog S19.3, data inventory 0.10).
 
 Before publishing:
 
@@ -62,7 +70,7 @@ You give us all of it, except what your sign-in provider passes on and what your
 
 | What | Why |
 |---|---|
-| **Your account:** your email address, your name, and, if you sign in with Google, your profile picture's address. We also keep an ID from the sign-in service for each way you sign in | So you can sign in, and your household can see who did what |
+| **Your account:** your email address, your name, and, if you sign in with Google, your profile picture's address. We also keep an ID from the sign-in service for each way you sign in, and which version of the terms you accepted, confirming you're 18 or older, and when | So you can sign in, and your household can see who did what; the terms record shows what you agreed to |
 | **Your household:** its name, time zone and members, with each member's role and the date they joined | So you can share your dogs with the people you choose, and get reminders at the right local time |
 | **Your dogs:** names, dates of birth and adoption, notes and a photo each | Your dogs' profiles |
 | **Training and care records:** sessions and how they went, behaviour, plans, care tasks, cue words and notes, with who recorded or changed each one | The point of the app: a shared history and plan for each dog |
@@ -116,11 +124,10 @@ where we can.
 | MongoDB Atlas | Stores the app's data | South Africa |
 | Google Cloud | Runs the app and keeps its logs | South Africa |
 | Auth0 (Okta) | Signs you in. Holds your email, name and picture, and your password (scrambled) if you sign in with email | EU |
-| Cloudflare | Carries every request to the app, protects it from attacks, and stores dog photos and our backups | Photos and backups in the EU; requests pass through Cloudflare's nearest location, usually Johannesburg |
+| Cloudflare | Carries every request to the app, protects it from attacks, and stores dog photos and our backups. Your browser tells Cloudflare when a request to the app fails, so it can find network problems | Photos and backups in the EU; requests pass through Cloudflare's nearest location, usually Johannesburg |
 | Resend | Sends invitation emails, and the sign-in service's verification and password emails | EU (Ireland) |
 | Sentry | Receives error reports with personal details removed | EU (Germany) |
 | Your browser's push service (Google's, for Chrome) | Delivers reminders. Each one is encrypted so the service can't read it | Worldwide |
-| Google Fonts | Serves the font of the sign-in page at `auth.toebeans.co.za`, so it sees your device's address and browser when the page loads, but not who you are | Worldwide |
 | Google (Gmail) | Holds the emails you send us, at privacy@toebeans.co.za or support@toebeans.co.za, and our replies (§5) | Worldwide |
 | Google | If you choose to sign in with Google, Google knows you signed in to Toe Beans, under Google's own privacy policy | Worldwide |
 

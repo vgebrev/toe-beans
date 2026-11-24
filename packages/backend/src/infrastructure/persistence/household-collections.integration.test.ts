@@ -226,6 +226,7 @@ describe('accepting, on a real transaction', () => {
 		auth: { userId },
 		displayName: 'Alex',
 		email: `${userId}@example.com`,
+		termsVersion: null,
 		member: null
 	});
 

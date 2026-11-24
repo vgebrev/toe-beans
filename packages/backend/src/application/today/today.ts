@@ -9,6 +9,9 @@
 //   by archiving their dog (D24) are left out: the dog isn't in the household's day any more.
 //
 // - Coming up: care tasks still upcoming, overdue or due within a week (D30).
+// - Care done and cancelled: tasks someone marked done or cancelled today, whatever their day, so
+//   settling one doesn't make it vanish from Today (D30). The page puts them under Done and
+//   Skipped.
 import { addDays, todayIn, zonedDateTime, type PlainDate } from '../../domain/calendar.js';
 import { ok, type Result } from '../../domain/result.js';
 import type { CareTasks, CareView } from '../care/care-tasks.js';
@@ -25,6 +28,8 @@ export interface TodayView {
 	done: LogView[];
 	skipped: SessionView[];
 	comingUp: CareView[];
+	careDone: CareView[];
+	careCancelled: CareView[];
 }
 
 export type Today = ReturnType<typeof createToday>;
@@ -35,17 +40,22 @@ export function createToday(
 		planner,
 		sessionLogs,
 		careTasks
-	}: { planner: Planner; sessionLogs: SessionLogs; careTasks: Pick<CareTasks, 'comingUp'> }
+	}: {
+		planner: Planner;
+		sessionLogs: SessionLogs;
+		careTasks: Pick<CareTasks, 'comingUp' | 'closedToday'>;
+	}
 ) {
 	return {
 		async read(ctx: PlannerContext): Promise<Result<TodayView, ValidationError>> {
 			const now = clock.now();
 			const date = todayIn(now, ctx.timeZone);
 			// The planner's list also extends running series, so today's sessions exist.
-			const [sessions, done, comingUp] = await Promise.all([
+			const [sessions, done, comingUp, closed] = await Promise.all([
 				planner.list(ctx, { from: addDays(date, -1), to: date }),
 				sessionLogs.listOn(ctx, date),
-				careTasks.comingUp(ctx, date)
+				careTasks.comingUp(ctx, date),
+				careTasks.closedToday(ctx, date)
 			]);
 			if (!sessions.ok) return sessions;
 
@@ -55,7 +65,9 @@ export function createToday(
 				planned: [],
 				done,
 				skipped: [],
-				comingUp
+				comingUp,
+				careDone: closed.done,
+				careCancelled: closed.cancelled
 			};
 			for (const entry of sessions.value) {
 				const { session } = entry;

@@ -13,3 +13,12 @@ export const UpdateProfile = z.strictObject({
 	displayName: z.string().max(500)
 });
 export type UpdateProfile = z.infer<typeof UpdateProfile>;
+
+/**
+ * `POST /api/v1/me/terms`: the person accepts the terms they were shown, dated `version`
+ * (`YYYY-MM-DD`), and confirms they're 18 or older (backlog S19.1).
+ */
+export const AcceptTerms = z.strictObject({
+	version: z.string().max(10)
+});
+export type AcceptTerms = z.infer<typeof AcceptTerms>;

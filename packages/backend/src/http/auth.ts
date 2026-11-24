@@ -112,7 +112,22 @@ export interface AuthHttp {
 		origin: string | null;
 		fetchSite: string | null;
 	}): HttpResponse | null;
+	/**
+	 * Refuses an API write from someone who hasn't accepted the current terms (backlog S19.1), so
+	 * nothing they add comes before their agreement. `accepted` is the viewer's `termsVersion`. The
+	 * host leaves out the writes that must work without it: accepting, and deleting the account.
+	 * Returns the 403 to send, or null to carry on.
+	 */
+	checkTerms(input: {
+		method: string;
+		accepted: string | null;
+		current: string;
+	}): HttpResponse | null;
 }
+
+/** Whether pages should send the viewer to accept the terms first (backlog S19.1). */
+export const needsTerms = (accepted: string | null, current: string): boolean =>
+	accepted !== current;
 
 export function createAuthHttp(
 	auth: Auth,
@@ -221,6 +236,15 @@ export function createAuthHttp(
 			return problem({
 				type: 'toe-beans/forbidden',
 				title: 'Cross-site request refused',
+				status: 403
+			});
+		},
+
+		checkTerms({ method, accepted, current }) {
+			if (isSafeMethod(method) || !needsTerms(accepted, current)) return null;
+			return problem({
+				type: 'toe-beans/terms-required',
+				title: 'Accept the terms first',
 				status: 403
 			});
 		}

@@ -1,7 +1,8 @@
 // The service worker (architecture §6.2, §7). It shows each reminder push as a notification,
 // even with the app closed, reports its arrival, and opens the item when tapped. It precaches the
 // build's files and the fallback pages, and stands them in for a page load that fails: *Can't
-// reach Toe Beans* with no response or a gateway error, whether the phone or the app is down,
+// reach Toe Beans* with no response or a gateway error, whether the phone or the app is down
+// (but not over the edge's maintenance page, which says more),
 // and the waking skeleton while a cold server starts (ui.md §5.2). Nothing else is cached: API
 // responses, photos and pages go to the network every time (NFR-04).
 import { version } from '$app/env';
@@ -10,10 +11,10 @@ import { self } from '$app/service-worker';
 import {
 	CACHE_PREFIX,
 	cachesToDelete,
-	isGatewayError,
 	mayBeCold,
 	PAGE_TIMEOUT_MS,
 	precachePaths,
+	showsUnreachable,
 	WAKING_AFTER_MS
 } from '#lib/offline/caching.js';
 import { READY_PATH } from '#lib/offline/reachable.js';
@@ -80,7 +81,7 @@ const unreachable = async () => (await cached(UNREACHABLE)) ?? Response.error();
  */
 async function navigate(request: Request, url: URL): Promise<Response> {
 	const network = fetch(request).then(async (response) => {
-		if (isGatewayError(response.status)) return (await cached(UNREACHABLE)) ?? response;
+		if (showsUnreachable(response)) return (await cached(UNREACHABLE)) ?? response;
 		lastAnswered = Date.now();
 		return response;
 	}, unreachable);

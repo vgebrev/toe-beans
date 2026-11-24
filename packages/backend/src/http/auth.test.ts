@@ -11,6 +11,7 @@ const viewer = {
 	auth: { userId: 'u' as never },
 	displayName: 'Sam',
 	email: 'sam@example.com',
+	termsVersion: null,
 	member: null
 };
 
@@ -325,6 +326,23 @@ describe('auth http', () => {
 			expect(check({ method: 'POST', ...headers })).toMatchObject({
 				status: 403,
 				body: { type: 'toe-beans/forbidden' }
+			});
+		});
+	});
+
+	describe('checkTerms (S19.1)', () => {
+		const check = createAuthHttp(fakeAuth(), options(origin)).checkTerms;
+		const current = '2026-11-19';
+
+		it('lets reads through, and writes once the current terms are accepted', () => {
+			expect(check({ method: 'GET', accepted: null, current })).toBeNull();
+			expect(check({ method: 'POST', accepted: current, current })).toBeNull();
+		});
+
+		it.each([null, '2026-10-01'])('refuses a write when the accepted terms are %s', (accepted) => {
+			expect(check({ method: 'PATCH', accepted, current })).toMatchObject({
+				status: 403,
+				body: { type: 'toe-beans/terms-required' }
 			});
 		});
 	});

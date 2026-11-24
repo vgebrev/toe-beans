@@ -5,6 +5,7 @@ export const problemTypes = [
 	'toe-beans/validation',
 	'toe-beans/unauthenticated',
 	'toe-beans/forbidden',
+	'toe-beans/terms-required',
 	'toe-beans/not-found',
 	'toe-beans/conflict',
 	'toe-beans/precondition-required',

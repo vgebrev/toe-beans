@@ -1,8 +1,9 @@
 <script lang="ts">
 	// Today (ui.md §4.1, FR-06): what to do today, for the switcher's dog or all of them. Overdue
 	// (today's and yesterday's still planned), Planned by time, Done (every practice logged today,
-	// with how it went and who practised), Skipped collapsed, and Coming up: care tasks overdue or
-	// due within a week (architecture D30). A planned card opens the session;
+	// with how it went and who practised, then care tasks marked done today), Skipped collapsed
+	// (with care tasks cancelled today), and Coming up: care tasks overdue or due within a week
+	// (architecture D30). A planned card opens the session;
 	// *Log* opens the quick log (§4.2) straight away. There are no live updates (NFR-13): the app
 	// shell fetches the day again whenever the app comes back to the front, so it's never a
 	// morning stale.
@@ -41,6 +42,8 @@
 	const done = $derived(mine(day?.done ?? []));
 	const skipped = $derived(mine(day?.skipped ?? []));
 	const comingUp = $derived(mine(day?.comingUp ?? []));
+	const careDone = $derived(mine(day?.careDone ?? []));
+	const careCancelled = $derived(mine(day?.careCancelled ?? []));
 	const training = $derived(overdue.length + planned.length + done.length + skipped.length);
 
 	// In the device's locale (ui.md §5.4), which the server can't know, so it's formatted here.
@@ -163,28 +166,34 @@
 				</section>
 			{/if}
 
-			{#if done.length > 0}
+			{#if done.length + careDone.length > 0}
 				<section aria-labelledby="done-heading" class="flex flex-col gap-3">
 					<h2 id="done-heading" class="font-display text-lg font-semibold">Done</h2>
 					<ul class="flex flex-col gap-3">
 						{#each done as log (log.id)}
 							<li><LogCard {log} dog={dogOf(log.dogId)} /></li>
 						{/each}
+						{#each careDone as task (task.id)}
+							<li><CareCard {task} dog={dogOf(task.dogId)} today={day.date} /></li>
+						{/each}
 					</ul>
 				</section>
 			{/if}
 
-			{#if skipped.length > 0}
+			{#if skipped.length + careCancelled.length > 0}
 				<details class="group">
 					<summary
 						class="flex min-h-12 cursor-pointer list-none items-center gap-2 font-display text-lg font-semibold text-muted-foreground"
 					>
 						<Icon name="forward" size={20} class="transition-transform group-open:rotate-90" />
-						Skipped ({skipped.length})
+						Skipped ({skipped.length + careCancelled.length})
 					</summary>
 					<ul class="flex flex-col gap-3 pt-3">
 						{#each skipped as session (session.id)}
 							<li><SessionCard {session} dog={dogOf(session.dogId)} /></li>
+						{/each}
+						{#each careCancelled as task (task.id)}
+							<li><CareCard {task} dog={dogOf(task.dogId)} today={day.date} /></li>
 						{/each}
 					</ul>
 				</details>

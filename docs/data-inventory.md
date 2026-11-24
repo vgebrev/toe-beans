@@ -1,8 +1,8 @@
 # Toe Beans — Data inventory
 
-**Version:** 0.7 (draft)
-**Date:** 20 November 2026
-**Inputs:** `docs/requirements.md` v1.0, `docs/architecture.md` v1.35, `docs/runbooks/accounts.md`
+**Version:** 0.10 (draft)
+**Date:** 23 November 2026
+**Inputs:** `docs/requirements.md` v1.0, `docs/architecture.md` v1.45, `docs/runbooks/accounts.md`
 
 **Changes in 0.1:** first draft for backlog S16.1. Lists the personal data Toe Beans holds, where it is, why, and how long it's kept, worked out from the code and the accounts inventory. It's the source for the privacy policy (S16.2) and for deletion (S16.5). §6 lists the open points those slices have to settle.
 
@@ -17,6 +17,12 @@
 **Changes in 0.6:** §2, `pushDevices` (architecture 1.34 D43): a device is removed when the person signs out in that browser, and deleted 30 days after it was last used or 14 days after the push service reported it gone, so an uninstalled or lost phone no longer stays on file indefinitely. It also records when the app last opened on it.
 
 **Changes in 0.7:** §2, `pushDevices` (architecture 1.35 D43): signing out no longer removes the device; it's marked signed out and sent nothing until the person signs in there again, and the 30-day deletion still applies. The row records when it was signed out.
+
+**Changes in 0.8:** §2, `users` (architecture 1.44 D47): the version of the terms the person accepted, which confirms they're 18 or older, and when.
+
+**Changes in 0.9:** §4 loses Google Fonts (backlog S19.2): Auth0's login page loads Nunito from the app at `toebeans.co.za`, which serves it with CORS for `auth.toebeans.co.za`. Nothing Toe Beans shows now loads from Google's font servers.
+
+**Changes in 0.10:** §4, Cloudflare (backlog S19.3): its Web Analytics and Real User Measurements are off, so no beacon reports page views or timings; browsers send Cloudflare Network Error Logging reports for requests that fail, as Cloudflare asks of every site it serves. The privacy policy (0.8) says so.
 
 This file is public. It describes kinds of data and where they are, never values. It isn't legal
 advice. The owner has it read with the policy before other households join (backlog S16).
@@ -38,7 +44,7 @@ that household's members can reach it (NFR-01, NFR-02).
 
 | Collection | Personal data | Whose, who sees it | Why | Kept |
 |---|---|---|---|---|
-| `users` | Email, display name, avatar URL (from Google), the provider's subject IDs, when each was linked | The person. Fellow members see the name and avatar | Sign-in, linking Google and email sign-ins by verified email, showing who did what | Until the person deletes their account (D38). Leaving a household doesn't remove it |
+| `users` | Email, display name, avatar URL (from Google), the provider's subject IDs, when each was linked, and which version of the terms they accepted (confirming they're 18 or older) and when | The person. Fellow members see the name and avatar | Sign-in, linking Google and email sign-ins by verified email, showing who did what | Until the person deletes their account (D38). Leaving a household doesn't remove it |
 | `households` | Household name, time zone, members (user ID, role, joined date) | Members | Sharing dogs between caregivers; reminders in local time | While it has members. The last to leave deactivates it (D18); it's deleted with everything in it when its only member deletes it or their account, or 30 days after it was deactivated (D38) |
 | `invitations` | The invitee's email (email invitations only), who invited, expiry and use. The token is stored only as a hash | The household's members | Inviting a caregiver (FR-02) | 7 days to use, then removed 30 days after it expires (TTL) |
 | `dogs` | Name, birth date, adoption date, notes, the photo's ID | Household | The dog's profile | Until its household is deleted (D38). Archiving keeps it |
@@ -78,10 +84,9 @@ with protection substantially similar to POPIA. The EU's GDPR is accepted as tha
 | MongoDB Atlas | §2 | South Africa (Cape Town) | Not a transfer | As §2 |
 | Auth0 (Okta) | Email, name, avatar URL, password hash for email sign-in, sign-in logs with IP and device | EU | GDPR-adequate region; Okta's DPA | Account until the person deletes theirs in the app, which deletes it at Auth0 too (D38). Logs 1 day (free plan) |
 | Google | For Google sign-in: that the person signed in to Toe Beans. Google's OAuth client is the owner's | US and global | The person chooses Google sign-in and has their own account with Google | Google's own |
-| Cloudflare | Every request passes the edge: address, URL, user agent. R2 holds photos and backups. Worker logs are off | Global edge; R2 in Europe | EU storage; Cloudflare's DPA with SCCs for the edge | Request analytics are aggregate. Security events (S17.3's WAF rule) keep addresses for 30 days |
+| Cloudflare | Every request passes the edge: address, URL, user agent. Browsers report requests that fail to Cloudflare (Network Error Logging: the URL, the error, the address). R2 holds photos and backups. Worker logs, Web Analytics and Real User Measurements are off | Global edge; R2 in Europe | EU storage; Cloudflare's DPA with SCCs for the edge | Request analytics are aggregate. Security events (S17.3's WAF rule) keep addresses for 30 days |
 | Google Cloud | Runs the app. Sees requests and holds logs (§3) and secrets | South Africa (`africa-south1`); Scheduler in `me-central1` carries no personal data | Not a transfer for the app and its logs | 30 days for logs |
 | The owner's Gmail, through Cloudflare Email Routing (in) and Resend (out) | Mail to and from `privacy@toebeans.co.za` and `support@toebeans.co.za` (where replies to invitations and Auth0's emails go): the sender's address and whatever they write, such as a request to see or delete their data. Cloudflare forwards it without keeping it | Google: US and global; Resend: EU | The person chooses to write to us | A year after the request is answered, then deleted by the owner |
-| Google Fonts | The address and user agent of whoever opens Auth0's login page, which loads its font from `fonts.gstatic.com`. No cookies | Global | Only technical data, needed to serve the file; Google's terms | Google's own |
 | Resend | Invitation emails: the invitee's address, the inviter's name, household name and link. Auth0's verification and password emails: the person's address | EU: the domain sends from Ireland (`eu-west-1`) | GDPR-adequate region | Email logs 30 days |
 | Sentry | §3 | EU | GDPR-adequate region | 30 days |
 | Web push services (Google FCM for Chrome) | The endpoint, and each reminder encrypted end to end, so the service can't read it | Global | Chosen by the browser, not the app; the content is encrypted | Undelivered messages until the reminder's TTL |

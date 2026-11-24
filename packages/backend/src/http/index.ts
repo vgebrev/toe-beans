@@ -124,7 +124,13 @@ export function createHttp(
 }
 
 export type { AuthContext, Viewer } from '../application/auth/auth.js';
-export { safeReturnTo, signInPath, type CookieReader, type SignInError } from './auth.js';
+export {
+	needsTerms,
+	safeReturnTo,
+	signInPath,
+	type CookieReader,
+	type SignInError
+} from './auth.js';
 export type { DogForm } from './dogs.js';
 export * from './response.js';
 export { PROXY_SECRET_HEADER } from './edge.js';

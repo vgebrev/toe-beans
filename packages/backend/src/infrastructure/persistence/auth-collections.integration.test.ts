@@ -104,6 +104,31 @@ describe('mongoUsers', () => {
 		expect(await users().rename(ids.next(), 'Sammy', 1, at)).toEqual(notFound);
 	});
 
+	it('records the terms accepted, and reads them back (S19.1)', async () => {
+		const user = newUser();
+		await users().insert(user);
+		expect((await users().findById(user.id))?.termsAccepted).toBeUndefined();
+		const later = new Date(at.getTime() + 1000);
+		const accepted = { version: '2026-11-19', at: later };
+		expect(await users().acceptTerms(user.id, accepted)).toEqual({
+			ok: true,
+			value: { ...user, termsAccepted: accepted, version: 2, updatedAt: later }
+		});
+		expect((await users().findById(user.id))?.termsAccepted).toEqual(accepted);
+	});
+
+	it("doesn't record terms for a missing or deleted user", async () => {
+		const deleted = newUser();
+		await users().insert(deleted);
+		await db.mongo.db.collection(USERS).updateOne({ _id: deleted.id } as never, {
+			$set: { deletedAt: at }
+		});
+		const notFound = { ok: false, error: { kind: 'not-found', resource: 'user' } };
+		const accepted = { version: '2026-11-19', at };
+		expect(await users().acceptTerms(deleted.id, accepted)).toEqual(notFound);
+		expect(await users().acceptTerms(ids.next(), accepted)).toEqual(notFound);
+	});
+
 	it('reads schema 1 users, which have no name source', async () => {
 		const [fromEmail, fromProvider] = [newUser(), newUser()];
 		const v1 = (u: User, displayName: string) => ({

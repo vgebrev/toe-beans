@@ -17,6 +17,7 @@ const outsider: Viewer = {
 	auth: { userId: 'u' as Id },
 	displayName: 'Sam',
 	email: 'sam@example.com',
+	termsVersion: null,
 	member: null
 };
 const viewer: MemberViewer = {

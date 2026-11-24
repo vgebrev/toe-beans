@@ -1,7 +1,7 @@
 # Toe Beans — Terms of service
 
-**Version:** 0.3 (reviewed draft)
-**Date:** 19 November 2026
+**Version:** 0.4 (reviewed draft)
+**Date:** 23 November 2026
 **Inputs:** `docs/requirements.md` v1.0 (NFR-14), `docs/privacy-policy.md` v0.2
 
 **Changes in 0.1:** first draft for backlog S16.3. S16.4 publishes the text below the line at
@@ -15,13 +15,20 @@ privacy policy's notes.
 **Changes in 0.3:** `support@toebeans.co.za` for questions and a misused account (§2, §11);
 `privacy@` stays for privacy requests.
 
+**Changes in 0.4:** backlog S19.1 and S19.4. People now accept these terms in the app, ticking a
+box that also confirms they're 18 or older, and the app records which version and when
+(architecture D47): the introduction, §2 and §9 say so, and a new date asks everyone again. §4
+gives a route for anyone who thinks content infringes their rights (S19.4: uploads aren't
+scanned; South Africa's ECT Act protects a host only through an industry body we're not in).
+
 ---
 
 # Terms of service
 
-These terms are the agreement between you and Veli Gebrev ("we", "us"), who runs Toe Beans. By
-creating an account you accept them. Please read them with the [privacy policy](/privacy), which
-says what we do with your information.
+These terms are the agreement between you and Veli Gebrev ("we", "us"), who runs Toe Beans. You
+accept them when you start using Toe Beans, by ticking the box that asks you to, and we keep a
+record of which version you accepted and when. Please read them with the
+[privacy policy](/privacy), which says what we do with your information.
 
 ## 1. What Toe Beans is
 
@@ -33,7 +40,7 @@ It's run by one person, without charge and without any promise of how long it wi
 
 ## 2. Your account
 
-- You must be **18 or older** to create an account.
+- You must be **18 or older** to use Toe Beans. You confirm it when you accept these terms.
 - Sign in with your own Google account or email address, and keep your sign-in to yourself.
   You're responsible for what's done with your account.
 - Tell us at support@toebeans.co.za if you think someone else has used it.
@@ -54,6 +61,9 @@ It's run by one person, without charge and without any promise of how long it wi
   show it to your household's members, only so Toe Beans can work.
 - Add only photos and content you have the right to share, and nothing about other people that
   they wouldn't want shared.
+- If you think something in Toe Beans infringes your rights, such as a photo of yours used without
+  permission, write to support@toebeans.co.za saying what it is and why. We'll look into it and
+  remove it if it does.
 - **Don't use Toe Beans** to break the law, to harass anyone, to store content unrelated to caring
   for your dogs, to try to reach another household's data, or to overload, probe or attack the
   service. We may remove content, or suspend or close an account, that does any of this. Unless the
@@ -90,9 +100,10 @@ before, and send you a copy of your household's data if you ask during that time
 
 ## 9. Changes to these terms
 
-We'll update the date at the top when these terms change. If a change matters to how you use Toe
-Beans, we'll tell you in the app or by email at least 30 days before it takes effect. If you don't
-agree, you can delete your account before then.
+When these terms change we'll update the date at the top, and the app asks you to accept the new
+version the next time you open it. If a change matters to how you use Toe Beans, we'll tell you in
+the app or by email at least 30 days before it takes effect. If you don't agree, you can delete
+your account instead of accepting (*More → Delete account*).
 
 ## 10. Law
 

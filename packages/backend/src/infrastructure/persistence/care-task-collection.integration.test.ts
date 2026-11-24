@@ -102,6 +102,30 @@ describe('mongoCareTasks', () => {
 		expect(across.map((t) => t.id)).not.toContain(later.id);
 	});
 
+	it('lists closed tasks changed since an instant, soonest due first', async () => {
+		const household = ids.next();
+		const d = (s: string) => s as PlainDate;
+		const since = new Date('2026-11-10T09:00:00Z');
+		clock.set(new Date('2026-11-10T08:00:00Z'));
+		await tasks().insert(newTask(household, { status: 'completed' }));
+		clock.set(since);
+		const done = await tasks().insert(
+			newTask(household, { dueDate: d('2026-11-20'), status: 'completed' })
+		);
+		const cancelled = await tasks().insert(
+			newTask(household, { dueDate: d('2026-11-03'), status: 'cancelled' })
+		);
+		await tasks().insert(newTask(household));
+		await tasks().insert(newTask(ids.next(), { status: 'completed' }));
+		clock.set(at);
+
+		expect((await tasks().listClosedSince(household, since, 10)).map((t) => t.id)).toEqual([
+			cancelled.id,
+			done.id
+		]);
+		expect(await tasks().listClosedSince(household, since, 1)).toHaveLength(1);
+	});
+
 	it("lists History's completed tasks by day done, after a cursor, by dog and dates", async () => {
 		const household = ids.next();
 		const d = (s: string) => s as PlainDate;

@@ -1,5 +1,6 @@
-// GET, PATCH and DELETE /api/v1/me: the signed-in person's own account (architecture §3.3, D38).
-import { UpdateProfile, type Profile as ProfileDto } from '@toe-beans/contracts';
+// GET, PATCH and DELETE /api/v1/me: the signed-in person's own account (architecture §3.3, D38),
+// and POST /api/v1/me/terms, accepting the terms (backlog S19.1).
+import { AcceptTerms, UpdateProfile, type Profile as ProfileDto } from '@toe-beans/contracts';
 import type { Account, Profile } from '../application/account/account.js';
 import type { AuthContext } from '../application/auth/auth.js';
 import { etag, versionFromIfMatch } from './etag.js';
@@ -15,6 +16,8 @@ export interface AccountHttp {
 	 * account, which a rename elsewhere doesn't change. The session goes with it.
 	 */
 	delete(ctx: AuthContext): Promise<HttpResponse>;
+	/** `current` is the version of the terms the app serves; the body names the one accepted. */
+	acceptTerms(ctx: AuthContext, input: { body: unknown; current: string }): Promise<HttpResponse>;
 }
 
 const withEtag = ({ version, ...profile }: Profile): HttpResponse =>
@@ -40,6 +43,13 @@ export function createAccountHttp(account: Account): AccountHttp {
 
 		async delete(ctx) {
 			return respond(await account.delete(ctx), () => noContent());
+		},
+
+		async acceptTerms(ctx, { body, current }) {
+			const input = parseInput(AcceptTerms, body);
+			if (!input.ok) return errorResponse(input.error);
+			const accepted = await account.acceptTerms(ctx, { version: input.value.version, current });
+			return respond(accepted, () => noContent());
 		}
 	};
 }

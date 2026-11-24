@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { legalDocument, privacy, terms } from './legal.js';
+import { isoDate, legalDocument, privacy, terms } from './legal.js';
 
 describe('legal documents', () => {
 	it('publish only what follows the line, titled and dated from the doc', () => {
@@ -9,6 +9,7 @@ describe('legal documents', () => {
 		expect(doc).toEqual({
 			title: 'Privacy',
 			updated: '1 May 2027',
+			version: '2027-05-01',
 			html: '<h2>1. Who</h2>\n<p>Us, <em>here</em>.</p>\n'
 		});
 	});
@@ -22,7 +23,17 @@ describe('legal documents', () => {
 		expect(html).toContain('<td data-label="B">y</td>');
 	});
 
+	it('version by the date, as YYYY-MM-DD', () => {
+		expect(isoDate('19 November 2026')).toBe('2026-11-19');
+		expect(isoDate('1 May 2027')).toBe('2027-05-01');
+		expect(isoDate('31 February 2027')).toBeNull();
+		expect(isoDate('May 1, 2027')).toBeNull();
+		expect(isoDate('1 Mai 2027')).toBeNull();
+		expect(terms.version).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+	});
+
 	it('refuse a doc without its date, line or title', () => {
+		expect(() => legalDocument('**Date:** soon\n\n---\n\n# T\n')).toThrow();
 		expect(() => legalDocument('---\n\n# T\n')).toThrow();
 		expect(() => legalDocument('**Date:** 1 May 2027\n\n# T\n')).toThrow();
 		expect(() => legalDocument('**Date:** 1 May 2027\n\n---\n\nNo title\n')).toThrow();

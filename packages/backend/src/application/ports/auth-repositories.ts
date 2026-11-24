@@ -2,7 +2,7 @@
 // household-owned, so these don't build on HouseholdCollection.
 import type { Id } from '../../domain/id.js';
 import type { Result } from '../../domain/result.js';
-import type { Identity, User } from '../../domain/user.js';
+import type { Identity, TermsAcceptance, User } from '../../domain/user.js';
 import type { NotFoundError, StaleVersionError } from '../errors.js';
 import type { SignInChecks } from './identity-provider.js';
 
@@ -29,6 +29,8 @@ export interface UserRepository {
 		expectedVersion: number,
 		at: Date
 	): Promise<Result<User, NotFoundError | StaleVersionError>>;
+	/** Records the terms the person accepted (S19.1). A deleted or missing user is not found. */
+	acceptTerms(id: Id, acceptance: TermsAcceptance): Promise<Result<User, NotFoundError>>;
 	/** Deletes the user for good (S16.5). Missing is fine. */
 	delete(id: Id): Promise<void>;
 }
