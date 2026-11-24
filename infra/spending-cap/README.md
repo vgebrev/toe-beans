@@ -19,7 +19,8 @@ budget toe-beans ──▶ topic toe-beans-budget ──push (OIDC)──▶ Clo
   lag the spend by hours to a day, so the cap stops a runaway, not the first cents over.
 - **What it does** (`cap.js`). The app's service loses its public invoker (`allUsers`): the
   Worker's fetches are turned away by Cloud Run itself, no instance starts, and nothing bills. Then the
-  tick's job is paused, since Scheduler is the one caller from inside Google. Each step looks
+  tick's job is paused, since Scheduler is the one caller from inside Google. The access change
+  takes effect for every request after a minute or two (about 70 s on prod). Each step looks
   first, so the repeated messages change nothing. A failed step answers 500 and Pub/Sub tries
   again, backing off to every 10 minutes.
 - **What people see.** The Worker (`infra/edge/worker.js`) shows *Toe Beans is paused* with a
