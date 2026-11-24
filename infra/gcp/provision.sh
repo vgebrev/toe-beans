@@ -28,15 +28,19 @@ gc() { gcloud --project "$PROJECT" --quiet "$@"; }
 sa() { echo "$1@$PROJECT.iam.gserviceaccount.com"; }
 say() { printf '\n== %s\n' "$*"; }
 exists() { "$@" >/dev/null 2>&1; }
+# Billing calls count against this project's quota, not the gcloud CLI's shared one, which runs out
+# (429 RESOURCE_EXHAUSTED on cloudbilling.googleapis.com).
+bill() { gc --billing-project "$PROJECT" billing "$@"; }
 PROJECT_NUMBER=$(gc projects describe "$PROJECT" --format='value(projectNumber)')
-# Looked up rather than written here: not a secret (IAM guards the account), but no need to publish it.
-BILLING_ACCOUNT=$(gcloud billing projects describe "$PROJECT" --format='value(billingAccountName)')
-BILLING_ACCOUNT=${BILLING_ACCOUNT#billingAccounts/}
 
 say "APIs"
 gc services enable run.googleapis.com artifactregistry.googleapis.com secretmanager.googleapis.com \
 	cloudscheduler.googleapis.com iam.googleapis.com iamcredentials.googleapis.com \
-	sts.googleapis.com billingbudgets.googleapis.com
+	sts.googleapis.com billingbudgets.googleapis.com \
+	cloudbilling.googleapis.com
+# Looked up rather than written here: not a secret (IAM guards the account), but no need to publish it.
+BILLING_ACCOUNT=$(bill projects describe "$PROJECT" --format='value(billingAccountName)')
+BILLING_ACCOUNT=${BILLING_ACCOUNT#billingAccounts/}
 
 say "Service accounts"
 # toe-beans-run: the identity the app runs as; reads its secrets and nothing else.
@@ -75,13 +79,26 @@ gc secrets add-iam-policy-binding app-secrets --condition=None \
 	--member="serviceAccount:$(sa toe-beans-run)" --role=roles/secretmanager.secretAccessor >/dev/null
 
 say "Cloud Run service"
+# Public through its access list: allUsers may invoke it (§8.4). The app refuses anything without
+# the Worker's header secret, and /internal/tick checks its own OIDC token. The spending cap takes
+# allUsers off to close it (infra/spending-cap), so this adds allUsers only to a service it has just
+# made, or once to one that still has the invoker check off (before S19.5), never on a re-run,
+# which would reopen an app the cap closed. One instance at most: the rate limits live in memory,
+# and it caps what a flood could cost.
+open_to_public() {
+	gc run services add-iam-policy-binding "$SERVICE" --region "$REGION" \
+		--member=allUsers --role=roles/run.invoker >/dev/null
+}
 if ! exists gc run services describe "$SERVICE" --region "$REGION"; then
-	# Public, with no invoker IAM check (§8.4): the app refuses anything without the Worker's header
-	# secret, and /internal/tick checks its own OIDC token. One instance at most: the rate limits
-	# live in memory, and it caps what a flood could cost.
 	gc run deploy "$SERVICE" --region "$REGION" --image "$PLACEHOLDER" \
-		--service-account="$(sa toe-beans-run)" --no-invoker-iam-check \
+		--service-account="$(sa toe-beans-run)" --invoker-iam-check \
 		--min-instances=0 --max-instances=1 --memory=512Mi --cpu-boost >/dev/null
+	open_to_public
+elif [ "$(gc run services describe "$SERVICE" --region "$REGION" \
+	--format="value(metadata.annotations.'run.googleapis.com/invoker-iam-disabled')")" = true ]; then
+	# allUsers first, then the check on, so the app stays open throughout.
+	open_to_public
+	gc run services update "$SERVICE" --region "$REGION" --invoker-iam-check >/dev/null
 fi
 # The service's deterministic URL (the other, hashed form works too); the tick's audience is this.
 URL="https://$SERVICE-$PROJECT_NUMBER.$REGION.run.app"
@@ -135,10 +152,10 @@ gc scheduler jobs "$verb" http toe-beans-tick --location "$SCHEDULER_REGION" \
 
 say "Budget alert"
 # A failed list (the API still switching on) must not read as "no budget", or each run adds one.
-if ! budgets=$(gc billing budgets list --billing-account="$BILLING_ACCOUNT" --filter="displayName=toe-beans" --format='value(name)'); then
+if ! budgets=$(bill budgets list --billing-account="$BILLING_ACCOUNT" --filter="displayName=toe-beans" --format='value(name)'); then
 	echo "Couldn't list budgets; re-run in a few minutes to add the alert." >&2
 elif [ -z "$budgets" ]; then
-	gc billing budgets create --billing-account="$BILLING_ACCOUNT" --display-name=toe-beans \
+	bill budgets create --billing-account="$BILLING_ACCOUNT" --display-name=toe-beans \
 		--filter-projects="projects/$PROJECT" --budget-amount="${BUDGET_USD}USD" \
 		--threshold-rule=percent=0.5 --threshold-rule=percent=1.0 \
 		--threshold-rule=percent=1.0,basis=forecasted-spend >/dev/null

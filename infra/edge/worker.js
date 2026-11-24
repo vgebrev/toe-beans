@@ -13,12 +13,22 @@
 // before the deploy from Cloudflare's cache, so phones kept the old offline files for hours
 // (S17.12). It also goes out as no-cache, in place of Cloudflare's 4-hour browser default.
 //
-// The spending cap (architecture D45, infra/spending-cap) takes the app down by letting Cloud Run
-// take internal traffic only. Cloud Run then refuses this Worker's fetches itself, with a 404 (or
-// 403) that never reached the app, so it lacks the x-request-id every app response carries
+// The spending cap (architecture D45, infra/spending-cap) takes the app down by taking allUsers off
+// Cloud Run's invokers. Cloud Run then refuses this Worker's fetches itself, with a 403 (or a 404
+// from an internal-only ingress) that never reached the app, so it lacks the x-request-id every app response carries
 // (hooks.server.ts). That refusal gets the maintenance page instead, so the cap needs no flag
 // here and no Cloudflare credential in GCP. Only /_app/ files can 404 without the app's header
 // (adapter-node answers those), so they're left as they are.
+// The maintenance page can't load anything from the app, which refuses everything while closed.
+// The mark is bundled in from the app's own geometry, and the fonts are the Worker's static assets
+// (assets/edge-fonts, served by Cloudflare before this runs; worker.test.js keeps them the app's).
+import {
+	markHeart,
+	markLetters,
+	markToes,
+	markViewBox
+} from '../../apps/web/src/lib/assets/brand/mark.ts';
+
 const WORKER_SCRIPT = '/service-worker.js';
 const ORIGIN = 'https://toe-beans-1047834821273.africa-south1.run.app';
 const APEX = 'toebeans.co.za';
@@ -27,11 +37,17 @@ const REQUEST_ID = 'x-request-id';
 // Toe Beans* (apps/web/src/lib/offline/caching.ts, MAINTENANCE_HEADER).
 const MAINTENANCE = 'x-toe-beans-maintenance';
 
-/** Cloud Run turned the request away before the app saw it: the cap's internal-only ingress. */
+/** Cloud Run turned the request away before the app saw it: the cap has closed it. */
 const refusedByCloudRun = (/** @type {Response} */ response, /** @type {string} */ path) =>
 	(response.status === 404 || response.status === 403) &&
 	!response.headers.has(REQUEST_ID) &&
 	!path.startsWith('/_app/');
+
+/** The mark as Logo.svelte draws it: letters in the text's colour, beans in the brand tan. */
+const mark = `<svg viewBox="0 0 ${markViewBox.width} ${markViewBox.height}" role="img" aria-label="Toe Beans">
+	<path fill="currentColor" fill-rule="evenodd" d="${markLetters}"/>
+	<g fill="#C98A4B"><path d="${markHeart}"/>${markToes.map((t) => `<ellipse cx="${t.cx}" cy="${t.cy}" rx="${t.rx}" ry="${t.ry}" transform="rotate(${t.deg} ${t.cx} ${t.cy})"/>`).join('')}</g>
+</svg>`;
 
 const page = `<!doctype html>
 <html lang="en">
@@ -41,29 +57,36 @@ const page = `<!doctype html>
 <meta name="color-scheme" content="light dark">
 <title>Toe Beans is paused</title>
 <style>
-	:root { --bg: #fffbf5; --text: #2b1d14; --muted: #6b5444; --primary: #8a4b1f; }
+	@font-face {
+		font-family: 'Nunito Variable'; font-style: normal; font-display: swap; font-weight: 200 1000;
+		src: url(/edge-fonts/nunito-latin.woff2) format('woff2-variations');
+	}
+	@font-face {
+		font-family: 'Fredoka Variable'; font-style: normal; font-display: swap; font-weight: 300 700;
+		src: url(/edge-fonts/fredoka-latin.woff2) format('woff2-variations');
+	}
+	:root { --bg: #fffbf5; --text: #2b1d14; --muted: #6b5444; --mark: #8a4b1f; }
 	@media (prefers-color-scheme: dark) {
-		:root { --bg: #141110; --text: #f3eadf; --muted: #b5a493; --primary: #c98a4b; }
+		:root { --bg: #141110; --text: #f3eadf; --muted: #b5a493; --mark: #f3eadf; }
 	}
 	html, body { height: 100%; margin: 0; }
 	body {
 		display: grid; place-items: center; padding: 16px; box-sizing: border-box;
 		background: var(--bg); color: var(--text); text-align: center;
-		font: 1.0625rem/1.5 system-ui, sans-serif;
+		font: 1.0625rem/1.5 'Nunito Variable', system-ui, sans-serif;
 	}
 	main { max-width: 28rem; }
-	svg { width: 72px; height: 72px; fill: var(--primary); }
-	h1 { margin: 16px 0 8px; font-size: 1.75rem; }
+	svg { width: 68px; height: 72px; color: var(--mark); }
+	h1 {
+		margin: 16px 0 8px; font: 700 1.75rem/1.25 'Fredoka Variable', 'Nunito Variable', system-ui,
+			sans-serif;
+	}
 	p { margin: 0 0 12px; color: var(--muted); }
 </style>
 </head>
 <body>
 <main>
-	<svg viewBox="0 0 100 100" aria-hidden="true">
-		<ellipse cx="50" cy="68" rx="22" ry="18"/>
-		<ellipse cx="22" cy="42" rx="9" ry="12"/><ellipse cx="40" cy="26" rx="9" ry="12"/>
-		<ellipse cx="60" cy="26" rx="9" ry="12"/><ellipse cx="78" cy="42" rx="9" ry="12"/>
-	</svg>
+	${mark}
 	<h1>Toe Beans is paused</h1>
 	<p>We've stopped the app for a while to look into something on our side. Your records are safe, and nothing you saved is lost.</p>
 	<p>Reminders are paused too. Please check back later; questions to support@toebeans.co.za.</p>
@@ -81,7 +104,7 @@ function maintenance(/** @type {Request} */ request) {
 			'cache-control': 'no-store',
 			'retry-after': '3600',
 			'x-robots-tag': 'noindex',
-			'content-security-policy': "default-src 'none'; style-src 'unsafe-inline'",
+			'content-security-policy': "default-src 'none'; style-src 'unsafe-inline'; font-src 'self'",
 			[MAINTENANCE]: '1'
 		}
 	});

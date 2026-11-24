@@ -58,18 +58,33 @@ const SERVICE =
 const JOB =
 	'https://cloudscheduler.googleapis.com/v1/projects/p/locations/me-central1/jobs/toe-beans-tick';
 
-/** A fake of Google's APIs, holding the service's ingress and the job's state. */
-function google({ ingress = 'INGRESS_TRAFFIC_ALL', state = 'ENABLED', fail = '' } = {}) {
+const PUBLIC = { role: 'roles/run.invoker', members: ['allUsers'] };
+const CAP_ROLE = {
+	role: 'projects/p/roles/toe_beans_cap_run',
+	members: ['serviceAccount:toe-beans-cap@p.iam.gserviceaccount.com']
+};
+
+/** A fake of Google's APIs, holding the service's access list and the job's state. */
+function google({
+	bindings = [PUBLIC, CAP_ROLE],
+	invokerIamDisabled = false,
+	state = 'ENABLED',
+	fail = ''
+} = {}) {
 	const calls = /** @type {string[]} */ ([]);
+	/** @type {unknown} */
+	let written;
 	const fetch = vi.fn(async (/** @type {string} */ url, /** @type {RequestInit} */ init) => {
 		const method = init.method ?? 'GET';
 		calls.push(`${method} ${url}`);
 		expect(new Headers(init.headers).get('authorization')).toBe('Bearer t0ken');
 		if (fail && url.startsWith(fail)) return new Response('{"error":"denied"}', { status: 403 });
-		if (url === SERVICE) return Response.json({ ingress });
-		if (url === `${SERVICE}?updateMask=ingress` && method === 'PATCH') {
-			ingress = JSON.parse(String(init.body)).ingress;
-			return Response.json({ name: 'operation' });
+		if (url === SERVICE) return Response.json({ invokerIamDisabled });
+		if (url === `${SERVICE}:getIamPolicy`) return Response.json({ etag: 'e1', bindings });
+		if (url === `${SERVICE}:setIamPolicy` && method === 'POST') {
+			written = JSON.parse(String(init.body)).policy;
+			bindings = /** @type {{ bindings: typeof bindings }} */ (written).bindings;
+			return Response.json(written);
 		}
 		if (url === JOB) return Response.json({ state });
 		if (url === `${JOB}:pause` && method === 'POST') {
@@ -81,32 +96,50 @@ function google({ ingress = 'INGRESS_TRAFFIC_ALL', state = 'ENABLED', fail = '' 
 	return {
 		deps: { fetch: /** @type {typeof globalThis.fetch} */ (fetch), token: async () => 't0ken' },
 		calls,
-		state: () => ({ ingress, state })
+		written: () => written,
+		state: () => ({ bindings, state })
 	};
 }
 
 describe('takeDown', () => {
-	it('closes the service to outside traffic, then pauses the tick', async () => {
+	it('takes the public off the service, then pauses the tick', async () => {
 		const api = google();
-		expect(await takeDown(config, api.deps)).toEqual({ ingress: 'changed', tick: 'paused' });
-		expect(api.state()).toEqual({ ingress: 'INGRESS_TRAFFIC_INTERNAL_ONLY', state: 'PAUSED' });
+		expect(await takeDown(config, api.deps)).toEqual({ access: 'closed', tick: 'paused' });
+		expect(api.state()).toEqual({ bindings: [CAP_ROLE], state: 'PAUSED' });
 		expect(api.calls).toEqual([
 			`GET ${SERVICE}`,
-			`PATCH ${SERVICE}?updateMask=ingress`,
+			`GET ${SERVICE}:getIamPolicy`,
+			`POST ${SERVICE}:setIamPolicy`,
 			`GET ${JOB}`,
 			`POST ${JOB}:pause`
 		]);
 	});
 
+	it('sends the etag back and keeps the other invokers', async () => {
+		const tick = 'serviceAccount:toe-beans-tick@p.iam.gserviceaccount.com';
+		const api = google({ bindings: [{ role: 'roles/run.invoker', members: ['allUsers', tick] }] });
+		await takeDown(config, api.deps);
+		expect(api.written()).toEqual({
+			etag: 'e1',
+			bindings: [{ role: 'roles/run.invoker', members: [tick] }]
+		});
+	});
+
 	it('changes nothing the second time', async () => {
-		const api = google({ ingress: 'INGRESS_TRAFFIC_INTERNAL_ONLY', state: 'PAUSED' });
-		expect(await takeDown(config, api.deps)).toEqual({ ingress: 'already', tick: 'already' });
-		expect(api.calls).toEqual([`GET ${SERVICE}`, `GET ${JOB}`]);
+		const api = google({ bindings: [CAP_ROLE], state: 'PAUSED' });
+		expect(await takeDown(config, api.deps)).toEqual({ access: 'already', tick: 'already' });
+		expect(api.calls).toEqual([`GET ${SERVICE}`, `GET ${SERVICE}:getIamPolicy`, `GET ${JOB}`]);
+	});
+
+	it('refuses a service with the invoker check off, which the access list cannot close', async () => {
+		const api = google({ invokerIamDisabled: true });
+		await expect(takeDown(config, api.deps)).rejects.toThrow(/invoker check off/);
+		expect(api.calls).toEqual([`GET ${SERVICE}`]);
 	});
 
 	it('throws when an API refuses, so Pub/Sub sends the message again', async () => {
-		const api = google({ fail: `${SERVICE}?` });
-		await expect(takeDown(config, api.deps)).rejects.toThrow(/PATCH .* answered 403/);
+		const api = google({ fail: `${SERVICE}:setIamPolicy` });
+		await expect(takeDown(config, api.deps)).rejects.toThrow(/POST .*setIamPolicy answered 403/);
 	});
 });
 

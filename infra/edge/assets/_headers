@@ -1,0 +1,5 @@
+# Cloudflare serves these files before the Worker runs (wrangler.jsonc "assets"). The names are
+# fixed, so a day rather than a year: a font update reaches phones by the next day.
+/edge-fonts/*
+  Cache-Control: public, max-age=86400
+  X-Content-Type-Options: nosniff

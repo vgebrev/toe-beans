@@ -41,13 +41,19 @@ redeploy the app so it picks up the new version.
 
 ## The maintenance page (S19.5)
 
-When the spending cap closes Cloud Run's ingress (architecture D45, `infra/spending-cap`), Cloud
-Run turns the Worker's fetches away itself, with a 404 or 403 that lacks the app's `x-request-id`.
+When the spending cap takes `allUsers` off the app's invokers (architecture D45,
+`infra/spending-cap`), Cloud Run turns the Worker's fetches away itself, with a 403 (or 404) that
+lacks the app's `x-request-id`.
 The Worker answers those with *Toe Beans is paused* (503, `no-store`, `x-toe-beans-maintenance`,
 which the app's service worker lets through), or plain text to a request that doesn't accept
 HTML. `/_app/` files are left as they are, since adapter-node answers a missing one without the
-app's header. Nothing to set up here; `worker.test.js` covers it, and the cap's runbook
-(`docs/runbooks/spending-cap.md` §2) checks it live.
+app's header. The page loads nothing from the app, which is closed: the mark is bundled in from
+`apps/web/src/lib/assets/brand/mark.ts`, and its fonts (the app's Latin Nunito and Fredoka) are
+the Worker's static assets in `assets/edge-fonts/`, which Cloudflare serves before the Worker runs
+(`assets/_headers` caches them a day). After a font upgrade in the app, `worker.test.js` fails
+until the new files are copied over and the Worker deployed. Nothing to set up here;
+`worker.test.js` covers it, and the cap's runbook (`docs/runbooks/spending-cap.md` §2) checks it
+live.
 
 ## No scripts added at the edge (S19.3)
 
