@@ -26,9 +26,9 @@ Budget: warm Today API ≤ 250 ms p95 (architecture §8.4).
 ```sh
 pnpm install
 # locally (the password goes from Secret Manager into the environment, never onto the screen):
-MONGO_HOST=toe-beans.uitdn6o.mongodb.net MONGO_USER=toe-beans-spike \
+MONGO_HOST=<cluster>.<id>.mongodb.net MONGO_USER=toe-beans-spike \
   MONGO_PASSWORD="$(gcloud secrets versions access latest --secret=atlas-spike-password)" \
   PORT=3400 pnpm start
 # on Cloud Run:
-./deploy.sh
+MONGO_HOST=<cluster>.<id>.mongodb.net ./deploy.sh
 ```

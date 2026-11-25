@@ -1,6 +1,6 @@
 # Toe Beans — Security Audit
 
-**Version:** 0.18
+**Version:** 0.19
 **Date:** 25 November 2026
 **Status:** §1–§6, the code review: every finding fixed or decided (S15.2). §7, the external pentest: both findings fixed (S18.3). §8, found since: fixed. §9, the second review of code and infrastructure: every finding fixed or decided, and every check made (R1, R2, R4, R5, R6, R7, R8, R9 and R10 fixed, R3 mitigated and its rest accepted, R11 fixed but for DNSSEC, which is accepted; C5 to C9 confirmed, C7 with a lock rule added).
 **Inputs:** `docs/requirements.md` v1.0, `docs/architecture.md` v1.21, the code at commit `1ea686e` (`develop`); for §7, prod on 1.0.4 and the repo at `main` `904516e`; for §9, `docs/architecture.md` v1.48, the repo at `develop` `c965642`, and prod on 1.1.0 with its GCP, Cloudflare and GitHub settings as read on 24 November 2026
@@ -21,7 +21,7 @@
 
 **Changes in 0.8:** §9.2 R2 fixed: Dependabot alerts on; automated security updates stay off, since they'd open pull requests against `main`, and alerts go through `develop` by hand (architecture 1.50, D15). The production tree's `glob` advisory and two of the dev ones are fixed by updates; one dev-only path is left.
 
-**Changes in 0.9:** §9.2 R3 mitigated: a rate-limiting rule at the edge, 200 requests per IP in 10 seconds, blocked for 10 seconds, sized on a fresh install's 170; Free plan rules match only the path, so the suggested `http.host` expression is corrected. The rest is accepted by the owner: no Workers Paid and no second Cloudflare account for now (architecture 1.51, D13, R6). C5's first item answered.
+**Changes in 0.9:** §9.2 R3 mitigated: a rate-limiting rule at the edge, 200 requests per IP in 10 seconds, blocked for 10 seconds, sized on a fresh install's 170; Free plan rules match only the path, so the suggested `http.host` expression is corrected. The rest is accepted by the owner for now (architecture 1.51, D13, R6). C5's first item answered.
 
 **Changes in 0.10:** §9.2 R1 and R4 fixed on prod: only the edge Worker and the tick reach the app's origin, and Google's pricing page confirms that requests it refuses aren't billed, so R1's log measures aren't needed (architecture 1.52, D45; backlog S19.8 done).
 
@@ -41,7 +41,11 @@
 
 **Changes in 0.18:** §9.3 checked, which closes §9, by the owner in each dashboard: C5's Cloudflare rules and Bot Fight Mode as expected; C6's `send` records are Resend's verified ones, now recorded in the accounts runbook; C7's app token is limited to photos, and backups gain an R2 lock rule on `mongo/` for 29 days, read back with wrangler; C8's Atlas users and two-factor sign-in as accounts.md says; C9's webhooks, secret-scanning alerts and deploy keys are all empty, and the Auth0 tenant has only Google and the database connection on its application; Auth0 has no setting to refuse unverified sign-ups, so that rests on the app's check at callback (backlog S19.17 done).
 
+**Changes in 0.19:** for a public repo: §9.2 R3, still partly open, cut to a summary, with the account, the sites sharing its quota and the flood's numbers taken out (also from the 0.9 line, §9.5 and the docs that cite R3). A note says how findings are disclosed: detail only once fixed, and private reports through GitHub (`SECURITY.md`).
+
 ---
+
+**Disclosure.** The repo is public. A finding's detail goes in only once it's fixed; while it's open or partly accepted, it gets a summary (the pentest runbook's rule). Vulnerabilities are reported privately through GitHub (`SECURITY.md`).
 
 ## 1. Summary
 
@@ -269,7 +273,7 @@ No critical or high findings. Nothing found lets one household reach another's d
 |---|---|---|---|
 | R1 | A flood straight at `run.app` runs up the bill, and the spending cap then closes the app | Medium | Confirmed in config and live; the spend rate is estimated; fixed 25 Nov (Google's invoker check) |
 | R2 | Dependabot alerts and security updates are off | Medium | Confirmed; fixed 25 Nov (alerts on) |
-| R3 | The site fails for the rest of the day after 100,000 Worker requests, a quota shared with two other sites | Medium | Confirmed in config; the quota wasn't exhausted; mitigated 25 Nov (rate-limiting rule), the rest accepted |
+| R3 | A flood can use up the edge's free daily quota and fail the site for the rest of the day | Medium | Confirmed in config; the quota wasn't exhausted; mitigated 25 Nov (rate-limiting rule), the rest accepted |
 | R4 | `/readyz` answers at `run.app` without the proxy secret and pings Atlas on every call | Low | Confirmed live and in code; fixed 25 Nov |
 | R5 | Plain `http://toebeans.co.za` serves the app; HSTS isn't preloaded | Low | Confirmed live; fixed 25 Nov (redirect, HSTS from the edge, preload submitted) |
 | R6 | TLS 1.0 and 1.1 are accepted at the edge | Low | Confirmed live; fixed 25 Nov |
@@ -307,14 +311,13 @@ No critical or high findings. Nothing found lets one household reach another's d
 - **Fix:** `gh api -X PUT repos/vgebrev/toe-beans/vulnerability-alerts`, then optionally `gh api -X PUT repos/vgebrev/toe-beans/automated-security-fixes`. Security update PRs target `main`, against the develop-first flow; if that's unwanted, keep alerts on and security updates off, and take each alert through `develop` by hand.
 - **Status (25 Nov): fixed (architecture 1.50, D15).** Alerts are on (`vulnerability-alerts` answers 204). Automated security updates stay off: GitHub opens them against `main`, which moves only by pull request from `develop`, and they'd fail CI's `pnpm release check`, which wants a new version on every pull request into `main`. GitHub emails the owner on a new alert, and the fix goes through `develop` like any other change. D34's acceptance of the four moderate advisories now rests on alerts that are on. With alerts on, three of the four accepted advisories went at once: `@sentry/node` and `@sentry/browser` to 11.14.0 (its `@sentry/bundler-plugins` takes the fixed `glob` 14), `eslint` to 10.15.0 and `typescript-eslint` to 8.73.0 (the fixed `minimatch` 11), each past the 7-day cooldown. `pnpm audit` now shows only `glob` and its `minimatch` through `testcontainers > archiver-utils`, dev-only, with no fixed release yet.
 
-**R3. The site fails for the rest of the day after 100,000 Worker requests, a quota shared with two other sites — medium.**
+**R3. A flood can use up the edge's free daily quota and fail the site for the rest of the day — medium.**
 
-- **Where:** Cloudflare account `470d…c05b` on Workers Free (`docs/runbooks/accounts.md` "Billing limits": "requests past the day's allowance fail"). The account runs three Workers on custom domains: `toe-beans-edge`, `gebrev-com` (`gebrev.com`, `veli.gebrev.com`) and `swimwellza` (`swimwellza.co.za`). Every request to `toebeans.co.za` runs the Worker, cached `/_app/` files included, except the WAF's scanner blocks (D42) and the maintenance fonts (static assets).
-- **What an attacker could do:** send about 100,000 requests in a day, about 1.2 a second, to any of the three sites. From then until midnight UTC, Cloudflare answers every request on all three with an error page. The installed app shows *Can't reach Toe Beans*, and reminders still go out, since the tick calls `run.app` directly. Unlike R1, this costs nothing and needs no bandwidth to speak of. Cloudflare's automatic DDoS protection acts on far higher rates. Whether a rate-limiting rule exists couldn't be read (C5), and none is in the repo.
-- **Fix:**
-  1. A rate-limiting rule at the edge. The free plan allows one, and requests it blocks never run the Worker. In the dashboard: **toebeans.co.za → Security → WAF → Rate limiting rules**, matching every path of the zone (*corrected:* Free plan rules can match only the path, so `http.request.uri.path wildcard "/*"`, not `http.host`), counting by IP, 10-second period, action Block for 10 seconds. Set the threshold above a cold start of the app (count the requests one phone makes on a fresh install, likely 40 to 80) with margin, for example 150. It slows a single source; a spread-out flood still gets through.
-  2. Separate the quota. Move the other two sites to another Cloudflare account, so a flood on them can't take Toe Beans down, or take Workers Paid (US$5 a month, 10 million requests) when the free tier stops being a requirement (NFR-07). Record the choice against D13.
-- **Status (25 Nov): mitigated; the rest accepted (architecture 1.51, D13, R6).** The rule is on: every path of `toebeans.co.za`, by IP, more than 200 requests in 10 seconds blocks that IP for 10 seconds (`infra/edge/README.md`). The owner measured a fresh load at 170 requests, nearly all of them the service worker's precache (`cache.addAll` over the build's files, which fails whole on one refusal), so 200 leaves a small margin; an app update fetches only the changed files. The sign-in pages on `auth.toebeans.co.za` aren't proxied by Cloudflare (`auth0.md` §3) and don't count. What the rule stops is a fast flood from one address using up the day in minutes. It doesn't stop R3's attack as written: 1.2 requests a second is far under any threshold the app can live with, an address just under the limit uses up the day in about two hours, and many addresses aren't slowed at all. Separating the quota is declined for now (owner): no Workers Paid (US$5 a month, NFR-07) and no second Cloudflare account; the other two sites get their own rate-limiting rules on their zones. Revisit if the quota is ever exhausted, or when the free tier stops being a requirement. The precache grows with the build, so recount a fresh load when the build grows by a lot, and raise the threshold before it nears 200.
+- **Where:** the Worker `toe-beans-edge` on Cloudflare's Workers Free plan, whose requests a day are capped per account (`docs/runbooks/accounts.md` "Billing limits": "requests past the day's allowance fail"). Every request to `toebeans.co.za` runs the Worker, except the WAF's scanner blocks (D42) and the maintenance fonts.
+- **What an attacker could do:** send enough requests in a day to use up the quota. Until midnight UTC, Cloudflare then answers with an error page and the installed app shows *Can't reach Toe Beans*. Reminders still go out, since the tick calls `run.app` directly. No data is exposed and nothing bills.
+- **Fix:** a rate-limiting rule at the edge, which the free plan allows and whose blocks never run the Worker; and, for the rest, Workers Paid or a quota the Worker doesn't share.
+- **Status (25 Nov): mitigated; the rest accepted (architecture 1.51, D13, R6).** The rule is on (`infra/edge/README.md`), sized above a fresh install's 170 requests, and stops a fast flood from one address. What it leaves is accepted for now (owner, NFR-07) and revisited if the quota is ever exhausted. The rule's threshold follows the precache, so recount a fresh load when the build grows by a lot.
+- **Redacted (0.19):** this finding's detail is withheld while part of it stays open, as the pentest runbook does for open findings. Earlier versions in the history have it.
 
 **R4. `/readyz` answers at `run.app` without the proxy secret and pings Atlas on every call — low.**
 
@@ -495,5 +498,5 @@ SSL mode (Flexible, Full or Strict) doesn't apply. The Worker fetches `run.app` 
 ### 9.5 Fix first
 
 1. **R1 and R4, the cost of a refused request.** Make refusals and `/readyz` cheap (debug-level log, a log exclusion, a memoised ping), and correct D45's bound. Then decide whether the origin should sit behind Google's IAM. *Done 25 Nov: behind Google's IAM, and its refusals aren't billed.*
-2. **R3, the shared Worker quota.** Add the free rate-limiting rule and move the other two sites off this account, so a cheap flood on any of them doesn't take Toe Beans down for a day. *Rule on 25 Nov; separating the quota declined for now.*
+2. **R3, the Worker quota.** Add the free rate-limiting rule, and keep a cheap flood from taking Toe Beans down for a day. *Rule on 25 Nov; the rest accepted for now.*
 3. **R2, Dependabot alerts.** One command, and D34's acceptance of the open advisories rests on it. *Done 25 Nov.*
