@@ -1,0 +1,58 @@
+id: car-rides-calmly
+contentVersion: 1
+title: Car rides, calmly
+skillArea: settling
+goal: >-
+  Your puppy learns that the car is a calm, good place, so trips stop being frightening, one small
+  step at a time.
+setup: >-
+  Decide where your puppy will travel: a crate that's strapped in, or a car harness clipped to a seat
+  belt, on the back seat or in the boot. Never the front seat. Bring small treats, a long-lasting chew
+  and a towel or blanket that smells of home. A second person helps once you start driving.
+steps:
+  - >-
+    With the car parked and the doors open, scatter a few treats near it, or give your puppy a meal
+    beside it. Let them explore and walk away whenever they like.
+  - >-
+    Invite or lift your puppy into their travel spot with the doors open and the engine off. Give
+    treats and a chew for a minute or two, then lift them out before they want to leave.
+  - Close the doors and sit in the driver's seat for a few minutes while your puppy settles with the
+    chew.
+  - Turn the engine on for a minute, without driving. Turn it off, take them out and play.
+  - Drive to the end of the road and back, a minute or two in all.
+  - >-
+    Take short trips of a few minutes that end somewhere good: a sniff in the park, a friend's
+    garden, a game. Not just to the vet.
+  - >-
+    Move on to the next step only once your puppy is relaxed on the last one, over a few sessions.
+    Then add a few minutes at a time.
+suggestedDurationMin: 10
+successCriteria: >-
+  Your puppy gets into their travel spot willingly and settles during a ten-minute trip, without
+  drooling, lip licking, whining or trying to get out.
+ifStruggling: |-
+  Go back to the last step your puppy was relaxed at, and make each step smaller. Signs your puppy is
+  worried: drooling, panting, lip licking, yawning, whining, shaking, or pulling away from the car.
+
+  Some puppies cope better when they can't see the world rushing past: try a crate with a light cover
+  over the sides, and make sure fresh air still reaches them.
+
+  If your puppy is sick even on short trips, the problem may be motion sickness rather than fear.
+  It's common in puppies, whose balance is still developing, and many grow out of it. Keep the trips
+  short and ask your vet.
+safetyNotes: >-
+  Feed a light meal two or three hours before a trip rather than just before, and walk your puppy
+  first. Keep the car cool with a little fresh air, but no head out of the window. Take regular
+  breaks on longer drives, and never leave your puppy alone in a parked car: it heats up fast. If
+  your puppy is often sick or very anxious in the car, see your vet, who can check them and advise on
+  medication if it's needed. Don't give human travel-sickness tablets or other remedies without
+  asking your vet.
+sources:
+  - title: Car sickness and motion sickness in dogs
+    url: https://www.pdsa.org.uk/pet-help-and-advice/pet-health-hub/conditions/car-sickness-and-motion-sickness-in-dogs
+    kind: article
+  - title: 'Carsickness in Dogs: What to Know'
+    url: https://www.akc.org/expert-advice/training/car-sickness-in-dogs/
+    kind: article
+reviewedBy: veli
+reviewedAt: 2026-11-25

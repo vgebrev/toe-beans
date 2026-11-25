@@ -14,6 +14,8 @@ for fixes. Candidates (`-rc.N`) go to prod for the owner to try before the relea
 
 - Owners can download a copy of their household's data from More → Your data: a ZIP file with
   every record in JSON, a note on reading it, and the dogs' photos.
+- Three new exercises: *Stop-go on walks* for a puppy that pulls on the lead, *Car rides,
+  calmly* for a puppy that's anxious or sick in the car, and *A first Stay*.
 
 ## 1.1.2 - 2026-11-25
 

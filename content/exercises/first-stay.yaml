@@ -1,0 +1,58 @@
+id: first-stay
+contentVersion: 1
+title: A first Stay
+skillArea: settling
+goal: >-
+  Your puppy learns to hold a sit or a down until you say they can go, first for a few seconds, then
+  for longer, further away and with things going on around them.
+setup: >-
+  Start once your puppy sits or lies down readily when asked. Choose a quiet room and a pot of small
+  treats. Pick two words and add them to your cue dictionary so everyone uses the same ones: "Stay",
+  and a release word such as "free" that means "you can move now". If you already use a release word
+  for the mat, use the same one.
+steps:
+  - >-
+    Teach the release first. Ask for a sit, reward, then say your release word and take a step back
+    so your puppy gets up. Repeat a few times.
+  - >-
+    Duration: ask for a sit, say "Stay", wait one second, then reward. Bring the treat to your
+    puppy's mouth while they're still sitting, then release. The reward is for staying, not for
+    getting up.
+  - Add a second or two at a time. Mix in some easy, short stays so it doesn't always get harder.
+  - >-
+    Distance, once your puppy can stay for about 15 seconds with you right beside them: lean back,
+    then take one step back. Step in again, reward in position and release. Build up half a step at
+    a time.
+  - >-
+    Distraction, last: with you close and the stay short, shift your weight, clap softly or put a toy
+    down nearby. Reward and release.
+  - >-
+    Change only one thing at a time. When you add distance or distraction, make the stay shorter
+    again. Always go back to your puppy to reward; don't call them out of a stay.
+  - Finish while your puppy is still getting it right, before they get up on their own, with your
+    release word and a game.
+suggestedDurationMin: 3
+successCriteria: >-
+  Your puppy holds a sit or a down for about 30 seconds with you beside them, or a few seconds with
+  you two steps away, until you say the release word.
+ifStruggling: |-
+  If your puppy gets up before the release, that's fine: no treat, no fuss. Ask for a sit again and
+  do an easier stay, shorter or closer. If it happens twice in a row, the last step was too big.
+
+  Watch your own movements. Stepping back or turning away invites your puppy to follow, so take
+  smaller steps and stay still.
+
+  Puppies have short attention spans: a few stays, a few times a day, work better than one long
+  session. A tired puppy can't concentrate; try again after a rest.
+safetyNotes: >-
+  A stay isn't a safety tool near roads or other dogs until it's very reliable. Keep your puppy on a
+  lead outdoors.
+sources:
+  - title: How to Teach Your Dog to Stay
+    url: https://www.akc.org/expert-advice/training/teaching-the-stay/
+    kind: article
+  - title: 'Stay 1: Duration'
+    url: https://www.oregonhumane.org/portland-training/stay-1-duration/
+    kind: article
+reviewedBy: veli
+reviewedAt: 2026-11-25

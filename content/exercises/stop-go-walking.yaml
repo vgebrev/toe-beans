@@ -1,0 +1,62 @@
+id: stop-go-walking
+contentVersion: 1
+title: Stop-go on walks
+skillArea: loose-leash
+goal: >-
+  Your puppy learns a simple rule on real walks: a tight lead stops the walk, a slack lead starts it
+  again. Some trainers call it "red light, green light".
+setup: >-
+  Start once "Loose-lead first steps" is going well at home. Pick a quiet street or path at a quiet
+  time, with your puppy on a flat collar or a comfortable harness and a normal lead of about 1.5 to 2
+  metres (not an extending one). Bring plenty of small, tasty treats. Agree with everyone who walks
+  your puppy to play it the same way: a tight lead means stop, every time.
+steps:
+  - Set off at a brisk, easy pace. While the lead is slack, reward by your leg every few steps.
+  - >-
+    Red light: the moment the lead goes tight, stop and stand still. Keep your hands close to your
+    body and don't pull back; just wait quietly.
+  - >-
+    Green light: as soon as your puppy looks back, steps towards you or the lead goes slack, say
+    "yes" and walk on. Reward by your leg within the first step or two.
+  - >-
+    If your puppy stays at the end of the lead for more than a few seconds, calmly turn and walk the
+    other way. Reward when they catch up beside you.
+  - >-
+    Now and then, let your puppy sniff as a reward for a run of slack-lead steps ("go sniff"), then
+    carry on.
+  - >-
+    Keep the stops short and the walk moving. Stop the session while your puppy is still getting it
+    right, and only move to busier places once quiet streets are easy.
+suggestedDurationMin: 10
+successCriteria: >-
+  On a quiet street your puppy slackens the lead within a few seconds of each stop, and you're
+  stopping less often than when you started.
+ifStruggling: |-
+  Go somewhere quieter, or back to the garden for a few sessions, and reward more often while the lead
+  is slack. Everything new on a walk makes pulling more likely.
+
+  If the stops are getting long, turn and walk the other way sooner instead of waiting. A long wait
+  at the end of a tight lead teaches little.
+
+  Short, frequent sessions work better than one long one. A tired or over-excited puppy will pull
+  more: try after a play in the garden, or before they're worn out.
+
+  On walks where you need to get somewhere, it's fine to carry your puppy or keep it very short.
+  Every time pulling gets them there, it gets harder to undo.
+safetyNotes: >-
+  Never stop where it isn't safe, such as on a road crossing or a narrow kerb; get somewhere safe
+  first. If your puppy pulls hard on a collar or coughs on walks, use a well-fitted harness, and see
+  your vet if the coughing doesn't stop. Puppies tire quickly and their joints are still growing:
+  keep walks short and gentle.
+sources:
+  - title: How to train your dog to walk on a lead
+    url: https://www.battersea.org.uk/pet-advice/dog-advice/how-teach-your-dog-walk-lead
+    kind: article
+  - title: How to stop a dog pulling on the lead (step by step)
+    url: https://ask.woodgreen.org.uk/pet-advice/dog/behaviour-and-training/how-to-stop-your-dog-pulling-on-the-lead-step-by-step
+    kind: article
+  - title: How to stop your dog pulling the lead
+    url: https://www.rspcaqld.org.au/resources/pet-care/how-to-stop-your-dog-pulling-the-lead-MCDU4OMEJLXZBIZEIZ7P3N2PSFOQ
+    kind: article
+reviewedBy: veli
+reviewedAt: 2026-11-25

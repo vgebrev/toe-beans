@@ -1,6 +1,6 @@
 # Toe Beans — Backlog
 
-**Version:** 0.107 (draft for iteration)
+**Version:** 0.108 (draft for iteration)
 **Date:** 25 November 2026
 **Inputs:** `docs/requirements.md` v1.1, `docs/architecture.md` v1.58, `docs/ui.md` v0.47
 
@@ -194,6 +194,8 @@
 
 **Changes in 0.107:** S19 closed by the owner, all eighteen items done. S19.7 built and done: the household's export on More (architecture 1.58 D46, ui 0.47 §4.7), with the privacy policy (0.9) saying how to get a copy and the data inventory (0.11) that it isn't kept. Measured on two busy years of records, it now streams so it holds up nothing for long; `pnpm seed:household` makes such a household in the dev database. Inputs moved to architecture 1.58 and ui 0.47.
 
+**Changes in 0.108:** S20 closed, S20.1–S20.3 done and signed off by the owner: *Stop-go on walks* (`stop-go-walking`, linked from *Loose-lead first steps*, now content version 2), *Car rides, calmly* (`car-rides-calmly`) and *A first Stay* (`first-stay`), with their research in `content/sources/`. They pass the content gate's format and flagged-term checks (§3.8) The research notes record where the sources disagree (feeding before a car trip) and which advice was followed.
+
 **Changes in 0.51:** S15.1 gains (k), fresh data on coming back to the app and on Back to a page Chrome kept whole (ui 0.35 §5.2), from the owner, after Today stayed stale behind a reminder. Live updates over WebSockets were considered and left out for cost. The offline banner's check backs off from 1 s (architecture 1.23 D31), found through a flaky e2e check. Built with e2e checks and closed by the owner, so S15.1 stays done. Inputs moved to architecture 1.23 and ui 0.35.
 
 **Changes in 0.50:** S15.1 gains (j), a banner offering *Refresh* once a new version is deployed (ui 0.34 §5.2), from the owner. Built and covered by an e2e check; it can only be seen across a real deploy, so the owner tries it on prod after the next one. Inputs moved to ui 0.34.
@@ -358,8 +360,9 @@ Work is organised as **vertical slices**: each delivers a usable end-to-end incr
 | 2026-11-25 | S19.17 done: the audit's open checks confirmed in each dashboard, and the last 29 days of database backups can no longer be deleted, even with the backup job's own key (security audit C5–C9). |
 | 2026-11-25 | S19.18 done: the public repo checked for what it gives away; one open finding cut to a summary, and security issues can now be reported privately on GitHub (`SECURITY.md`). |
 | 2026-11-25 | S19 closed by the owner, S19.1–S19.18 done. S19.7 done, tried on a phone by the owner: an owner downloads the household as a ZIP from More, its records in JSON with a README and its dogs' photos (D46). Measured on two busy years of records, it now streams, holding up other requests for about 30 ms rather than 310. |
+| 2026-11-25 | S20 closed: three new exercises from puppy school, *Stop-go on walks*, *Car rides, calmly* and *A first Stay*, signed off by the owner and read on a phone. *Loose-lead first steps* now points to *Stop-go on walks*. |
 
-**Next up:** S20.1–S20.3, then S21 (S19 is done).
+**Next up:** S21 (S19 and S20 are done).
 
 ---
 
@@ -649,9 +652,9 @@ Work is organised as **vertical slices**: each delivers a usable end-to-end incr
 
 | # | Task | Status |
 |---|---|---|
-| S20.1 | **Stop-go for loose-lead walking.** A new `loose-leash` exercise: the lead goes tight, you stop; it slackens, you go on and reward beside you. Written in our own words from freely available reward-based sources, cited in `sources`, nothing copied from the school's material, and checked against `content/README.md` and the content gate (§3.8). Linked from *Loose lead, first steps* as the next step if that reads well. The owner reviews and signs it off (`reviewedBy`, `reviewedAt`). | ⬜ |
-| S20.2 | **Car rides, calmly** (`settling`). Gradual exposure for a puppy that's anxious or sick in the car: treats and a meal near the parked car, sitting in it with the engine off, engine on, a trip to the end of the road, then short trips that end somewhere good, each step only once the last is relaxed. Practical safety notes: a crate or harness clipped in, not the front seat, fresh air, a light meal hours before rather than just before, breaks on longer drives. Sickness can be motion sickness rather than fear: the exercise says to ask a vet, who can advise on medication, and stops short of recommending any (NFR-14). | ⬜ |
-| S20.3 | **A first *Stay*** (`settling`, the area for calm and self-control). Duration first, then distance, then distraction, one at a time and in small steps, with a release word, and the reward brought to the dog in position rather than calling them out of it; ends before the puppy breaks. Reward-based only: no corrections for breaking, just a step back to what was easy. A cue for the household's cue dictionary (*Stay* and the release word). | ⬜ |
+| S20.1 | **Stop-go for loose-lead walking.** A new `loose-leash` exercise: the lead goes tight, you stop; it slackens, you go on and reward beside you. Written in our own words from freely available reward-based sources, cited in `sources`, nothing copied from the school's material, and checked against `content/README.md` and the content gate (§3.8). Linked from *Loose lead, first steps* as the next step if that reads well. The owner reviews and signs it off (`reviewedBy`, `reviewedAt`). **Drafted (25 Nov):** `stop-go-walking`, cited to Battersea, Woodgreen and RSPCA Queensland; the household agrees one rule for everyone who walks the puppy. *Loose-lead first steps* points to it in its success criteria (content version 2, so its sign-off is due again). **Done (25 Nov):** signed off by the owner and read on a phone. | ✅ |
+| S20.2 | **Car rides, calmly** (`settling`). Gradual exposure for a puppy that's anxious or sick in the car: treats and a meal near the parked car, sitting in it with the engine off, engine on, a trip to the end of the road, then short trips that end somewhere good, each step only once the last is relaxed. Practical safety notes: a crate or harness clipped in, not the front seat, fresh air, a light meal hours before rather than just before, breaks on longer drives. Sickness can be motion sickness rather than fear: the exercise says to ask a vet, who can advise on medication, and stops short of recommending any (NFR-14). **Drafted (25 Nov):** `car-rides-calmly`, cited to the PDSA and the AKC. Feeding follows the PDSA (two or three hours before), not the AKC's longer fast; no human or herbal remedies without the vet. **Done (25 Nov):** signed off by the owner and read on a phone. | ✅ |
+| S20.3 | **A first *Stay*** (`settling`, the area for calm and self-control). Duration first, then distance, then distraction, one at a time and in small steps, with a release word, and the reward brought to the dog in position rather than calling them out of it; ends before the puppy breaks. Reward-based only: no corrections for breaking, just a step back to what was easy. A cue for the household's cue dictionary (*Stay* and the release word). **Drafted (25 Nov):** `first-stay`, cited to the AKC and Oregon Humane. The setup asks the household to add *Stay* and the release word to their cue dictionary, reusing the mat's release word. **Done (25 Nov):** signed off by the owner and read on a phone. | ✅ |
 
 ### S21 The landing page
 *The public face at `toebeans.co.za` (requirements 1.1): what Toe Beans is, who it's for, and how to start, served at the edge to visitors who aren't signed in (D44). After S19.1 and S19.5, as it invites strangers.*

@@ -1,5 +1,5 @@
 id: loose-lead-first-steps
-contentVersion: 1
+contentVersion: 2
 title: Loose-lead first steps
 skillArea: loose-leash
 goal: Your puppy learns that walking beside you with a slack lead is what keeps the walk going.
@@ -16,7 +16,7 @@ steps:
 suggestedDurationMin: 5
 successCriteria: >-
   Your puppy walks beside you with a slack lead for about ten steps at a time in this place, with
-  rewards every few steps.
+  rewards every few steps. Then take it out on quiet streets with "Stop-go on walks".
 ifStruggling: |-
   Go somewhere less exciting, and reward more often. Short, frequent sessions work better than one
   long one.
@@ -36,4 +36,4 @@ sources:
     url: https://www.rspcaqld.org.au/resources/pet-care/how-to-stop-your-dog-pulling-the-lead-MCDU4OMEJLXZBIZEIZ7P3N2PSFOQ
     kind: article
 reviewedBy: veli
-reviewedAt: 2026-11-09
+reviewedAt: 2026-11-25
