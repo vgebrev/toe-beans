@@ -1,5 +1,5 @@
 // Scanners' probes get a plain 404 rather than the app shell, and security.txt says where to report
-// a problem (backlog S17.3). The login page's font comes from us, not Google Fonts (S19.2).
+// a problem (backlog S17.3). Pages stay out of shared caches (security audit R8). The login page's font comes from us, not Google Fonts (S19.2).
 import { expect, test } from '@playwright/test';
 import { MOCK_PROVIDER } from './mock-sign-in.js';
 
@@ -29,6 +29,24 @@ test("a person who opens a mistyped address sees the app's own page", async ({ p
 	const response = await page.goto('/no-such-page');
 	expect(response?.status()).toBe(404);
 	await expect(page.getByRole('heading', { level: 1 })).toHaveText("We couldn't find that");
+});
+
+test('a page at a path that looks like a file is kept out of shared caches', async ({
+	request
+}) => {
+	// Cloudflare caches by extension when the origin is silent (security audit R8): the app's own
+	// 404 page at /x.png, and the sign-in redirect from a page there, must say private.
+	for (const [path, status] of [
+		['/no-such-page.png', 404],
+		['/dogs/x.css', 303]
+	] as const) {
+		const response = await request.get(path, {
+			headers: { 'sec-fetch-dest': 'document' },
+			maxRedirects: 0
+		});
+		expect(response.status(), path).toBe(status);
+		expect(response.headers()['cache-control'], path).toBe('private, no-cache');
+	}
 });
 
 test('security.txt gives the contact and an expiry within a year', async ({ request }) => {

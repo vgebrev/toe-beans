@@ -30,6 +30,17 @@ const resolveOptions = {
 		type === 'font' ? latinFont.test(path) : type === 'js' || type === 'css'
 };
 
+/**
+ * For every response that doesn't set its own: pages, redirects and error pages. Cloudflare
+ * caches the Worker's fetches by file extension when the origin sends no Cache-Control, so a page
+ * that rendered at a path ending `.png` or `.css` would be served from the edge to the next person,
+ * one viewer's data and CSP nonce included (security audit R8, web cache deception). `private`
+ * keeps shared caches out; `no-cache` has the browser check back, and unlike `no-store` keeps the
+ * back/forward cache. Build files never get here: adapter-node serves them. The service worker's
+ * precache of the fallback pages ignores it (the Cache API stores what it's given).
+ */
+const DEFAULT_CACHE_CONTROL = 'private, no-cache';
+
 // The uptime monitor and the deploy hit this every few minutes, and the app's own connection
 // checks while it's waking; their lines would drown the rest.
 const quietRoutes = new Set(['/readyz']);
@@ -93,6 +104,9 @@ export const handle: Handle = ({ event, resolve }) => {
 			// HSTS, Referrer-Policy and the like (architecture §7); Kit sets the CSP itself.
 			for (const [name, value] of Object.entries(backend().http.edge.securityHeaders())) {
 				response.headers.set(name, value);
+			}
+			if (!response.headers.has('cache-control')) {
+				response.headers.set('cache-control', DEFAULT_CACHE_CONTROL);
 			}
 		} catch {
 			// Some responses (e.g. from fetch) have immutable headers; the logs still have the ID.

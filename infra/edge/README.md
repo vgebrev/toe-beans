@@ -78,10 +78,9 @@ In this order, so the app stays up throughout:
    goes through Cloud Run's check before the app checks it again. If the app shows a 502 or the
    heartbeat stays quiet, put `allUsers` back (`add-iam-policy-binding`, same flags) and look.
 6. Run the cap's test (`docs/runbooks/spending-cap.md` §2) and reopen it with §4 there.
-7. Check that a refusal really is free: send a few plain requests to `run.app`, then look at
-   Cloud Run `toe-beans` **Metrics → Request count** (by response code) and, a day later,
-   **Billing → Reports** grouped by SKU. Google's assistant says invoker refusals are never
-   billed; if the 403s show up as billable requests, R1's log measures (security audit §9) are next.
+7. A refusal is free: Cloud Run's pricing page says requests are billed only once they reach the
+   container after authenticating, and requests denied by IAM policy aren't (confirmed 25 Nov,
+   security audit R1). Done on prod 25 Nov.
 
 `PROXY_SECRET` stays as the app's second lock behind Google's.
 
@@ -154,6 +153,52 @@ What stays without the beacon: the zone's request analytics (**toebeans.co.za �
 Logs**: requests, bandwidth, status codes, countries, cache), counted at the edge with no script
 and seen only by the account owner; the Worker's request and error counts; Cloud Run's metrics and
 logs; and Sentry for errors in the browser and on the server.
+
+## HTTPS only (security audit R5, R6)
+
+Cloudflare, not the Worker, keeps the site on https (architecture D32). In the dashboard,
+**toebeans.co.za → SSL/TLS → Edge Certificates**:
+
+- **Always Use HTTPS**: on. Plain http gets a 301 before the Worker runs, so it costs no Worker
+  request.
+- **HTTP Strict Transport Security (HSTS)**: on, **Max Age 12 months**, **Include subdomains** on,
+  **Preload** on, No-Sniff header off (the app sends `nosniff`). This header replaces the app's
+  own (two years, no subdomains), which comes back if HSTS is turned off here. Never leave Max Age
+  at 0: that tells browsers to forget the policy. Every subdomain must serve https (`send` is mail only,
+  which browsers never visit). Preload needs a Max Age of at least 12 months; once the domain is on
+  Chrome's list, turning HSTS off here doesn't take it off (hstspreload.org's removal form does,
+  over months).
+- **Minimum TLS Version**: TLS 1.2.
+
+Check after any change there:
+
+```sh
+curl -sI http://toebeans.co.za/sign-in | grep -iE '^HTTP|^location'   # 301 to https://toebeans.co.za/sign-in
+curl -sI https://toebeans.co.za/ | grep -i strict-transport           # max-age=31536000; includeSubDomains; preload
+for v in tls1 tls1_1; do echo | openssl s_client -$v -cipher 'DEFAULT:@SECLEVEL=0' \
+  -servername toebeans.co.za -connect toebeans.co.za:443 2>&1 | grep -c 'alert protocol version'; done
+```
+
+The last prints `1` twice: the edge refuses TLS 1.0 and 1.1. Keep the `-cipher` option: without it
+OpenSSL won't offer the old versions itself, which tests nothing. Checked 25 Nov 2026.
+
+## A rate limit before the Worker (security audit R3)
+
+The Workers Free plan gives the account 100,000 requests a day, shared with the other sites on
+it; past that, every request on all of them fails until midnight UTC. A rate-limiting rule (free
+plan: one rule, expressions on the path only, counted per IP over 10 seconds) blocks a fast flood
+from one address before the Worker runs. It doesn't stop a slow or spread-out one (architecture
+D13, R6).
+
+In the dashboard: **toebeans.co.za → Security → Security rules → Create rule → Rate limiting
+rule**, name `toe-beans-rate-limit`, expression `(http.request.uri.path wildcard "/*")`, counted
+by IP, **200** requests per **10 seconds**, action **Block** for **10 seconds**, deploy.
+
+The threshold sits above a fresh install: 170 requests on 25 Nov, nearly all the service worker's
+precache, which fails whole if one file is refused. The precache grows with the build, so recount
+when it grows by a lot (Chrome on a desktop, site data cleared, DevTools → Network, open the site
+and sign in) and raise the threshold before a fresh load nears it. The sign-in pages on
+`auth.toebeans.co.za` aren't proxied (`docs/runbooks/auth0.md` §3), so they don't count.
 
 ## Scanners blocked before the Worker (S17.3)
 
