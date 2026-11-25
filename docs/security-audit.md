@@ -1,8 +1,8 @@
 # Toe Beans — Security Audit
 
-**Version:** 0.9
+**Version:** 0.10
 **Date:** 25 November 2026
-**Status:** §1–§6, the code review: every finding fixed or decided (S15.2). §7, the external pentest: both findings fixed (S18.3). §8, found since: fixed. §9, the second review of code and infrastructure: open, for triage (R2 fixed, R3 mitigated and its rest accepted).
+**Status:** §1–§6, the code review: every finding fixed or decided (S15.2). §7, the external pentest: both findings fixed (S18.3). §8, found since: fixed. §9, the second review of code and infrastructure: open, for triage (R1, R2 and R4 fixed, R3 mitigated and its rest accepted).
 **Inputs:** `docs/requirements.md` v1.0, `docs/architecture.md` v1.21, the code at commit `1ea686e` (`develop`); for §7, prod on 1.0.4 and the repo at `main` `904516e`; for §9, `docs/architecture.md` v1.48, the repo at `develop` `c965642`, and prod on 1.1.0 with its GCP, Cloudflare and GitHub settings as read on 24 November 2026
 
 **Changes in 0.1:** first audit of the attack surface before release.
@@ -22,6 +22,8 @@
 **Changes in 0.8:** §9.2 R2 fixed: Dependabot alerts on; automated security updates stay off, since they'd open pull requests against `main`, and alerts go through `develop` by hand (architecture 1.50, D15). The production tree's `glob` advisory and two of the dev ones are fixed by updates; one dev-only path is left.
 
 **Changes in 0.9:** §9.2 R3 mitigated: a rate-limiting rule at the edge, 200 requests per IP in 10 seconds, blocked for 10 seconds, sized on a fresh install's 170; Free plan rules match only the path, so the suggested `http.host` expression is corrected. The rest is accepted by the owner: no Workers Paid and no second Cloudflare account for now (architecture 1.51, D13, R6). C5's first item answered.
+
+**Changes in 0.10:** §9.2 R1 and R4 fixed on prod: only the edge Worker and the tick reach the app's origin, and Google's pricing page confirms that requests it refuses aren't billed, so R1's log measures aren't needed (architecture 1.52, D45; backlog S19.8 done).
 
 ---
 
@@ -249,10 +251,10 @@ No critical or high findings. Nothing found lets one household reach another's d
 
 | # | Finding | Severity | Confidence |
 |---|---|---|---|
-| R1 | A flood straight at `run.app` runs up the bill, and the spending cap then closes the app | Medium | Confirmed in config and live; the spend rate is estimated |
+| R1 | A flood straight at `run.app` runs up the bill, and the spending cap then closes the app | Medium | Confirmed in config and live; the spend rate is estimated; fixed 25 Nov (Google's invoker check) |
 | R2 | Dependabot alerts and security updates are off | Medium | Confirmed; fixed 25 Nov (alerts on) |
 | R3 | The site fails for the rest of the day after 100,000 Worker requests, a quota shared with two other sites | Medium | Confirmed in config; the quota wasn't exhausted; mitigated 25 Nov (rate-limiting rule), the rest accepted |
-| R4 | `/readyz` answers at `run.app` without the proxy secret and pings Atlas on every call | Low | Confirmed live and in code |
+| R4 | `/readyz` answers at `run.app` without the proxy secret and pings Atlas on every call | Low | Confirmed live and in code; fixed 25 Nov |
 | R5 | Plain `http://toebeans.co.za` serves the app; HSTS isn't preloaded | Low | Confirmed live |
 | R6 | TLS 1.0 and 1.1 are accepted at the edge | Low | Confirmed live |
 | R7 | Firebase leftovers: a service account that can impersonate every other, an API key, a Hosting site | Low | Confirmed in config |
@@ -280,6 +282,7 @@ No critical or high findings. Nothing found lets one household reach another's d
   2. Correct D45's bound in the decision log, and say there that a flood can trip the cap on purpose. The runbook (`spending-cap.md`) should then expect "someone flooded `run.app`" as a cause.
   3. To close the gap fully, put Google's IAM in front of the app instead of the header secret. Remove `allUsers`, give a dedicated service account `run.invoker`, and have the Worker send a Google ID token for it. Requests without one are refused by Google's front end before any instance starts. Worth checking: whether such refusals bill at all. The cost is a service account key held as a Worker secret (narrow, only able to invoke, but a key, against D15's keyless stance), and the cap would remove that account instead of `allUsers`. Record the choice either way in D32/D45.
 - **Status (24 Nov): fix 3 built, not yet on prod (backlog S19.8, architecture 1.49 D45).** The app's invokers become `toe-beans-edge` and `toe-beans-tick`. The org refuses service account keys, so the Worker holds no Google key. It signs its own JWT, which the Workload Identity Federation pool `cloudflare` swaps for an ID token, sent as `x-serverless-authorization`. The cap takes `toe-beans-edge` off instead of `allUsers`, and D45's bound is corrected. Fixes 1 and 2's log measures are left until the switch shows what a refused request still costs: Google's assistant says invoker refusals aren't billed, which the switch's check confirms in the request metrics and billing report (`infra/edge/README.md`).
+- **Status (25 Nov): fixed on prod (backlog S19.8).** `allUsers` is off the app's invokers, so Google refuses every caller but the Worker and the tick before an instance starts, and the cap's test passed with `toe-beans-edge`. Such refusals cost nothing: Cloud Run's pricing page says *"Requests are only billed when they reach the container after successfully being authenticated, requests denied by IAM policy are not billed"* (read 25 Nov). Fix 1 isn't needed: a refused request never reaches the app, so `edge.ts` doesn't log it, and the platform's request log line for it is ingested within Cloud Logging's free 50 GiB a month; the exclusion above stays available should a flood ever come near that. Fix 2 was done with fix 3 (D45's bound corrected).
 
 **R2. Dependabot alerts and security updates are off — medium.**
 
@@ -317,6 +320,7 @@ No critical or high findings. Nothing found lets one household reach another's d
 
   Concurrent first calls can still each ping, which is fine. The uptime monitor already goes through the Worker; the deploy's check could too, after which `/readyz` could require the secret like everything else.
 - **Status (24 Nov): built, not yet on prod (backlog S19.8).** `createHealthHttp` answers every call within 5 s from one check (`READINESS_FRESH_MS`). Once R1's switch is made, `run.app` refuses everyone but the invokers, so the exemption stays only for local checks (Playwright's, compose's). The deploy now checks `/readyz` through the Worker.
+- **Status (25 Nov): fixed on prod (backlog S19.8).** `run.app` refuses everyone but the invokers, so `/readyz` there is out of reach, and through the Worker it pings the database at most every 5 s.
 
 **R5. Plain `http://toebeans.co.za` serves the app; HSTS isn't preloaded — low.**
 
@@ -443,6 +447,6 @@ SSL mode (Flexible, Full or Strict) doesn't apply. The Worker fetches `run.app` 
 
 ### 9.5 Fix first
 
-1. **R1 and R4, the cost of a refused request.** Make refusals and `/readyz` cheap (debug-level log, a log exclusion, a memoised ping), and correct D45's bound. Then decide whether the origin should sit behind Google's IAM.
+1. **R1 and R4, the cost of a refused request.** Make refusals and `/readyz` cheap (debug-level log, a log exclusion, a memoised ping), and correct D45's bound. Then decide whether the origin should sit behind Google's IAM. *Done 25 Nov: behind Google's IAM, and its refusals aren't billed.*
 2. **R3, the shared Worker quota.** Add the free rate-limiting rule and move the other two sites off this account, so a cheap flood on any of them doesn't take Toe Beans down for a day. *Rule on 25 Nov; separating the quota declined for now.*
 3. **R2, Dependabot alerts.** One command, and D34's acceptance of the open advisories rests on it. *Done 25 Nov.*

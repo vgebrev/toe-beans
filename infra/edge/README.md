@@ -78,10 +78,9 @@ In this order, so the app stays up throughout:
    goes through Cloud Run's check before the app checks it again. If the app shows a 502 or the
    heartbeat stays quiet, put `allUsers` back (`add-iam-policy-binding`, same flags) and look.
 6. Run the cap's test (`docs/runbooks/spending-cap.md` §2) and reopen it with §4 there.
-7. Check that a refusal really is free: send a few plain requests to `run.app`, then look at
-   Cloud Run `toe-beans` **Metrics → Request count** (by response code) and, a day later,
-   **Billing → Reports** grouped by SKU. Google's assistant says invoker refusals are never
-   billed; if the 403s show up as billable requests, R1's log measures (security audit §9) are next.
+7. A refusal is free: Cloud Run's pricing page says requests are billed only once they reach the
+   container after authenticating, and requests denied by IAM policy aren't (confirmed 25 Nov,
+   security audit R1). Done on prod 25 Nov.
 
 `PROXY_SECRET` stays as the app's second lock behind Google's.
 
