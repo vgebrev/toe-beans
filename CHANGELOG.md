@@ -10,6 +10,8 @@ for fixes. Candidates (`-rc.N`) go to prod for the owner to try before the relea
 
 ## Unreleased
 
+## 1.2.0 - 2026-11-25
+
 ### Added
 
 - Owners can download a copy of their household's data from More → Your data: a ZIP file with
