@@ -1,8 +1,8 @@
 # Toe Beans — Security Audit
 
-**Version:** 0.11
+**Version:** 0.12
 **Date:** 25 November 2026
-**Status:** §1–§6, the code review: every finding fixed or decided (S15.2). §7, the external pentest: both findings fixed (S18.3). §8, found since: fixed. §9, the second review of code and infrastructure: open, for triage (R1, R2, R4, R5 and R6 fixed, R3 mitigated and its rest accepted).
+**Status:** §1–§6, the code review: every finding fixed or decided (S15.2). §7, the external pentest: both findings fixed (S18.3). §8, found since: fixed. §9, the second review of code and infrastructure: open, for triage (R1, R2, R4, R5, R6 and R7 fixed, R3 mitigated and its rest accepted).
 **Inputs:** `docs/requirements.md` v1.0, `docs/architecture.md` v1.21, the code at commit `1ea686e` (`develop`); for §7, prod on 1.0.4 and the repo at `main` `904516e`; for §9, `docs/architecture.md` v1.48, the repo at `develop` `c965642`, and prod on 1.1.0 with its GCP, Cloudflare and GitHub settings as read on 24 November 2026
 
 **Changes in 0.1:** first audit of the attack surface before release.
@@ -26,6 +26,8 @@
 **Changes in 0.10:** §9.2 R1 and R4 fixed on prod: only the edge Worker and the tick reach the app's origin, and Google's pricing page confirms that requests it refuses aren't billed, so R1's log measures aren't needed (architecture 1.52, D45; backlog S19.8 done).
 
 **Changes in 0.11:** §9.2 R5 and R6 fixed on prod by the owner at Cloudflare: plain http redirects to https before the Worker, HSTS comes from the zone (a year, `includeSubDomains`, `preload`) in place of the app's header, and TLS below 1.2 is refused. The domain was submitted to the preload list on 25 Nov (pending); until it ships in Chrome the first visit stays open, accepted as low (architecture 1.53, D32; backlog S19.11).
+
+**Changes in 0.12:** §9.2 R7 fixed on prod by the owner: the Firebase service account has no roles and is disabled, its browser key is deleted, and the Firebase APIs are off except FCM's two. The fix is corrected: `fcm.googleapis.com` depends on `firebaseinstallations.googleapis.com`, so that stays on with it, and the account's `firebase.sdkAdminServiceAgent` role is removed as well (backlog S19.12).
 
 ---
 
@@ -259,7 +261,7 @@ No critical or high findings. Nothing found lets one household reach another's d
 | R4 | `/readyz` answers at `run.app` without the proxy secret and pings Atlas on every call | Low | Confirmed live and in code; fixed 25 Nov |
 | R5 | Plain `http://toebeans.co.za` serves the app; HSTS isn't preloaded | Low | Confirmed live; fixed 25 Nov (redirect, HSTS from the edge, preload submitted) |
 | R6 | TLS 1.0 and 1.1 are accepted at the edge | Low | Confirmed live; fixed 25 Nov |
-| R7 | Firebase leftovers: a service account that can impersonate every other, an API key, a Hosting site | Low | Confirmed in config |
+| R7 | Firebase leftovers: a service account that can impersonate every other, an API key, a Hosting site | Low | Confirmed in config; fixed 25 Nov |
 | R8 | Pages carry no `Cache-Control`, and the edge caches any response at a static-looking extension | Low | Caching confirmed live; no leaking page found |
 | R9 | `main` doesn't require a pull request, admins bypass it, any action may run, and there's no code scanning | Low | Confirmed |
 | R10 | Reads of `app-secrets` aren't audit-logged | Low | Confirmed |
@@ -356,12 +358,16 @@ No critical or high findings. Nothing found lets one household reach another's d
     --role=roles/iam.serviceAccountTokenCreator --condition=None
   gcloud iam service-accounts disable firebase-adminsdk-fbsvc@toe-beans-co-za.iam.gserviceaccount.com --project toe-beans-co-za
   gcloud services api-keys delete 279f6a3e-7569-4d14-a139-bfaccf65ba30 --project toe-beans-co-za
+  gcloud projects remove-iam-policy-binding toe-beans-co-za \
+    --member=serviceAccount:firebase-adminsdk-fbsvc@toe-beans-co-za.iam.gserviceaccount.com \
+    --role=roles/firebase.sdkAdminServiceAgent --condition=None
   gcloud services disable firebasehosting.googleapis.com identitytoolkit.googleapis.com securetoken.googleapis.com \
-    firebaserules.googleapis.com firebaseinstallations.googleapis.com firebaseremoteconfig.googleapis.com \
-    firebaseremoteconfigrealtime.googleapis.com --project toe-beans-co-za
+    firebaserules.googleapis.com firebaseremoteconfigrealtime.googleapis.com firebaseremoteconfig.googleapis.com \
+    --project toe-beans-co-za
   ```
 
-  Leave `fcm.googleapis.com` alone; Web Push doesn't need it in this project, but there's no gain in testing that on prod. The default Hosting site can't be deleted; with the API off, it serves nothing.
+  Leave `fcm.googleapis.com` alone; Web Push doesn't need it in this project, but there's no gain in testing that on prod. `firebaseinstallations.googleapis.com` stays with it, since FCM depends on it (disabling it fails with `COMMON_SU_SERVICE_HAS_DEPENDENT_SERVICES`). `firebase.googleapis.com`, the management API, does nothing without IAM access to the project. The default Hosting site can't be deleted; with the API off, it serves nothing.
+- **Status (25 Nov): fixed on prod (backlog S19.12).** The owner ran the fix above. `firebase-adminsdk-fbsvc` is disabled and appears nowhere in the project's IAM policy; the project has no API keys; the only Firebase APIs enabled are `fcm`, `firebaseinstallations` and `firebase`. The audit's first version of the fix also disabled `firebaseinstallations`, which failed on FCM's dependency and left Remote Config on until it was run again without it.
 
 **R8. Pages carry no `Cache-Control`, and the edge caches any response at a static-looking extension — low.**
 
