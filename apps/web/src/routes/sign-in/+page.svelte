@@ -51,7 +51,11 @@
 		</Button>
 	{/if}
 	<p class="text-sm text-muted-foreground">With Google, or with your email and a password.</p>
-	<p class="flex gap-4 text-sm text-muted-foreground">
+	<p class="flex flex-wrap justify-center gap-x-4 text-sm text-muted-foreground">
+		<!-- The landing page is the edge's, not a route here (architecture D44): a full load. -->
+		<a href={resolve('/(app)')} data-sveltekit-reload class="flex min-h-12 items-center underline"
+			>About Toe Beans</a
+		>
 		<a href={resolve('/privacy')} class="flex min-h-12 items-center underline">Privacy policy</a>
 		<a href={resolve('/terms')} class="flex min-h-12 items-center underline">Terms of service</a>
 	</p>

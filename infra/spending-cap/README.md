@@ -34,7 +34,8 @@ budget toe-beans ──▶ topic toe-beans-budget ──push (OIDC)──▶ Clo
   token in GCP and a KV read per request. Only the Worker and the tick may invoke the app (D45,
   `infra/edge/README.md`), and the cap can take the Worker off with a role scoped to the one
   service. The deploy doesn't touch the access list, and a deploy while
-  it's closed fails at *Check it's ready* rather than quietly reopening the app.
+  it's closed fails at *Check it's ready*, which looks for `toe-beans-edge` among the invokers,
+  rather than quietly reopening the app.
 - **Why not ingress** (the first build, S19.5): Cloud Run checks `actAs` on the runtime account
   (`toe-beans-run`) for any change to a service, ingress included, and the test on prod failed
   without it. With `actAs` the cap could deploy code that reads the app's secrets; editing the

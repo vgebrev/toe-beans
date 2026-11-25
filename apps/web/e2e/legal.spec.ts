@@ -4,6 +4,15 @@ import { expect, test } from '@playwright/test';
 test.describe('signed out', () => {
 	test.use({ storageState: { cookies: [], origins: [] } });
 
+	test('the sign-in page links back to the landing page, loaded afresh from the edge (D44)', async ({
+		page
+	}) => {
+		await page.goto('/sign-in');
+		const about = page.getByRole('link', { name: 'About Toe Beans' });
+		await expect(about).toHaveAttribute('href', '/');
+		await expect(about).toHaveAttribute('data-sveltekit-reload', '');
+	});
+
 	test('the sign-in page links to both, and they open without signing in', async ({ page }) => {
 		await page.goto('/sign-in');
 		await page.getByRole('link', { name: 'Privacy policy' }).click();

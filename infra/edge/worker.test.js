@@ -1,6 +1,9 @@
 import { readFileSync } from 'node:fs';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { existsSync } from 'node:fs';
+import { icons } from '../../apps/web/src/lib/components/icon/icons.ts';
 import { markHeart, markLetters } from '../../apps/web/src/lib/assets/brand/mark.ts';
+import { tokens } from '../../apps/web/src/lib/theme/tokens.ts';
 import worker from './worker.js';
 
 const ORIGIN = 'https://toe-beans-1047834821273.africa-south1.run.app';
@@ -20,10 +23,35 @@ const ID_TOKEN = `h.${Buffer.from(JSON.stringify({ exp: 4102444800 })).toString(
 
 // A new key ID per test, so each starts without the isolate's kept token.
 let keys = 0;
-/** @type {{ PROXY_SECRET: string, EDGE_KEY: string }} */
+const ASSET_DIR = new URL('assets/', import.meta.url);
+/** What Cloudflare's static files give the Worker: the file, with headers it must not pass on. */
+const assets = {
+	seen: /** @type {Request[]} */ ([]),
+	async fetch(/** @type {Request} */ request) {
+		assets.seen.push(request);
+		const path = new URL(request.url).pathname;
+		const file = new URL(path.slice(1) + (path.endsWith('/') ? 'index.html' : ''), ASSET_DIR);
+		if (!existsSync(file)) return new Response('Not found', { status: 404 });
+		return new Response(request.method === 'HEAD' ? null : readFileSync(file), {
+			headers: {
+				'content-type': 'text/html; charset=utf-8',
+				etag: '"v1"',
+				'cache-control': 'public, max-age=86400',
+				'x-robots-tag': 'noindex'
+			}
+		});
+	}
+};
+
+/** @type {{ PROXY_SECRET: string, EDGE_KEY: string, ASSETS: typeof assets }} */
 let env;
 beforeEach(() => {
-	env = { PROXY_SECRET: 's3cret', EDGE_KEY: JSON.stringify({ ...jwk, kid: `k${++keys}` }) };
+	assets.seen = [];
+	env = {
+		PROXY_SECRET: 's3cret',
+		EDGE_KEY: JSON.stringify({ ...jwk, kid: `k${++keys}` }),
+		ASSETS: assets
+	};
 });
 
 /**
@@ -88,14 +116,14 @@ describe('the edge Worker', () => {
 
 		it('mints the token once for many requests', async () => {
 			const seen = origin(fromApp(200));
-			await Promise.all([get('/'), get('/today'), get('/api/v1/me')]);
+			await Promise.all([get('/plan'), get('/today'), get('/api/v1/me')]);
 			await get('/dogs');
 			expect(seen.exchanges.count).toBe(2);
 		});
 
 		it("answers 502, not the paused page, when Google won't issue a token", async () => {
 			const seen = origin(fromApp(200), { google: 403 });
-			const response = await get('/', { accept: 'text/html' });
+			const response = await get('/plan', { accept: 'text/html' });
 			expect(response.status).toBe(502);
 			expect(response.headers.get('x-toe-beans-maintenance')).toBeNull();
 			expect(seen).toHaveLength(0);
@@ -103,17 +131,17 @@ describe('the edge Worker', () => {
 
 		it('answers 502 when Cloud Run rejects the token, and mints a new one next time', async () => {
 			const seen = origin(refused(401));
-			const response = await get('/', { accept: 'text/html' });
+			const response = await get('/plan', { accept: 'text/html' });
 			expect(response.status).toBe(502);
 			expect(response.headers.get('x-toe-beans-maintenance')).toBeNull();
-			await get('/');
+			await get('/plan');
 			expect(seen.exchanges.count).toBe(4);
 		});
 
 		it('refuses to run without its key', async () => {
 			origin(fromApp(200));
-			const response = await worker.fetch(new Request('https://toebeans.co.za/'), {
-				PROXY_SECRET: 's3cret',
+			const response = await worker.fetch(new Request('https://toebeans.co.za/plan'), {
+				...env,
 				EDGE_KEY: ''
 			});
 			expect(response.status).toBe(500);
@@ -130,7 +158,7 @@ describe('the edge Worker', () => {
 	describe('while the spending cap holds (D45)', () => {
 		it.each([404, 403])('shows the maintenance page when Cloud Run refuses with %i', async (s) => {
 			origin(refused(s));
-			const response = await get('/', { accept: 'text/html,application/xhtml+xml' });
+			const response = await get('/plan', { accept: 'text/html,application/xhtml+xml' });
 			expect(response.status).toBe(503);
 			expect(response.headers.get('x-toe-beans-maintenance')).toBe('1');
 			expect(response.headers.get('cache-control')).toBe('no-store');
@@ -140,7 +168,7 @@ describe('the edge Worker', () => {
 
 		it("draws the app's mark and loads the app's fonts from the Worker's own files", async () => {
 			origin(refused(403));
-			const response = await get('/', { accept: 'text/html' });
+			const response = await get('/plan', { accept: 'text/html' });
 			const html = await response.text();
 			expect(html).toContain(`fill-rule="evenodd" d="${markLetters}"`);
 			expect(html).toContain(`d="${markHeart}"`);
@@ -178,5 +206,149 @@ describe('the edge Worker', () => {
 		const response = await worker.fetch(new Request('https://www.toebeans.co.za/a?b=1'), env);
 		expect(response.status).toBe(301);
 		expect(response.headers.get('location')).toBe('https://toebeans.co.za/a?b=1');
+	});
+
+	describe('the landing page at / (D44, S21)', () => {
+		const SESSION = '__Host-tb_session';
+
+		it('serves the static page to a visitor, without asking Google or Cloud Run', async () => {
+			const seen = origin(fromApp(200));
+			const response = await get('/', { accept: 'text/html' });
+			expect(response.status).toBe(200);
+			expect(await response.text()).toContain('Raise your puppy together.');
+			expect(seen).toHaveLength(0);
+			expect(seen.exchanges.count).toBe(0);
+			expect(new URL(assets.seen[0].url).pathname).toBe('/landing/');
+		});
+
+		it('sends its own headers: private, varying on the cookie, no scripts, indexable', async () => {
+			origin(fromApp(200));
+			const headers = (await get('/')).headers;
+			expect(headers.get('cache-control')).toBe('private, no-cache');
+			expect(headers.get('vary')).toBe('Cookie');
+			expect(headers.get('etag')).toBe('"v1"');
+			expect(headers.get('x-robots-tag')).toBeNull();
+			const csp = headers.get('content-security-policy');
+			expect(csp).toContain("default-src 'none'");
+			expect(csp).not.toContain('script-src');
+			expect(headers.get('x-content-type-options')).toBe('nosniff');
+		});
+
+		it('answers HEAD too', async () => {
+			origin(fromApp(200));
+			const response = await worker.fetch(
+				new Request('https://toebeans.co.za/', { method: 'HEAD' }),
+				env
+			);
+			expect(response.status).toBe(200);
+			expect(assets.seen[0].method).toBe('HEAD');
+		});
+
+		it.each([
+			['the session cookie', { cookie: `${SESSION}=abc` }],
+			['the session cookie among others', { cookie: `theme=dark; ${SESSION}=abc; x=1` }]
+		])('sends someone with %s to the app', async (_, headers) => {
+			const seen = origin(fromApp(200));
+			await get('/', headers);
+			expect(seen).toHaveLength(1);
+			expect(assets.seen).toHaveLength(0);
+		});
+
+		it.each([`x${SESSION}=1`, `${SESSION}_old=1`, `other=${SESSION}=1`])(
+			'still shows the page for a cookie that only looks like it (%s)',
+			async (cookie) => {
+				const seen = origin(fromApp(200));
+				await get('/', { cookie });
+				expect(seen).toHaveLength(0);
+			}
+		);
+
+		it('leaves / with a query (the installed app, its shortcuts) and other methods to the app', async () => {
+			const seen = origin(fromApp(200));
+			await get('/?source=pwa');
+			await get('/?add=log');
+			await worker.fetch(new Request('https://toebeans.co.za/', { method: 'POST' }), env);
+			expect(seen).toHaveLength(3);
+			expect(assets.seen).toHaveLength(0);
+		});
+
+		describe('the page itself', () => {
+			/** Markup with Prettier's line breaks folded, so it compares as written. */
+			const fold = (/** @type {string} */ markup) =>
+				markup
+					.replace(/\s+/g, ' ')
+					.replace(/\s*>\s*/g, '>')
+					.replace(/\s*</g, '<');
+			const html = fold(readFileSync(new URL('landing/index.html', ASSET_DIR), 'utf8'));
+			const css = readFileSync(new URL('landing/landing.css', ASSET_DIR), 'utf8');
+			const kebab = (/** @type {string} */ k) => k.replace(/[A-Z]/g, (c) => `-${c.toLowerCase()}`);
+			/** An icon as <Icon> draws it, as markup. */
+			const svg = (
+				/** @type {import('../../apps/web/src/lib/components/icon/icons.ts').IconSvgElement} */ icon
+			) =>
+				icon
+					.map(
+						([tag, attributes]) =>
+							`<${tag} ${Object.entries(attributes)
+								.filter(([k]) => k !== 'key')
+								.map(([k, v]) => `${kebab(k)}="${v}"`)
+								.join(' ')}></${tag}>`
+					)
+					.join('');
+
+			it("draws the app's mark", () => {
+				expect(html.split(`fill-rule="evenodd" d="${markLetters}"`)).toHaveLength(3);
+				expect(html).toContain(`d="${markHeart}"`);
+			});
+
+			it.each(['outcome-successful', 'outcome-partial', 'outcome-not-yet', 'outcome-not-assessed'])(
+				"shows the app's own %s icon",
+				(name) => {
+					expect(html).toContain(fold(svg(icons[/** @type {keyof typeof icons} */ (name)])));
+				}
+			);
+
+			it("uses the app's colours", () => {
+				const declared = [...css.matchAll(/--tb-([a-z-]+): light-dark\((#\w+), (#\w+)\)/g)];
+				expect(declared.length).toBeGreaterThan(10);
+				for (const [, name, light, dark] of declared) {
+					const token = tokens[/** @type {keyof typeof tokens} */ (name)];
+					expect(token, name).toBeDefined();
+					expect([light, dark], name).toEqual([
+						token.light.toLowerCase(),
+						token.dark.toLowerCase()
+					]);
+				}
+			});
+
+			it("uses the app's favicon", () => {
+				const ours = readFileSync(new URL('landing/favicon.svg', ASSET_DIR));
+				const app = readFileSync(
+					new URL('../../apps/web/src/lib/assets/brand/favicon.svg', import.meta.url)
+				);
+				expect(ours.equals(app)).toBe(true);
+			});
+
+			it('loads nothing from the app or anywhere else, only its own files', () => {
+				const loaded = [
+					...[...html.matchAll(/(?:src|srcset)="([^"]+)"/g)].map((m) => m[1]),
+					...[...html.matchAll(/<link [^>]*href="([^"]+)"/g)].map((m) => m[1]),
+					...[...css.matchAll(/url\(([^)]+)\)/g)].map((m) => m[1])
+				].filter((url) => url !== 'https://toebeans.co.za/');
+				expect(loaded.length).toBeGreaterThan(8);
+				for (const url of loaded) {
+					expect(url, url).toMatch(/^\/(landing|edge-fonts)\//);
+					expect(existsSync(new URL(url.slice(1), ASSET_DIR)), url).toBe(true);
+				}
+				expect(html).not.toMatch(/<script|\sstyle="|\son[a-z]+="/);
+			});
+
+			it('links only to the page itself and the app’s public ways in', () => {
+				const links = new Set([...html.matchAll(/<a [^>]*href="([^"]+)"/g)].map((m) => m[1]));
+				expect([...links].sort()).toEqual(
+					['#household', '#how', '/', '/auth/sign-in', '/privacy', '/terms'].sort()
+				);
+			});
+		});
 	});
 });

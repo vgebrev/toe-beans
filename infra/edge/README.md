@@ -117,6 +117,32 @@ until the new files are copied over and the Worker deployed. Nothing to set up h
 `worker.test.js` covers it, and the cap's runbook (`docs/runbooks/spending-cap.md` §2) checks it
 live.
 
+## The landing page (S21, architecture D44)
+
+`assets/landing/` is the public page at `/` (ui.md §4.9): `index.html`, `landing.css`, the
+favicon and the app's screenshots. The Worker serves it, through its `ASSETS` binding, to a `GET`
+or `HEAD` of `/` with no query and no `__Host-tb_session` cookie, before it mints a token, so a
+visitor never reaches Cloud Run. Everything else, `/` with the cookie or a query (the installed
+app opens on `/?source=pwa`), goes to the app as before. It needs nothing from the app, so it
+shows while the spending cap has the app paused too.
+
+- **Changing it:** edit the HTML or CSS and deploy the Worker (§Deploy). `pnpm test infra/edge`
+  checks it loads only its own files, has no scripts, and draws the app's mark, outcome icons,
+  colours and favicon.
+- **Its pictures of the app:** `pnpm landing:shots` (with Mongo and the mock provider up, as for
+  `pnpm test:e2e`) captures Today and the log sheet from the production build and writes the
+  `.webp` files here. Take them again after a change to those screens, and commit them.
+- **Looking at it locally:** any static server on `assets/` with `/` mapped to
+  `/landing/index.html`; the files use absolute paths, so opening the file directly won't style it.
+
+Checks, once deployed:
+
+- In a private window, `https://toebeans.co.za/` shows the page; *Sign in* goes to Auth0, and once
+  signed in `/` is Today.
+- `curl -sI https://toebeans.co.za/` shows `cache-control: private, no-cache`, `vary: Cookie` and the
+  CSP with `default-src 'none'`, and `curl -s https://toebeans.co.za/ | grep -c '<script'` prints `0`.
+- The installed app still opens on Today (Chrome picks up the new `start_url` by itself).
+
 ## No scripts added at the edge (S19.3)
 
 Cloudflare can add a script to the app's pages without any change in our code: Web Analytics

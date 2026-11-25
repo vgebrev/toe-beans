@@ -10,6 +10,14 @@ for fixes. Candidates (`-rc.N`) go to prod for the owner to try before the relea
 
 ## Unreleased
 
+## 1.3.0 - 2026-11-25
+
+### Added
+
+- toebeans.co.za now has a page about Toe Beans for anyone who isn't signed in: what it does,
+  how it looks, and a way to get started. The installed app still opens straight on Today, and
+  the sign-in page links to it as *About Toe Beans*.
+
 ## 1.2.0 - 2026-11-25
 
 ### Added

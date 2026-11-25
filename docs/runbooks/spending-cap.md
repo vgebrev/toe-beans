@@ -93,8 +93,8 @@ in.
   change: on the 24 Nov test the app kept answering, saves included, for about 70 seconds after
   the cap's change, then refused everything at the same moment, open apps included. It can take
   up to about 7 minutes. Check §1 after that, not straight away.
-- **Deploying while it's down fails** at *Check it's ready* (the deploy checks `/readyz` through
-  the Worker, which shows the paused page), and the app stays closed: a deploy doesn't touch the
+- **Deploying while it's down fails** at *Check it's ready* (the deploy fails when `toe-beans-edge`
+  isn't among the app's invokers), and the app stays closed: a deploy doesn't touch the
   access list. That's on purpose. Neither does `infra/gcp/provision.sh` once the service
   exists, so re-running it doesn't reopen the app.
 - The cap only acts on the `toe-beans` budget's messages, and only on spend, never on the

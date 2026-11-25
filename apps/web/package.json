@@ -1,7 +1,7 @@
 {
 	"name": "@toe-beans/web",
 	"private": true,
-	"version": "1.2.0",
+	"version": "1.3.0",
 	"type": "module",
 	"scripts": {
 		"dev": "vite dev",
@@ -12,6 +12,7 @@
 		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
 		"start": "node --env-file-if-exists=../../.env build",
 		"test:e2e": "playwright test",
+		"landing:shots": "playwright test -c playwright.landing.config.ts",
 		"icons": "node scripts/icons.mjs",
 		"vapid": "node scripts/vapid.mjs"
 	},

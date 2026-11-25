@@ -1,7 +1,7 @@
 {
 	"name": "toe-beans",
 	"private": true,
-	"version": "1.2.0",
+	"version": "1.3.0",
 	"license": "MIT",
 	"type": "module",
 	"packageManager": "pnpm@10.30.0",
@@ -17,6 +17,7 @@
 		"test": "vitest run",
 		"test:integration": "vitest run --config vitest.integration.config.ts",
 		"test:e2e": "pnpm --filter @toe-beans/web test:e2e",
+		"landing:shots": "pnpm --filter @toe-beans/web landing:shots",
 		"release": "node tools/release/src/release.ts",
 		"vapid": "pnpm --silent --filter @toe-beans/web vapid",
 		"seed:household": "node --env-file-if-exists=.env --import ./packages/backend/scripts/ts-imports.mjs packages/backend/scripts/seed-household.ts",

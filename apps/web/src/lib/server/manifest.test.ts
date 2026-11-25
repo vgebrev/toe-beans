@@ -26,6 +26,15 @@ describe('webManifest', () => {
 		expect(manifest.icons.map((i) => i.purpose)).toEqual(['any', 'any', 'maskable', 'maskable']);
 	});
 
+	it('opens on the app, never on the landing page the edge serves at a bare / (D44)', () => {
+		for (const env of ['prod', 'local'] as const) {
+			const manifest = webManifest(env);
+			expect(manifest.id).toBe('/');
+			expect(new URL(manifest.start_url, 'https://toebeans.co.za').search).not.toBe('');
+			expect(manifest.shortcuts.every((s) => s.url.includes('?'))).toBe(true);
+		}
+	});
+
 	it('points only at icons that exist', () => {
 		for (const env of ['prod', 'local'] as const) {
 			const manifest = webManifest(env);

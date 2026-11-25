@@ -1,9 +1,9 @@
 # Toe Beans — UI and Interaction Design
 
-**Version:** 0.47 (draft for iteration)
+**Version:** 0.48 (draft for iteration)
 **Date:** 25 November 2026
 **Status:** Proposed. Review-round decisions in §8 are accepted.
-**Inputs:** `docs/requirements.md` v1.1, `docs/architecture.md` v1.58
+**Inputs:** `docs/requirements.md` v1.1, `docs/architecture.md` v1.60
 
 **Changes in 0.7:** the logo landed (S0.9). The mark is now a **TB monogram** with four toe beans above it and a heart-shaped bean in the B, from the AI-assisted design board (Monogram Iteration B), replacing the placeholder paw. It was traced from the board and cleaned up rather than redrawn by hand; the variants are the brown-on-cream mark, a cream-on-brown app-icon tile (favicon and maskable) and a white badge. The wordmark uses Fredoka Bold to match the board (§6.4 Logo).
 
@@ -76,6 +76,8 @@
 **Changes in 0.46:** J1 step 1a, accepting the terms (backlog S19.1, architecture 1.44 D47): after signing in, and before anything else, *Before you start* asks for one box, *I'm 18 or older and I accept the terms of service*, with the policy and terms linked, and *Continue* stays disabled until it's ticked. The same page asks a member from before S19.1 (*Please accept our terms*) and everyone after a new terms date (*We've updated our terms*), and J2's invitee meets it after signing in, coming back to the invite. Declining is *Sign out*, or deleting the account: on the page for someone with no household yet, on More for a member, which stays open to them. Inputs moved to requirements 1.1 and architecture 1.44.
 
 **Changes in 0.47:** §4.7 and §2's More row: **Your data** on More, the household's export (backlog S19.7, architecture 1.58 D46). An owner gets *Download a copy*; a caregiver is told which owners can, or to write to `privacy@`.
+
+**Changes in 0.48:** §4.9, the landing page (backlog S21.1, S21.2; architecture D44): direction A of three explored on the [landing page canvas](https://claude.ai/artifact/6TbJ3Lcy1CPX4rKqxop4an) (private), chosen by the owner, with its sections, copy and links. Its pictures of the app are captured from the app, never drawn. The sign-in page links back to it (J1).
 
 **Changes in 0.12:** S3 built. J1 step 4 as built: *Take photo* or *Gallery*, then a framing square with the circle overlay (drag, pinch, a zoom slider and arrow keys), and birth date as *I know the date* or *Approximate* with months old. J2 names the dogs. §2.2: the switcher shows on Today, Plan, History and Care, with name chips. §5.1 gains two rules from using it: one confirm button per context (a sheet is its own context), and a control is never disabled without the reason on screen; the photo moved into its own sheet in J1 to follow the first, and the household, name and email-invite buttons stopped greying out for missing input to follow the second. §4.5: editing is its own page and the overflow sheet holds *Edit details* and *Archive*; the Recent sections wait for their slices. The dog accent palette is defined (§6.4), and More gains *Dogs* (§2.1). The custom dog icon read as a monkey, so it's replaced by Phosphor's *Dog*, the documented fallback library (§6.4).
 
@@ -395,6 +397,25 @@ On More as **Household & invites**, showing the household's name; the page keeps
 - **Leave household:** at the foot of the page, for everyone, confirmed in a bottom sheet that says what follows: who becomes the owner, that the invites they sent stop working and coming back takes a new invite (*amended in 0.44*, D18), or for the last person, that the household is deactivated and they can rejoin it within 30 days, after which it's deleted with its dogs, photos and history (D38). Leaving goes to *Create household* (J1 step 3).
 - *Added in 0.36:* **Delete household:** under *Leave household*, a red text button, only for someone alone in it (architecture D38). Its sheet, "Delete [household] for good?", says its dogs, photos, training and care history, cues and invites are deleted and can't be brought back, and that the account stays. Deleting goes to *Create household*. If someone joined meanwhile, nothing is deleted and the page says the household changed.
 - If the household changed while a sheet was open, nothing is done, the sheet closes and the top of the page says so above the refreshed members. A failure keeps the sheet open with **Retry**, as for revoking.
+
+
+### 4.9 Landing page
+
+*Added in 0.48 (backlog S21).* The public page at `toebeans.co.za` for anyone who isn't signed in on that browser: what Toe Beans is, who it's for and how to start. The edge serves it as a static page (architecture D44), so it's in the brand tokens and fonts but not built from the app's components. It follows the device's theme; the app's own override (§6.4) is per device and lives in the app. Design: direction A on the [landing page canvas](https://claude.ai/artifact/6TbJ3Lcy1CPX4rKqxop4an) (private), chosen by the owner on 25 Nov 2026 over a page built on the three questions as chapters (B) and a short one (C).
+
+- **Header:** the mark and wordmark, and *Sign in*. On a wide screen, *How it works* and *For your household* jump down the page.
+- **Hero:** "Raise your puppy together." and a line on what it's for, then *Get started, it's free* and *I already have an account*, both to sign-in (the provider's page offers sign-up), and "Made for Chrome on Android". Beside it on a wide screen, below it on a phone, Today in a phone frame.
+- **Three questions, answered every day:** the questions of requirements §1, a card each.
+- **Practice isn't a test:** principle 4 in a line, the four outcome badges exactly as the app draws them, and the *Log practice* sheet with *Not assessed* chosen.
+- **Made for the whole household:** shared by invitation, reminders that arrive with the app closed, kind training, private and free (no ads, tracking or analytics; the household's data can be downloaded).
+- **Closing:** "Ready when your puppy is" and *Get started*.
+- **Footer:** that it isn't a substitute for a vet or behaviourist (NFR-14), made in South Africa, *Terms*, *Privacy* and *Sign in*.
+
+**The app as it is.** Pictures of the app are screenshots of it, never drawings: Today and the log sheet, light and dark, on the Redmi Note 12 Pro's viewport, from the production build with a demo household of Ripley, the owner's dog, and Sam (`pnpm landing:shots`, `apps/web/e2e/landing-shots.ts`). A change to Today, the log sheet or the badges means taking them again. The badges are drawn with the app's own icons and sizes, which the edge's tests check, with its mark, colours and favicon.
+
+**No scripts.** The page has no JavaScript, loads only its own files and the edge's fonts, and links only to sign-in, the terms, the privacy policy and itself. Nothing on it wakes the app.
+
+The sign-in page (J1) links back to it as *About Toe Beans*, a full page load so the edge serves it.
 
 ---
 
