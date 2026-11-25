@@ -1,8 +1,8 @@
 # Toe Beans — Security Audit
 
-**Version:** 0.15
+**Version:** 0.16
 **Date:** 25 November 2026
-**Status:** §1–§6, the code review: every finding fixed or decided (S15.2). §7, the external pentest: both findings fixed (S18.3). §8, found since: fixed. §9, the second review of code and infrastructure: open, for triage (R1, R2, R4, R5, R6, R7, R8 and R9 fixed, R3 mitigated and its rest accepted).
+**Status:** §1–§6, the code review: every finding fixed or decided (S15.2). §7, the external pentest: both findings fixed (S18.3). §8, found since: fixed. §9, the second review of code and infrastructure: open, for triage (R1, R2, R4, R5, R6, R7, R8, R9 and R10 fixed, R3 mitigated and its rest accepted).
 **Inputs:** `docs/requirements.md` v1.0, `docs/architecture.md` v1.21, the code at commit `1ea686e` (`develop`); for §7, prod on 1.0.4 and the repo at `main` `904516e`; for §9, `docs/architecture.md` v1.48, the repo at `develop` `c965642`, and prod on 1.1.0 with its GCP, Cloudflare and GitHub settings as read on 24 November 2026
 
 **Changes in 0.1:** first audit of the attack surface before release.
@@ -34,6 +34,8 @@
 **Changes in 0.14:** §9.2 R8 fixed on prod with 1.1.2: the audit's request now gets `private, no-cache` and Cloudflare's `BYPASS`, twice (backlog S19.13 done).
 
 **Changes in 0.15:** §9.2 R9 fixed: `main` changes only by pull request, merged as a merge commit, and the admin bypass covers only merging a pull request; admins can't bypass the `production` or `backups` environment; the Actions policy allows only GitHub's own actions and the three owners in use, pinned to SHAs; CodeQL's default setup scans actions and JS/TS, and its first run raised two alerts: one a false positive in a test, the other unreachable and fixed in code anyway. A stolen owner session or `repo` token can still undo these settings, which is noted. The owner's direct push of an empty commit to `main` was refused (architecture 1.55, D15; backlog S19.14 done).
+
+**Changes in 0.16:** §9.2 R10 fixed on prod: Data Access audit logs for Secret Manager, `DATA_READ` only, set by a step in `infra/gcp/provision.sh`; an owner's read of `app-secrets` was then logged. They're kept 30 days in `_Default`, not 400 (architecture 1.56, D15; backlog S19.15 done).
 
 ---
 
@@ -270,7 +272,7 @@ No critical or high findings. Nothing found lets one household reach another's d
 | R7 | Firebase leftovers: a service account that can impersonate every other, an API key, a Hosting site | Low | Confirmed in config; fixed 25 Nov |
 | R8 | Pages carry no `Cache-Control`, and the edge caches any response at a static-looking extension | Low | Caching confirmed live; no leaking page found; fixed 25 Nov |
 | R9 | `main` doesn't require a pull request, admins bypass it, any action may run, and there's no code scanning | Low | Confirmed; fixed 25 Nov |
-| R10 | Reads of `app-secrets` aren't audit-logged | Low | Confirmed |
+| R10 | Reads of `app-secrets` aren't audit-logged | Low | Confirmed; fixed 25 Nov |
 | R11 | No CAA records or DNSSEC | Low | Confirmed live |
 | C5 | Cloudflare settings this review couldn't read: rate limiting, WAF rules, SSL mode | — | Worth checking |
 | C6 | `send.toebeans.co.za` is a CNAME to `send.forge.rmta.net` | Low | Worth checking |
@@ -426,6 +428,7 @@ No critical or high findings. Nothing found lets one household reach another's d
   ```
 
   and `gcloud projects set-iam-policy toe-beans-co-za policy.yaml` (the etag in the file guards against a concurrent change).
+- **Status (25 Nov): fixed on prod (architecture 1.56, D15; backlog S19.15).** `provision.sh` has the step, adding only the missing `DATA_READ` entry to the policy it read (etag and all), and its checks print the audit configs; it was run against the project, and the policy's bindings were unchanged. `DATA_READ` covers `AccessSecretVersion` and leaves out metadata reads (`ADMIN_READ`). An owner's read of `app-secrets` a few minutes later was logged with the method, the caller and the version; the first read, made just after the change, wasn't, as audit config takes a few minutes to apply. To see reads: `gcloud logging read 'logName="projects/toe-beans-co-za/logs/cloudaudit.googleapis.com%2Fdata_access" AND protoPayload.serviceName="secretmanager.googleapis.com"' --project toe-beans-co-za --freshness=30d`. Unlike Admin Activity logs (400 days, `_Required`), Data Access logs go to the `_Default` bucket and are kept 30 days, so after an incident they're exported with the other evidence (`disaster-recovery.md` step 1). A few entries a day sit far inside the free 50 GiB.
 
 **R11. No CAA records or DNSSEC — low.**
 

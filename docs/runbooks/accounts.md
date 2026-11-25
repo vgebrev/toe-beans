@@ -160,7 +160,9 @@ Each account above has two-factor authentication on and the owner as its only me
 service adds a person (a new caregiver helping run prod, say), add them here with their role.
 
 If a credential may have leaked, change it as above, then look at the service's own access log
-where it has one (Atlas, Cloudflare, GCP audit logs, Auth0 logs).
+where it has one (Atlas, Cloudflare, GCP audit logs, Auth0 logs). In GCP, each read of
+`app-secrets` is a Data Access entry (`AccessSecretVersion`, with the caller), kept 30 days; the
+query is in security audit R10.
 
 ## Reviews
 
