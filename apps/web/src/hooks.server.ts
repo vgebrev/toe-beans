@@ -41,6 +41,12 @@ const resolveOptions = {
  */
 const DEFAULT_CACHE_CONTROL = 'private, no-cache';
 
+// The app's own pages stay out of search results (backlog S21.3): the edge's landing page, the
+// terms and the privacy policy are the public ones, so every other response says noindex. Crawlers
+// may still fetch them (robots.txt only keeps them off the API, sign-in and invite links), or they
+// couldn't see this.
+const indexableRoutes = new Set(['/terms', '/privacy']);
+
 // The uptime monitor and the deploy hit this every few minutes, and the app's own connection
 // checks while it's waking; their lines would drown the rest.
 const quietRoutes = new Set(['/readyz']);
@@ -104,6 +110,9 @@ export const handle: Handle = ({ event, resolve }) => {
 			// HSTS, Referrer-Policy and the like (architecture §7); Kit sets the CSP itself.
 			for (const [name, value] of Object.entries(backend().http.edge.securityHeaders())) {
 				response.headers.set(name, value);
+			}
+			if (!indexableRoutes.has(event.route.id ?? '')) {
+				response.headers.set('x-robots-tag', 'noindex');
 			}
 			if (!response.headers.has('cache-control')) {
 				response.headers.set('cache-control', DEFAULT_CACHE_CONTROL);

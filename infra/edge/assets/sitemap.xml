@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- The public pages (backlog S21.3): the edge's landing page and the app's terms and privacy policy. -->
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+	<url><loc>https://toebeans.co.za/</loc></url>
+	<url><loc>https://toebeans.co.za/terms</loc></url>
+	<url><loc>https://toebeans.co.za/privacy</loc></url>
+</urlset>

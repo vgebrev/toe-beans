@@ -343,12 +343,46 @@ describe('the edge Worker', () => {
 				expect(html).not.toMatch(/<script|\sstyle="|\son[a-z]+="/);
 			});
 
+			it('has a title, a description and a share card for link previews (S21.3)', () => {
+				expect(html).toContain('<title>Toe Beans: puppy training and care, shared</title>');
+				expect(html).toMatch(/<meta name="description" content="[^"]{80,160}"/);
+				const meta = (/** @type {string} */ property) =>
+					html.match(new RegExp(`<meta property="${property}" content="([^"]+)"`))?.[1];
+				expect(meta('og:url')).toBe('https://toebeans.co.za/');
+				const image = meta('og:image') ?? '';
+				expect(image).toBe('https://toebeans.co.za/landing/share.png');
+				const png = readFileSync(new URL(new URL(image).pathname.slice(1), ASSET_DIR));
+				expect([png.readUInt32BE(16), png.readUInt32BE(20)]).toEqual([1200, 630]);
+				expect([meta('og:image:width'), meta('og:image:height')]).toEqual(['1200', '630']);
+				expect(html).toContain('<meta name="twitter:card" content="summary_large_image"');
+			});
+
 			it('links only to the page itself and the app’s public ways in', () => {
 				const links = new Set([...html.matchAll(/<a [^>]*href="([^"]+)"/g)].map((m) => m[1]));
 				expect([...links].sort()).toEqual(
 					['#household', '#how', '/', '/auth/sign-in', '/privacy', '/terms'].sort()
 				);
 			});
+		});
+	});
+
+	describe('robots.txt and the sitemap (S21.3)', () => {
+		const robots = readFileSync(new URL('robots.txt', ASSET_DIR), 'utf8');
+		const sitemap = readFileSync(new URL('sitemap.xml', ASSET_DIR), 'utf8');
+
+		it('lists the public pages, and only those', () => {
+			const pages = [...sitemap.matchAll(/<loc>([^<]+)<\/loc>/g)].map((m) => m[1]);
+			expect(pages).toEqual([
+				'https://toebeans.co.za/',
+				'https://toebeans.co.za/terms',
+				'https://toebeans.co.za/privacy'
+			]);
+		});
+
+		it('points crawlers at the sitemap and keeps them off the API, sign-in and invite links', () => {
+			expect(robots).toContain('Sitemap: https://toebeans.co.za/sitemap.xml');
+			const disallowed = [...robots.matchAll(/^Disallow: (.*)$/gm)].map((m) => m[1]);
+			expect(disallowed).toEqual(['/api/', '/auth/', '/internal/', '/join/']);
 		});
 	});
 });

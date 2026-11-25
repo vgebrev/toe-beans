@@ -1,8 +1,8 @@
 # Toe Beans — Backlog
 
-**Version:** 0.110 (draft for iteration)
+**Version:** 0.111 (draft for iteration)
 **Date:** 25 November 2026
-**Inputs:** `docs/requirements.md` v1.1, `docs/architecture.md` v1.60, `docs/ui.md` v0.48
+**Inputs:** `docs/requirements.md` v1.1, `docs/architecture.md` v1.61, `docs/ui.md` v0.49
 
 **Changes in 0.3:** spike results S-1.0 to S-1.4 and S0.1–S0.2 recorded as they landed (see Current progress). S-1.4b dropped as not needed, S-1.5 parked, S-1.4a retargeted to `toebeans.co.za`.
 
@@ -200,6 +200,8 @@
 
 **Changes in 0.110:** S21.1 done: direction A chosen by the owner, written up as ui.md §4.9 (0.48). S21.2 built: the page in `infra/edge/assets/landing/`, served by the Worker at a bare `/` without the session cookie, the manifest's `start_url` moved to `/?source=pwa`, sign-in linking back, and the app's screenshots from `pnpm landing:shots` (architecture 1.60, D44); done once deployed and checked on a phone. Inputs moved to architecture 1.60 and ui 0.48.
 
+**Changes in 0.111:** S21.2 done, deployed with 1.3.0 and the Worker and checked by the owner (the deploy's direct readiness check passed on its first run). S21.3 built: `robots.txt` and `sitemap.xml` at the edge, `noindex` on the app's pages but the terms and privacy policy, their descriptions, and the landing page's Open Graph tags and share card (architecture 1.61 D44, ui 0.49 §4.9); done once deployed and checked. Inputs moved to architecture 1.61 and ui 0.49.
+
 **Changes in 0.51:** S15.1 gains (k), fresh data on coming back to the app and on Back to a page Chrome kept whole (ui 0.35 §5.2), from the owner, after Today stayed stale behind a reminder. Live updates over WebSockets were considered and left out for cost. The offline banner's check backs off from 1 s (architecture 1.23 D31), found through a flaky e2e check. Built with e2e checks and closed by the owner, so S15.1 stays done. Inputs moved to architecture 1.23 and ui 0.35.
 
 **Changes in 0.50:** S15.1 gains (j), a banner offering *Refresh* once a new version is deployed (ui 0.34 §5.2), from the owner. Built and covered by an e2e check; it can only be seen across a real deploy, so the owner tries it on prod after the next one. Inputs moved to ui 0.34.
@@ -367,6 +369,7 @@ Work is organised as **vertical slices**: each delivers a usable end-to-end incr
 | 2026-11-25 | S20 closed: three new exercises from puppy school, *Stop-go on walks*, *Car rides, calmly* and *A first Stay*, signed off by the owner and read on a phone. *Loose-lead first steps* now points to *Stop-go on walks*. |
 | 2026-11-25 | 1.2.0 deployed and checked on a phone by the owner; its release was published by hand after *Check it's ready* got 403s from Cloudflare at `toebeans.co.za`. The deploy now checks `/readyz` at Cloud Run as the deploy account, and fails if the spending cap has the app paused (architecture 1.59). |
 | 2026-11-25 | S21.1 done: the owner chose direction A for the landing page (ui.md §4.9). S21.2 built: the page served by the edge at `/` to visitors who aren't signed in, the installed app opening on `/?source=pwa`; to be deployed and checked on a phone. |
+| 2026-11-25 | 1.3.0 released and the edge Worker deployed: the landing page is live at toebeans.co.za, checked by the owner, and the deploy's new readiness check passed. S21.2 done. S21.3 built: search engines see only the landing page, the terms and the privacy policy, and links to the site show a preview card. |
 
 **Next up:** S21 (S19 and S20 are done).
 
@@ -668,8 +671,8 @@ Work is organised as **vertical slices**: each delivers a usable end-to-end incr
 | # | Task | Status |
 |---|---|---|
 | S21.1 | **Copy and design.** What it says (the three questions in requirements §1, shared caregivers, reminders, reward-based training, free, private, made in South Africa) and how it looks, in the brand tokens; a mock-up for the owner, in both themes and at phone width first. `ui.md` gains the page. **Done (25 Nov):** direction A of three on the [canvas](https://claude.ai/artifact/6TbJ3Lcy1CPX4rKqxop4an), chosen by the owner, with the app shown as real screenshots and its own badges, and Ripley as the demo dog; ui.md §4.9. | ✅ |
-| S21.2 | **Built and served at the edge.** Static files from the repo, deployed with `infra/edge` as Workers static assets; `/` without the session cookie gets the brochure, everything else the app. The manifest's `start_url` moves off `/` so the installed app never opens on it. No third-party scripts, our own fonts, a strict CSP, no analytics. Sign-in links back to it. **Built (25 Nov):** `infra/edge/assets/landing/` (HTML and CSS, no scripts), served through the Worker's `ASSETS` binding to a `GET`/`HEAD` of `/` with no query and no `__Host-tb_session`, before any token; `start_url` `/?source=pwa`; *About Toe Beans* on sign-in; screenshots by `pnpm landing:shots`. Worker tests check when it's served and that its mark, icons, colours and favicon are the app's. Done once the Worker is deployed and the owner has checked it on a phone. | 🟨 |
-| S21.3 | **Found and shared.** Title, description, a share image, `robots.txt` and a sitemap for the public pages (landing, terms, privacy); the app's pages stay unindexed. | ⬜ |
+| S21.2 | **Built and served at the edge.** Static files from the repo, deployed with `infra/edge` as Workers static assets; `/` without the session cookie gets the brochure, everything else the app. The manifest's `start_url` moves off `/` so the installed app never opens on it. No third-party scripts, our own fonts, a strict CSP, no analytics. Sign-in links back to it. **Built (25 Nov):** `infra/edge/assets/landing/` (HTML and CSS, no scripts), served through the Worker's `ASSETS` binding to a `GET`/`HEAD` of `/` with no query and no `__Host-tb_session`, before any token; `start_url` `/?source=pwa`; *About Toe Beans* on sign-in; screenshots by `pnpm landing:shots`. Worker tests check when it's served and that its mark, icons, colours and favicon are the app's. Done once the Worker is deployed and the owner has checked it on a phone. **Done (25 Nov):** released in 1.3.0, the Worker deployed by the owner and checked on prod. | ✅ |
+| S21.3 | **Found and shared.** Title, description, a share image, `robots.txt` and a sitemap for the public pages (landing, terms, privacy); the app's pages stay unindexed. **Built (25 Nov):** `infra/edge/assets/robots.txt` (off `/api/`, `/auth/`, `/internal/`, `/join/`) and `sitemap.xml` (`/`, `/terms`, `/privacy`); `X-Robots-Tag: noindex` from the app on everything but the terms and privacy policy, whose pages gain descriptions; the app's own `robots.txt` (off the edge only) disallows all; the landing page's description and Open Graph and Twitter tags, with a 1200×630 share card from `pnpm landing:shots`. Worker and e2e tests check each. Done once deployed and checked. | 🟨 |
 
 ### P1 proper
 *Order agreed with the owner (23 Nov): F, D, A, C, B, H. F is small and makes forms safer; D fits what puppy school is recording now; C builds on A; B needs the library tagged by age and level, which it does itself.*
