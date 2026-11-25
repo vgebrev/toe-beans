@@ -155,6 +155,24 @@ Logs**: requests, bandwidth, status codes, countries, cache), counted at the edg
 and seen only by the account owner; the Worker's request and error counts; Cloud Run's metrics and
 logs; and Sentry for errors in the browser and on the server.
 
+## A rate limit before the Worker (security audit R3)
+
+The Workers Free plan gives the account 100,000 requests a day, shared with the other sites on
+it; past that, every request on all of them fails until midnight UTC. A rate-limiting rule (free
+plan: one rule, expressions on the path only, counted per IP over 10 seconds) blocks a fast flood
+from one address before the Worker runs. It doesn't stop a slow or spread-out one (architecture
+D13, R6).
+
+In the dashboard: **toebeans.co.za → Security → Security rules → Create rule → Rate limiting
+rule**, name `toe-beans-rate-limit`, expression `(http.request.uri.path wildcard "/*")`, counted
+by IP, **200** requests per **10 seconds**, action **Block** for **10 seconds**, deploy.
+
+The threshold sits above a fresh install: 170 requests on 25 Nov, nearly all the service worker's
+precache, which fails whole if one file is refused. The precache grows with the build, so recount
+when it grows by a lot (Chrome on a desktop, site data cleared, DevTools → Network, open the site
+and sign in) and raise the threshold before a fresh load nears it. The sign-in pages on
+`auth.toebeans.co.za` aren't proxied (`docs/runbooks/auth0.md` §3), so they don't count.
+
 ## Scanners blocked before the Worker (S17.3)
 
 Bots probe for secrets and other software's admin pages. The app answers them with a plain 404,

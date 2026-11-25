@@ -42,7 +42,7 @@ quarterly review.
 | · Pub/Sub, Cloud Build, Logging | Yes | 10 GiB of messages; build minutes; 50 GiB of logs, 30 days kept | A few budget messages a day; a build only when the cap's code changes; the app logs at `info` |
 | · Cloud Storage | Yes; no free tier in `africa-south1` | None there | Only `run-sources-toe-beans-co-za-africa-south1`, made by a source deploy and empty. `limits.sh` lists every bucket with its size |
 | **Cloudflare R2** | **Yes**, past the free allowance, to the card on the Cloudflare account | 10 GB-month of storage, 1 million Class A and 10 million Class B operations a month | No hard cap exists: Cloudflare's spend limits cover only Workers and Durable Objects. Instead: photos are one small WebP per dog in two sizes; the backups' lifecycle rules delete dumps and replaced photos after 30 days (`infra/backup/README.md` §2); the nightly backup fails, and so mails the owner, when the two buckets hold more than 5 GB together (`STORAGE_ALERT_GB`); and a Cloudflare budget alert at US$1 catches operations, which nothing of ours counts |
-| Cloudflare Workers, DNS, Email Routing | No (free plan) | 100,000 Worker requests a day | Requests past the day's allowance fail; nothing bills |
+| Cloudflare Workers, DNS, Email Routing | No (free plan) | 100,000 Worker requests a day | Requests past the day's allowance fail; nothing bills. A rate-limiting rule slows a flood from one address (`infra/edge/README.md`, security audit R3) |
 | MongoDB Atlas | No (M0, no card) | 512 MB of storage | Writes are refused past it |
 | Auth0 | No (free plan) | The free plan's monthly active users | Sign-ups stop past it |
 | Resend | No (free plan) | 100 emails a day, 3,000 a month | Sends are refused past it |

@@ -1,8 +1,8 @@
 # Toe Beans — Security Audit
 
-**Version:** 0.8
+**Version:** 0.9
 **Date:** 25 November 2026
-**Status:** §1–§6, the code review: every finding fixed or decided (S15.2). §7, the external pentest: both findings fixed (S18.3). §8, found since: fixed. §9, the second review of code and infrastructure: open, for triage (R2 fixed).
+**Status:** §1–§6, the code review: every finding fixed or decided (S15.2). §7, the external pentest: both findings fixed (S18.3). §8, found since: fixed. §9, the second review of code and infrastructure: open, for triage (R2 fixed, R3 mitigated and its rest accepted).
 **Inputs:** `docs/requirements.md` v1.0, `docs/architecture.md` v1.21, the code at commit `1ea686e` (`develop`); for §7, prod on 1.0.4 and the repo at `main` `904516e`; for §9, `docs/architecture.md` v1.48, the repo at `develop` `c965642`, and prod on 1.1.0 with its GCP, Cloudflare and GitHub settings as read on 24 November 2026
 
 **Changes in 0.1:** first audit of the attack surface before release.
@@ -20,6 +20,8 @@
 **Changes in 0.7:** §9, a second defensive review of the code and the infrastructure after S19 (the spending cap, the single app secret, the backup's move to GitHub secrets): no critical or high findings and household isolation still holds; three medium findings about availability, cost and dependency alerts rather than data (R1 to R3), eight low (R4 to R11), and five items to check where this review couldn't read the setting (C5 to C9). R1 (its IAM fix) and R4 were then built as backlog S19.8, not yet on prod.
 
 **Changes in 0.8:** §9.2 R2 fixed: Dependabot alerts on; automated security updates stay off, since they'd open pull requests against `main`, and alerts go through `develop` by hand (architecture 1.50, D15). The production tree's `glob` advisory and two of the dev ones are fixed by updates; one dev-only path is left.
+
+**Changes in 0.9:** §9.2 R3 mitigated: a rate-limiting rule at the edge, 200 requests per IP in 10 seconds, blocked for 10 seconds, sized on a fresh install's 170; Free plan rules match only the path, so the suggested `http.host` expression is corrected. The rest is accepted by the owner: no Workers Paid and no second Cloudflare account for now (architecture 1.51, D13, R6). C5's first item answered.
 
 ---
 
@@ -249,7 +251,7 @@ No critical or high findings. Nothing found lets one household reach another's d
 |---|---|---|---|
 | R1 | A flood straight at `run.app` runs up the bill, and the spending cap then closes the app | Medium | Confirmed in config and live; the spend rate is estimated |
 | R2 | Dependabot alerts and security updates are off | Medium | Confirmed; fixed 25 Nov (alerts on) |
-| R3 | The site fails for the rest of the day after 100,000 Worker requests, a quota shared with two other sites | Medium | Confirmed in config; the quota wasn't exhausted |
+| R3 | The site fails for the rest of the day after 100,000 Worker requests, a quota shared with two other sites | Medium | Confirmed in config; the quota wasn't exhausted; mitigated 25 Nov (rate-limiting rule), the rest accepted |
 | R4 | `/readyz` answers at `run.app` without the proxy secret and pings Atlas on every call | Low | Confirmed live and in code |
 | R5 | Plain `http://toebeans.co.za` serves the app; HSTS isn't preloaded | Low | Confirmed live |
 | R6 | TLS 1.0 and 1.1 are accepted at the edge | Low | Confirmed live |
@@ -291,8 +293,9 @@ No critical or high findings. Nothing found lets one household reach another's d
 - **Where:** Cloudflare account `470d…c05b` on Workers Free (`docs/runbooks/accounts.md` "Billing limits": "requests past the day's allowance fail"). The account runs three Workers on custom domains: `toe-beans-edge`, `gebrev-com` (`gebrev.com`, `veli.gebrev.com`) and `swimwellza` (`swimwellza.co.za`). Every request to `toebeans.co.za` runs the Worker, cached `/_app/` files included, except the WAF's scanner blocks (D42) and the maintenance fonts (static assets).
 - **What an attacker could do:** send about 100,000 requests in a day, about 1.2 a second, to any of the three sites. From then until midnight UTC, Cloudflare answers every request on all three with an error page. The installed app shows *Can't reach Toe Beans*, and reminders still go out, since the tick calls `run.app` directly. Unlike R1, this costs nothing and needs no bandwidth to speak of. Cloudflare's automatic DDoS protection acts on far higher rates. Whether a rate-limiting rule exists couldn't be read (C5), and none is in the repo.
 - **Fix:**
-  1. A rate-limiting rule at the edge. The free plan allows one, and requests it blocks never run the Worker. In the dashboard: **toebeans.co.za → Security → WAF → Rate limiting rules**, matching `http.host eq "toebeans.co.za"`, counting by IP, 10-second period, action Block for 10 seconds. Set the threshold above a cold start of the app (count the requests one phone makes on a fresh install, likely 40 to 80) with margin, for example 150. It slows a single source; a spread-out flood still gets through.
+  1. A rate-limiting rule at the edge. The free plan allows one, and requests it blocks never run the Worker. In the dashboard: **toebeans.co.za → Security → WAF → Rate limiting rules**, matching every path of the zone (*corrected:* Free plan rules can match only the path, so `http.request.uri.path wildcard "/*"`, not `http.host`), counting by IP, 10-second period, action Block for 10 seconds. Set the threshold above a cold start of the app (count the requests one phone makes on a fresh install, likely 40 to 80) with margin, for example 150. It slows a single source; a spread-out flood still gets through.
   2. Separate the quota. Move the other two sites to another Cloudflare account, so a flood on them can't take Toe Beans down, or take Workers Paid (US$5 a month, 10 million requests) when the free tier stops being a requirement (NFR-07). Record the choice against D13.
+- **Status (25 Nov): mitigated; the rest accepted (architecture 1.51, D13, R6).** The rule is on: every path of `toebeans.co.za`, by IP, more than 200 requests in 10 seconds blocks that IP for 10 seconds (`infra/edge/README.md`). The owner measured a fresh load at 170 requests, nearly all of them the service worker's precache (`cache.addAll` over the build's files, which fails whole on one refusal), so 200 leaves a small margin; an app update fetches only the changed files. The sign-in pages on `auth.toebeans.co.za` aren't proxied by Cloudflare (`auth0.md` §3) and don't count. What the rule stops is a fast flood from one address using up the day in minutes. It doesn't stop R3's attack as written: 1.2 requests a second is far under any threshold the app can live with, an address just under the limit uses up the day in about two hours, and many addresses aren't slowed at all. Separating the quota is declined for now (owner): no Workers Paid (US$5 a month, NFR-07) and no second Cloudflare account; the other two sites get their own rate-limiting rules on their zones. Revisit if the quota is ever exhausted, or when the free tier stops being a requirement. The precache grows with the build, so recount a fresh load when the build grows by a lot, and raise the threshold before it nears 200.
 
 **R4. `/readyz` answers at `run.app` without the proxy secret and pings Atlas on every call — low.**
 
@@ -409,7 +412,7 @@ No critical or high findings. Nothing found lets one household reach another's d
 
 **C5. Cloudflare settings this review couldn't read.** wrangler's sign-in has no zone-settings or rulesets scope. In the dashboard, confirm:
 
-- whether any rate-limiting rule exists (R3);
+- whether any rate-limiting rule exists (R3). *Answered 25 Nov: one is on (R3's status).*
 - that `toe-beans-scanners` (D42) is the only custom rule and has no *Skip* action;
 - that no Page Rules, Cache Rules or Transform Rules exist that touch `/api/` or add `Cache-Control`;
 - that Bot Fight Mode is on.
@@ -441,5 +444,5 @@ SSL mode (Flexible, Full or Strict) doesn't apply. The Worker fetches `run.app` 
 ### 9.5 Fix first
 
 1. **R1 and R4, the cost of a refused request.** Make refusals and `/readyz` cheap (debug-level log, a log exclusion, a memoised ping), and correct D45's bound. Then decide whether the origin should sit behind Google's IAM.
-2. **R3, the shared Worker quota.** Add the free rate-limiting rule and move the other two sites off this account, so a cheap flood on any of them doesn't take Toe Beans down for a day.
+2. **R3, the shared Worker quota.** Add the free rate-limiting rule and move the other two sites off this account, so a cheap flood on any of them doesn't take Toe Beans down for a day. *Rule on 25 Nov; separating the quota declined for now.*
 3. **R2, Dependabot alerts.** One command, and D34's acceptance of the open advisories rests on it. *Done 25 Nov.*

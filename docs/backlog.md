@@ -1,8 +1,8 @@
 # Toe Beans — Backlog
 
-**Version:** 0.95 (draft for iteration)
+**Version:** 0.96 (draft for iteration)
 **Date:** 25 November 2026
-**Inputs:** `docs/requirements.md` v1.1, `docs/architecture.md` v1.50, `docs/ui.md` v0.46
+**Inputs:** `docs/requirements.md` v1.1, `docs/architecture.md` v1.51, `docs/ui.md` v0.46
 
 **Changes in 0.3:** spike results S-1.0 to S-1.4 and S0.1–S0.2 recorded as they landed (see Current progress). S-1.4b dropped as not needed, S-1.5 parked, S-1.4a retargeted to `toebeans.co.za`.
 
@@ -170,6 +170,8 @@
 
 **Changes in 0.95:** S19.9 added and done: Dependabot alerts on, from security audit 0.7's R2 (architecture 1.50, D15). Inputs moved to architecture 1.50.
 
+**Changes in 0.96:** S19.10 added and done: a rate limit at the edge, from security audit 0.7's R3; separating the Worker quota declined for now (architecture 1.51, D13, R6). Inputs moved to architecture 1.51.
+
 **Changes in 0.51:** S15.1 gains (k), fresh data on coming back to the app and on Back to a page Chrome kept whole (ui 0.35 §5.2), from the owner, after Today stayed stale behind a reminder. Live updates over WebSockets were considered and left out for cost. The offline banner's check backs off from 1 s (architecture 1.23 D31), found through a flaky e2e check. Built with e2e checks and closed by the owner, so S15.1 stays done. Inputs moved to architecture 1.23 and ui 0.35.
 
 **Changes in 0.50:** S15.1 gains (j), a banner offering *Refresh* once a new version is deployed (ui 0.34 §5.2), from the owner. Built and covered by an e2e check; it can only be seen across a real deploy, so the owner tries it on prod after the next one. Inputs moved to ui 0.34.
@@ -322,6 +324,7 @@ Work is organised as **vertical slices**: each delivers a usable end-to-end incr
 | 2026-11-23 | S19.6 built: every service's billing limit listed; the nightly backup fails past 5 GB of R2; Secret Manager from 13 versions to one (the app's secrets in one JSON secret, the backup's on GitHub). Done once prod is switched over. |
 | 2026-11-24 | S19.2, S19.5 and S19.6 done on prod with 1.1.0-rc.1: the switch-over to one secret (the backup's on GitHub), the theme's font, and the cap tested. The test found the cap needs `actAs` to change ingress; it now closes the app through its access list instead, and the paused page carries the app's mark and fonts. |
 | 2026-11-25 | S19.9 done: Dependabot alerts on (security audit R2); automated security updates left off, as they'd target `main`. Sentry, ESLint and typescript-eslint updated: `pnpm audit` is down to one dev-only path. |
+| 2026-11-25 | S19.10 done: a rate-limiting rule at Cloudflare, 200 requests per IP in 10 seconds (security audit R3); the shared Worker quota otherwise accepted for now. |
 
 **Next up:** S19.7 (the export), and S20.1–S20.3; S21 once S19 is done.
 
@@ -598,6 +601,7 @@ Work is organised as **vertical slices**: each delivers a usable end-to-end incr
 | S19.7 | **The household's export (FR-16, was P1-E; D46).** An owner downloads a ZIP from More: `household.json` with every record of the household, schema-versioned, and the dogs' photos; no provider IDs, sessions, push endpoints, invitation tokens or secrets. Not emailed. Rate limited. The privacy policy says how to get your data. | ⬜ |
 | S19.8 | **Only the Worker reaches the origin (security audit 0.7 R1, R4; D45).** With `allUsers` an invoker, anyone could send requests straight to `run.app`: refused by the app, but billed and logged, so a stranger could run up the US$1 budget and have the cap close the app; and `/readyz` there pinged Atlas on every call. **Built (24 Nov):** the app's invokers are `toe-beans-edge` and `toe-beans-tick`; the Worker gets an ID token for `toe-beans-edge` through the Workload Identity Federation pool `cloudflare` from a JWT it signs itself (`infra/edge/google-identity.js`, `edge-key.mjs`; the org refuses keys), and sends it as `x-serverless-authorization`; a failed exchange or a 401 is a 502, not the paused page. The cap takes `toe-beans-edge` off. `/readyz` pings the database at most every 5 s, and the deploy checks it through the Worker. To do on prod: the switch in `infra/edge/README.md`, then the cap's test. | 🟨 |
 | S19.9 | **Dependabot alerts on (security audit 0.7 R2; D15).** They were off, though D34 relies on Dependabot for the accepted advisories. **Done (25 Nov):** alerts on. Automated security updates stay off, since GitHub opens them against `main`, past `develop` and the release check (D40); an alert's fix goes through `develop` by hand. Sentry (11.14.0), ESLint (10.15.0) and typescript-eslint (8.73.0) updated, which clears the production tree's `glob` advisory and two dev ones; `pnpm audit` keeps one dev-only path, under Testcontainers, with no fix released. | ✅ |
+| S19.10 | **A rate limit before the Worker (security audit 0.7 R3; D13).** Workers Free gives the Cloudflare account 100,000 requests a day, shared with two other sites, so a cheap flood on any of them could fail Toe Beans until midnight UTC. **Done (25 Nov):** a rate-limiting rule on the zone by the owner: every path, per IP, past 200 requests in 10 seconds blocked for 10 seconds, above a fresh install's measured 170 (the service worker's precache); `infra/edge/README.md` has the rule and how to recount. It stops a fast flood from one address, not a slow or spread-out one. Workers Paid and a second account declined for now (owner, NFR-07); the rest is risk R6. | ✅ |
 
 ### S20 Training content from puppy school
 *From the owner's first two weeks of puppy school and their puppy: the name game and loose-lead walking held up; the stop-go (red light, green light) technique for pulling joins the library, with car rides for a car-sick or anxious puppy and a first *Stay*. Each is written in our own words from freely available reward-based sources, cited, checked against `content/README.md` and the content gate (§3.8), and signed off by the owner (`reviewedBy`, `reviewedAt`).*
