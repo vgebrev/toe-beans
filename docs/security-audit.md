@@ -1,8 +1,8 @@
 # Toe Beans — Security Audit
 
-**Version:** 0.17
+**Version:** 0.18
 **Date:** 25 November 2026
-**Status:** §1–§6, the code review: every finding fixed or decided (S15.2). §7, the external pentest: both findings fixed (S18.3). §8, found since: fixed. §9, the second review of code and infrastructure: open, for triage (R1, R2, R4, R5, R6, R7, R8, R9 and R10 fixed, R3 mitigated and its rest accepted, R11 fixed but for DNSSEC, which is accepted).
+**Status:** §1–§6, the code review: every finding fixed or decided (S15.2). §7, the external pentest: both findings fixed (S18.3). §8, found since: fixed. §9, the second review of code and infrastructure: every finding fixed or decided, and every check made (R1, R2, R4, R5, R6, R7, R8, R9 and R10 fixed, R3 mitigated and its rest accepted, R11 fixed but for DNSSEC, which is accepted; C5 to C9 confirmed, C7 with a lock rule added).
 **Inputs:** `docs/requirements.md` v1.0, `docs/architecture.md` v1.21, the code at commit `1ea686e` (`develop`); for §7, prod on 1.0.4 and the repo at `main` `904516e`; for §9, `docs/architecture.md` v1.48, the repo at `develop` `c965642`, and prod on 1.1.0 with its GCP, Cloudflare and GitHub settings as read on 24 November 2026
 
 **Changes in 0.1:** first audit of the attack surface before release.
@@ -38,6 +38,8 @@
 **Changes in 0.16:** §9.2 R10 fixed on prod: Data Access audit logs for Secret Manager, `DATA_READ` only, set by a step in `infra/gcp/provision.sh`; an owner's read of `app-secrets` was then logged. They're kept 30 days in `_Default`, not 400 (architecture 1.56, D15; backlog S19.15 done).
 
 **Changes in 0.17:** §9.2 R11 fixed on prod by the owner at Cloudflare: CAA records allow Let's Encrypt and Google Trust Services, and Cloudflare adds its other CAs; DMARC no longer sends reports to GoDaddy. The concern about Auth0's renewals doesn't apply, since `auth`'s CNAME target has CAA records of its own. DNSSEC is accepted as not possible: GoDaddy offers no DS record for the domain, so signing was turned off again (backlog S19.16 done).
+
+**Changes in 0.18:** §9.3 checked, which closes §9, by the owner in each dashboard: C5's Cloudflare rules and Bot Fight Mode as expected; C6's `send` records are Resend's verified ones, now recorded in the accounts runbook; C7's app token is limited to photos, and backups gain an R2 lock rule on `mongo/` for 29 days, read back with wrangler; C8's Atlas users and two-factor sign-in as accounts.md says; C9's webhooks, secret-scanning alerts and deploy keys are all empty, and the Auth0 tenant has only Google and the database connection on its application; Auth0 has no setting to refuse unverified sign-ups, so that rests on the app's check at callback (backlog S19.17 done).
 
 ---
 
@@ -276,11 +278,11 @@ No critical or high findings. Nothing found lets one household reach another's d
 | R9 | `main` doesn't require a pull request, admins bypass it, any action may run, and there's no code scanning | Low | Confirmed; fixed 25 Nov |
 | R10 | Reads of `app-secrets` aren't audit-logged | Low | Confirmed; fixed 25 Nov |
 | R11 | No CAA records or DNSSEC | Low | Confirmed live; fixed 25 Nov (CAA, DMARC), DNSSEC accepted |
-| C5 | Cloudflare settings this review couldn't read: rate limiting, WAF rules, SSL mode | — | Worth checking |
-| C6 | `send.toebeans.co.za` is a CNAME to `send.forge.rmta.net` | Low | Worth checking |
-| C7 | The backup's R2 token can delete every backup; no bucket lock | Low | Worth checking |
-| C8 | Atlas is reachable from anywhere, guarded by its password | Low | Known (accounts.md R3); worth checking |
-| C9 | Webhooks, secret-scanning alerts and the Auth0 tenant weren't re-read | — | Not checked |
+| C5 | Cloudflare settings this review couldn't read: rate limiting, WAF rules, SSL mode | — | Confirmed 25 Nov in the dashboard |
+| C6 | `send.toebeans.co.za` is a CNAME to `send.forge.rmta.net` | Low | Confirmed 25 Nov: Resend's verified records |
+| C7 | The backup's R2 token can delete every backup; no bucket lock | Low | Confirmed; fixed 25 Nov (lock rule) |
+| C8 | Atlas is reachable from anywhere, guarded by its password | Low | Known (accounts.md R3); users and 2FA confirmed 25 Nov |
+| C9 | Webhooks, secret-scanning alerts and the Auth0 tenant weren't re-read | — | Confirmed 25 Nov |
 
 ### 9.2 Confirmed findings
 
@@ -458,13 +460,23 @@ No critical or high findings. Nothing found lets one household reach another's d
 
 SSL mode (Flexible, Full or Strict) doesn't apply. The Worker fetches `run.app` itself over https, with Cloudflare checking the certificate, and no proxied origin record exists for the apex.
 
+- **Status (25 Nov): confirmed by the owner in the dashboard (backlog S19.17).** `toe-beans-scanners` is the only custom rule, with no *Skip* action; no Page, Cache or Transform Rules exist; Bot Fight Mode is on.
+
 **C6. `send.toebeans.co.za` is a CNAME to `send.forge.rmta.net`.** Through it, that name's SPF (`ip4:52.3.252.119 ip4:44.222.39.36 ip4:199.249.231.0/24`) and MX belong to whoever runs `rmta.net`. Under DMARC's relaxed alignment (`aspf=r`), mail with an envelope sender at `send.toebeans.co.za` from those addresses passes DMARC as `@toebeans.co.za`. Fine if it's Resend's current setup, but nothing in the repo records it. Confirm it matches the records Resend's dashboard shows as verified for the domain, and delete it if not.
+
+- **Status (25 Nov): confirmed by the owner (backlog S19.17).** The `send` CNAME is one of the records Resend's dashboard shows as verified for `toebeans.co.za`: it's the envelope sender's domain Resend uses, so its SPF and bounce MX are Resend's to run. The accounts runbook now records it, so a later review doesn't have to ask again.
 
 **C7. Backups can be deleted with the nightly job's token.** The `toe-beans-backup` R2 token (Object Read & Write on `toe-beans-backups`) is a `backups` environment secret. With it, or a malicious change merged to `main` that runs in that environment, all dumps can be deleted. The bucket has no lock rule. Also check, in **R2 → Manage API tokens**, that the app's token (`S3_ACCESS_KEY_ID`) is limited to `toe-beans-photos`, so the app can't touch backups. Fix: an R2 bucket lock rule on the `mongo/` prefix with a 29-day retention, which keeps within the 30-day lifecycle that D36 and the privacy policy rely on.
 
+- **Status (25 Nov): fixed on prod (backlog S19.17).** The owner confirmed in **R2 → Manage API tokens** that the app's token is limited to `toe-beans-photos`, and added the lock rule `toe-beans-backup-lock`: prefix `mongo/`, objects kept 29 days. `wrangler r2 bucket lock list toe-beans-backups` reads it back, enabled, beside the 30-day lifecycle rules. Each dump has its own name (`mongo/<database>-<UTC time>…`), so the nightly job never overwrites a locked object. A stolen backup token, or a bad change on `main`, can now add dumps but can't delete the last 29 days of them. Photos under `photos/` aren't locked: the sync moves them as the source changes, and their source is the app's own bucket.
+
 **C8. Atlas is reachable from anywhere.** Network access is `0.0.0.0/0` (accounts.md, R3), because Cloud Run has no fixed egress address on the free tier. The database is then guarded by its two users' passwords and Atlas's mandatory TLS. Confirm that the app's user has `readWrite` on `toe-beans` only and the backup user `read` only (accounts.md says so), that no other database users exist, and that the owner's Atlas login uses two-factor authentication.
 
+- **Status (25 Nov): confirmed by the owner in Atlas (backlog S19.17).** `toe-beans-app` has `readWrite` on `toe-beans` only and `toe-beans-backup` `read` only, no other database users exist, and the owner's login uses two-factor authentication. Network access stays `0.0.0.0/0`, accepted in accounts.md R3.
+
 **C9. Not checked.** Repository webhooks and secret-scanning alerts (the token lacks `admin:repo_hook`; `gh auth refresh -s admin:repo_hook` and `gh api repos/vgebrev/toe-beans/hooks`). The Auth0 tenant's connections (C2), last checked live in §7.
+
+- **Status (25 Nov): confirmed (backlog S19.17).** With `admin:repo_hook` added to the owner's token, `gh api repos/vgebrev/toe-beans/hooks` returns `[]`: no webhooks. `…/secret-scanning/alerts` returns `[]` with secret scanning and push protection on, and `…/keys` returns `[]`: no deploy keys. In the prod tenant, the owner found only Google and the database connection enabled and configured on the *Toe Beans* application. Auth0 has no setting that makes sign-up wait for a verified email: the database connection sends the verification mail but lets an unverified user log in. The app is what refuses them: `finishSignIn` turns away any sign-in without `email_verified: true` (`packages/backend/src/application/auth/auth.ts:233`), before any account is found or linked, so C2 holds on that check and on the two connections that verify an address.
 
 ### 9.4 Areas that look solid
 
