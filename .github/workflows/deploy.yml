@@ -151,10 +151,10 @@ jobs:
             --set-env-vars "^|^$(IFS='|'; echo "${vars[*]}")" \
             --set-secrets "$(IFS=','; echo "${secrets[*]}")"
 
+      # Through the Worker, as phones reach it: only Cloud Run's invokers get to run.app directly
+      # (architecture D45), and this checks the Worker's way in too.
       - name: Check it's ready
-        run: |
-          url="https://$SERVICE-1047834821273.$REGION.run.app"
-          curl --fail --silent --show-error --retry 5 --retry-all-errors "$url/readyz"
+        run: curl --fail --silent --show-error --retry 5 --retry-all-errors https://toebeans.co.za/readyz
 
   # Tags and publishes the release once prod runs it. contents: write only here, in a job with no
   # cloud credentials. Tags made with this token start no workflows.

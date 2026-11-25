@@ -19,6 +19,9 @@ GITHUB_REPO=vgebrev/toe-beans
 GITHUB_REPO_ID=1441749392
 POOL=github
 PROVIDER=toe-beans-github
+# The edge Worker's pool; its provider holds the Worker's public key, made by infra/edge/edge-key.mjs.
+EDGE_POOL=cloudflare
+EDGE_SUBJECT=toe-beans-edge
 BUDGET_USD=${BUDGET_USD:-1}
 # Cloud Run's sample container, so the service exists (and the deploy account can be scoped to it)
 # before the first real image is built.
@@ -44,9 +47,10 @@ BILLING_ACCOUNT=${BILLING_ACCOUNT#billingAccounts/}
 
 say "Service accounts"
 # toe-beans-run: the identity the app runs as; reads its secrets and nothing else.
-# toe-beans-tick: Cloud Scheduler signs the tick's OIDC token as this; it holds no roles.
+# toe-beans-tick: Cloud Scheduler signs the tick's OIDC token as this; it may invoke the app.
 # toe-beans-deploy: GitHub Actions, through Workload Identity Federation; never has a key.
-for name in toe-beans-run toe-beans-tick toe-beans-deploy; do
+# toe-beans-edge: the Cloudflare Worker, through Workload Identity Federation; may invoke the app.
+for name in toe-beans-run toe-beans-tick toe-beans-deploy toe-beans-edge; do
 	exists gc iam service-accounts describe "$(sa "$name")" ||
 		gc iam service-accounts create "$name" --display-name="Toe Beans: ${name#toe-beans-}"
 done
@@ -79,27 +83,33 @@ gc secrets add-iam-policy-binding app-secrets --condition=None \
 	--member="serviceAccount:$(sa toe-beans-run)" --role=roles/secretmanager.secretAccessor >/dev/null
 
 say "Cloud Run service"
-# Public through its access list: allUsers may invoke it (§8.4). The app refuses anything without
-# the Worker's header secret, and /internal/tick checks its own OIDC token. The spending cap takes
-# allUsers off to close it (infra/spending-cap), so this adds allUsers only to a service it has just
-# made, or once to one that still has the invoker check off (before S19.5), never on a re-run,
-# which would reopen an app the cap closed. One instance at most: the rate limits live in memory,
-# and it caps what a flood could cost.
-open_to_public() {
+# Only its invokers get in (§8.4, D45; security audit R1): the edge Worker as toe-beans-edge, and
+# the tick. Google turns anyone else away before the app sees the request, which is free. The app
+# also refuses anything without the Worker's header secret, and /internal/tick checks its own
+# OIDC token. The spending cap takes the Worker off to close it (infra/spending-cap), so this adds
+# the Worker only to a service it has just made, or once to one still open to allUsers (before
+# the switch in infra/edge/README.md), never on a re-run, which would reopen an app the cap
+# closed. One instance at most: the rate limits live in memory, and it caps what a flood could cost.
+open_to_edge() {
 	gc run services add-iam-policy-binding "$SERVICE" --region "$REGION" \
-		--member=allUsers --role=roles/run.invoker >/dev/null
+		--member="serviceAccount:$(sa toe-beans-edge)" --role=roles/run.invoker >/dev/null
+}
+invokers() {
+	gc run services get-iam-policy "$SERVICE" --region "$REGION" \
+		--flatten=bindings[].members --filter=bindings.role=roles/run.invoker \
+		--format='value(bindings.members)'
 }
 if ! exists gc run services describe "$SERVICE" --region "$REGION"; then
 	gc run deploy "$SERVICE" --region "$REGION" --image "$PLACEHOLDER" \
 		--service-account="$(sa toe-beans-run)" --invoker-iam-check \
 		--min-instances=0 --max-instances=1 --memory=512Mi --cpu-boost >/dev/null
-	open_to_public
-elif [ "$(gc run services describe "$SERVICE" --region "$REGION" \
-	--format="value(metadata.annotations.'run.googleapis.com/invoker-iam-disabled')")" = true ]; then
-	# allUsers first, then the check on, so the app stays open throughout.
-	open_to_public
-	gc run services update "$SERVICE" --region "$REGION" --invoker-iam-check >/dev/null
+	open_to_edge
+elif invokers | grep -qx allUsers; then
+	open_to_edge
 fi
+# The tick's own binding; the cap pauses its job rather than removing this.
+gc run services add-iam-policy-binding "$SERVICE" --region "$REGION" \
+	--member="serviceAccount:$(sa toe-beans-tick)" --role=roles/run.invoker >/dev/null
 # The service's deterministic URL (the other, hashed form works too); the tick's audience is this.
 URL="https://$SERVICE-$PROJECT_NUMBER.$REGION.run.app"
 # The deploy account may change this service and act as its runtime account, nothing more.
@@ -137,6 +147,18 @@ gc iam service-accounts remove-iam-policy-binding "$(sa toe-beans-deploy)" \
 	--member="principal://iam.googleapis.com/$POOL_ID/subject/repo:$GITHUB_REPO:environment:production" \
 	>/dev/null 2>&1 || true
 
+say "The edge Worker's identity"
+# The Worker signs its own JWTs; this pool trusts the public key in its provider (made and
+# rotated by infra/edge/edge-key.mjs, which pins the subject), and that subject may act as
+# toe-beans-edge, which can only invoke the app. No service account key: the org refuses them.
+exists gc iam workload-identity-pools describe "$EDGE_POOL" --location=global ||
+	gc iam workload-identity-pools create "$EDGE_POOL" --location=global \
+		--display-name="Cloudflare Worker"
+EDGE_POOL_ID="projects/$PROJECT_NUMBER/locations/global/workloadIdentityPools/$EDGE_POOL"
+gc iam service-accounts add-iam-policy-binding "$(sa toe-beans-edge)" \
+	--role=roles/iam.workloadIdentityUser \
+	--member="principal://iam.googleapis.com/$EDGE_POOL_ID/subject/$EDGE_SUBJECT" >/dev/null
+
 say "Cloud Scheduler tick"
 # Every 5 minutes (D27), signed as toe-beans-tick for the service's URL. Created paused: it resumes
 # after the first real deploy (README). No retries: the next tick is the retry (§6.3).
@@ -168,6 +190,11 @@ gc projects get-iam-policy "$PROJECT" --flatten=bindings[].members \
 	--filter='bindings.members~^user:' --format='value(bindings.role,bindings.members)'
 echo "app-secrets:"
 infra/gcp/app-secrets.sh keys | sed 's/^/  /'
+echo "Invokers of $SERVICE:"
+invokers | sed 's/^/  /'
+if invokers | grep -qx allUsers; then
+	echo "  allUsers still invokes it: take it off once the Worker sends its token (infra/edge/README.md)."
+fi
 
 cat <<EOF
 
@@ -176,4 +203,5 @@ TICK_AUDIENCE=$URL
 TICK_INVOKER=$(sa toe-beans-tick)
 WIF provider: $POOL_ID/providers/$PROVIDER
 Deploy account: $(sa toe-beans-deploy)
+Edge account: $(sa toe-beans-edge), through $EDGE_POOL_ID
 EOF

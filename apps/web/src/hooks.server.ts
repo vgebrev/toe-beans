@@ -126,10 +126,12 @@ async function authenticated(
 	const headers = event.request.headers;
 	event.locals.viewer = null;
 	const route = event.route.id ?? '';
-	// The scheduler and the platform's probes call the service directly, not through the proxy.
+	// The scheduler calls the service directly, not through the proxy.
 	if (machineRoutes.has(route)) return resolve(event, resolveOptions);
 	// A server render's own API calls (SvelteKit's in-process fetch) never left the container and
 	// don't carry the proxy's header; only requests that arrived over the network are checked.
+	// /readyz is left out for local checks (Playwright's, compose's). In prod only Cloud Run's
+	// invokers reach it directly, and it pings the database at most every 5 s (security audit R4).
 	if (!quietRoutes.has(route) && !event.isSubRequest) {
 		const bypassed = edge.checkProxy(headers.get(PROXY_SECRET_HEADER));
 		if (bypassed) return toResponse(bypassed);

@@ -38,7 +38,7 @@ BILLING_ACCOUNT=$(bill projects describe "$PROJECT" --format='value(billingAccou
 BILLING_ACCOUNT=${BILLING_ACCOUNT#billingAccounts/}
 
 say "Service accounts"
-# toe-beans-cap: the cap's identity; it may close the app to the public and pause the tick, nothing
+# toe-beans-cap: the cap's identity; it may close the app to the edge and pause the tick, nothing
 # else. toe-beans-build: Cloud Build's identity for the cap's source deploys (it was the S-1.3
 # spike's; roles/run.builder is the role Google made for exactly this).
 for name in "$CAP" toe-beans-build; do
@@ -63,7 +63,7 @@ role() {
 }
 role toe_beans_cap_scheduler "Toe Beans: cap pauses the tick" \
 	cloudscheduler.jobs.get,cloudscheduler.jobs.pause
-role toe_beans_cap_run "Toe Beans: cap closes the app to the public" \
+role toe_beans_cap_run "Toe Beans: cap closes the app to the edge" \
 	run.services.get,run.services.getIamPolicy,run.services.setIamPolicy
 gc projects add-iam-policy-binding "$PROJECT" --condition=None \
 	--member="serviceAccount:$(sa "$CAP")" \
@@ -79,7 +79,7 @@ gc run deploy "$CAP" --region "$REGION" --source . \
 	--build-service-account="projects/$PROJECT/serviceAccounts/$(sa toe-beans-build)" \
 	--no-allow-unauthenticated --ingress=internal \
 	--min-instances=0 --max-instances=1 --memory=256Mi --concurrency=1 --timeout=60 \
-	--set-env-vars="PROJECT=$PROJECT,APP_REGION=$REGION,APP_SERVICE=$APP_SERVICE,SCHEDULER_REGION=$SCHEDULER_REGION,TICK_JOB=$TICK_JOB,BUDGET_NAME=$BUDGET_NAME" \
+	--set-env-vars="PROJECT=$PROJECT,APP_REGION=$REGION,APP_SERVICE=$APP_SERVICE,SCHEDULER_REGION=$SCHEDULER_REGION,TICK_JOB=$TICK_JOB,BUDGET_NAME=$BUDGET_NAME,EDGE_INVOKER=$(sa toe-beans-edge)" \
 	>/dev/null
 CAP_URL="https://$CAP-$PROJECT_NUMBER.$REGION.run.app"
 # Source deploys push to this repo; one image is all it needs, against the free 0.5 GB.

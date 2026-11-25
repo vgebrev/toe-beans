@@ -3,9 +3,10 @@
 // subscription sends each message here. When the month's actual spend has reached the budget, the
 // app is taken down:
 //
-//   1. the app's Cloud Run service loses its public invoker (`allUsers`), so Cloud Run refuses
-//      every request from outside before an instance starts; the edge Worker sees that refusal
-//      and shows a maintenance page in place of the app (infra/edge/worker.js)
+//   1. the app's Cloud Run service loses the edge Worker's invoker (its account, toe-beans-edge,
+//      and allUsers if that's ever back), so Cloud Run refuses every request from outside before
+//      an instance starts; the Worker sees that refusal and shows a maintenance page in place of
+//      the app (infra/edge/worker.js)
 //   2. the tick's Scheduler job is paused, the one thing inside Google that would still call it
 //
 // Why the access list and not ingress: Cloud Run checks actAs on the runtime account for any
@@ -17,6 +18,8 @@
 
 const PUBLIC = 'allUsers';
 const INVOKER = 'roles/run.invoker';
+/** The members whose invoker role the cap takes away. The tick's stays: its job is paused. */
+const closing = (/** @type {CapConfig} */ config) => [PUBLIC, `serviceAccount:${config.edge}`];
 
 /**
  * @typedef {object} CapConfig
@@ -26,6 +29,7 @@ const INVOKER = 'roles/run.invoker';
  * @property {string} schedulerRegion
  * @property {string} job          the tick's Scheduler job
  * @property {string} budget       the budget's display name
+ * @property {string} edge         the edge Worker's service account, which invokes the app
  */
 
 /**
@@ -93,17 +97,19 @@ export async function takeDown(config, { fetch, token }) {
 	// With the invoker check off, the access list lets everyone in whatever it says.
 	if ((await call(service)).invokerIamDisabled) {
 		throw new Error(
-			`${config.service} has the invoker check off, so removing ${PUBLIC} would not close it`
+			`${config.service} has the invoker check off, so changing its invokers would not close it`
 		);
 	}
 	let access = /** @type {'closed' | 'already'} */ ('already');
 	const policy = await call(`${service}:getIamPolicy`);
 	/** @type {{ role: string, members?: string[] }[]} */
 	const bindings = policy.bindings ?? [];
-	if (bindings.some((b) => b.role === INVOKER && b.members?.includes(PUBLIC))) {
+	const closed = closing(config);
+	const open = (/** @type {string} */ m) => closed.includes(m);
+	if (bindings.some((b) => b.role === INVOKER && b.members?.some(open))) {
 		const kept = bindings
 			.map((b) =>
-				b.role === INVOKER ? { ...b, members: (b.members ?? []).filter((m) => m !== PUBLIC) } : b
+				b.role === INVOKER ? { ...b, members: (b.members ?? []).filter((m) => !open(m)) } : b
 			)
 			.filter((b) => (b.members ?? []).length > 0);
 		// The etag makes Google refuse the write if the policy changed since it was read.
@@ -155,6 +161,7 @@ export function configFrom(env) {
 		service: need('APP_SERVICE'),
 		schedulerRegion: need('SCHEDULER_REGION'),
 		job: need('TICK_JOB'),
-		budget: need('BUDGET_NAME')
+		budget: need('BUDGET_NAME'),
+		edge: need('EDGE_INVOKER')
 	};
 }
