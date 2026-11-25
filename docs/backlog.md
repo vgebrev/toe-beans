@@ -1,8 +1,8 @@
 # Toe Beans — Backlog
 
-**Version:** 0.97 (draft for iteration)
+**Version:** 0.98 (draft for iteration)
 **Date:** 25 November 2026
-**Inputs:** `docs/requirements.md` v1.1, `docs/architecture.md` v1.52, `docs/ui.md` v0.46
+**Inputs:** `docs/requirements.md` v1.1, `docs/architecture.md` v1.53, `docs/ui.md` v0.46
 
 **Changes in 0.3:** spike results S-1.0 to S-1.4 and S0.1–S0.2 recorded as they landed (see Current progress). S-1.4b dropped as not needed, S-1.5 parked, S-1.4a retargeted to `toebeans.co.za`.
 
@@ -174,6 +174,8 @@
 
 **Changes in 0.97:** S19.8 done on prod: only the Worker and the tick reach the origin, and refusals aren't billed (security audit 0.10, architecture 1.52). Inputs moved to architecture 1.52.
 
+**Changes in 0.98:** S19.11 added and done: https only and TLS 1.2 at the edge, from security audit 0.7's R5 and R6 (security audit 0.11, architecture 1.53, D32). Inputs moved to architecture 1.53.
+
 **Changes in 0.51:** S15.1 gains (k), fresh data on coming back to the app and on Back to a page Chrome kept whole (ui 0.35 §5.2), from the owner, after Today stayed stale behind a reminder. Live updates over WebSockets were considered and left out for cost. The offline banner's check backs off from 1 s (architecture 1.23 D31), found through a flaky e2e check. Built with e2e checks and closed by the owner, so S15.1 stays done. Inputs moved to architecture 1.23 and ui 0.35.
 
 **Changes in 0.50:** S15.1 gains (j), a banner offering *Refresh* once a new version is deployed (ui 0.34 §5.2), from the owner. Built and covered by an e2e check; it can only be seen across a real deploy, so the owner tries it on prod after the next one. Inputs moved to ui 0.34.
@@ -328,6 +330,7 @@ Work is organised as **vertical slices**: each delivers a usable end-to-end incr
 | 2026-11-25 | S19.9 done: Dependabot alerts on (security audit R2); automated security updates left off, as they'd target `main`. Sentry, ESLint and typescript-eslint updated: `pnpm audit` is down to one dev-only path. |
 | 2026-11-25 | S19.10 done: a rate-limiting rule at Cloudflare, 200 requests per IP in 10 seconds (security audit R3); the shared Worker quota otherwise accepted for now. |
 | 2026-11-25 | S19.8 done on prod: the app's origin takes only the Worker and the tick, the cap's test passed, and Google doesn't bill the requests it refuses (security audit R1, R4). |
+| 2026-11-25 | S19.11 done: plain http redirects to https at Cloudflare, HSTS from the zone (a year, subdomains), submitted to the preload list, TLS 1.0 and 1.1 refused (security audit R5, R6). |
 
 **Next up:** S19.7 (the export), and S20.1–S20.3; S21 once S19 is done.
 
@@ -605,6 +608,7 @@ Work is organised as **vertical slices**: each delivers a usable end-to-end incr
 | S19.8 | **Only the Worker reaches the origin (security audit 0.7 R1, R4; D45).** With `allUsers` an invoker, anyone could send requests straight to `run.app`: refused by the app, but billed and logged, so a stranger could run up the US$1 budget and have the cap close the app; and `/readyz` there pinged Atlas on every call. **Built (24 Nov):** the app's invokers are `toe-beans-edge` and `toe-beans-tick`; the Worker gets an ID token for `toe-beans-edge` through the Workload Identity Federation pool `cloudflare` from a JWT it signs itself (`infra/edge/google-identity.js`, `edge-key.mjs`; the org refuses keys), and sends it as `x-serverless-authorization`; a failed exchange or a 401 is a 502, not the paused page. The cap takes `toe-beans-edge` off. `/readyz` pings the database at most every 5 s, and the deploy checks it through the Worker. **Done (25 Nov):** switched on prod as `infra/edge/README.md` says (`allUsers` off) and the cap's test passed; Cloud Run's pricing page confirms requests denied by IAM aren't billed, so R1's log measures aren't needed. | ✅ |
 | S19.9 | **Dependabot alerts on (security audit 0.7 R2; D15).** They were off, though D34 relies on Dependabot for the accepted advisories. **Done (25 Nov):** alerts on. Automated security updates stay off, since GitHub opens them against `main`, past `develop` and the release check (D40); an alert's fix goes through `develop` by hand. Sentry (11.14.0), ESLint (10.15.0) and typescript-eslint (8.73.0) updated, which clears the production tree's `glob` advisory and two dev ones; `pnpm audit` keeps one dev-only path, under Testcontainers, with no fix released. | ✅ |
 | S19.10 | **A rate limit before the Worker (security audit 0.7 R3; D13).** Workers Free gives the Cloudflare account 100,000 requests a day, shared with two other sites, so a cheap flood on any of them could fail Toe Beans until midnight UTC. **Done (25 Nov):** a rate-limiting rule on the zone by the owner: every path, per IP, past 200 requests in 10 seconds blocked for 10 seconds, above a fresh install's measured 170 (the service worker's precache); `infra/edge/README.md` has the rule and how to recount. It stops a fast flood from one address, not a slow or spread-out one. Workers Paid and a second account declined for now (owner, NFR-07); the rest is risk R6. | ✅ |
+| S19.11 | **HTTPS only at the edge (security audit 0.7 R5, R6; D32).** Plain `http://toebeans.co.za` served the app, and the edge accepted TLS 1.0 and 1.1. **Done (25 Nov):** by the owner at Cloudflare: *Always Use HTTPS* on, HSTS from the zone (a year, `includeSubDomains`, `preload`) in place of the app's header, minimum TLS 1.2, each checked live; `infra/edge/README.md` has the settings and the checks. Submitted to hstspreload.org by the owner the same day (pending); until it ships in Chrome the first visit is left to Chrome's https upgrade. | ✅ |
 
 ### S20 Training content from puppy school
 *From the owner's first two weeks of puppy school and their puppy: the name game and loose-lead walking held up; the stop-go (red light, green light) technique for pulling joins the library, with car rides for a car-sick or anxious puppy and a first *Stay*. Each is written in our own words from freely available reward-based sources, cited, checked against `content/README.md` and the content gate (§3.8), and signed off by the owner (`reviewedBy`, `reviewedAt`).*

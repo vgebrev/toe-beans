@@ -1,8 +1,8 @@
 # Toe Beans — Security Audit
 
-**Version:** 0.10
+**Version:** 0.11
 **Date:** 25 November 2026
-**Status:** §1–§6, the code review: every finding fixed or decided (S15.2). §7, the external pentest: both findings fixed (S18.3). §8, found since: fixed. §9, the second review of code and infrastructure: open, for triage (R1, R2 and R4 fixed, R3 mitigated and its rest accepted).
+**Status:** §1–§6, the code review: every finding fixed or decided (S15.2). §7, the external pentest: both findings fixed (S18.3). §8, found since: fixed. §9, the second review of code and infrastructure: open, for triage (R1, R2, R4, R5 and R6 fixed, R3 mitigated and its rest accepted).
 **Inputs:** `docs/requirements.md` v1.0, `docs/architecture.md` v1.21, the code at commit `1ea686e` (`develop`); for §7, prod on 1.0.4 and the repo at `main` `904516e`; for §9, `docs/architecture.md` v1.48, the repo at `develop` `c965642`, and prod on 1.1.0 with its GCP, Cloudflare and GitHub settings as read on 24 November 2026
 
 **Changes in 0.1:** first audit of the attack surface before release.
@@ -24,6 +24,8 @@
 **Changes in 0.9:** §9.2 R3 mitigated: a rate-limiting rule at the edge, 200 requests per IP in 10 seconds, blocked for 10 seconds, sized on a fresh install's 170; Free plan rules match only the path, so the suggested `http.host` expression is corrected. The rest is accepted by the owner: no Workers Paid and no second Cloudflare account for now (architecture 1.51, D13, R6). C5's first item answered.
 
 **Changes in 0.10:** §9.2 R1 and R4 fixed on prod: only the edge Worker and the tick reach the app's origin, and Google's pricing page confirms that requests it refuses aren't billed, so R1's log measures aren't needed (architecture 1.52, D45; backlog S19.8 done).
+
+**Changes in 0.11:** §9.2 R5 and R6 fixed on prod by the owner at Cloudflare: plain http redirects to https before the Worker, HSTS comes from the zone (a year, `includeSubDomains`, `preload`) in place of the app's header, and TLS below 1.2 is refused. The domain was submitted to the preload list on 25 Nov (pending); until it ships in Chrome the first visit stays open, accepted as low (architecture 1.53, D32; backlog S19.11).
 
 ---
 
@@ -255,8 +257,8 @@ No critical or high findings. Nothing found lets one household reach another's d
 | R2 | Dependabot alerts and security updates are off | Medium | Confirmed; fixed 25 Nov (alerts on) |
 | R3 | The site fails for the rest of the day after 100,000 Worker requests, a quota shared with two other sites | Medium | Confirmed in config; the quota wasn't exhausted; mitigated 25 Nov (rate-limiting rule), the rest accepted |
 | R4 | `/readyz` answers at `run.app` without the proxy secret and pings Atlas on every call | Low | Confirmed live and in code; fixed 25 Nov |
-| R5 | Plain `http://toebeans.co.za` serves the app; HSTS isn't preloaded | Low | Confirmed live |
-| R6 | TLS 1.0 and 1.1 are accepted at the edge | Low | Confirmed live |
+| R5 | Plain `http://toebeans.co.za` serves the app; HSTS isn't preloaded | Low | Confirmed live; fixed 25 Nov (redirect, HSTS from the edge, preload submitted) |
+| R6 | TLS 1.0 and 1.1 are accepted at the edge | Low | Confirmed live; fixed 25 Nov |
 | R7 | Firebase leftovers: a service account that can impersonate every other, an API key, a Hosting site | Low | Confirmed in config |
 | R8 | Pages carry no `Cache-Control`, and the edge caches any response at a static-looking extension | Low | Caching confirmed live; no leaking page found |
 | R9 | `main` doesn't require a pull request, admins bypass it, any action may run, and there's no code scanning | Low | Confirmed |
@@ -327,12 +329,14 @@ No critical or high findings. Nothing found lets one household reach another's d
 - **Where:** Cloudflare's *Always Use HTTPS* is evidently off. `infra/edge/worker.js:117` redirects only a non-apex host (`www`), so a plain-http request to the apex is proxied like any other. Live, `curl http://toebeans.co.za/sign-in` returns 200 with the full sign-in page over plain HTTP. The app's HSTS header goes along, but browsers ignore it over http. HSTS has no `preload` (D32).
 - **What an attacker could do:** on a first visit, or any visit after the two-year HSTS lapses, someone on the network path (public Wi-Fi) who intercepts a plain-http request can serve a modified page, such as a look-alike sign-in, and keep the victim on http. The session cookie is `__Host-` and `Secure`, so it never travels over http, and a write from an `http://` origin fails the origin check. Chrome on Android upgrades typed addresses to https by itself, which narrows this to links and to attackers who block https.
 - **Fix:** turn on **SSL/TLS → Edge Certificates → Always Use HTTPS**. Or, in the Worker, before the host check: `if (url.protocol === 'http:') return Response.redirect(\`https://${APEX}${url.pathname}${url.search}\`, 301);` Afterwards, consider HSTS preload. It needs `includeSubDomains; preload`, which D32 left out; today's subdomains are `www`, `auth` (Auth0, https) and `send` (mail only), so it would hold.
+- **Status (25 Nov): fixed on prod (architecture 1.53, D32; backlog S19.11).** *Always Use HTTPS* is on: `curl http://toebeans.co.za/sign-in` gets a 301 to `https://toebeans.co.za/sign-in` from Cloudflare, before the Worker runs, so it costs no Worker request; `www` redirects too. The zone's HSTS is on and replaces the app's header on every response: `max-age=31536000; includeSubDomains; preload` (a year, renewed on each visit). `includeSubDomains` holds for today's subdomains: `www` redirects over https, `auth` is Auth0 on https, and `send` serves no web pages (mail only, no https listener), which browsers never visit; a new subdomain, such as a mail-tracking host, must serve https. hstspreload.org's check passed with no errors or warnings, and the owner submitted `toebeans.co.za` there on 25 Nov (status *pending*; check `https://hstspreload.org/api/v2/status?domain=toebeans.co.za`). Until it ships in Chrome's preload list, which takes weeks to months, the first visit, or a return after a year away, is the low risk that's left (Chrome on Android upgrades navigations to https by itself, and the session cookie never travels over http). Preloading is slow to undo: removal takes months to reach browsers, and every subdomain stays https-only meanwhile. While setting it up, the zone's HSTS briefly sent `max-age=0`, which tells browsers to forget the policy; caught by the live check, so check the header after any change there (`infra/edge/README.md`).
 
 **R6. TLS 1.0 and 1.1 are accepted at the edge — low.**
 
 - **Where:** the zone's minimum TLS version, Cloudflare's default 1.0. `openssl s_client -tls1` and `-tls1_1` both complete a handshake with `toebeans.co.za`.
 - **What an attacker could do:** little in practice, since browsers no longer offer these versions. It's a known-weak protocol on offer, and scanners and compliance checks flag it.
 - **Fix:** **SSL/TLS → Edge Certificates → Minimum TLS Version: TLS 1.2**. Every supported phone uses 1.3.
+- **Status (25 Nov): fixed on prod (backlog S19.11).** The minimum is TLS 1.2. With the client allowed to offer them (`openssl s_client -tls1 -cipher 'DEFAULT:@SECLEVEL=0'`, and `-tls1_1`), the edge answers TLS 1.0 and 1.1 with a `protocol version` alert; 1.2 and 1.3 connect. Without the `-cipher` option a current OpenSSL refuses to offer them itself, which looks like a pass but tests nothing.
 
 **R7. Firebase leftovers: a service account that can impersonate every other, an API key, a Hosting site — low.**
 

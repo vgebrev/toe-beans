@@ -154,6 +154,34 @@ Logs**: requests, bandwidth, status codes, countries, cache), counted at the edg
 and seen only by the account owner; the Worker's request and error counts; Cloud Run's metrics and
 logs; and Sentry for errors in the browser and on the server.
 
+## HTTPS only (security audit R5, R6)
+
+Cloudflare, not the Worker, keeps the site on https (architecture D32). In the dashboard,
+**toebeans.co.za → SSL/TLS → Edge Certificates**:
+
+- **Always Use HTTPS**: on. Plain http gets a 301 before the Worker runs, so it costs no Worker
+  request.
+- **HTTP Strict Transport Security (HSTS)**: on, **Max Age 12 months**, **Include subdomains** on,
+  **Preload** on, No-Sniff header off (the app sends `nosniff`). This header replaces the app's
+  own (two years, no subdomains), which comes back if HSTS is turned off here. Never leave Max Age
+  at 0: that tells browsers to forget the policy. Every subdomain must serve https (`send` is mail only,
+  which browsers never visit). Preload needs a Max Age of at least 12 months; once the domain is on
+  Chrome's list, turning HSTS off here doesn't take it off (hstspreload.org's removal form does,
+  over months).
+- **Minimum TLS Version**: TLS 1.2.
+
+Check after any change there:
+
+```sh
+curl -sI http://toebeans.co.za/sign-in | grep -iE '^HTTP|^location'   # 301 to https://toebeans.co.za/sign-in
+curl -sI https://toebeans.co.za/ | grep -i strict-transport           # max-age=31536000; includeSubDomains; preload
+for v in tls1 tls1_1; do echo | openssl s_client -$v -cipher 'DEFAULT:@SECLEVEL=0' \
+  -servername toebeans.co.za -connect toebeans.co.za:443 2>&1 | grep -c 'alert protocol version'; done
+```
+
+The last prints `1` twice: the edge refuses TLS 1.0 and 1.1. Keep the `-cipher` option: without it
+OpenSSL won't offer the old versions itself, which tests nothing. Checked 25 Nov 2026.
+
 ## A rate limit before the Worker (security audit R3)
 
 The Workers Free plan gives the account 100,000 requests a day, shared with the other sites on
