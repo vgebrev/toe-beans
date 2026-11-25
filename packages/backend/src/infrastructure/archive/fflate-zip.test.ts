@@ -100,7 +100,8 @@ describe('fflateZip and the event loop', () => {
 			await read(fflateZip([{ name: 'big.json', compress: true, open: async () => big }]))
 		);
 		clearInterval(timer);
-		expect(files['big.json']).toEqual(big);
+		// Compared as bytes: toEqual walks 2 MB element by element, which took seconds on CI.
+		expect(Buffer.compare(files['big.json']!, big)).toBe(0);
 		expect(big.byteLength / MAX_PUSH).toBeGreaterThan(20);
 		expect(ticks).toBeGreaterThan(5);
 	});
