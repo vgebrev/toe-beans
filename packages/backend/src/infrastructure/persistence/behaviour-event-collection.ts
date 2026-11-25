@@ -14,9 +14,9 @@ export const BEHAVIOUR_EVENTS = 'behaviourEvents';
 
 const EVENT_SCHEMA = 1;
 
-type EventDoc = Stored<BehaviourEvent>;
+export type EventDoc = Stored<BehaviourEvent>;
 
-function toEvent({ _id, schemaVersion: _, ...rest }: EventDoc): BehaviourEvent {
+export function toEvent({ _id, schemaVersion: _, ...rest }: EventDoc): BehaviourEvent {
 	return { id: _id, ...rest };
 }
 

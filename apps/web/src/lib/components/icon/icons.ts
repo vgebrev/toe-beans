@@ -37,6 +37,7 @@ import {
 	CatIcon,
 	DoorOpenIcon,
 	Download04Icon,
+	FileDownloadIcon,
 	DropletIcon,
 	NoteAddIcon,
 	NoteIcon,
@@ -116,6 +117,7 @@ export const icons = {
 	offline: WifiDisconnected01Icon,
 	update: Refresh01Icon,
 	install: Download04Icon,
+	download: FileDownloadIcon,
 	saving: Loading03Icon,
 	// Exercises (ui.md §4.6)
 	duration: Clock01Icon,

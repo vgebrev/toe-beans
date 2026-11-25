@@ -10,6 +10,11 @@ for fixes. Candidates (`-rc.N`) go to prod for the owner to try before the relea
 
 ## Unreleased
 
+### Added
+
+- Owners can download a copy of their household's data from More → Your data: a ZIP file with
+  every record in JSON, a note on reading it, and the dogs' photos.
+
 ## 1.1.2 - 2026-11-25
 
 ### Security

@@ -1,8 +1,8 @@
 # Toe Beans — Data inventory
 
-**Version:** 0.10 (draft)
-**Date:** 23 November 2026
-**Inputs:** `docs/requirements.md` v1.0, `docs/architecture.md` v1.45, `docs/runbooks/accounts.md`
+**Version:** 0.11 (draft)
+**Date:** 25 November 2026
+**Inputs:** `docs/requirements.md` v1.1, `docs/architecture.md` v1.58, `docs/runbooks/accounts.md`
 
 **Changes in 0.1:** first draft for backlog S16.1. Lists the personal data Toe Beans holds, where it is, why, and how long it's kept, worked out from the code and the accounts inventory. It's the source for the privacy policy (S16.2) and for deletion (S16.5). §6 lists the open points those slices have to settle.
 
@@ -23,6 +23,8 @@
 **Changes in 0.9:** §4 loses Google Fonts (backlog S19.2): Auth0's login page loads Nunito from the app at `toebeans.co.za`, which serves it with CORS for `auth.toebeans.co.za`. Nothing Toe Beans shows now loads from Google's font servers.
 
 **Changes in 0.10:** §4, Cloudflare (backlog S19.3): its Web Analytics and Real User Measurements are off, so no beacon reports page views or timings; browsers send Cloudflare Network Error Logging reports for requests that fail, as Cloudflare asks of every site it serves. The privacy policy (0.8) says so.
+
+**Changes in 0.11:** §3 gains the household's export (backlog S19.7, architecture D46): made as it's downloaded and never kept by Toe Beans.
 
 This file is public. It describes kinds of data and where they are, never values. It isn't legal
 advice. The owner has it read with the policy before other households join (backlog S16).
@@ -71,6 +73,7 @@ The rate limiter keys on the client's address in process memory only, and forget
 | App logs | Google Cloud Logging, project `toe-beans-co-za` | Internal user, household and item IDs, route IDs and errors. Emails, tokens, cookies and push endpoints are redacted (NFR-12) | 30 days |
 | Platform request logs | Cloud Logging (Cloud Run request logs) | Full URLs (which can hold an invitation token, D34), user agent, timing | 30 days, readable by the owner only |
 | Error reports | Sentry, EU (Frankfurt) | Stack traces and scrubbed messages. Request, user, cookies, headers and IP are dropped before sending. The browser's reports go through the app's server, which passes on nothing about the phone's request, so Sentry never sees its address, and storing IPs is also blocked by a project setting | 30 days (free plan) |
+| The household's export | Made on request for an owner (D46) and streamed to their browser | The household's records and members' names, emails and roles, and its photos; no sign-in identities, sessions, devices or invitations | Not kept by Toe Beans: nothing is written on the server, and the file is the owner's once downloaded |
 | In the browser | The phone | The session cookie (`__Host-` prefixed, HTTP-only), a sign-in cookie for 10 minutes, `localStorage` for theme, banners dismissed and the active dog, and the service worker's cache of the app and photos | Until signed out, cleared or uninstalled |
 
 ## 4. Operators and transfers abroad

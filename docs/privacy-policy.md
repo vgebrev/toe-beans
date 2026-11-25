@@ -1,8 +1,8 @@
 # Toe Beans — Privacy policy
 
-**Version:** 0.8 (reviewed draft)
-**Date:** 23 November 2026
-**Inputs:** `docs/data-inventory.md` v0.10, `docs/architecture.md` v1.45 (D36, D38, D39, D43)
+**Version:** 0.9 (reviewed draft)
+**Date:** 25 November 2026
+**Inputs:** `docs/data-inventory.md` v0.11, `docs/architecture.md` v1.58 (D36, D38, D39, D43, D46)
 
 **Changes in 0.1:** first draft for backlog S16.2, written from the data inventory. S16.4 publishes
 the text below the line at `/privacy`. The owner reviews it, and fills in the points marked
@@ -35,6 +35,9 @@ until you sign in there again (data inventory 0.7, architecture 1.35 D43).
 
 **Changes in 0.8:** §4's Cloudflare row says your browser tells Cloudflare when a request to the
 app fails (Network Error Logging; backlog S19.3, data inventory 0.10).
+
+**Changes in 0.9:** §7 says how to get a copy of your data: an owner downloads the household's
+from More, and anyone else asks an owner or writes to us (backlog S19.7, architecture D46).
 
 Before publishing:
 
@@ -179,6 +182,11 @@ Under POPIA you can:
 - **object** to how we use it;
 - **complain** to the Information Regulator (South Africa) at
   [inforegulator.org.za](https://inforegulator.org.za).
+
+**A copy of your data:** an owner of a household can download one in the app, under *More → Your
+data → Download a copy*. It's a ZIP file with the household's records in JSON, which other
+software can read, and its dogs' photos. It names the household's members, with their emails.
+If you aren't an owner, ask one, or write to us.
 
 To ask, write to privacy@toebeans.co.za from the address on your account. We'll answer within 30
 days, free of charge. Please tell us first if something is wrong, so we can put it right.

@@ -148,6 +148,8 @@ const Env = z
 		WRITE_RATE_LIMIT: z.coerce.number().int().min(1).max(100_000).default(300),
 		// Dog photos one person may upload per hour, per instance (architecture D32).
 		PHOTO_RATE_LIMIT: z.coerce.number().int().min(1).max(100_000).default(20),
+		// Household exports one person may download per hour, per instance (architecture D46).
+		EXPORT_RATE_LIMIT: z.coerce.number().int().min(1).max(100_000).default(5),
 		// Browser error reports one client address may send per 10 minutes, per instance
 		// (architecture D41). The SDK already drops repeats of the same error.
 		ERROR_REPORT_RATE_LIMIT: z.coerce.number().int().min(1).max(100_000).default(30),
@@ -298,6 +300,8 @@ export interface Config {
 	writeRateLimit: { limit: number; windowMs: number };
 	/** Dog photo uploads per person per `windowMs`. */
 	photoRateLimit: { limit: number; windowMs: number };
+	/** Household exports per person per `windowMs`. */
+	exportRateLimit: { limit: number; windowMs: number };
 	/** Browser error reports per client address per `windowMs`. */
 	errorReportRateLimit: { limit: number; windowMs: number };
 	/** The secret the proxy in front sends in `x-toe-beans-proxy`; unset takes any request. */
@@ -419,6 +423,7 @@ export function loadConfig(env: Record<string, string | undefined>): Config {
 		inviteRateLimit: { limit: e.INVITE_RATE_LIMIT, windowMs: 10 * 60_000 },
 		writeRateLimit: { limit: e.WRITE_RATE_LIMIT, windowMs: 10 * 60_000 },
 		photoRateLimit: { limit: e.PHOTO_RATE_LIMIT, windowMs: 60 * 60_000 },
+		exportRateLimit: { limit: e.EXPORT_RATE_LIMIT, windowMs: 60 * 60_000 },
 		errorReportRateLimit: { limit: e.ERROR_REPORT_RATE_LIMIT, windowMs: 10 * 60_000 },
 		...(e.PROXY_SECRET && { proxySecret: e.PROXY_SECRET }),
 		email: emailConfig(e),

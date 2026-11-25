@@ -11,9 +11,9 @@ export const CARE_TASKS = 'careTasks';
 
 const CARE_SCHEMA = 1;
 
-type CareDoc = Stored<CareTask>;
+export type CareDoc = Stored<CareTask>;
 
-function toTask({ _id, schemaVersion: _, ...rest }: CareDoc): CareTask {
+export function toTask({ _id, schemaVersion: _, ...rest }: CareDoc): CareTask {
 	return { id: _id, ...rest };
 }
 

@@ -18,9 +18,14 @@ export const SESSION_LOGS = 'sessionLogs';
 
 const LOG_SCHEMA = 1;
 
-type LogDoc = Stored<SessionLog> & { deletedPlannedSessionId?: Id };
+export type LogDoc = Stored<SessionLog> & { deletedPlannedSessionId?: Id };
 
-function toLog({ _id, schemaVersion: _, deletedPlannedSessionId, ...rest }: LogDoc): SessionLog {
+export function toLog({
+	_id,
+	schemaVersion: _,
+	deletedPlannedSessionId,
+	...rest
+}: LogDoc): SessionLog {
 	return {
 		id: _id,
 		...rest,

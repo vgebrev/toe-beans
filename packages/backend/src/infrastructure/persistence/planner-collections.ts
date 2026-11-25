@@ -18,14 +18,14 @@ export const PLANNED_SESSIONS = 'plannedSessions';
 const PLAN_SCHEMA = 2;
 const SESSION_SCHEMA = 2;
 
-type PlanDoc = Stored<TrainingPlan>;
-type SessionDoc = Stored<PlannedSession>;
+export type PlanDoc = Stored<TrainingPlan>;
+export type SessionDoc = Stored<PlannedSession>;
 
-function toPlan({ _id, schemaVersion: _, ...rest }: PlanDoc): TrainingPlan {
+export function toPlan({ _id, schemaVersion: _, ...rest }: PlanDoc): TrainingPlan {
 	return { id: _id, ...rest };
 }
 
-function toSession({ _id, schemaVersion: _, ...rest }: SessionDoc): PlannedSession {
+export function toSession({ _id, schemaVersion: _, ...rest }: SessionDoc): PlannedSession {
 	return { id: _id, ...rest };
 }
 

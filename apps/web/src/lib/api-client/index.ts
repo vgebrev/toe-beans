@@ -55,7 +55,19 @@ export interface ApiClient {
 		path: string,
 		options?: SendOptions<T>
 	): Promise<ApiResult<T>>;
+	/** A file to save, such as the household's export, with the name the server gave it. */
+	download(path: string, options?: RequestOptions): Promise<ApiResult<Download>>;
 }
+
+export interface Download {
+	blob: Blob;
+	/** From Content-Disposition; null if it names none. */
+	filename: string | null;
+}
+
+/** The plain `filename="…"` of a Content-Disposition header, as the API sends it. */
+export const dispositionFilename = (header: string | null): string | null =>
+	/filename="([^"]+)"/.exec(header ?? '')?.[1] ?? null;
 
 /** A response body that breaks the API contract. A bug, so it's thrown, not returned. */
 export class ContractError extends Error {
@@ -138,9 +150,33 @@ export function createApiClient(fetch: typeof globalThis.fetch, base = '/api/v1'
 		return { ok: true, data: parsed.data, etag };
 	}
 
+	async function download(path: string, { signal }: RequestOptions = {}) {
+		let response: Response;
+		try {
+			response = await fetch(`${base}${path}`, { headers: { accept: '*/*' }, signal });
+		} catch (error) {
+			if (signal?.aborted) throw error;
+			observer?.(false);
+			return { ok: false as const, error: { kind: 'network' as const } };
+		}
+		observer?.(!isGatewayError(response.status));
+		const requestId = response.headers.get(REQUEST_ID_HEADER) ?? undefined;
+		if (!response.ok) return { ok: false as const, error: await toError(response, requestId) };
+		try {
+			// The body streams after the headers: the connection can still drop part way.
+			const blob = await response.blob();
+			const filename = dispositionFilename(response.headers.get('content-disposition'));
+			return { ok: true as const, data: { blob, filename } };
+		} catch (error) {
+			if (signal?.aborted) throw error;
+			return { ok: false as const, error: { kind: 'network' as const } };
+		}
+	}
+
 	return {
 		get: (path, schema, options = {}) => request('GET', path, schema, options),
-		send: (method, path, options = {}) => request(method, path, options.schema, options)
+		send: (method, path, options = {}) => request(method, path, options.schema, options),
+		download
 	};
 }
 
