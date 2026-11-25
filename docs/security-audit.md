@@ -1,8 +1,8 @@
 # Toe Beans — Security Audit
 
-**Version:** 0.16
+**Version:** 0.17
 **Date:** 25 November 2026
-**Status:** §1–§6, the code review: every finding fixed or decided (S15.2). §7, the external pentest: both findings fixed (S18.3). §8, found since: fixed. §9, the second review of code and infrastructure: open, for triage (R1, R2, R4, R5, R6, R7, R8, R9 and R10 fixed, R3 mitigated and its rest accepted).
+**Status:** §1–§6, the code review: every finding fixed or decided (S15.2). §7, the external pentest: both findings fixed (S18.3). §8, found since: fixed. §9, the second review of code and infrastructure: open, for triage (R1, R2, R4, R5, R6, R7, R8, R9 and R10 fixed, R3 mitigated and its rest accepted, R11 fixed but for DNSSEC, which is accepted).
 **Inputs:** `docs/requirements.md` v1.0, `docs/architecture.md` v1.21, the code at commit `1ea686e` (`develop`); for §7, prod on 1.0.4 and the repo at `main` `904516e`; for §9, `docs/architecture.md` v1.48, the repo at `develop` `c965642`, and prod on 1.1.0 with its GCP, Cloudflare and GitHub settings as read on 24 November 2026
 
 **Changes in 0.1:** first audit of the attack surface before release.
@@ -36,6 +36,8 @@
 **Changes in 0.15:** §9.2 R9 fixed: `main` changes only by pull request, merged as a merge commit, and the admin bypass covers only merging a pull request; admins can't bypass the `production` or `backups` environment; the Actions policy allows only GitHub's own actions and the three owners in use, pinned to SHAs; CodeQL's default setup scans actions and JS/TS, and its first run raised two alerts: one a false positive in a test, the other unreachable and fixed in code anyway. A stolen owner session or `repo` token can still undo these settings, which is noted. The owner's direct push of an empty commit to `main` was refused (architecture 1.55, D15; backlog S19.14 done).
 
 **Changes in 0.16:** §9.2 R10 fixed on prod: Data Access audit logs for Secret Manager, `DATA_READ` only, set by a step in `infra/gcp/provision.sh`; an owner's read of `app-secrets` was then logged. They're kept 30 days in `_Default`, not 400 (architecture 1.56, D15; backlog S19.15 done).
+
+**Changes in 0.17:** §9.2 R11 fixed on prod by the owner at Cloudflare: CAA records allow Let's Encrypt and Google Trust Services, and Cloudflare adds its other CAs; DMARC no longer sends reports to GoDaddy. The concern about Auth0's renewals doesn't apply, since `auth`'s CNAME target has CAA records of its own. DNSSEC is accepted as not possible: GoDaddy offers no DS record for the domain, so signing was turned off again (backlog S19.16 done).
 
 ---
 
@@ -273,7 +275,7 @@ No critical or high findings. Nothing found lets one household reach another's d
 | R8 | Pages carry no `Cache-Control`, and the edge caches any response at a static-looking extension | Low | Caching confirmed live; no leaking page found; fixed 25 Nov |
 | R9 | `main` doesn't require a pull request, admins bypass it, any action may run, and there's no code scanning | Low | Confirmed; fixed 25 Nov |
 | R10 | Reads of `app-secrets` aren't audit-logged | Low | Confirmed; fixed 25 Nov |
-| R11 | No CAA records or DNSSEC | Low | Confirmed live |
+| R11 | No CAA records or DNSSEC | Low | Confirmed live; fixed 25 Nov (CAA, DMARC), DNSSEC accepted |
 | C5 | Cloudflare settings this review couldn't read: rate limiting, WAF rules, SSL mode | — | Worth checking |
 | C6 | `send.toebeans.co.za` is a CNAME to `send.forge.rmta.net` | Low | Worth checking |
 | C7 | The backup's R2 token can delete every backup; no bucket lock | Low | Worth checking |
@@ -439,6 +441,11 @@ No critical or high findings. Nothing found lets one household reach another's d
   - In Cloudflare DNS, add `CAA 0 issue "letsencrypt.org"` and `CAA 0 issue "pki.goog"`; Cloudflare adds its other CAs itself once any CAA record exists. Check that Auth0's custom domain (`auth`, a CNAME to Auth0) still renews, because CAA for a name under a CNAME follows the target first.
   - **DNS → Settings → DNSSEC: Enable**, then add the DS record at GoDaddy.
   - Point DMARC's `rua` at an address the owner reads, or drop it.
+- **Status (25 Nov): fixed on prod, DNSSEC accepted (backlog S19.16).** Set by the owner in Cloudflare and checked live through 1.1.1.1, 8.8.8.8 and the zone's own nameserver:
+  - CAA: `0 issue "letsencrypt.org"` and `0 issue "pki.goog"` at the apex. Universal SSL being on, Cloudflare adds `comodoca.com`, `digicert.com` and `ssl.com` itself, as `issue` and `issuewild`, so the zone answers ten records. The apex certificate is Google Trust Services' (Universal SSL), so its renewal is covered.
+  - `auth` isn't affected: CAA lookups follow its CNAME to `auth0-ingress.eu.auth0.com.cdn.cloudflare.net`, which has CAA records of its own (`letsencrypt.org`, `pki.goog`), so they never climb to the apex. Its certificate is Let's Encrypt's, which they allow.
+  - DMARC is now `v=DMARC1; p=quarantine; adkim=r; aspf=r;`: the same policy, with no aggregate reports. Cloudflare's free DMARC Management can be turned on later if the reports are wanted.
+  - DNSSEC is accepted as not possible for now. GoDaddy shows no DNSSEC or DS option for the domain while it uses Cloudflare's nameservers (nor on another of the owner's domains on GoDaddy's own), and at least one `.co.za` registrar supports DNSSEC only on its own nameservers. The zone was signed briefly, then signing was turned off so it can't sit pending, or break the domain if a DS record is added and signing later stops. The chain is broken before the attack anyway: `co.za` is signed, and without a DS record resolvers treat `toebeans.co.za` as unsigned. If the domain moves to a registrar that takes DS records, enable DNSSEC in Cloudflare and add the DS record there.
 
 ### 9.3 Worth checking (not verified)
 

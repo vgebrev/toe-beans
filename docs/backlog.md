@@ -1,6 +1,6 @@
 # Toe Beans — Backlog
 
-**Version:** 0.103 (draft for iteration)
+**Version:** 0.104 (draft for iteration)
 **Date:** 25 November 2026
 **Inputs:** `docs/requirements.md` v1.1, `docs/architecture.md` v1.56, `docs/ui.md` v0.46
 
@@ -186,6 +186,8 @@
 
 **Changes in 0.103:** S19.15 added and done: reads of the app's secret audit-logged, from security audit 0.7's R10 (security audit 0.16, architecture 1.56, D15). Inputs moved to architecture 1.56.
 
+**Changes in 0.104:** S19.16 added and done: CAA records and the DMARC report address, from security audit 0.7's R11 (security audit 0.17); DNSSEC accepted as not possible at GoDaddy.
+
 **Changes in 0.51:** S15.1 gains (k), fresh data on coming back to the app and on Back to a page Chrome kept whole (ui 0.35 §5.2), from the owner, after Today stayed stale behind a reminder. Live updates over WebSockets were considered and left out for cost. The offline banner's check backs off from 1 s (architecture 1.23 D31), found through a flaky e2e check. Built with e2e checks and closed by the owner, so S15.1 stays done. Inputs moved to architecture 1.23 and ui 0.35.
 
 **Changes in 0.50:** S15.1 gains (j), a banner offering *Refresh* once a new version is deployed (ui 0.34 §5.2), from the owner. Built and covered by an e2e check; it can only be seen across a real deploy, so the owner tries it on prod after the next one. Inputs moved to ui 0.34.
@@ -346,6 +348,7 @@ Work is organised as **vertical slices**: each delivers a usable end-to-end incr
 | 2026-11-25 | S19.13 done on prod with 1.1.2: the audit's request at `/audit-….png` gets `private, no-cache` and Cloudflare's `BYPASS`, twice (security audit R8). |
 | 2026-11-25 | S19.14 built: `main` takes changes only by pull request, admins can't skip the deploy's approval, actions must be pinned and come from the owners in use, and CodeQL scans the repo (security audit R9). The owner's direct push to `main` was refused (GH013). |
 | 2026-11-25 | S19.15 done: every read of the app's secret is now logged in GCP, with who read it and when (security audit R10). |
+| 2026-11-25 | S19.16 done: CAA records limit which CAs may issue for the domain, and DMARC reports no longer go to GoDaddy (security audit R11). DNSSEC isn't possible at GoDaddy for the domain, so it's accepted. |
 
 **Next up:** S19.7 (the export), and S20.1–S20.3; S21 once S19 is done.
 
@@ -628,6 +631,7 @@ Work is organised as **vertical slices**: each delivers a usable end-to-end incr
 | S19.13 | **Pages kept out of the edge's cache (security audit 0.7 R8; D32).** Pages sent no `Cache-Control`, and Cloudflare caches the Worker's fetches by file extension when the origin is silent: the app's 404 page at `/x.png` came back as a `HIT`. No page leaked, but only by accident; one rendering at such a path would be served with one person's data to the next (web cache deception). **Built (25 Nov):** the hook gives every response without its own `Cache-Control` `private, no-cache`; the API, photos, probes, the font and the manifest keep theirs. e2e checks a page, a 404 at `.png` and a sign-in redirect at `.css`; the service worker's fallback pages still precache. Checked by the owner (25 Nov): the local preview server sends the header, and the offline page still shows on a phone in airplane mode. **Done (25 Nov):** on prod with 1.1.2, the audit's request twice got `private, no-cache` and `cf-cache-status: BYPASS`. | ✅ |
 | S19.14 | **`main` hardened on GitHub (security audit 0.7 R9; D15).** The ruleset had no pull request rule and the admin role bypassed it always, so a push with the owner's session or a `repo` token went straight to `main` and the deploy, whose approval admins could also skip; any action could run unpinned; nothing scanned the code. **Built (25 Nov):** through the API, read back: a pull request into `main` is required (0 approvals, merge commits only) and the admin bypass covers only merging one; admins can't bypass `production` or `backups`; the Actions policy allows GitHub's own actions, `docker/*`, `google-github-actions/*` and `pnpm/*`, pinned to SHAs; CodeQL's default setup is on, its first run passed; of its two alerts one is a false positive in a test and the other, a regex only the dev Mailpit sender's config reaches, is rewritten as string slicing. An owner session or `repo` token can still undo the settings. **Done (25 Nov):** the owner pushed an empty commit on top of `main` straight to it, and GitHub refused it (GH013: changes must be made through a pull request, and the five checks are expected). | ✅ |
 | S19.15 | **Reads of the app's secret audit-logged (security audit 0.7 R10; D15).** The project had no Data Access audit logs, so a read of `app-secrets` through a misused identity left no record, and a rotation after an incident had nothing to scope it by. **Done (25 Nov):** `infra/gcp/provision.sh` adds Secret Manager's `DATA_READ` audit config to the project's policy when it's missing (only that entry; the etag guards the write) and prints the audit configs in its checks. Run against the project: the bindings were unchanged, a re-run changed nothing, and an owner's read of `app-secrets` was then logged with the method, the caller and the version. Data Access logs stay 30 days in `_Default`; the incident runbook already says to export logs. | ✅ |
+| S19.16 | **DNS: CAA and DMARC (security audit 0.7 R11).** Any CA could issue for the domain, DNSSEC was off, and DMARC's aggregate reports went to GoDaddy, a leftover of the registrar the owner never read. **Done (25 Nov):** by the owner in Cloudflare, checked live: CAA allows `letsencrypt.org` and `pki.goog`, and Cloudflare adds its other CAs; `auth` follows its CNAME to Auth0's own CAA records, so its renewals aren't affected. DMARC keeps its policy without `rua`. DNSSEC is accepted as not possible: GoDaddy offers no DS record for the domain, so Cloudflare's signing was turned off again. | ✅ |
 
 ### S20 Training content from puppy school
 *From the owner's first two weeks of puppy school and their puppy: the name game and loose-lead walking held up; the stop-go (red light, green light) technique for pulling joins the library, with car rides for a car-sick or anxious puppy and a first *Stay*. Each is written in our own words from freely available reward-based sources, cited, checked against `content/README.md` and the content gate (§3.8), and signed off by the owner (`reviewedBy`, `reviewedAt`).*
