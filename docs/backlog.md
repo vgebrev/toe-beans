@@ -1,8 +1,8 @@
 # Toe Beans — Backlog
 
-**Version:** 0.94 (draft for iteration)
-**Date:** 24 November 2026
-**Inputs:** `docs/requirements.md` v1.1, `docs/architecture.md` v1.49, `docs/ui.md` v0.46
+**Version:** 0.95 (draft for iteration)
+**Date:** 25 November 2026
+**Inputs:** `docs/requirements.md` v1.1, `docs/architecture.md` v1.50, `docs/ui.md` v0.46
 
 **Changes in 0.3:** spike results S-1.0 to S-1.4 and S0.1–S0.2 recorded as they landed (see Current progress). S-1.4b dropped as not needed, S-1.5 parked, S-1.4a retargeted to `toebeans.co.za`.
 
@@ -164,9 +164,11 @@
 
 **Changes in 0.92:** S19.6 built: every service's billing limit in `accounts.md`, R2's storage checked by the nightly backup, and Secret Manager brought inside its free 6 versions: the app's secrets in one JSON secret, the VAPID public key worked out from the private one, and the backup's credentials on GitHub (architecture 1.47: D15, D36, D37, D45). Done once the owner has switched prod over (`accounts.md` *Setup* step 4). Inputs moved to architecture 1.47.
 
+**Changes in 0.93:** S19.2, S19.5 and S19.6 done on prod with 1.1.0-rc.1. S19.5's test found the cap couldn't change the app's ingress without `actAs`; it now takes `allUsers` off the app's invokers instead (architecture 1.48, D45). Next up is S19.7. Inputs moved to architecture 1.48.
+
 **Changes in 0.94:** S19.8 added and built: only the edge Worker and the tick reach the app's origin, from security audit 0.7's R1 and R4 (architecture 1.49, D45, D32). Not yet on prod: the switch in `infra/edge/README.md`. Inputs moved to architecture 1.49.
 
-**Changes in 0.93:** S19.2, S19.5 and S19.6 done on prod with 1.1.0-rc.1. S19.5's test found the cap couldn't change the app's ingress without `actAs`; it now takes `allUsers` off the app's invokers instead (architecture 1.48, D45). Next up is S19.7. Inputs moved to architecture 1.48.
+**Changes in 0.95:** S19.9 added and done: Dependabot alerts on, from security audit 0.7's R2 (architecture 1.50, D15). Inputs moved to architecture 1.50.
 
 **Changes in 0.51:** S15.1 gains (k), fresh data on coming back to the app and on Back to a page Chrome kept whole (ui 0.35 §5.2), from the owner, after Today stayed stale behind a reminder. Live updates over WebSockets were considered and left out for cost. The offline banner's check backs off from 1 s (architecture 1.23 D31), found through a flaky e2e check. Built with e2e checks and closed by the owner, so S15.1 stays done. Inputs moved to architecture 1.23 and ui 0.35.
 
@@ -319,6 +321,7 @@ Work is organised as **vertical slices**: each delivers a usable end-to-end incr
 | 2026-11-23 | S19.5 built: the spending cap closes Cloud Run's ingress and pauses the tick when spend reaches the budget, and the edge shows *Toe Beans is paused*. Done once tested on prod (`spending-cap.md` §2). |
 | 2026-11-23 | S19.6 built: every service's billing limit listed; the nightly backup fails past 5 GB of R2; Secret Manager from 13 versions to one (the app's secrets in one JSON secret, the backup's on GitHub). Done once prod is switched over. |
 | 2026-11-24 | S19.2, S19.5 and S19.6 done on prod with 1.1.0-rc.1: the switch-over to one secret (the backup's on GitHub), the theme's font, and the cap tested. The test found the cap needs `actAs` to change ingress; it now closes the app through its access list instead, and the paused page carries the app's mark and fonts. |
+| 2026-11-25 | S19.9 done: Dependabot alerts on (security audit R2); automated security updates left off, as they'd target `main`. Sentry, ESLint and typescript-eslint updated: `pnpm audit` is down to one dev-only path. |
 
 **Next up:** S19.7 (the export), and S20.1–S20.3; S21 once S19 is done.
 
@@ -594,6 +597,7 @@ Work is organised as **vertical slices**: each delivers a usable end-to-end incr
 | S19.6 | **Every service's billing limit (D45).** `docs/runbooks/accounts.md` lists which services can bill and what stops each. R2: a usage alert and a lifecycle rule on backups. Artifact Registry: a cleanup policy under its free 0.5 GB. Secret Manager versions counted. **Built (23 Nov):** `accounts.md` *Billing limits*: every service, whether it can bill, its free allowance and what stops it. R2: Cloudflare's spend limits don't cover it, so `backup.sh` fails the nightly run, mailing the owner, when the photo and backup buckets hold more than 5 GB together (`STORAGE_ALERT_GB`, size not printed in the public log); the owner's Cloudflare budget alert at US$1 was already there; the backups' 30-day lifecycle rules too. Artifact Registry's cleanup policies were already in place (146 MB used). **Secret Manager** bills every enabled or disabled version past 6, and 13 secrets cost US$0.42 a month, so with the owner: the app's eight secret values are one JSON secret, `app-secrets`, which the backend spreads into its variables (`APP_SECRETS`: unknown keys and a key also set on its own are refused, naming no value); the VAPID public key is worked out from the private key (and must match if given); the backup's four credentials are `backups` environment secrets on GitHub, and its pool and service account go. `infra/gcp/app-secrets.sh` (`keys`, `set`, `generate`, `get`, `migrate`) replaces `set-secret.sh`; `infra/gcp/limits.sh` reports every GCP allowance. Unit tests for the config; the script tried against a stand-in `gcloud`. GitHub's spending limit is US$0. **Done (24 Nov):** switched over with 1.1.0-rc.1: `app-secrets` migrated, the backup's secrets on GitHub, the old 13 secrets, the backup's pool and its service account deleted. The app loads and saves, the tick runs, a reminder reached a phone, and a backup run wrote to R2 and sent its heartbeat. | ✅ |
 | S19.7 | **The household's export (FR-16, was P1-E; D46).** An owner downloads a ZIP from More: `household.json` with every record of the household, schema-versioned, and the dogs' photos; no provider IDs, sessions, push endpoints, invitation tokens or secrets. Not emailed. Rate limited. The privacy policy says how to get your data. | ⬜ |
 | S19.8 | **Only the Worker reaches the origin (security audit 0.7 R1, R4; D45).** With `allUsers` an invoker, anyone could send requests straight to `run.app`: refused by the app, but billed and logged, so a stranger could run up the US$1 budget and have the cap close the app; and `/readyz` there pinged Atlas on every call. **Built (24 Nov):** the app's invokers are `toe-beans-edge` and `toe-beans-tick`; the Worker gets an ID token for `toe-beans-edge` through the Workload Identity Federation pool `cloudflare` from a JWT it signs itself (`infra/edge/google-identity.js`, `edge-key.mjs`; the org refuses keys), and sends it as `x-serverless-authorization`; a failed exchange or a 401 is a 502, not the paused page. The cap takes `toe-beans-edge` off. `/readyz` pings the database at most every 5 s, and the deploy checks it through the Worker. To do on prod: the switch in `infra/edge/README.md`, then the cap's test. | 🟨 |
+| S19.9 | **Dependabot alerts on (security audit 0.7 R2; D15).** They were off, though D34 relies on Dependabot for the accepted advisories. **Done (25 Nov):** alerts on. Automated security updates stay off, since GitHub opens them against `main`, past `develop` and the release check (D40); an alert's fix goes through `develop` by hand. Sentry (11.14.0), ESLint (10.15.0) and typescript-eslint (8.73.0) updated, which clears the production tree's `glob` advisory and two dev ones; `pnpm audit` keeps one dev-only path, under Testcontainers, with no fix released. | ✅ |
 
 ### S20 Training content from puppy school
 *From the owner's first two weeks of puppy school and their puppy: the name game and loose-lead walking held up; the stop-go (red light, green light) technique for pulling joins the library, with car rides for a car-sick or anxious puppy and a first *Stay*. Each is written in our own words from freely available reward-based sources, cited, checked against `content/README.md` and the content gate (§3.8), and signed off by the owner (`reviewedBy`, `reviewedAt`).*

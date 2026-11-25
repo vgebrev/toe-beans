@@ -1,8 +1,8 @@
 # Toe Beans — Security Audit
 
-**Version:** 0.7
-**Date:** 24 November 2026
-**Status:** §1–§6, the code review: every finding fixed or decided (S15.2). §7, the external pentest: both findings fixed (S18.3). §8, found since: fixed. §9, the second review of code and infrastructure: open, for triage.
+**Version:** 0.8
+**Date:** 25 November 2026
+**Status:** §1–§6, the code review: every finding fixed or decided (S15.2). §7, the external pentest: both findings fixed (S18.3). §8, found since: fixed. §9, the second review of code and infrastructure: open, for triage (R2 fixed).
 **Inputs:** `docs/requirements.md` v1.0, `docs/architecture.md` v1.21, the code at commit `1ea686e` (`develop`); for §7, prod on 1.0.4 and the repo at `main` `904516e`; for §9, `docs/architecture.md` v1.48, the repo at `develop` `c965642`, and prod on 1.1.0 with its GCP, Cloudflare and GitHub settings as read on 24 November 2026
 
 **Changes in 0.1:** first audit of the attack surface before release.
@@ -18,6 +18,8 @@
 **Changes in 0.6:** §7.4's CI note: since S19.6 the nightly backup holds its own credentials as secrets of GitHub's `backups` environment instead of reading them from Secret Manager through Workload Identity Federation (architecture 1.47, D36). The app's secrets stay in GCP.
 
 **Changes in 0.7:** §9, a second defensive review of the code and the infrastructure after S19 (the spending cap, the single app secret, the backup's move to GitHub secrets): no critical or high findings and household isolation still holds; three medium findings about availability, cost and dependency alerts rather than data (R1 to R3), eight low (R4 to R11), and five items to check where this review couldn't read the setting (C5 to C9). R1 (its IAM fix) and R4 were then built as backlog S19.8, not yet on prod.
+
+**Changes in 0.8:** §9.2 R2 fixed: Dependabot alerts on; automated security updates stay off, since they'd open pull requests against `main`, and alerts go through `develop` by hand (architecture 1.50, D15). The production tree's `glob` advisory and two of the dev ones are fixed by updates; one dev-only path is left.
 
 ---
 
@@ -246,7 +248,7 @@ No critical or high findings. Nothing found lets one household reach another's d
 | # | Finding | Severity | Confidence |
 |---|---|---|---|
 | R1 | A flood straight at `run.app` runs up the bill, and the spending cap then closes the app | Medium | Confirmed in config and live; the spend rate is estimated |
-| R2 | Dependabot alerts and security updates are off | Medium | Confirmed |
+| R2 | Dependabot alerts and security updates are off | Medium | Confirmed; fixed 25 Nov (alerts on) |
 | R3 | The site fails for the rest of the day after 100,000 Worker requests, a quota shared with two other sites | Medium | Confirmed in config; the quota wasn't exhausted |
 | R4 | `/readyz` answers at `run.app` without the proxy secret and pings Atlas on every call | Low | Confirmed live and in code |
 | R5 | Plain `http://toebeans.co.za` serves the app; HSTS isn't preloaded | Low | Confirmed live |
@@ -282,6 +284,7 @@ No critical or high findings. Nothing found lets one household reach another's d
 - **Where:** repository settings: `GET /repos/vgebrev/toe-beans/vulnerability-alerts` answers 404 (off), `automated-security-fixes` is `enabled: false`, and the alerts API answers "Dependabot alerts are disabled for this repository".
 - **What an attacker could do:** nothing directly. But D34 accepted the remaining advisories because "Dependabot brings the fixes", and `.github/dependabot.yml` says "security updates aren't delayed". With alerts off, a new advisory in a runtime dependency (adapter-node, `web-push`, the Mongo driver, sharp) only surfaces at the monthly version update, a week's cooldown later, or never if it's ignored there. The 6.0.0 adapter-node crash (§4, C4) is the kind that would be missed. `pnpm audit` today shows only the four accepted moderates (`glob`, `minimatch` twice through `@sentry/bundler-plugins` and dev tooling), none in the server bundle (D34).
 - **Fix:** `gh api -X PUT repos/vgebrev/toe-beans/vulnerability-alerts`, then optionally `gh api -X PUT repos/vgebrev/toe-beans/automated-security-fixes`. Security update PRs target `main`, against the develop-first flow; if that's unwanted, keep alerts on and security updates off, and take each alert through `develop` by hand.
+- **Status (25 Nov): fixed (architecture 1.50, D15).** Alerts are on (`vulnerability-alerts` answers 204). Automated security updates stay off: GitHub opens them against `main`, which moves only by pull request from `develop`, and they'd fail CI's `pnpm release check`, which wants a new version on every pull request into `main`. GitHub emails the owner on a new alert, and the fix goes through `develop` like any other change. D34's acceptance of the four moderate advisories now rests on alerts that are on. With alerts on, three of the four accepted advisories went at once: `@sentry/node` and `@sentry/browser` to 11.14.0 (its `@sentry/bundler-plugins` takes the fixed `glob` 14), `eslint` to 10.15.0 and `typescript-eslint` to 8.73.0 (the fixed `minimatch` 11), each past the 7-day cooldown. `pnpm audit` now shows only `glob` and its `minimatch` through `testcontainers > archiver-utils`, dev-only, with no fixed release yet.
 
 **R3. The site fails for the rest of the day after 100,000 Worker requests, a quota shared with two other sites — medium.**
 
@@ -439,4 +442,4 @@ SSL mode (Flexible, Full or Strict) doesn't apply. The Worker fetches `run.app` 
 
 1. **R1 and R4, the cost of a refused request.** Make refusals and `/readyz` cheap (debug-level log, a log exclusion, a memoised ping), and correct D45's bound. Then decide whether the origin should sit behind Google's IAM.
 2. **R3, the shared Worker quota.** Add the free rate-limiting rule and move the other two sites off this account, so a cheap flood on any of them doesn't take Toe Beans down for a day.
-3. **R2, Dependabot alerts.** One command, and D34's acceptance of the open advisories rests on it.
+3. **R2, Dependabot alerts.** One command, and D34's acceptance of the open advisories rests on it. *Done 25 Nov.*

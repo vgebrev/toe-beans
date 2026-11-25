@@ -10,7 +10,7 @@
 		"check": "tsc"
 	},
 	"dependencies": {
-		"@sentry/node": "^11.10.0",
+		"@sentry/node": "^11.14.0",
 		"@toe-beans/contracts": "workspace:*",
 		"aws4fetch": "^1.0.20",
 		"jose": "^6.2.14",
