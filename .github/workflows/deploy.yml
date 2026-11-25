@@ -151,10 +151,38 @@ jobs:
             --set-env-vars "^|^$(IFS='|'; echo "${vars[*]}")" \
             --set-secrets "$(IFS=','; echo "${secrets[*]}")"
 
-      # Through the Worker, as phones reach it: only Cloud Run's invokers get to run.app directly
-      # (architecture D45), and this checks the Worker's way in too.
+      # An ID token for run.app, so the check can pass Cloud Run's invoker check as the deploy
+      # account (roles/run.developer includes run.routes.invoke). Not through toebeans.co.za:
+      # Cloudflare's Bot Fight Mode turns a runner's curl away with a 403 (1.2.0's deploy), and
+      # the free plan can't exempt a path from it. Better Stack still checks the Worker's way in.
+      - id: invoke
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3.0.0
+        with:
+          workload_identity_provider: projects/1047834821273/locations/global/workloadIdentityPools/github/providers/toe-beans-github
+          service_account: toe-beans-deploy@toe-beans-co-za.iam.gserviceaccount.com
+          token_format: id_token
+          id_token_audience: https://toe-beans-1047834821273.africa-south1.run.app
+          id_token_include_email: true
+
+      # /readyz needs no header secret (hooks.server.ts), only Google's invoker check. Then the
+      # access list: while the spending cap has the Worker off it (D45), phones get the paused
+      # page, so the deploy fails here rather than publishing a release nobody can reach.
       - name: Check it's ready
-        run: curl --fail --silent --show-error --retry 5 --retry-all-errors https://toebeans.co.za/readyz
+        env:
+          ID_TOKEN: ${{ steps.invoke.outputs.id_token }}
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --retry 5 --retry-all-errors \
+            -H "Authorization: Bearer $ID_TOKEN" \
+            "https://$SERVICE-1047834821273.$REGION.run.app/readyz"
+          echo
+          edge="serviceAccount:toe-beans-edge@$PROJECT.iam.gserviceaccount.com"
+          gcloud run services get-iam-policy "$SERVICE" --project "$PROJECT" --region "$REGION" \
+            --flatten=bindings[].members --filter=bindings.role=roles/run.invoker \
+            --format='value(bindings.members)' | grep -qx "$edge" || {
+            echo "::error::toe-beans-edge isn't an invoker: the spending cap has paused the app (docs/runbooks/spending-cap.md)"
+            exit 1
+          }
 
   # Tags and publishes the release once prod runs it. contents: write only here, in a job with no
   # cloud credentials. Tags made with this token start no workflows.
