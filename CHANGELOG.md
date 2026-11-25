@@ -10,6 +10,8 @@ for fixes. Candidates (`-rc.N`) go to prod for the owner to try before the relea
 
 ## Unreleased
 
+## 1.4.0 - 2026-11-25
+
 ### Added
 
 - A link to toebeans.co.za now shows a preview with the app, in chats and on social media, and
