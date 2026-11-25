@@ -1,8 +1,8 @@
 # Toe Beans — Security Audit
 
-**Version:** 0.12
+**Version:** 0.13
 **Date:** 25 November 2026
-**Status:** §1–§6, the code review: every finding fixed or decided (S15.2). §7, the external pentest: both findings fixed (S18.3). §8, found since: fixed. §9, the second review of code and infrastructure: open, for triage (R1, R2, R4, R5, R6 and R7 fixed, R3 mitigated and its rest accepted).
+**Status:** §1–§6, the code review: every finding fixed or decided (S15.2). §7, the external pentest: both findings fixed (S18.3). §8, found since: fixed. §9, the second review of code and infrastructure: open, for triage (R1, R2, R4, R5, R6 and R7 fixed, R8 fixed in code, R3 mitigated and its rest accepted).
 **Inputs:** `docs/requirements.md` v1.0, `docs/architecture.md` v1.21, the code at commit `1ea686e` (`develop`); for §7, prod on 1.0.4 and the repo at `main` `904516e`; for §9, `docs/architecture.md` v1.48, the repo at `develop` `c965642`, and prod on 1.1.0 with its GCP, Cloudflare and GitHub settings as read on 24 November 2026
 
 **Changes in 0.1:** first audit of the attack surface before release.
@@ -28,6 +28,8 @@
 **Changes in 0.11:** §9.2 R5 and R6 fixed on prod by the owner at Cloudflare: plain http redirects to https before the Worker, HSTS comes from the zone (a year, `includeSubDomains`, `preload`) in place of the app's header, and TLS below 1.2 is refused. The domain was submitted to the preload list on 25 Nov (pending); until it ships in Chrome the first visit stays open, accepted as low (architecture 1.53, D32; backlog S19.11).
 
 **Changes in 0.12:** §9.2 R7 fixed on prod by the owner: the Firebase service account has no roles and is disabled, its browser key is deleted, and the Firebase APIs are off except FCM's two. The fix is corrected: `fcm.googleapis.com` depends on `firebaseinstallations.googleapis.com`, so that stays on with it, and the account's `firebase.sdkAdminServiceAgent` role is removed as well (backlog S19.12).
+
+**Changes in 0.13:** §9.2 R8 fixed in code: the hook gives every response without a `Cache-Control` of its own `private, no-cache`, so the edge can't cache a page at a static-looking path; e2e tests check a page, an HTML 404 at `.png` and a sign-in redirect at `.css`. Not yet checked live (architecture 1.54, D32; backlog S19.13).
 
 ---
 
@@ -262,7 +264,7 @@ No critical or high findings. Nothing found lets one household reach another's d
 | R5 | Plain `http://toebeans.co.za` serves the app; HSTS isn't preloaded | Low | Confirmed live; fixed 25 Nov (redirect, HSTS from the edge, preload submitted) |
 | R6 | TLS 1.0 and 1.1 are accepted at the edge | Low | Confirmed live; fixed 25 Nov |
 | R7 | Firebase leftovers: a service account that can impersonate every other, an API key, a Hosting site | Low | Confirmed in config; fixed 25 Nov |
-| R8 | Pages carry no `Cache-Control`, and the edge caches any response at a static-looking extension | Low | Caching confirmed live; no leaking page found |
+| R8 | Pages carry no `Cache-Control`, and the edge caches any response at a static-looking extension | Low | Caching confirmed live; no leaking page found; fixed in code 25 Nov, not yet on prod |
 | R9 | `main` doesn't require a pull request, admins bypass it, any action may run, and there's no code scanning | Low | Confirmed |
 | R10 | Reads of `app-secrets` aren't audit-logged | Low | Confirmed |
 | R11 | No CAA records or DNSSEC | Low | Confirmed live |
@@ -380,6 +382,7 @@ No critical or high findings. Nothing found lets one household reach another's d
   ```
 
   Build files never reach the hook (adapter-node serves them), so their caching is unchanged. Check that the service worker still caches the `(shell)` pages, since the Cache API ignores the header when it stores a response itself.
+- **Status (25 Nov): fixed in code, not yet on prod (backlog S19.13, architecture 1.54 D32).** `handle` sets `private, no-cache` on any response that sets no `Cache-Control` (`apps/web/src/hooks.server.ts`), with the security headers. Responses that set their own keep it: the API's `no-store`, photos' `private, max-age=86400`, the probes' `no-store`, the font and the manifest. e2e: `smoke.spec.ts` checks a page's header, and `edge.spec.ts` checks the HTML 404 at `/no-such-page.png` and the signed-out redirect at `/dogs/x.css`. `shell.spec.ts` still passes, so the service worker still precaches and shows the fallback pages, and the owner saw the offline page on a phone in airplane mode and the header from the local preview server. To check on prod after the deploy, the audit's request again: `curl -sI -H 'Sec-Fetch-Dest: document' https://toebeans.co.za/audit-$RANDOM.png` twice should show `cache-control: private, no-cache` and no `cf-cache-status: HIT` (`BYPASS` or `DYNAMIC`).
 
 **R9. `main` doesn't require a pull request, admins bypass it, any action may run, and there's no code scanning — low.**
 

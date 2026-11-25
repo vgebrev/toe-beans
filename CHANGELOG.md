@@ -10,6 +10,13 @@ for fixes. Candidates (`-rc.N`) go to prod for the owner to try before the relea
 
 ## Unreleased
 
+## 1.1.2 - 2026-11-25
+
+### Security
+
+- Toe Beans' pages now tell the network between you and the server not to keep a copy, so nobody
+  else could ever be shown a page meant for you.
+
 ## 1.1.1 - 2026-11-24
 
 ### Security

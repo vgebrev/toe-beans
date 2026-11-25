@@ -1,8 +1,8 @@
 # Toe Beans — Backlog
 
-**Version:** 0.99 (draft for iteration)
+**Version:** 0.100 (draft for iteration)
 **Date:** 25 November 2026
-**Inputs:** `docs/requirements.md` v1.1, `docs/architecture.md` v1.53, `docs/ui.md` v0.46
+**Inputs:** `docs/requirements.md` v1.1, `docs/architecture.md` v1.54, `docs/ui.md` v0.46
 
 **Changes in 0.3:** spike results S-1.0 to S-1.4 and S0.1–S0.2 recorded as they landed (see Current progress). S-1.4b dropped as not needed, S-1.5 parked, S-1.4a retargeted to `toebeans.co.za`.
 
@@ -178,6 +178,8 @@
 
 **Changes in 0.99:** S19.12 added and done: Firebase's leftovers in the GCP project cleaned up, from security audit 0.7's R7 (security audit 0.12).
 
+**Changes in 0.100:** S19.13 added and built: pages kept out of the edge's cache, from security audit 0.7's R8 (security audit 0.13, architecture 1.54, D32). Done once checked on prod. Inputs moved to architecture 1.54.
+
 **Changes in 0.51:** S15.1 gains (k), fresh data on coming back to the app and on Back to a page Chrome kept whole (ui 0.35 §5.2), from the owner, after Today stayed stale behind a reminder. Live updates over WebSockets were considered and left out for cost. The offline banner's check backs off from 1 s (architecture 1.23 D31), found through a flaky e2e check. Built with e2e checks and closed by the owner, so S15.1 stays done. Inputs moved to architecture 1.23 and ui 0.35.
 
 **Changes in 0.50:** S15.1 gains (j), a banner offering *Refresh* once a new version is deployed (ui 0.34 §5.2), from the owner. Built and covered by an e2e check; it can only be seen across a real deploy, so the owner tries it on prod after the next one. Inputs moved to ui 0.34.
@@ -334,6 +336,7 @@ Work is organised as **vertical slices**: each delivers a usable end-to-end incr
 | 2026-11-25 | S19.8 done on prod: the app's origin takes only the Worker and the tick, the cap's test passed, and Google doesn't bill the requests it refuses (security audit R1, R4). |
 | 2026-11-25 | S19.11 done: plain http redirects to https at Cloudflare, HSTS from the zone (a year, subdomains), submitted to the preload list, TLS 1.0 and 1.1 refused (security audit R5, R6). |
 | 2026-11-25 | S19.12 done: Firebase's service account stripped of its roles and disabled, its API key deleted, its APIs off but FCM's (security audit R7). |
+| 2026-11-25 | S19.13 built: every page, redirect and error page goes out as `private, no-cache`, so Cloudflare can't cache one at a path like `/x.png` (security audit R8). Done once checked on prod. |
 
 **Next up:** S19.7 (the export), and S20.1–S20.3; S21 once S19 is done.
 
@@ -613,6 +616,7 @@ Work is organised as **vertical slices**: each delivers a usable end-to-end incr
 | S19.10 | **A rate limit before the Worker (security audit 0.7 R3; D13).** Workers Free gives the Cloudflare account 100,000 requests a day, shared with two other sites, so a cheap flood on any of them could fail Toe Beans until midnight UTC. **Done (25 Nov):** a rate-limiting rule on the zone by the owner: every path, per IP, past 200 requests in 10 seconds blocked for 10 seconds, above a fresh install's measured 170 (the service worker's precache); `infra/edge/README.md` has the rule and how to recount. It stops a fast flood from one address, not a slow or spread-out one. Workers Paid and a second account declined for now (owner, NFR-07); the rest is risk R6. | ✅ |
 | S19.11 | **HTTPS only at the edge (security audit 0.7 R5, R6; D32).** Plain `http://toebeans.co.za` served the app, and the edge accepted TLS 1.0 and 1.1. **Done (25 Nov):** by the owner at Cloudflare: *Always Use HTTPS* on, HSTS from the zone (a year, `includeSubDomains`, `preload`) in place of the app's header, minimum TLS 1.2, each checked live; `infra/edge/README.md` has the settings and the checks. Submitted to hstspreload.org by the owner the same day (pending); until it ships in Chrome the first visit is left to Chrome's https upgrade. | ✅ |
 | S19.12 | **Firebase's leftovers (security audit 0.7 R7; D15).** Adding the project to Firebase in S-1.4a left a service account with Token Creator on the whole project, able to act as `toe-beans-run` and `toe-beans-deploy`, an unrestricted browser key, and a dozen Firebase APIs, none used. **Done (25 Nov):** by the owner: `firebase-adminsdk-fbsvc` has no roles and is disabled, the key is deleted, and every Firebase API is off but `fcm`, `firebaseinstallations` (FCM depends on it) and `firebase`; checked live. | ✅ |
+| S19.13 | **Pages kept out of the edge's cache (security audit 0.7 R8; D32).** Pages sent no `Cache-Control`, and Cloudflare caches the Worker's fetches by file extension when the origin is silent: the app's 404 page at `/x.png` came back as a `HIT`. No page leaked, but only by accident; one rendering at such a path would be served with one person's data to the next (web cache deception). **Built (25 Nov):** the hook gives every response without its own `Cache-Control` `private, no-cache`; the API, photos, probes, the font and the manifest keep theirs. e2e checks a page, a 404 at `.png` and a sign-in redirect at `.css`; the service worker's fallback pages still precache. Checked by the owner (25 Nov): the local preview server sends the header, and the offline page still shows on a phone in airplane mode. Done once checked on prod (security audit R8's `curl`). | 🟨 |
 
 ### S20 Training content from puppy school
 *From the owner's first two weeks of puppy school and their puppy: the name game and loose-lead walking held up; the stop-go (red light, green light) technique for pulling joins the library, with car rides for a car-sick or anxious puppy and a first *Stay*. Each is written in our own words from freely available reward-based sources, cited, checked against `content/README.md` and the content gate (§3.8), and signed off by the owner (`reviewedBy`, `reviewedAt`).*

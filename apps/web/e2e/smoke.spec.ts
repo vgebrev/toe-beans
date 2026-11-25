@@ -60,7 +60,9 @@ test('pages carry the CSP with a nonce and the other security headers (architect
 	expect(headers).toMatchObject({
 		'referrer-policy': 'same-origin',
 		'x-content-type-options': 'nosniff',
-		'cross-origin-opener-policy': 'same-origin'
+		'cross-origin-opener-policy': 'same-origin',
+		// Kept out of shared caches, so the edge never serves one person's page to another (R8).
+		'cache-control': 'private, no-cache'
 	});
 	expect(headers['permissions-policy']).toContain('camera=(self)');
 	// e2e runs on http://localhost, where HSTS doesn't apply.
