@@ -1,8 +1,8 @@
 # Toe Beans — Security Audit
 
-**Version:** 0.14
+**Version:** 0.15
 **Date:** 25 November 2026
-**Status:** §1–§6, the code review: every finding fixed or decided (S15.2). §7, the external pentest: both findings fixed (S18.3). §8, found since: fixed. §9, the second review of code and infrastructure: open, for triage (R1, R2, R4, R5, R6, R7 and R8 fixed, R3 mitigated and its rest accepted).
+**Status:** §1–§6, the code review: every finding fixed or decided (S15.2). §7, the external pentest: both findings fixed (S18.3). §8, found since: fixed. §9, the second review of code and infrastructure: open, for triage (R1, R2, R4, R5, R6, R7, R8 and R9 fixed, R3 mitigated and its rest accepted).
 **Inputs:** `docs/requirements.md` v1.0, `docs/architecture.md` v1.21, the code at commit `1ea686e` (`develop`); for §7, prod on 1.0.4 and the repo at `main` `904516e`; for §9, `docs/architecture.md` v1.48, the repo at `develop` `c965642`, and prod on 1.1.0 with its GCP, Cloudflare and GitHub settings as read on 24 November 2026
 
 **Changes in 0.1:** first audit of the attack surface before release.
@@ -32,6 +32,8 @@
 **Changes in 0.13:** §9.2 R8 fixed in code: the hook gives every response without a `Cache-Control` of its own `private, no-cache`, so the edge can't cache a page at a static-looking path; e2e tests check a page, an HTML 404 at `.png` and a sign-in redirect at `.css`. Not yet checked live (architecture 1.54, D32; backlog S19.13).
 
 **Changes in 0.14:** §9.2 R8 fixed on prod with 1.1.2: the audit's request now gets `private, no-cache` and Cloudflare's `BYPASS`, twice (backlog S19.13 done).
+
+**Changes in 0.15:** §9.2 R9 fixed: `main` changes only by pull request, merged as a merge commit, and the admin bypass covers only merging a pull request; admins can't bypass the `production` or `backups` environment; the Actions policy allows only GitHub's own actions and the three owners in use, pinned to SHAs; CodeQL's default setup scans actions and JS/TS, and its first run raised two alerts: one a false positive in a test, the other unreachable and fixed in code anyway. A stolen owner session or `repo` token can still undo these settings, which is noted. The owner's direct push of an empty commit to `main` was refused (architecture 1.55, D15; backlog S19.14 done).
 
 ---
 
@@ -267,7 +269,7 @@ No critical or high findings. Nothing found lets one household reach another's d
 | R6 | TLS 1.0 and 1.1 are accepted at the edge | Low | Confirmed live; fixed 25 Nov |
 | R7 | Firebase leftovers: a service account that can impersonate every other, an API key, a Hosting site | Low | Confirmed in config; fixed 25 Nov |
 | R8 | Pages carry no `Cache-Control`, and the edge caches any response at a static-looking extension | Low | Caching confirmed live; no leaking page found; fixed 25 Nov |
-| R9 | `main` doesn't require a pull request, admins bypass it, any action may run, and there's no code scanning | Low | Confirmed |
+| R9 | `main` doesn't require a pull request, admins bypass it, any action may run, and there's no code scanning | Low | Confirmed; fixed 25 Nov |
 | R10 | Reads of `app-secrets` aren't audit-logged | Low | Confirmed |
 | R11 | No CAA records or DNSSEC | Low | Confirmed live |
 | C5 | Cloudflare settings this review couldn't read: rate limiting, WAF rules, SSL mode | — | Worth checking |
@@ -402,6 +404,13 @@ No critical or high findings. Nothing found lets one household reach another's d
     then list the owners in use (`actions/*`, `docker/*`, `google-github-actions/*`, `pnpm/*`) under *selected actions*.
   - Turn on CodeQL's default setup (free on a public repo):
     `gh api -X PATCH repos/vgebrev/toe-beans/code-scanning/default-setup -f state=configured`.
+- **Status (25 Nov): fixed (backlog S19.14, architecture 1.55 D15).** Set through the API and read back:
+  - The ruleset has a `pull_request` rule: 0 approvals, merge commits only, since `main` takes `develop` whole and a squash or rebase would leave the two apart. GitHub adds `require_extra_approval_for_unattributed_changes: true` by default, which does nothing with 0 approvals. The admin bypass is in `pull_request` mode: no direct pushes, and a pull request with a failing check can still be merged in an emergency, which the pull request records. The `develop` ruleset keeps its full bypass, as work is committed there directly.
+  - `production` and `backups` have `can_admins_bypass: false`; their reviewers and `main`-only branch policies are unchanged.
+  - Actions: `allowed_actions: selected` (GitHub-owned, `docker/*`, `google-github-actions/*`, `pnpm/*`; not every verified creator) and `sha_pinning_required: true`.
+  - CodeQL's default setup is on for actions and JavaScript/TypeScript, weekly and on pull requests; its first run passed under the pin rule (code scanning default setup runs whatever the Actions policy says, short of Actions being off). It isn't a required check yet. Its first run raised two alerts. `js/incomplete-url-substring-sanitization` at `infra/edge/worker.test.js:39` is a false positive: a test stub routing fetches by prefix. `js/polynomial-redos` at `packages/backend/src/infrastructure/email/mailpit.ts:21` couldn't be reached by anyone, since the dev-only Mailpit sender parses only the `from` and reply-to addresses in its own config, but `parseAddress` now slices the string instead of matching a regex, so the alert closes on the next scan of `main`.
+  - Checked live: the owner pushed an empty commit on top of `main` straight to it, and GitHub refused it with GH013 ("Changes must be made through a pull request", and "5 of 5 required status checks are expected", which the old bypass had skipped too).
+  - What's left: these settings stop mistakes, agents and tokens without the Administration permission. An owner session or classic token with `repo` scope can edit the ruleset and the environments, so against a full account takeover the controls are the account's 2FA and passkeys and keeping such tokens few and short-lived.
 
 **R10. Reads of `app-secrets` aren't audit-logged — low.**
 
