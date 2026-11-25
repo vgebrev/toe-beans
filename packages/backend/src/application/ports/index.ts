@@ -18,6 +18,7 @@ import type {
 	HouseholdRepository,
 	InvitationRepository
 } from './household-repositories.js';
+import type { HouseholdRecords, ZipWriter } from './household-export.js';
 import type { IdentityAccounts } from './identity-accounts.js';
 import type { IdentityProvider } from './identity-provider.js';
 import type { Logger } from './logger.js';
@@ -72,6 +73,12 @@ export type {
 	InvitationRepository,
 	NewInvitation
 } from './household-repositories.js';
+export type {
+	HouseholdRecords,
+	HouseholdRecordSet,
+	ZipEntry,
+	ZipWriter
+} from './household-export.js';
 export type { IdentityAccounts } from './identity-accounts.js';
 export type { IdGenerator } from '../../domain/id.js';
 export type {
@@ -133,6 +140,12 @@ export interface Ports {
 	/** Deleting a household's records, whatever collection they're in (D38). */
 	householdData: HouseholdData;
 	invitations: InvitationRepository;
+	/** Everything a household holds, read at once for its export (D46). */
+	householdRecords: HouseholdRecords;
+	/** The export's ZIP (D46). */
+	zip: ZipWriter;
+	/** Exports, per person (D46): each reads the whole household and streams its photos. */
+	exportRateLimit: RateLimiter;
 	email: EmailSender;
 	/** Looking at or accepting an invitation, per client address (architecture §7). */
 	inviteRateLimit: RateLimiter;

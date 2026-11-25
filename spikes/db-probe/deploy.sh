@@ -4,6 +4,7 @@
 set -euo pipefail
 cd "$(dirname "$0")"
 PROJECT=$(gcloud config get-value project)
+: "${MONGO_HOST:?set MONGO_HOST to the Atlas cluster host, e.g. <cluster>.<id>.mongodb.net}"
 sa() { echo "$1@$PROJECT.iam.gserviceaccount.com"; }
 
 gcloud secrets add-iam-policy-binding atlas-spike-password --condition=None --quiet \
@@ -13,5 +14,5 @@ gcloud run deploy toe-beans-db-probe --source . --region africa-south1 --quiet \
 	--build-service-account="projects/$PROJECT/serviceAccounts/$(sa toe-beans-build)" \
 	--service-account="$(sa toe-beans-run)" \
 	--no-invoker-iam-check --max-instances=1 --memory=512Mi --cpu-boost \
-	--set-env-vars=MONGO_HOST=toe-beans.uitdn6o.mongodb.net,MONGO_USER=toe-beans-spike,MONGO_DB=spike \
+	--set-env-vars=MONGO_HOST=$MONGO_HOST,MONGO_USER=toe-beans-spike,MONGO_DB=spike \
 	--set-secrets=MONGO_PASSWORD=atlas-spike-password:latest

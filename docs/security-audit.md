@@ -1,8 +1,8 @@
 # Toe Beans — Security Audit
 
-**Version:** 0.13
+**Version:** 0.19
 **Date:** 25 November 2026
-**Status:** §1–§6, the code review: every finding fixed or decided (S15.2). §7, the external pentest: both findings fixed (S18.3). §8, found since: fixed. §9, the second review of code and infrastructure: open, for triage (R1, R2, R4, R5, R6 and R7 fixed, R8 fixed in code, R3 mitigated and its rest accepted).
+**Status:** §1–§6, the code review: every finding fixed or decided (S15.2). §7, the external pentest: both findings fixed (S18.3). §8, found since: fixed. §9, the second review of code and infrastructure: every finding fixed or decided, and every check made (R1, R2, R4, R5, R6, R7, R8, R9 and R10 fixed, R3 mitigated and its rest accepted, R11 fixed but for DNSSEC, which is accepted; C5 to C9 confirmed, C7 with a lock rule added).
 **Inputs:** `docs/requirements.md` v1.0, `docs/architecture.md` v1.21, the code at commit `1ea686e` (`develop`); for §7, prod on 1.0.4 and the repo at `main` `904516e`; for §9, `docs/architecture.md` v1.48, the repo at `develop` `c965642`, and prod on 1.1.0 with its GCP, Cloudflare and GitHub settings as read on 24 November 2026
 
 **Changes in 0.1:** first audit of the attack surface before release.
@@ -21,7 +21,7 @@
 
 **Changes in 0.8:** §9.2 R2 fixed: Dependabot alerts on; automated security updates stay off, since they'd open pull requests against `main`, and alerts go through `develop` by hand (architecture 1.50, D15). The production tree's `glob` advisory and two of the dev ones are fixed by updates; one dev-only path is left.
 
-**Changes in 0.9:** §9.2 R3 mitigated: a rate-limiting rule at the edge, 200 requests per IP in 10 seconds, blocked for 10 seconds, sized on a fresh install's 170; Free plan rules match only the path, so the suggested `http.host` expression is corrected. The rest is accepted by the owner: no Workers Paid and no second Cloudflare account for now (architecture 1.51, D13, R6). C5's first item answered.
+**Changes in 0.9:** §9.2 R3 mitigated: a rate-limiting rule at the edge, 200 requests per IP in 10 seconds, blocked for 10 seconds, sized on a fresh install's 170; Free plan rules match only the path, so the suggested `http.host` expression is corrected. The rest is accepted by the owner for now (architecture 1.51, D13, R6). C5's first item answered.
 
 **Changes in 0.10:** §9.2 R1 and R4 fixed on prod: only the edge Worker and the tick reach the app's origin, and Google's pricing page confirms that requests it refuses aren't billed, so R1's log measures aren't needed (architecture 1.52, D45; backlog S19.8 done).
 
@@ -31,7 +31,21 @@
 
 **Changes in 0.13:** §9.2 R8 fixed in code: the hook gives every response without a `Cache-Control` of its own `private, no-cache`, so the edge can't cache a page at a static-looking path; e2e tests check a page, an HTML 404 at `.png` and a sign-in redirect at `.css`. Not yet checked live (architecture 1.54, D32; backlog S19.13).
 
+**Changes in 0.14:** §9.2 R8 fixed on prod with 1.1.2: the audit's request now gets `private, no-cache` and Cloudflare's `BYPASS`, twice (backlog S19.13 done).
+
+**Changes in 0.15:** §9.2 R9 fixed: `main` changes only by pull request, merged as a merge commit, and the admin bypass covers only merging a pull request; admins can't bypass the `production` or `backups` environment; the Actions policy allows only GitHub's own actions and the three owners in use, pinned to SHAs; CodeQL's default setup scans actions and JS/TS, and its first run raised two alerts: one a false positive in a test, the other unreachable and fixed in code anyway. A stolen owner session or `repo` token can still undo these settings, which is noted. The owner's direct push of an empty commit to `main` was refused (architecture 1.55, D15; backlog S19.14 done).
+
+**Changes in 0.16:** §9.2 R10 fixed on prod: Data Access audit logs for Secret Manager, `DATA_READ` only, set by a step in `infra/gcp/provision.sh`; an owner's read of `app-secrets` was then logged. They're kept 30 days in `_Default`, not 400 (architecture 1.56, D15; backlog S19.15 done).
+
+**Changes in 0.17:** §9.2 R11 fixed on prod by the owner at Cloudflare: CAA records allow Let's Encrypt and Google Trust Services, and Cloudflare adds its other CAs; DMARC no longer sends reports to GoDaddy. The concern about Auth0's renewals doesn't apply, since `auth`'s CNAME target has CAA records of its own. DNSSEC is accepted as not possible: GoDaddy offers no DS record for the domain, so signing was turned off again (backlog S19.16 done).
+
+**Changes in 0.18:** §9.3 checked, which closes §9, by the owner in each dashboard: C5's Cloudflare rules and Bot Fight Mode as expected; C6's `send` records are Resend's verified ones, now recorded in the accounts runbook; C7's app token is limited to photos, and backups gain an R2 lock rule on `mongo/` for 29 days, read back with wrangler; C8's Atlas users and two-factor sign-in as accounts.md says; C9's webhooks, secret-scanning alerts and deploy keys are all empty, and the Auth0 tenant has only Google and the database connection on its application; Auth0 has no setting to refuse unverified sign-ups, so that rests on the app's check at callback (backlog S19.17 done).
+
+**Changes in 0.19:** for a public repo: §9.2 R3, still partly open, cut to a summary, with the account, the sites sharing its quota and the flood's numbers taken out (also from the 0.9 line, §9.5 and the docs that cite R3). A note says how findings are disclosed: detail only once fixed, and private reports through GitHub (`SECURITY.md`).
+
 ---
+
+**Disclosure.** The repo is public. A finding's detail goes in only once it's fixed; while it's open or partly accepted, it gets a summary (the pentest runbook's rule). Vulnerabilities are reported privately through GitHub (`SECURITY.md`).
 
 ## 1. Summary
 
@@ -259,20 +273,20 @@ No critical or high findings. Nothing found lets one household reach another's d
 |---|---|---|---|
 | R1 | A flood straight at `run.app` runs up the bill, and the spending cap then closes the app | Medium | Confirmed in config and live; the spend rate is estimated; fixed 25 Nov (Google's invoker check) |
 | R2 | Dependabot alerts and security updates are off | Medium | Confirmed; fixed 25 Nov (alerts on) |
-| R3 | The site fails for the rest of the day after 100,000 Worker requests, a quota shared with two other sites | Medium | Confirmed in config; the quota wasn't exhausted; mitigated 25 Nov (rate-limiting rule), the rest accepted |
+| R3 | A flood can use up the edge's free daily quota and fail the site for the rest of the day | Medium | Confirmed in config; the quota wasn't exhausted; mitigated 25 Nov (rate-limiting rule), the rest accepted |
 | R4 | `/readyz` answers at `run.app` without the proxy secret and pings Atlas on every call | Low | Confirmed live and in code; fixed 25 Nov |
 | R5 | Plain `http://toebeans.co.za` serves the app; HSTS isn't preloaded | Low | Confirmed live; fixed 25 Nov (redirect, HSTS from the edge, preload submitted) |
 | R6 | TLS 1.0 and 1.1 are accepted at the edge | Low | Confirmed live; fixed 25 Nov |
 | R7 | Firebase leftovers: a service account that can impersonate every other, an API key, a Hosting site | Low | Confirmed in config; fixed 25 Nov |
-| R8 | Pages carry no `Cache-Control`, and the edge caches any response at a static-looking extension | Low | Caching confirmed live; no leaking page found; fixed in code 25 Nov, not yet on prod |
-| R9 | `main` doesn't require a pull request, admins bypass it, any action may run, and there's no code scanning | Low | Confirmed |
-| R10 | Reads of `app-secrets` aren't audit-logged | Low | Confirmed |
-| R11 | No CAA records or DNSSEC | Low | Confirmed live |
-| C5 | Cloudflare settings this review couldn't read: rate limiting, WAF rules, SSL mode | — | Worth checking |
-| C6 | `send.toebeans.co.za` is a CNAME to `send.forge.rmta.net` | Low | Worth checking |
-| C7 | The backup's R2 token can delete every backup; no bucket lock | Low | Worth checking |
-| C8 | Atlas is reachable from anywhere, guarded by its password | Low | Known (accounts.md R3); worth checking |
-| C9 | Webhooks, secret-scanning alerts and the Auth0 tenant weren't re-read | — | Not checked |
+| R8 | Pages carry no `Cache-Control`, and the edge caches any response at a static-looking extension | Low | Caching confirmed live; no leaking page found; fixed 25 Nov |
+| R9 | `main` doesn't require a pull request, admins bypass it, any action may run, and there's no code scanning | Low | Confirmed; fixed 25 Nov |
+| R10 | Reads of `app-secrets` aren't audit-logged | Low | Confirmed; fixed 25 Nov |
+| R11 | No CAA records or DNSSEC | Low | Confirmed live; fixed 25 Nov (CAA, DMARC), DNSSEC accepted |
+| C5 | Cloudflare settings this review couldn't read: rate limiting, WAF rules, SSL mode | — | Confirmed 25 Nov in the dashboard |
+| C6 | `send.toebeans.co.za` is a CNAME to `send.forge.rmta.net` | Low | Confirmed 25 Nov: Resend's verified records |
+| C7 | The backup's R2 token can delete every backup; no bucket lock | Low | Confirmed; fixed 25 Nov (lock rule) |
+| C8 | Atlas is reachable from anywhere, guarded by its password | Low | Known (accounts.md R3); users and 2FA confirmed 25 Nov |
+| C9 | Webhooks, secret-scanning alerts and the Auth0 tenant weren't re-read | — | Confirmed 25 Nov |
 
 ### 9.2 Confirmed findings
 
@@ -297,14 +311,13 @@ No critical or high findings. Nothing found lets one household reach another's d
 - **Fix:** `gh api -X PUT repos/vgebrev/toe-beans/vulnerability-alerts`, then optionally `gh api -X PUT repos/vgebrev/toe-beans/automated-security-fixes`. Security update PRs target `main`, against the develop-first flow; if that's unwanted, keep alerts on and security updates off, and take each alert through `develop` by hand.
 - **Status (25 Nov): fixed (architecture 1.50, D15).** Alerts are on (`vulnerability-alerts` answers 204). Automated security updates stay off: GitHub opens them against `main`, which moves only by pull request from `develop`, and they'd fail CI's `pnpm release check`, which wants a new version on every pull request into `main`. GitHub emails the owner on a new alert, and the fix goes through `develop` like any other change. D34's acceptance of the four moderate advisories now rests on alerts that are on. With alerts on, three of the four accepted advisories went at once: `@sentry/node` and `@sentry/browser` to 11.14.0 (its `@sentry/bundler-plugins` takes the fixed `glob` 14), `eslint` to 10.15.0 and `typescript-eslint` to 8.73.0 (the fixed `minimatch` 11), each past the 7-day cooldown. `pnpm audit` now shows only `glob` and its `minimatch` through `testcontainers > archiver-utils`, dev-only, with no fixed release yet.
 
-**R3. The site fails for the rest of the day after 100,000 Worker requests, a quota shared with two other sites — medium.**
+**R3. A flood can use up the edge's free daily quota and fail the site for the rest of the day — medium.**
 
-- **Where:** Cloudflare account `470d…c05b` on Workers Free (`docs/runbooks/accounts.md` "Billing limits": "requests past the day's allowance fail"). The account runs three Workers on custom domains: `toe-beans-edge`, `gebrev-com` (`gebrev.com`, `veli.gebrev.com`) and `swimwellza` (`swimwellza.co.za`). Every request to `toebeans.co.za` runs the Worker, cached `/_app/` files included, except the WAF's scanner blocks (D42) and the maintenance fonts (static assets).
-- **What an attacker could do:** send about 100,000 requests in a day, about 1.2 a second, to any of the three sites. From then until midnight UTC, Cloudflare answers every request on all three with an error page. The installed app shows *Can't reach Toe Beans*, and reminders still go out, since the tick calls `run.app` directly. Unlike R1, this costs nothing and needs no bandwidth to speak of. Cloudflare's automatic DDoS protection acts on far higher rates. Whether a rate-limiting rule exists couldn't be read (C5), and none is in the repo.
-- **Fix:**
-  1. A rate-limiting rule at the edge. The free plan allows one, and requests it blocks never run the Worker. In the dashboard: **toebeans.co.za → Security → WAF → Rate limiting rules**, matching every path of the zone (*corrected:* Free plan rules can match only the path, so `http.request.uri.path wildcard "/*"`, not `http.host`), counting by IP, 10-second period, action Block for 10 seconds. Set the threshold above a cold start of the app (count the requests one phone makes on a fresh install, likely 40 to 80) with margin, for example 150. It slows a single source; a spread-out flood still gets through.
-  2. Separate the quota. Move the other two sites to another Cloudflare account, so a flood on them can't take Toe Beans down, or take Workers Paid (US$5 a month, 10 million requests) when the free tier stops being a requirement (NFR-07). Record the choice against D13.
-- **Status (25 Nov): mitigated; the rest accepted (architecture 1.51, D13, R6).** The rule is on: every path of `toebeans.co.za`, by IP, more than 200 requests in 10 seconds blocks that IP for 10 seconds (`infra/edge/README.md`). The owner measured a fresh load at 170 requests, nearly all of them the service worker's precache (`cache.addAll` over the build's files, which fails whole on one refusal), so 200 leaves a small margin; an app update fetches only the changed files. The sign-in pages on `auth.toebeans.co.za` aren't proxied by Cloudflare (`auth0.md` §3) and don't count. What the rule stops is a fast flood from one address using up the day in minutes. It doesn't stop R3's attack as written: 1.2 requests a second is far under any threshold the app can live with, an address just under the limit uses up the day in about two hours, and many addresses aren't slowed at all. Separating the quota is declined for now (owner): no Workers Paid (US$5 a month, NFR-07) and no second Cloudflare account; the other two sites get their own rate-limiting rules on their zones. Revisit if the quota is ever exhausted, or when the free tier stops being a requirement. The precache grows with the build, so recount a fresh load when the build grows by a lot, and raise the threshold before it nears 200.
+- **Where:** the Worker `toe-beans-edge` on Cloudflare's Workers Free plan, whose requests a day are capped per account (`docs/runbooks/accounts.md` "Billing limits": "requests past the day's allowance fail"). Every request to `toebeans.co.za` runs the Worker, except the WAF's scanner blocks (D42) and the maintenance fonts.
+- **What an attacker could do:** send enough requests in a day to use up the quota. Until midnight UTC, Cloudflare then answers with an error page and the installed app shows *Can't reach Toe Beans*. Reminders still go out, since the tick calls `run.app` directly. No data is exposed and nothing bills.
+- **Fix:** a rate-limiting rule at the edge, which the free plan allows and whose blocks never run the Worker; and, for the rest, Workers Paid or a quota the Worker doesn't share.
+- **Status (25 Nov): mitigated; the rest accepted (architecture 1.51, D13, R6).** The rule is on (`infra/edge/README.md`), sized above a fresh install's 170 requests, and stops a fast flood from one address. What it leaves is accepted for now (owner, NFR-07) and revisited if the quota is ever exhausted. The rule's threshold follows the precache, so recount a fresh load when the build grows by a lot.
+- **Redacted (0.19):** this finding's detail is withheld while part of it stays open, as the pentest runbook does for open findings. Earlier versions in the history have it.
 
 **R4. `/readyz` answers at `run.app` without the proxy secret and pings Atlas on every call — low.**
 
@@ -383,6 +396,7 @@ No critical or high findings. Nothing found lets one household reach another's d
 
   Build files never reach the hook (adapter-node serves them), so their caching is unchanged. Check that the service worker still caches the `(shell)` pages, since the Cache API ignores the header when it stores a response itself.
 - **Status (25 Nov): fixed in code, not yet on prod (backlog S19.13, architecture 1.54 D32).** `handle` sets `private, no-cache` on any response that sets no `Cache-Control` (`apps/web/src/hooks.server.ts`), with the security headers. Responses that set their own keep it: the API's `no-store`, photos' `private, max-age=86400`, the probes' `no-store`, the font and the manifest. e2e: `smoke.spec.ts` checks a page's header, and `edge.spec.ts` checks the HTML 404 at `/no-such-page.png` and the signed-out redirect at `/dogs/x.css`. `shell.spec.ts` still passes, so the service worker still precaches and shows the fallback pages, and the owner saw the offline page on a phone in airplane mode and the header from the local preview server. To check on prod after the deploy, the audit's request again: `curl -sI -H 'Sec-Fetch-Dest: document' https://toebeans.co.za/audit-$RANDOM.png` twice should show `cache-control: private, no-cache` and no `cf-cache-status: HIT` (`BYPASS` or `DYNAMIC`).
+- **Status (25 Nov): fixed on prod with 1.1.2 (backlog S19.13).** The owner ran the request above twice: both answers carried `cache-control: private, no-cache` and `cf-cache-status: BYPASS`, so the edge no longer stores a page at a static-looking path.
 
 **R9. `main` doesn't require a pull request, admins bypass it, any action may run, and there's no code scanning — low.**
 
@@ -399,6 +413,13 @@ No critical or high findings. Nothing found lets one household reach another's d
     then list the owners in use (`actions/*`, `docker/*`, `google-github-actions/*`, `pnpm/*`) under *selected actions*.
   - Turn on CodeQL's default setup (free on a public repo):
     `gh api -X PATCH repos/vgebrev/toe-beans/code-scanning/default-setup -f state=configured`.
+- **Status (25 Nov): fixed (backlog S19.14, architecture 1.55 D15).** Set through the API and read back:
+  - The ruleset has a `pull_request` rule: 0 approvals, merge commits only, since `main` takes `develop` whole and a squash or rebase would leave the two apart. GitHub adds `require_extra_approval_for_unattributed_changes: true` by default, which does nothing with 0 approvals. The admin bypass is in `pull_request` mode: no direct pushes, and a pull request with a failing check can still be merged in an emergency, which the pull request records. The `develop` ruleset keeps its full bypass, as work is committed there directly.
+  - `production` and `backups` have `can_admins_bypass: false`; their reviewers and `main`-only branch policies are unchanged.
+  - Actions: `allowed_actions: selected` (GitHub-owned, `docker/*`, `google-github-actions/*`, `pnpm/*`; not every verified creator) and `sha_pinning_required: true`.
+  - CodeQL's default setup is on for actions and JavaScript/TypeScript, weekly and on pull requests; its first run passed under the pin rule (code scanning default setup runs whatever the Actions policy says, short of Actions being off). It isn't a required check yet. Its first run raised two alerts. `js/incomplete-url-substring-sanitization` at `infra/edge/worker.test.js:39` is a false positive: a test stub routing fetches by prefix. `js/polynomial-redos` at `packages/backend/src/infrastructure/email/mailpit.ts:21` couldn't be reached by anyone, since the dev-only Mailpit sender parses only the `from` and reply-to addresses in its own config, but `parseAddress` now slices the string instead of matching a regex, so the alert closes on the next scan of `main`.
+  - Checked live: the owner pushed an empty commit on top of `main` straight to it, and GitHub refused it with GH013 ("Changes must be made through a pull request", and "5 of 5 required status checks are expected", which the old bypass had skipped too).
+  - What's left: these settings stop mistakes, agents and tokens without the Administration permission. An owner session or classic token with `repo` scope can edit the ruleset and the environments, so against a full account takeover the controls are the account's 2FA and passkeys and keeping such tokens few and short-lived.
 
 **R10. Reads of `app-secrets` aren't audit-logged — low.**
 
@@ -414,6 +435,7 @@ No critical or high findings. Nothing found lets one household reach another's d
   ```
 
   and `gcloud projects set-iam-policy toe-beans-co-za policy.yaml` (the etag in the file guards against a concurrent change).
+- **Status (25 Nov): fixed on prod (architecture 1.56, D15; backlog S19.15).** `provision.sh` has the step, adding only the missing `DATA_READ` entry to the policy it read (etag and all), and its checks print the audit configs; it was run against the project, and the policy's bindings were unchanged. `DATA_READ` covers `AccessSecretVersion` and leaves out metadata reads (`ADMIN_READ`). An owner's read of `app-secrets` a few minutes later was logged with the method, the caller and the version; the first read, made just after the change, wasn't, as audit config takes a few minutes to apply. To see reads: `gcloud logging read 'logName="projects/toe-beans-co-za/logs/cloudaudit.googleapis.com%2Fdata_access" AND protoPayload.serviceName="secretmanager.googleapis.com"' --project toe-beans-co-za --freshness=30d`. Unlike Admin Activity logs (400 days, `_Required`), Data Access logs go to the `_Default` bucket and are kept 30 days, so after an incident they're exported with the other evidence (`disaster-recovery.md` step 1). A few entries a day sit far inside the free 50 GiB.
 
 **R11. No CAA records or DNSSEC — low.**
 
@@ -424,6 +446,11 @@ No critical or high findings. Nothing found lets one household reach another's d
   - In Cloudflare DNS, add `CAA 0 issue "letsencrypt.org"` and `CAA 0 issue "pki.goog"`; Cloudflare adds its other CAs itself once any CAA record exists. Check that Auth0's custom domain (`auth`, a CNAME to Auth0) still renews, because CAA for a name under a CNAME follows the target first.
   - **DNS → Settings → DNSSEC: Enable**, then add the DS record at GoDaddy.
   - Point DMARC's `rua` at an address the owner reads, or drop it.
+- **Status (25 Nov): fixed on prod, DNSSEC accepted (backlog S19.16).** Set by the owner in Cloudflare and checked live through 1.1.1.1, 8.8.8.8 and the zone's own nameserver:
+  - CAA: `0 issue "letsencrypt.org"` and `0 issue "pki.goog"` at the apex. Universal SSL being on, Cloudflare adds `comodoca.com`, `digicert.com` and `ssl.com` itself, as `issue` and `issuewild`, so the zone answers ten records. The apex certificate is Google Trust Services' (Universal SSL), so its renewal is covered.
+  - `auth` isn't affected: CAA lookups follow its CNAME to `auth0-ingress.eu.auth0.com.cdn.cloudflare.net`, which has CAA records of its own (`letsencrypt.org`, `pki.goog`), so they never climb to the apex. Its certificate is Let's Encrypt's, which they allow.
+  - DMARC is now `v=DMARC1; p=quarantine; adkim=r; aspf=r;`: the same policy, with no aggregate reports. Cloudflare's free DMARC Management can be turned on later if the reports are wanted.
+  - DNSSEC is accepted as not possible for now. GoDaddy shows no DNSSEC or DS option for the domain while it uses Cloudflare's nameservers (nor on another of the owner's domains on GoDaddy's own), and at least one `.co.za` registrar supports DNSSEC only on its own nameservers. The zone was signed briefly, then signing was turned off so it can't sit pending, or break the domain if a DS record is added and signing later stops. The chain is broken before the attack anyway: `co.za` is signed, and without a DS record resolvers treat `toebeans.co.za` as unsigned. If the domain moves to a registrar that takes DS records, enable DNSSEC in Cloudflare and add the DS record there.
 
 ### 9.3 Worth checking (not verified)
 
@@ -436,13 +463,23 @@ No critical or high findings. Nothing found lets one household reach another's d
 
 SSL mode (Flexible, Full or Strict) doesn't apply. The Worker fetches `run.app` itself over https, with Cloudflare checking the certificate, and no proxied origin record exists for the apex.
 
+- **Status (25 Nov): confirmed by the owner in the dashboard (backlog S19.17).** `toe-beans-scanners` is the only custom rule, with no *Skip* action; no Page, Cache or Transform Rules exist; Bot Fight Mode is on.
+
 **C6. `send.toebeans.co.za` is a CNAME to `send.forge.rmta.net`.** Through it, that name's SPF (`ip4:52.3.252.119 ip4:44.222.39.36 ip4:199.249.231.0/24`) and MX belong to whoever runs `rmta.net`. Under DMARC's relaxed alignment (`aspf=r`), mail with an envelope sender at `send.toebeans.co.za` from those addresses passes DMARC as `@toebeans.co.za`. Fine if it's Resend's current setup, but nothing in the repo records it. Confirm it matches the records Resend's dashboard shows as verified for the domain, and delete it if not.
+
+- **Status (25 Nov): confirmed by the owner (backlog S19.17).** The `send` CNAME is one of the records Resend's dashboard shows as verified for `toebeans.co.za`: it's the envelope sender's domain Resend uses, so its SPF and bounce MX are Resend's to run. The accounts runbook now records it, so a later review doesn't have to ask again.
 
 **C7. Backups can be deleted with the nightly job's token.** The `toe-beans-backup` R2 token (Object Read & Write on `toe-beans-backups`) is a `backups` environment secret. With it, or a malicious change merged to `main` that runs in that environment, all dumps can be deleted. The bucket has no lock rule. Also check, in **R2 → Manage API tokens**, that the app's token (`S3_ACCESS_KEY_ID`) is limited to `toe-beans-photos`, so the app can't touch backups. Fix: an R2 bucket lock rule on the `mongo/` prefix with a 29-day retention, which keeps within the 30-day lifecycle that D36 and the privacy policy rely on.
 
+- **Status (25 Nov): fixed on prod (backlog S19.17).** The owner confirmed in **R2 → Manage API tokens** that the app's token is limited to `toe-beans-photos`, and added the lock rule `toe-beans-backup-lock`: prefix `mongo/`, objects kept 29 days. `wrangler r2 bucket lock list toe-beans-backups` reads it back, enabled, beside the 30-day lifecycle rules. Each dump has its own name (`mongo/<database>-<UTC time>…`), so the nightly job never overwrites a locked object. A stolen backup token, or a bad change on `main`, can now add dumps but can't delete the last 29 days of them. Photos under `photos/` aren't locked: the sync moves them as the source changes, and their source is the app's own bucket.
+
 **C8. Atlas is reachable from anywhere.** Network access is `0.0.0.0/0` (accounts.md, R3), because Cloud Run has no fixed egress address on the free tier. The database is then guarded by its two users' passwords and Atlas's mandatory TLS. Confirm that the app's user has `readWrite` on `toe-beans` only and the backup user `read` only (accounts.md says so), that no other database users exist, and that the owner's Atlas login uses two-factor authentication.
 
+- **Status (25 Nov): confirmed by the owner in Atlas (backlog S19.17).** `toe-beans-app` has `readWrite` on `toe-beans` only and `toe-beans-backup` `read` only, no other database users exist, and the owner's login uses two-factor authentication. Network access stays `0.0.0.0/0`, accepted in accounts.md R3.
+
 **C9. Not checked.** Repository webhooks and secret-scanning alerts (the token lacks `admin:repo_hook`; `gh auth refresh -s admin:repo_hook` and `gh api repos/vgebrev/toe-beans/hooks`). The Auth0 tenant's connections (C2), last checked live in §7.
+
+- **Status (25 Nov): confirmed (backlog S19.17).** With `admin:repo_hook` added to the owner's token, `gh api repos/vgebrev/toe-beans/hooks` returns `[]`: no webhooks. `…/secret-scanning/alerts` returns `[]` with secret scanning and push protection on, and `…/keys` returns `[]`: no deploy keys. In the prod tenant, the owner found only Google and the database connection enabled and configured on the *Toe Beans* application. Auth0 has no setting that makes sign-up wait for a verified email: the database connection sends the verification mail but lets an unverified user log in. The app is what refuses them: `finishSignIn` turns away any sign-in without `email_verified: true` (`packages/backend/src/application/auth/auth.ts:233`), before any account is found or linked, so C2 holds on that check and on the two connections that verify an address.
 
 ### 9.4 Areas that look solid
 
@@ -461,5 +498,5 @@ SSL mode (Flexible, Full or Strict) doesn't apply. The Worker fetches `run.app` 
 ### 9.5 Fix first
 
 1. **R1 and R4, the cost of a refused request.** Make refusals and `/readyz` cheap (debug-level log, a log exclusion, a memoised ping), and correct D45's bound. Then decide whether the origin should sit behind Google's IAM. *Done 25 Nov: behind Google's IAM, and its refusals aren't billed.*
-2. **R3, the shared Worker quota.** Add the free rate-limiting rule and move the other two sites off this account, so a cheap flood on any of them doesn't take Toe Beans down for a day. *Rule on 25 Nov; separating the quota declined for now.*
+2. **R3, the Worker quota.** Add the free rate-limiting rule, and keep a cheap flood from taking Toe Beans down for a day. *Rule on 25 Nov; the rest accepted for now.*
 3. **R2, Dependabot alerts.** One command, and D34's acceptance of the open advisories rests on it. *Done 25 Nov.*

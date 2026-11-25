@@ -15,12 +15,12 @@ service account keys anywhere: the deploy reaches GCP through Workload Identity 
 |---|---|---|---|---|---|
 | **Google Cloud** | Hosting, secrets, the tick's scheduler, the budget; the Google sign-in client | Project `toe-beans-co-za`: Cloud Run `toe-beans`, Artifact Registry `toe-beans`, Secret Manager, Cloud Scheduler `toe-beans-tick`, budget `toe-beans`; the spending cap (Cloud Run `toe-beans-cap`, Pub/Sub `toe-beans-budget`); service accounts `toe-beans-run`, `-tick`, `-deploy`, `-cap`, `-build`, `-edge` (the Worker, through the Workload Identity Federation pool `cloudflare`); left from S-1.4a's Firebase trial, unused: `firebase-adminsdk-fbsvc`, disabled with no roles, and the `fcm`, `firebaseinstallations` and `firebase` APIs (security audit R7); the OAuth client and consent screen for Auth0's Google connection | Pay as you go, inside the free tier; US$1 budget, which takes the app down when reached (`spending-cap.md`) | `africa-south1` (Scheduler `me-central1`) | `infra/gcp/README.md`, `infra/spending-cap/README.md` |
 | **MongoDB Atlas** | The database | An M0 cluster; database `toe-beans`; users `toe-beans-app` (`readWrite` on `toe-beans`) and `toe-beans-backup` (`read`); network access `0.0.0.0/0` (R3) | Free (M0) | AWS `af-south-1`, Cape Town | architecture §8.4 |
-| **Cloudflare** | DNS, the edge, photo and backup storage | Zone `toebeans.co.za`; Worker `toe-beans-edge`; R2 buckets `toe-beans-photos` and `toe-beans-backups`; R2 tokens (below); Email Routing forwards `privacy@toebeans.co.za` and `support@toebeans.co.za` to the owner's inbox | Free | R2 in Europe (location hint) | `infra/edge/README.md`, `infra/backup/README.md` |
-| **GoDaddy** | The domain's registration | `toebeans.co.za`, registered 31 Oct 2026 for two years; nameservers point at Cloudflare | Paid yearly | — | — |
+| **Cloudflare** | DNS, the edge, photo and backup storage | Zone `toebeans.co.za`; Worker `toe-beans-edge`; R2 buckets `toe-beans-photos` and `toe-beans-backups` (lock rule `toe-beans-backup-lock`: `mongo/` kept 29 days, security audit C7); R2 tokens (below); Email Routing forwards `privacy@toebeans.co.za` and `support@toebeans.co.za` to the owner's inbox; CAA records allow `letsencrypt.org` and `pki.goog` (Cloudflare adds its own CAs); DMARC sends no reports; DNSSEC off, as GoDaddy takes no DS record for the domain (security audit R11) | Free | R2 in Europe (location hint) | `infra/edge/README.md`, `infra/backup/README.md` |
+| **GoDaddy** | The domain's registration | `toebeans.co.za`, registered 31 Oct 2026 for two years; nameservers point at Cloudflare; no DNSSEC option for the domain (security audit R11) | Paid yearly | — | — |
 | **Auth0** | Sign-in | Tenants `toe-beans` (prod, custom domain `auth.toebeans.co.za`) and `toe-beans-dev`; applications *Toe Beans* and *Toe Beans account deletion* (machine-to-machine, `delete:users` only) in each; Google and database connections only | Free | EU | `auth0.md` |
-| **Resend** | Email: invitations from the app, Auth0's verification and password mails, and the owner's replies as `privacy@` and `support@toebeans.co.za`. Invitations go from `invites@` with replies to `support@` (`EMAIL_REPLY_TO`) | Domain `toebeans.co.za` (its DNS records in Cloudflare); three API keys (below) | Free | — | — |
+| **Resend** | Email: invitations from the app, Auth0's verification and password mails, and the owner's replies as `privacy@` and `support@toebeans.co.za`. Invitations go from `invites@` with replies to `support@` (`EMAIL_REPLY_TO`) | Domain `toebeans.co.za` (its DNS records in Cloudflare, among them `send`, a CNAME to `send.forge.rmta.net`: Resend's envelope sender, whose SPF and MX Resend runs, security audit C6); three API keys (below) | Free | — | — |
 | **Sentry** | Error reports | The owner's organization; project `toe-beans` | Developer (free) | EU (Frankfurt) | `sentry.md` |
-| **GitHub** | Code, CI, deploys, nightly backups | Public repo `vgebrev/toe-beans`; ruleset on `main`; environments `production` (main only, owner approval) and `backups` (main only); Dependabot | Free | — | `CLAUDE.md`, architecture §10 |
+| **GitHub** | Code, CI, deploys, nightly backups | Public repo `vgebrev/toe-beans`; ruleset on `main` (pull requests only, merge commits); environments `production` (main only, owner approval, no admin bypass) and `backups` (main only); Actions limited to pinned actions from GitHub, `docker`, `google-github-actions` and `pnpm`; Dependabot; CodeQL default setup | Free | — | `CLAUDE.md`, architecture §10 |
 | **Better Stack** | Uptime and heartbeats | Monitor `toe-beans`, heartbeats `toe-beans-tick` and `toe-beans-backup` | Free | — | `monitoring.md` |
 
 **Renewals:** the domain is the one thing that lapses by itself. Keep GoDaddy's auto-renew on and
@@ -58,7 +58,9 @@ quarterly review.
    spend, one mail a billing period; it never blocks anything.
 2. **R2's lifecycle rules.** `npx wrangler@4 r2 bucket lifecycle list toe-beans-backups` shows
    `mongo-30-days` and `replaced-photos-30-days` (and Cloudflare's own rule aborting multipart
-   uploads after 7 days).
+   uploads after 7 days). `npx wrangler@4 r2 bucket lock list toe-beans-backups` shows
+   `toe-beans-backup-lock`, which keeps each dump 29 days, so the lifecycle can still delete it
+   at 30.
 3. **GitHub's spending limit** at US$0 (done).
 4. **Thirteen secrets into one,** in this order, so prod and the backups keep running:
    1. **Before merging S19.6 to `main`:** `infra/gcp/provision.sh` (creates `app-secrets`), then
@@ -160,7 +162,9 @@ Each account above has two-factor authentication on and the owner as its only me
 service adds a person (a new caregiver helping run prod, say), add them here with their role.
 
 If a credential may have leaked, change it as above, then look at the service's own access log
-where it has one (Atlas, Cloudflare, GCP audit logs, Auth0 logs).
+where it has one (Atlas, Cloudflare, GCP audit logs, Auth0 logs). In GCP, each read of
+`app-secrets` is a Data Access entry (`AccessSecretVersion`, with the caller), kept 30 days; the
+query is in security audit R10.
 
 ## Reviews
 

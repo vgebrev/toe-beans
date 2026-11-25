@@ -82,6 +82,27 @@ exists gc secrets describe app-secrets ||
 gc secrets add-iam-policy-binding app-secrets --condition=None \
 	--member="serviceAccount:$(sa toe-beans-run)" --role=roles/secretmanager.secretAccessor >/dev/null
 
+say "Audit logs"
+# Reads of secret values are logged (security audit R10): Data Access logs for Secret Manager only,
+# DATA_READ alone, which records AccessSecretVersion (one per instance start, plus the owner's
+# app-secrets.sh) and leaves metadata reads out. gcloud sets audit configs only through the whole
+# policy; the etag it carries refuses the write if the policy changed in between. Only the
+# auditConfigs are touched, and only when the entry is missing.
+iam=$(gc projects get-iam-policy "$PROJECT" --format=json)
+if ! node -e 'const p = JSON.parse(require("fs").readFileSync(0, "utf8"));
+	process.exit((p.auditConfigs ?? []).some((c) => c.service === "secretmanager.googleapis.com" &&
+		c.auditLogConfigs?.some((l) => l.logType === "DATA_READ")) ? 0 : 1)' <<<"$iam"; then
+	audited=$(mktemp)
+	node -e 'const p = JSON.parse(require("fs").readFileSync(0, "utf8"));
+		p.auditConfigs ??= [];
+		let c = p.auditConfigs.find((c) => c.service === "secretmanager.googleapis.com");
+		if (!c) p.auditConfigs.push((c = { service: "secretmanager.googleapis.com" }));
+		(c.auditLogConfigs ??= []).push({ logType: "DATA_READ" });
+		process.stdout.write(JSON.stringify(p));' <<<"$iam" >"$audited"
+	gc projects set-iam-policy "$PROJECT" "$audited" >/dev/null
+	rm -f "$audited"
+fi
+
 say "Cloud Run service"
 # Only its invokers get in (§8.4, D45; security audit R1): the edge Worker as toe-beans-edge, and
 # the tick. Google turns anyone else away before the app sees the request, which is free. The app
@@ -188,6 +209,9 @@ echo "Log retention (_Default bucket, days): $(gc logging buckets describe _Defa
 echo "Project roles held by people:"
 gc projects get-iam-policy "$PROJECT" --flatten=bindings[].members \
 	--filter='bindings.members~^user:' --format='value(bindings.role,bindings.members)'
+echo "Audit log configs (Data Access):"
+gc projects get-iam-policy "$PROJECT" --flatten=auditConfigs[].auditLogConfigs[] \
+	--format='value(auditConfigs.service,auditConfigs.auditLogConfigs.logType)' | sed 's/^/  /'
 echo "app-secrets:"
 infra/gcp/app-secrets.sh keys | sed 's/^/  /'
 echo "Invokers of $SERVICE:"

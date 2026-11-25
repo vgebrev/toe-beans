@@ -10,9 +10,9 @@ export const CUES = 'cues';
 
 const CUE_SCHEMA = 1;
 
-type CueDoc = Stored<Cue>;
+export type CueDoc = Stored<Cue>;
 
-function toCue({ _id, schemaVersion: _, ...rest }: CueDoc): Cue {
+export function toCue({ _id, schemaVersion: _, ...rest }: CueDoc): Cue {
 	return { id: _id, ...rest };
 }
 

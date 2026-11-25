@@ -15,6 +15,7 @@ Run from the repo root (Node ≥ 24, pnpm 10):
 - `pnpm lint`: ESLint (including the layer rules) and Prettier check; `pnpm format` fixes formatting
 - `pnpm check`: type-check every package (`tsc`, and `svelte-check` for `apps/web`)
 - `pnpm test`: all Vitest unit tests. One file: `pnpm test packages/backend/src/domain/result.test.ts`; by name: `pnpm test -t 'narrows on ok'`
+- `pnpm seed:household [email]`: a household with two busy years of records (`packages/backend/test/big-household.ts`) in the dev database, owned by a new user with that email (an example.com one by default); signing in with the email links to it. Never against prod. It runs the TypeScript straight through Node (`packages/backend/scripts/ts-imports.mjs`)
 - `pnpm content:check`: the exercise library gate (architecture §3.8) on `content/exercises/`; also part of `pnpm test`. `content/README.md` is the authoring guide
 - `pnpm test:integration`: `*.integration.test.ts` against MongoDB in Docker (Testcontainers; needs Docker running)
 - `pnpm test:e2e`: Playwright (`apps/web/e2e`) against the production build on emulated Galaxy S23 FE and Redmi Note 12 Pro. Needs Mongo and the mock provider like `pnpm dev` (database `toe-beans-e2e`; it always signs in through the mock, whatever `.env` says) and Chromium (`pnpm --filter @toe-beans/web exec playwright install chromium`). One project: `pnpm test:e2e --project=galaxy-s23-fe` (keep the `=` when a file or `-g` follows)

@@ -7,7 +7,7 @@ it through `createBackend()` and the `http` handlers, and a Fastify app could la
 |---|---|---|
 | `domain/` | other domain files, `node:crypto` | entities, value objects, domain services |
 | `application/` | `domain` | use cases, ports (`Clock`, `Logger`, `ErrorReporter`, `Readiness`, repositories, `PushSender`, …) |
-| `infrastructure/` | `application`, `domain`, any driver | Mongo (`persistence/`: client, `UnitOfWork`, `HouseholdCollection`, migrations, readiness), `logging/` (pino, `scrubText`), `error-reporting/` (Sentry, and the relay for the browser's reports), `rate-limit/` (in-memory token buckets), the request context, `email/` (console, Mailpit, Resend, chosen by `EMAIL_SENDER`), `content/` (the exercise library's YAML files), `monitoring/` (the tick's heartbeat), R2, web-push, OIDC adapters |
+| `infrastructure/` | `application`, `domain`, any driver | Mongo (`persistence/`: client, `UnitOfWork`, `HouseholdCollection`, migrations, readiness), `logging/` (pino, `scrubText`), `error-reporting/` (Sentry, and the relay for the browser's reports), `rate-limit/` (in-memory token buckets), the request context, `email/` (console, Mailpit, Resend, chosen by `EMAIL_SENDER`), `content/` (the exercise library's YAML files), `monitoring/` (the tick's heartbeat), `archive/` (the export's ZIP, on fflate), R2, web-push, OIDC adapters |
 | `http/` | `application`, `domain`, `@toe-beans/contracts` | framework-neutral handlers: (ctx, input) → Result |
 | `worker/` | `application`, `domain` | the notification tick |
 | `testing/` | `application`, `domain` | test doubles for the ports (`manualClock`) and `householdIsolationSuite` |
@@ -15,6 +15,8 @@ it through `createBackend()` and the `http` handlers, and a Fastify app could la
 | `composition.ts` | everything | `createBackend(config, overrides?)`: builds the logger and error reporter, connects to Mongo and migrates |
 
 ESLint enforces the table (`eslint.config.js` at the repo root). See architecture §4.2.
+
+`test/big-household.ts` seeds a household with two busy years of records, for the export's integration test and `pnpm seed:household` (`scripts/seed-household.ts`).
 
 `test/` holds the integration-test harness: an Atlas Local container (Testcontainers) started once per
 run (`mongo-setup.ts`) and `useTestDatabase()`, which gives each test file its own database. Every

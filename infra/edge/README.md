@@ -184,10 +184,9 @@ OpenSSL won't offer the old versions itself, which tests nothing. Checked 25 Nov
 
 ## A rate limit before the Worker (security audit R3)
 
-The Workers Free plan gives the account 100,000 requests a day, shared with the other sites on
-it; past that, every request on all of them fails until midnight UTC. A rate-limiting rule (free
-plan: one rule, expressions on the path only, counted per IP over 10 seconds) blocks a fast flood
-from one address before the Worker runs. It doesn't stop a slow or spread-out one (architecture
+The Workers Free plan caps the account's requests a day; past that, every request fails until
+midnight UTC. A rate-limiting rule (free plan: one rule, expressions on the path only, counted per
+IP over 10 seconds) blocks a fast flood from one address before the Worker runs (architecture
 D13, R6).
 
 In the dashboard: **toebeans.co.za → Security → Security rules → Create rule → Rate limiting

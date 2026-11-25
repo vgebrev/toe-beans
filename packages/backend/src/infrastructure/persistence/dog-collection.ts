@@ -10,9 +10,9 @@ export const DOGS = 'dogs';
 
 const DOG_SCHEMA = 1;
 
-type DogDoc = Stored<Dog>;
+export type DogDoc = Stored<Dog>;
 
-function toDog({ _id, schemaVersion: _, ...rest }: DogDoc): Dog {
+export function toDog({ _id, schemaVersion: _, ...rest }: DogDoc): Dog {
 	return { id: _id, ...rest };
 }
 

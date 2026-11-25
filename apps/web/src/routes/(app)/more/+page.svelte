@@ -92,6 +92,35 @@
 		signOutForm?.submit();
 	}
 
+	/**
+	 * The household's export, for an owner (architecture D46). Fetched rather than linked, so a
+	 * refusal or a dropped connection shows here instead of as a broken download.
+	 */
+	let exporting = $state<'idle' | 'working' | 'saved' | 'limited' | 'offline' | 'failed'>('idle');
+	async function downloadCopy() {
+		exporting = 'working';
+		const result = await api.download('/household/export');
+		if (!result.ok) {
+			const status = problemStatus(result.error);
+			exporting =
+				status === 429 ? 'limited' : result.error.kind === 'network' ? 'offline' : 'failed';
+			return;
+		}
+		const url = URL.createObjectURL(result.data.blob);
+		const link = Object.assign(document.createElement('a'), {
+			href: url,
+			download: result.data.filename ?? 'toe-beans-export.zip'
+		});
+		link.click();
+		setTimeout(() => URL.revokeObjectURL(url), 60_000);
+		exporting = 'saved';
+	}
+	const whoCanExport = $derived.by(() => {
+		const owners = data.members?.filter((m) => m.role === 'owner').map((m) => m.displayName);
+		const named = owners?.length ? ` (${listFormat.format(owners)})` : '';
+		return `An owner of ${data.household.name}${named}`;
+	});
+
 	const listFormat = new Intl.ListFormat('en', { type: 'conjunction' });
 	const dogsLine = $derived.by(() => {
 		const names = data.dogs?.filter((d) => !d.archived).map((d) => d.name);
@@ -187,6 +216,56 @@
 			<InstallOffer
 				reason="Toe Beans isn't installed in this browser. Installed, it opens like an app, and reminders are more reliable."
 			/>
+		{/if}
+	</section>
+
+	<!-- FR-16, D46: owners download it; anyone else is told who can. -->
+	<section aria-labelledby="your-data" class="flex flex-col gap-3">
+		<h2 id="your-data" class="text-sm font-extrabold tracking-wide text-muted-foreground uppercase">
+			Your data
+		</h2>
+		{#if data.household.role === 'owner'}
+			<p>
+				Download a copy of everything {data.household.name} holds: its dogs and their photos, and all
+				its training, journal and care records, as a ZIP file.
+			</p>
+			{#if exporting === 'saved'}
+				<p role="status" class="flex items-center gap-3">
+					<Icon name="done" class="text-primary" />
+					Downloaded. It's in your downloads.
+				</p>
+			{:else if exporting === 'limited'}
+				<p role="alert" class="rounded-2xl border border-border bg-soft px-4 py-3 text-base">
+					You've downloaded a few copies in the last hour. Try again later.
+				</p>
+			{:else if exporting === 'offline'}
+				<p role="alert" class="rounded-2xl border border-border bg-soft px-4 py-3 text-base">
+					Couldn't download the copy — check your connection.
+				</p>
+			{:else if exporting === 'failed'}
+				<p role="alert" class="rounded-2xl border border-border bg-soft px-4 py-3 text-base">
+					Couldn't make the copy. Try again in a minute.
+				</p>
+			{/if}
+			<Button
+				variant="outline"
+				class="w-full"
+				disabled={exporting === 'working'}
+				onclick={downloadCopy}
+			>
+				{#if exporting === 'working'}
+					<Icon name="saving" class="animate-spin" />
+					Preparing your copy…
+				{:else}
+					<Icon name="download" />
+					Download a copy
+				{/if}
+			</Button>
+		{:else}
+			<p>
+				{whoCanExport} can download a copy of its data from here. You can also write to
+				<a href="mailto:privacy@toebeans.co.za" class="underline">privacy@toebeans.co.za</a>.
+			</p>
 		{/if}
 	</section>
 

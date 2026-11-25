@@ -16,10 +16,11 @@ export interface MailpitOptions {
 	fetch?: typeof globalThis.fetch;
 }
 
-/** `Name <address>` as Mailpit wants it. */
+/** `Name <address>` as Mailpit wants it. String slicing, not a regex, so no input backtracks. */
 function parseAddress(from: string): { Email: string; Name?: string } {
-	const match = /^(.*?)\s*<(.+)>$/.exec(from);
-	return match ? { Email: match[2]!, Name: match[1]! } : { Email: from };
+	const open = from.lastIndexOf('<');
+	const email = open < 0 || !from.endsWith('>') ? '' : from.slice(open + 1, -1);
+	return email ? { Email: email, Name: from.slice(0, open).trim() } : { Email: from };
 }
 
 export function mailpitEmailSender({

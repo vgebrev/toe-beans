@@ -8,6 +8,7 @@ import { createExercises } from '../application/exercises/exercises.js';
 import { createBehaviourEvents } from '../application/journal/behaviour-events.js';
 import { createCareTasks } from '../application/care/care-tasks.js';
 import { createHistory } from '../application/history/history.js';
+import { createHouseholdExport } from '../application/household/export.js';
 import { createHouseholds } from '../application/household/household.js';
 import { createInvitations } from '../application/household/invitations.js';
 import { createPlanner } from '../application/planner/planner.js';
@@ -28,6 +29,7 @@ import { createExercisesHttp, type ExercisesHttp } from './exercises.js';
 import { createHealthHttp, type HealthHttp } from './health.js';
 import { createHistoryHttp, type HistoryHttp } from './history.js';
 import { createHouseholdHttp, type HouseholdHttp } from './household.js';
+import { createHouseholdExportHttp, type HouseholdExportHttp } from './household-export.js';
 import { createPlannerHttp, type PlannerHttp } from './planner.js';
 import { createRemindersHttp, type RemindersHttp } from './reminders.js';
 import { createSessionLogsHttp, type SessionLogsHttp } from './session-logs.js';
@@ -43,6 +45,8 @@ export interface Http {
 	auth: AuthHttp;
 	account: AccountHttp;
 	household: HouseholdHttp;
+	/** The household's ZIP, for an owner (D46). */
+	householdExport: HouseholdExportHttp;
 	dogs: DogsHttp;
 	exercises: ExercisesHttp;
 	cues: CuesHttp;
@@ -104,6 +108,10 @@ export function createHttp(
 			createInvitations(ports, { publicOrigin }),
 			{ rateLimit: ports.inviteRateLimit, logger: ports.logger }
 		),
+		householdExport: createHouseholdExportHttp(createHouseholdExport(ports), {
+			rateLimit: ports.exportRateLimit,
+			logger: ports.logger
+		}),
 		dogs: createDogsHttp(createDogs(ports, planner)),
 		exercises: createExercisesHttp(createExercises(ports)),
 		cues: createCuesHttp(createCues(ports)),

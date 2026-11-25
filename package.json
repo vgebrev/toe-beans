@@ -1,7 +1,7 @@
 {
 	"name": "toe-beans",
 	"private": true,
-	"version": "1.1.2",
+	"version": "1.2.0",
 	"license": "MIT",
 	"type": "module",
 	"packageManager": "pnpm@10.30.0",
@@ -19,6 +19,7 @@
 		"test:e2e": "pnpm --filter @toe-beans/web test:e2e",
 		"release": "node tools/release/src/release.ts",
 		"vapid": "pnpm --silent --filter @toe-beans/web vapid",
+		"seed:household": "node --env-file-if-exists=.env --import ./packages/backend/scripts/ts-imports.mjs packages/backend/scripts/seed-household.ts",
 		"content:check": "vitest run packages/backend/src/infrastructure/content/library.test.ts",
 		"compose": "docker compose $([ -f .env ] && echo --env-file .env) -f docker/compose.yaml"
 	},

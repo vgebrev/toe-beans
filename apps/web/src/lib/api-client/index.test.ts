@@ -1,6 +1,12 @@
 import { z } from 'zod';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { ContractError, createApiClient, observeConnection, writeCount } from './index.js';
+import {
+	ContractError,
+	createApiClient,
+	dispositionFilename,
+	observeConnection,
+	writeCount
+} from './index.js';
 
 const Dog = z.object({ id: z.string(), name: z.string() });
 
@@ -172,5 +178,53 @@ describe('the connection', () => {
 		vi.stubGlobal('navigator', { onLine: false });
 		const fetchMock = respond(200, { id: 'd1', name: 'Ripley' });
 		expect((await createApiClient(fetchMock).get('/dogs/d1', Dog)).ok).toBe(true);
+	});
+});
+
+describe('downloads', () => {
+	it('gives the file and the name the server gave it', async () => {
+		const fetchMock = vi.fn<typeof globalThis.fetch>(
+			async () =>
+				new Response(new Uint8Array([80, 75]), {
+					headers: {
+						'content-type': 'application/zip',
+						'content-disposition': 'attachment; filename="toe-beans-export-2026-11-25.zip"'
+					}
+				})
+		);
+		const result = await createApiClient(fetchMock).download('/household/export');
+		expect(fetchMock).toHaveBeenCalledWith('/api/v1/household/export', expect.anything());
+		if (!result.ok) throw new Error('expected a download');
+		expect(result.data.filename).toBe('toe-beans-export-2026-11-25.zip');
+		expect([...new Uint8Array(await result.data.blob.arrayBuffer())]).toEqual([80, 75]);
+	});
+
+	it('returns a problem as one', async () => {
+		const problem = { type: 'toe-beans/rate-limited', title: 'Too many requests', status: 429 };
+		const fetchMock = respond(429, problem, { 'content-type': 'application/problem+json' });
+		expect(await createApiClient(fetchMock).download('/household/export')).toMatchObject({
+			ok: false,
+			error: { kind: 'problem', problem: { status: 429 } }
+		});
+	});
+
+	it('is a network error when the body breaks off part way', async () => {
+		const broken = new ReadableStream({
+			start(controller) {
+				controller.enqueue(new Uint8Array([1]));
+				controller.error(new Error('reset'));
+			}
+		});
+		const fetchMock = vi.fn<typeof globalThis.fetch>(async () => new Response(broken));
+		expect(await createApiClient(fetchMock).download('/household/export')).toEqual({
+			ok: false,
+			error: { kind: 'network' }
+		});
+	});
+
+	it('reads only a plain quoted filename', () => {
+		expect(dispositionFilename('attachment; filename="a.zip"')).toBe('a.zip');
+		expect(dispositionFilename('attachment')).toBeNull();
+		expect(dispositionFilename(null)).toBeNull();
 	});
 });

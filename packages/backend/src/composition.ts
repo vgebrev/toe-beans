@@ -50,6 +50,8 @@ import { migrate, migrations } from './infrastructure/persistence/migrations/ind
 import { connectMongo, mongoReadiness } from './infrastructure/persistence/mongo.js';
 import { mongoUnitOfWork } from './infrastructure/persistence/unit-of-work.js';
 import { noErrorRelay, sentryRelay } from './infrastructure/error-reporting/sentry-relay.js';
+import { fflateZip } from './infrastructure/archive/fflate-zip.js';
+import { mongoHouseholdRecords } from './infrastructure/persistence/household-records.js';
 import { memoryRateLimiter } from './infrastructure/rate-limit/memory-rate-limiter.js';
 import { withRequestContext, type RequestContext } from './infrastructure/request-context.js';
 import { systemClock } from './infrastructure/system-clock.js';
@@ -149,6 +151,10 @@ export async function createBackend(
 		households: overrides.households ?? mongoHouseholds(mongo.db),
 		householdData: overrides.householdData ?? mongoHouseholdData(mongo.db),
 		invitations: overrides.invitations ?? mongoInvitations(mongo.db, clock),
+		householdRecords: overrides.householdRecords ?? mongoHouseholdRecords(mongo.db),
+		zip: overrides.zip ?? fflateZip,
+		exportRateLimit:
+			overrides.exportRateLimit ?? memoryRateLimiter({ ...config.exportRateLimit, clock }),
 		email: overrides.email ?? createEmailSender(config.email),
 		inviteRateLimit:
 			overrides.inviteRateLimit ?? memoryRateLimiter({ ...config.inviteRateLimit, clock }),

@@ -30,6 +30,22 @@ describe('mailpitEmailSender', () => {
 		expect(JSON.parse(init.body as string).From).toEqual({ Email: 'a@b.example' });
 	});
 
+	it('takes the name and address apart, and keeps a malformed one whole', async () => {
+		const sent = async (from: string) => {
+			const fetch = vi.fn(async () => new Response('{}', { status: 200 }));
+			await mailpitEmailSender({ url, from, replyTo, fetch: fetch as never }).send(message);
+			const [, init] = fetch.mock.calls[0] as unknown as [URL, RequestInit];
+			return JSON.parse(init.body as string).From;
+		};
+		expect(await sent('  Toe   Beans   <a@b.example>')).toEqual({
+			Email: 'a@b.example',
+			Name: 'Toe   Beans'
+		});
+		expect(await sent('<a@b.example>')).toEqual({ Email: 'a@b.example', Name: '' });
+		expect(await sent('Toe Beans <>')).toEqual({ Email: 'Toe Beans <>' });
+		expect(await sent('Toe Beans <a@b.example')).toEqual({ Email: 'Toe Beans <a@b.example' });
+	});
+
 	it('reports a refusal, or Mailpit not running, as a result', async () => {
 		const refused = vi.fn(async () => new Response('nope', { status: 400 }));
 		expect(

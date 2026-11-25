@@ -60,7 +60,13 @@ npx wrangler@4 r2 bucket create toe-beans-backups --location <same hint, e.g. we
 npx wrangler@4 r2 bucket lifecycle add toe-beans-backups mongo-30-days mongo/ --expire-days 30 -y
 npx wrangler@4 r2 bucket lifecycle add toe-beans-backups replaced-photos-30-days photos/replaced/ --expire-days 30 -y
 npx wrangler@4 r2 bucket lifecycle list toe-beans-backups
+npx wrangler@4 r2 bucket lock add toe-beans-backups toe-beans-backup-lock mongo/ --retention-days 29 -y
+npx wrangler@4 r2 bucket lock list toe-beans-backups
 ```
+
+The lock rule (security audit C7) means no one, the backup token included, can delete a dump in
+its first 29 days. Keep it shorter than the 30-day lifecycle, or the lifecycle can't delete the
+dumps when the privacy policy says they're gone.
 
 Two R2 API tokens (dashboard: R2 → Manage API tokens → Create Account API token). Each shows an
 access key ID and a secret access key once.
