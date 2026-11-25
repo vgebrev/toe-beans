@@ -520,6 +520,17 @@ test('the manifest offers Log training and Record event on a long press of the i
 	}
 });
 
+test('the installed app opens on Today, not on the landing page at a bare / (D44)', async ({
+	page,
+	baseURL
+}) => {
+	await ownHousehold(page, baseURL!);
+	const manifest = await (await page.request.get('/manifest.webmanifest')).json();
+	expect(manifest.start_url).toBe('/?source=pwa');
+	await page.goto(manifest.start_url);
+	await expect(page.getByRole('heading', { level: 1, name: 'Today' })).toBeVisible();
+});
+
 test('off prod the app installs as Toe Beans (Test), with the TEST icons (S17.6)', async ({
 	page,
 	request

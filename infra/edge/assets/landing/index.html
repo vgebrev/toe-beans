@@ -1,0 +1,403 @@
+<!doctype html>
+<!--
+	Toe Beans' landing page (backlog S21, ui.md §4.9, architecture D44). The edge Worker serves it
+	at / to anyone without the app's session cookie, so a visitor never wakes Cloud Run. Static, no
+	scripts, styles in landing.css, the fonts from /edge-fonts/, and the app's pictures taken from
+	the app itself (pnpm landing:shots). worker.test.js checks the mark and the outcome icons match
+	the app's.
+-->
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<meta name="color-scheme" content="light dark" />
+		<meta name="theme-color" content="#FFFBF5" media="(prefers-color-scheme: light)" />
+		<meta name="theme-color" content="#141110" media="(prefers-color-scheme: dark)" />
+		<title>Toe Beans: puppy training and care, shared</title>
+		<meta
+			name="description"
+			content="Plan short, reward-based practice, log how it went and keep care on track, together with everyone who looks after your puppy. Free, private and made in South Africa."
+		/>
+		<link rel="canonical" href="https://toebeans.co.za/" />
+		<link rel="icon" href="/landing/favicon.svg" type="image/svg+xml" />
+		<link
+			rel="preload"
+			href="/edge-fonts/fredoka-latin.woff2"
+			as="font"
+			type="font/woff2"
+			crossorigin
+		/>
+		<link
+			rel="preload"
+			href="/edge-fonts/nunito-latin.woff2"
+			as="font"
+			type="font/woff2"
+			crossorigin
+		/>
+		<link rel="stylesheet" href="/landing/landing.css" />
+	</head>
+	<body>
+		<header class="bar wrap">
+			<a class="brand" href="/" aria-label="Toe Beans, home">
+				<svg class="mark" viewBox="0 0 94.4 100" aria-hidden="true">
+					<path
+						fill="currentColor"
+						fill-rule="evenodd"
+						d="M51.8 28.5C48.9 28.6 45.8 29 42.2 29.7C41.1 29.9 39.8 30.2 38.8 30.3C38.5 30.4 37.7 30.5 37.1 30.7C32.7 31.5 28.4 32 22.2 32.5C21.7 32.5 21 32.6 20.6 32.6C20.2 32.6 19.2 32.7 18.4 32.8C13.6 33.2 10.9 33.8 8.4 35C-1.7 40.1 -3.1 53.7 6.4 55C8.6 55.3 9.8 55 12.8 53.3C16.3 51.4 21.3 50 21.5 50.8C21.6 51 21.3 52.9 20.9 54.9C20.8 55.3 20.6 56.1 20.5 56.7C20.4 57.4 20.2 58.3 20.1 58.9C20 59.4 19.8 60.3 19.7 60.9C19.6 61.4 19.4 62.3 19.3 63C18.8 65.3 18.5 66.7 18.4 67.7C18.3 68.3 18.1 69 18.1 69.2C17.8 70.2 17.5 72.1 16.7 76.2C15.6 81.9 16.2 86.2 18.6 90.1C20.5 93.3 24.1 95.8 27.7 96.5C29.8 97 30.3 96.5 30.5 93.5C30.6 92.4 30.9 90.8 31.3 88.3C31.5 87.4 31.6 86.4 31.7 86.1C31.7 85.8 31.8 85.5 31.8 85.3C31.8 85.2 31.9 84.8 32 84.4C32.1 83.7 32.2 82.9 32.6 81C33 78.7 33.1 78.4 33.1 78.1C33.2 77.5 33.5 76.1 33.6 75.3C33.7 74.9 33.8 74.1 33.9 73.5C34.1 72.4 34.3 71.2 34.7 69.6C34.7 69 34.9 68.2 35 67.6C35.3 66.1 35.7 63.9 36.2 61.1C36.4 60.2 36.6 58.9 36.7 58.2C37.8 52.2 38.1 51 39.3 49.5C41.6 46.3 49.2 43.8 58.6 43.2C63.2 42.9 66.1 45.1 65.3 48.3C64.6 51.1 62.7 52 56.2 52.5C48.9 53.1 46.2 53.5 44.9 54.2C43 55.3 42.4 56.8 41.4 62.4C41.3 62.7 41.2 63.2 41.2 63.4C41.1 63.6 41 64.4 40.8 65.1C40.7 65.8 40.5 67.1 40.3 67.9C40.1 68.8 39.9 70 39.8 70.6C39.6 71.2 39.5 72.1 39.4 72.5C39.3 73 39.1 73.8 39 74.3C38.9 74.9 38.7 75.8 38.6 76.4C37.5 81.8 37.2 83.2 37 84.3C36.9 85 36.8 85.9 36.7 86.3C35.5 93 35.9 95.1 38.5 96.8C39.9 97.7 44.1 98.7 48.6 99.1C52.2 99.5 53 99.6 53.7 99.6C54.8 99.7 56.7 99.9 56.8 99.9C57.2 100 68.7 100 69.1 99.9C69.3 99.9 70.2 99.7 71 99.6C74 99.3 75.1 99.1 76.9 98.6C88 95.9 94.9 86.1 93.6 74.8C92.9 68.4 88.4 62.1 82.3 59.1C79.6 57.8 77.5 57.2 74.6 56.8C73.5 56.6 73.5 56.5 74.4 55.5C80.3 49.4 79.4 39.4 72.4 33.8C67.8 30.2 59.9 28.1 51.8 28.5M59.1 64.2C53.2 64.7 48.9 70.3 47.6 79.2C47.4 80.7 47.3 80.8 47.3 82C47.3 87 50.2 89 58.4 89.8C59.5 89.9 64.1 89.9 65.1 89.8C73.1 89 77.7 86.7 80 82.4C83.6 75.6 78.8 68.6 70.8 68.8C69.5 68.8 69.6 68.8 69 68C67.1 65.2 63.3 63.8 59.1 64.2"
+					></path>
+					<g fill="#C98A4B">
+						<path
+							d="M59.9 68.4C55.5 68.9 52.9 72.4 51.8 79.4C51.2 83.3 52.1 84.8 55.4 85.6C59.3 86.5 63.3 86.6 68.2 85.7C73.7 84.8 77 81.9 77 78.1C77 73.8 72.9 71.4 67.9 72.8C67 73 66.8 72.9 66.3 72C64.9 69.4 62.6 68.1 59.9 68.4"
+						></path>
+						<ellipse
+							cx="33.8"
+							cy="18.6"
+							rx="9.6"
+							ry="8.4"
+							transform="rotate(61.8 33.8 18.6)"
+						></ellipse>
+						<ellipse
+							cx="54.2"
+							cy="11"
+							rx="11.2"
+							ry="8.6"
+							transform="rotate(-81.7 54.2 11)"
+						></ellipse>
+						<ellipse
+							cx="73.4"
+							cy="17.5"
+							rx="10.1"
+							ry="7.9"
+							transform="rotate(-56.5 73.4 17.5)"
+						></ellipse>
+						<ellipse
+							cx="86.2"
+							cy="30.5"
+							rx="9.2"
+							ry="7.3"
+							transform="rotate(-51.2 86.2 30.5)"
+						></ellipse>
+					</g>
+				</svg>
+				<span class="wordmark" aria-hidden="true">Toe Beans</span>
+			</a>
+			<nav aria-label="Main">
+				<a class="nav-link" href="#how">How it works</a>
+				<a class="nav-link" href="#household">For your household</a>
+				<a class="button soft small" href="/auth/sign-in">Sign in</a>
+			</nav>
+		</header>
+
+		<main>
+			<section class="hero wrap">
+				<div class="hero-text">
+					<p class="pill">Puppy training and care, shared</p>
+					<h1>Raise your puppy together.</h1>
+					<p class="lead">
+						Toe Beans keeps everyone who looks after your puppy on the same page: what to practise
+						today, how it's going, and what to work on next.
+					</p>
+					<div class="actions">
+						<a class="button" href="/auth/sign-in">Get started, it's free</a>
+						<a class="button soft" href="/auth/sign-in">I already have an account</a>
+					</div>
+					<p class="note">
+						Made for Chrome on Android. Add it to your home screen and it opens like an app.
+					</p>
+				</div>
+				<div class="hero-phone">
+					<svg class="beans" viewBox="0 0 520 680" aria-hidden="true">
+						<ellipse cx="70" cy="150" rx="46" ry="38" transform="rotate(62 70 150)" />
+						<ellipse cx="200" cy="40" rx="52" ry="40" transform="rotate(-82 200 40)" />
+						<ellipse cx="420" cy="90" rx="46" ry="36" transform="rotate(-56 420 90)" />
+						<ellipse cx="480" cy="520" rx="50" ry="40" transform="rotate(-51 480 520)" />
+					</svg>
+					<div class="phone">
+						<picture>
+							<source srcset="/landing/today-dark.webp" media="(prefers-color-scheme: dark)" />
+							<img
+								src="/landing/today-light.webp"
+								width="786"
+								height="1660"
+								alt="Toe Beans' Today screen for Ripley: two sessions planned, two done, and deworming coming up"
+							/>
+						</picture>
+					</div>
+				</div>
+			</section>
+
+			<section id="how" class="band">
+				<div class="wrap stack">
+					<div class="intro">
+						<h2>Three questions, answered every day</h2>
+						<p>
+							Short, regular practice is what helps a puppy learn. Toe Beans makes it easy to keep
+							it going, whoever's at home.
+						</p>
+					</div>
+					<div class="cards">
+						<article class="card">
+							<span class="tile" aria-hidden="true">
+								<svg class="icon" viewBox="0 0 24 24">
+									<rect x="3.5" y="5" width="17" height="15.5" rx="3"></rect>
+									<path d="M3.5 10h17M8 3v4M16 3v4"></path>
+								</svg>
+							</span>
+							<h3>What should we do today?</h3>
+							<p>
+								Plan a few short sessions for the week. Today shows what's planned, what's overdue
+								and what's done, for each dog.
+							</p>
+						</article>
+						<article class="card">
+							<span class="tile" aria-hidden="true">
+								<svg class="icon" viewBox="0 0 24 24">
+									<path d="M4 19h16"></path>
+									<path d="M7 15v-3M12 15V8M17 15v-6"></path>
+								</svg>
+							</span>
+							<h3>How is our puppy progressing?</h3>
+							<p>
+								Log a practice in seconds. History puts training, events like a barking fit or a
+								visitor, and care in one timeline.
+							</p>
+						</article>
+						<article class="card">
+							<span class="tile" aria-hidden="true">
+								<svg class="icon" viewBox="0 0 24 24">
+									<path
+										d="M12 6.5C10 5 7 4.5 4 5v13c3-.5 6 0 8 1.5 2-1.5 5-2 8-1.5V5c-3-.5-6 0-8 1.5z"
+									></path>
+									<path d="M12 6.5V19"></path>
+								</svg>
+							</span>
+							<h3>What should we work on next?</h3>
+							<p>
+								A library of reward-based exercises, each in small steps, with what to look for and
+								when to ask a vet or trainer.
+							</p>
+						</article>
+					</div>
+				</div>
+			</section>
+
+			<section class="practice wrap">
+				<div class="stack">
+					<h2>Practice isn't a test</h2>
+					<p class="lead">
+						Logging a session never means claiming it went well. Say how it went only if you want
+						to, and "not yet" is just part of learning, never a failure.
+					</p>
+					<ul class="badges" aria-label="How a practice can go">
+						<li class="badge successful">
+							<svg viewBox="0 0 24 24" width="16" height="16" fill="none" aria-hidden="true">
+								<path
+									d="M22 12C22 6.47715 17.5228 2 12 2C6.47715 2 2 6.47715 2 12C2 17.5228 6.47715 22 12 22C17.5228 22 22 17.5228 22 12Z"
+									stroke="currentColor"
+									stroke-width="1.5"
+								></path>
+								<path
+									d="M8 12.5L10.5 15L16 9"
+									stroke="currentColor"
+									stroke-linecap="round"
+									stroke-linejoin="round"
+									stroke-width="1.5"
+								></path></svg
+							>Successful
+						</li>
+						<li class="badge partial">
+							<svg viewBox="0 0 24 24" width="16" height="16" fill="none" aria-hidden="true">
+								<circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="1.5"></circle>
+								<path
+									d="M19.5 12C19.5 11.0151 19.306 10.0398 18.9291 9.12987C18.5522 8.21993 17.9997 7.39314 17.3033 6.6967C16.6069 6.00026 15.7801 5.44781 14.8701 5.0709C13.9602 4.69399 12.9849 4.5 12 4.5L12 12H19.5Z"
+									fill="currentColor"
+								></path></svg
+							>Partially successful
+						</li>
+						<li class="badge not-yet">
+							<svg viewBox="0 0 24 24" width="16" height="16" fill="none" aria-hidden="true">
+								<path
+									d="M4 3H20"
+									stroke="currentColor"
+									stroke-linecap="round"
+									stroke-linejoin="round"
+									stroke-width="1.5"
+								></path>
+								<path
+									d="M5.5 3V5.03039C5.5 6.27227 6.07682 7.4437 7.06116 8.20089L12 12L16.9388 8.20089C17.9232 7.44371 18.5 6.27227 18.5 5.03039V3"
+									stroke="currentColor"
+									stroke-linecap="round"
+									stroke-linejoin="round"
+									stroke-width="1.5"
+								></path>
+								<path
+									d="M5.5 21V18.9696C5.5 17.7277 6.07682 16.5563 7.06116 15.7991L12 12L16.9388 15.7991C17.9232 16.5563 18.5 17.7277 18.5 18.9696V21"
+									stroke="currentColor"
+									stroke-linecap="round"
+									stroke-linejoin="round"
+									stroke-width="1.5"
+								></path>
+								<path
+									d="M4 21H20"
+									stroke="currentColor"
+									stroke-linecap="round"
+									stroke-linejoin="round"
+									stroke-width="1.5"
+								></path></svg
+							>Not yet successful
+						</li>
+						<li class="badge not-assessed">
+							<svg viewBox="0 0 24 24" width="16" height="16" fill="none" aria-hidden="true">
+								<circle
+									cx="12"
+									cy="12"
+									r="10"
+									stroke="currentColor"
+									stroke-linejoin="round"
+									stroke-width="1.5"
+								></circle></svg
+							>Not assessed
+						</li>
+					</ul>
+				</div>
+				<div class="sheet">
+					<picture>
+						<source srcset="/landing/log-dark.webp" media="(prefers-color-scheme: dark)" />
+						<img
+							src="/landing/log-light.webp"
+							width="786"
+							height="894"
+							loading="lazy"
+							alt="The Log practice sheet, with Not assessed chosen until you say otherwise"
+						/>
+					</picture>
+				</div>
+			</section>
+
+			<section id="household" class="household wrap">
+				<h2>Made for the whole household</h2>
+				<ul class="features">
+					<li>
+						<svg class="icon big" viewBox="0 0 24 24" aria-hidden="true">
+							<circle cx="9" cy="8" r="3.5"></circle>
+							<path d="M2.5 20c0-3.6 2.9-6 6.5-6s6.5 2.4 6.5 6"></path>
+							<path d="M15.5 4.6a3.5 3.5 0 0 1 0 6.8"></path>
+							<path d="M18 14.3c2.1.7 3.5 2.8 3.5 5.7"></path>
+						</svg>
+						<div>
+							<h3>Everyone on the same page</h3>
+							<p>
+								Invite your household by email or a link. Everyone sees the same plan, and every dog
+								keeps its own history.
+							</p>
+						</div>
+					</li>
+					<li>
+						<svg class="icon big" viewBox="0 0 24 24" aria-hidden="true">
+							<path d="M6 16v-5a6 6 0 0 1 12 0v5l1.5 2h-15z"></path>
+							<path d="M10 21h4"></path>
+						</svg>
+						<div>
+							<h3>Reminders that arrive</h3>
+							<p>
+								Practice, vaccinations, deworming and vet visits remind you on your phone, even with
+								the app closed.
+							</p>
+						</div>
+					</li>
+					<li>
+						<svg class="icon big" viewBox="0 0 24 24" aria-hidden="true">
+							<path
+								d="M12 20s-7.5-4.4-7.5-10A4.5 4.5 0 0 1 12 7.2 4.5 4.5 0 0 1 19.5 10c0 5.6-7.5 10-7.5 10z"
+							></path>
+						</svg>
+						<div>
+							<h3>Kind, reward-based training</h3>
+							<p>Gradual steps and plenty of treats. No punishment, ever.</p>
+						</div>
+					</li>
+					<li>
+						<svg class="icon big" viewBox="0 0 24 24" aria-hidden="true">
+							<rect x="5" y="10.5" width="14" height="10" rx="2.5"></rect>
+							<path d="M8 10.5V8a4 4 0 0 1 8 0v2.5"></path>
+						</svg>
+						<div>
+							<h3>Private and free</h3>
+							<p>
+								No ads, no tracking, no analytics. Your household's records are yours, and you can
+								download them whenever you like.
+							</p>
+						</div>
+					</li>
+				</ul>
+			</section>
+
+			<section class="wrap closing-wrap">
+				<div class="closing">
+					<svg class="mark" viewBox="0 0 94.4 100" aria-hidden="true">
+						<path
+							fill="currentColor"
+							fill-rule="evenodd"
+							d="M51.8 28.5C48.9 28.6 45.8 29 42.2 29.7C41.1 29.9 39.8 30.2 38.8 30.3C38.5 30.4 37.7 30.5 37.1 30.7C32.7 31.5 28.4 32 22.2 32.5C21.7 32.5 21 32.6 20.6 32.6C20.2 32.6 19.2 32.7 18.4 32.8C13.6 33.2 10.9 33.8 8.4 35C-1.7 40.1 -3.1 53.7 6.4 55C8.6 55.3 9.8 55 12.8 53.3C16.3 51.4 21.3 50 21.5 50.8C21.6 51 21.3 52.9 20.9 54.9C20.8 55.3 20.6 56.1 20.5 56.7C20.4 57.4 20.2 58.3 20.1 58.9C20 59.4 19.8 60.3 19.7 60.9C19.6 61.4 19.4 62.3 19.3 63C18.8 65.3 18.5 66.7 18.4 67.7C18.3 68.3 18.1 69 18.1 69.2C17.8 70.2 17.5 72.1 16.7 76.2C15.6 81.9 16.2 86.2 18.6 90.1C20.5 93.3 24.1 95.8 27.7 96.5C29.8 97 30.3 96.5 30.5 93.5C30.6 92.4 30.9 90.8 31.3 88.3C31.5 87.4 31.6 86.4 31.7 86.1C31.7 85.8 31.8 85.5 31.8 85.3C31.8 85.2 31.9 84.8 32 84.4C32.1 83.7 32.2 82.9 32.6 81C33 78.7 33.1 78.4 33.1 78.1C33.2 77.5 33.5 76.1 33.6 75.3C33.7 74.9 33.8 74.1 33.9 73.5C34.1 72.4 34.3 71.2 34.7 69.6C34.7 69 34.9 68.2 35 67.6C35.3 66.1 35.7 63.9 36.2 61.1C36.4 60.2 36.6 58.9 36.7 58.2C37.8 52.2 38.1 51 39.3 49.5C41.6 46.3 49.2 43.8 58.6 43.2C63.2 42.9 66.1 45.1 65.3 48.3C64.6 51.1 62.7 52 56.2 52.5C48.9 53.1 46.2 53.5 44.9 54.2C43 55.3 42.4 56.8 41.4 62.4C41.3 62.7 41.2 63.2 41.2 63.4C41.1 63.6 41 64.4 40.8 65.1C40.7 65.8 40.5 67.1 40.3 67.9C40.1 68.8 39.9 70 39.8 70.6C39.6 71.2 39.5 72.1 39.4 72.5C39.3 73 39.1 73.8 39 74.3C38.9 74.9 38.7 75.8 38.6 76.4C37.5 81.8 37.2 83.2 37 84.3C36.9 85 36.8 85.9 36.7 86.3C35.5 93 35.9 95.1 38.5 96.8C39.9 97.7 44.1 98.7 48.6 99.1C52.2 99.5 53 99.6 53.7 99.6C54.8 99.7 56.7 99.9 56.8 99.9C57.2 100 68.7 100 69.1 99.9C69.3 99.9 70.2 99.7 71 99.6C74 99.3 75.1 99.1 76.9 98.6C88 95.9 94.9 86.1 93.6 74.8C92.9 68.4 88.4 62.1 82.3 59.1C79.6 57.8 77.5 57.2 74.6 56.8C73.5 56.6 73.5 56.5 74.4 55.5C80.3 49.4 79.4 39.4 72.4 33.8C67.8 30.2 59.9 28.1 51.8 28.5M59.1 64.2C53.2 64.7 48.9 70.3 47.6 79.2C47.4 80.7 47.3 80.8 47.3 82C47.3 87 50.2 89 58.4 89.8C59.5 89.9 64.1 89.9 65.1 89.8C73.1 89 77.7 86.7 80 82.4C83.6 75.6 78.8 68.6 70.8 68.8C69.5 68.8 69.6 68.8 69 68C67.1 65.2 63.3 63.8 59.1 64.2"
+						></path>
+						<g fill="#C98A4B">
+							<path
+								d="M59.9 68.4C55.5 68.9 52.9 72.4 51.8 79.4C51.2 83.3 52.1 84.8 55.4 85.6C59.3 86.5 63.3 86.6 68.2 85.7C73.7 84.8 77 81.9 77 78.1C77 73.8 72.9 71.4 67.9 72.8C67 73 66.8 72.9 66.3 72C64.9 69.4 62.6 68.1 59.9 68.4"
+							></path>
+							<ellipse
+								cx="33.8"
+								cy="18.6"
+								rx="9.6"
+								ry="8.4"
+								transform="rotate(61.8 33.8 18.6)"
+							></ellipse>
+							<ellipse
+								cx="54.2"
+								cy="11"
+								rx="11.2"
+								ry="8.6"
+								transform="rotate(-81.7 54.2 11)"
+							></ellipse>
+							<ellipse
+								cx="73.4"
+								cy="17.5"
+								rx="10.1"
+								ry="7.9"
+								transform="rotate(-56.5 73.4 17.5)"
+							></ellipse>
+							<ellipse
+								cx="86.2"
+								cy="30.5"
+								rx="9.2"
+								ry="7.3"
+								transform="rotate(-51.2 86.2 30.5)"
+							></ellipse>
+						</g>
+					</svg>
+					<div class="closing-text">
+						<h2>Ready when your puppy is</h2>
+						<p>Add your puppy, invite your household and plan your first week in a few minutes.</p>
+					</div>
+					<a class="button" href="/auth/sign-in">Get started, it's free</a>
+				</div>
+			</section>
+		</main>
+
+		<footer class="foot">
+			<div class="wrap foot-inner">
+				<div>
+					<p>
+						Toe Beans helps you practise; it isn't a substitute for a vet or a qualified
+						behaviourist.
+					</p>
+					<p>Made in South Africa.</p>
+				</div>
+				<nav aria-label="Footer">
+					<a href="/terms">Terms</a>
+					<a href="/privacy">Privacy</a>
+					<a href="/auth/sign-in">Sign in</a>
+				</nav>
+			</div>
+		</footer>
+	</body>
+</html>

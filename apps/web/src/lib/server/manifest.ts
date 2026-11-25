@@ -22,7 +22,10 @@ export function webManifest(appEnv: AppEnv) {
 		name,
 		short_name: name,
 		description: 'Puppy training and care for the whole household.',
-		start_url: '/',
+		// Off / itself, which the edge gives to visitors without a session as the landing page
+		// (architecture D44): the installed app always opens on the app. The id stays '/', so it's
+		// still the same installed app.
+		start_url: '/?source=pwa',
 		scope: '/',
 		display: 'standalone',
 		launch_handler: { client_mode: ['navigate-existing', 'auto'] },

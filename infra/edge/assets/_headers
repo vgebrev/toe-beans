@@ -3,3 +3,14 @@
 /edge-fonts/*
   Cache-Control: public, max-age=86400
   X-Content-Type-Options: nosniff
+
+# The landing page's files (S21): its pictures are re-taken under the same names, so a day too.
+/landing/*
+  Cache-Control: public, max-age=86400
+  X-Content-Type-Options: nosniff
+
+# The page itself belongs at /, where the Worker serves it with its own headers; here it stays out
+# of search results.
+/landing/
+  X-Robots-Tag: noindex
+  Content-Security-Policy: default-src 'none'; style-src 'self'; font-src 'self'; img-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'

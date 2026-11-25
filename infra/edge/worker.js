@@ -25,6 +25,13 @@
 // was from the internal-only ingress the cap first used.) Only /_app/ files can 404 without the
 // app's header (adapter-node answers those), so they're left as they are. A 401 is different:
 // Google didn't accept the token, which is a fault here, not the cap, so it gets a 502.
+// The landing page (architecture D44, backlog S21): a GET of / without the app's session cookie
+// gets the static page in assets/landing/ instead of the app, before a token is minted or Cloud
+// Run is asked, so a visitor never wakes it and the first impression has no cold start. The cookie
+// is only looked for by name, never checked: a stale one reaches the app, which clears it and
+// sends the person to sign-in, which links back here. / with a query (the installed app's
+// start_url, its shortcuts) always goes to the app.
+//
 // The maintenance page can't load anything from the app, which refuses everything while closed.
 // The mark is bundled in from the app's own geometry, and the fonts are the Worker's static assets
 // (assets/edge-fonts, served by Cloudflare before this runs; worker.test.js keeps them the app's).
@@ -43,6 +50,25 @@ const REQUEST_ID = 'x-request-id';
 // The app's service worker shows a 503 as it is when it has this, rather than its own *Can't reach
 // Toe Beans* (apps/web/src/lib/offline/caching.ts, MAINTENANCE_HEADER).
 const MAINTENANCE = 'x-toe-beans-maintenance';
+
+/** The app's session cookie (packages/backend/src/http/auth.ts, cookieSettings). */
+const SESSION_COOKIE = '__Host-tb_session';
+const LANDING = '/landing/';
+/**
+ * The landing page's headers, the app's own set (packages/backend/src/http/edge.ts) with a CSP for
+ * a page with no scripts. Private and revalidated, as the same address serves the app once signed
+ * in; HSTS comes from Cloudflare's zone (D32).
+ */
+const LANDING_HEADERS = {
+	'cache-control': 'private, no-cache',
+	vary: 'Cookie',
+	'content-security-policy':
+		"default-src 'none'; style-src 'self'; font-src 'self'; img-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
+	'referrer-policy': 'same-origin',
+	'x-content-type-options': 'nosniff',
+	'permissions-policy': 'camera=(), microphone=(), geolocation=(), payment=(), usb=(), serial=()',
+	'cross-origin-opener-policy': 'same-origin'
+};
 
 /** Who the Worker is to Google (infra/gcp/provision.sh, edge-key.mjs). None of it is secret. */
 export const IDENTITY = {
@@ -129,6 +155,31 @@ const page = `<!doctype html>
 </body>
 </html>`;
 
+/** A plain load of / by someone who isn't signed in on this browser. */
+function wantsLanding(/** @type {Request} */ request, /** @type {URL} */ url) {
+	if (url.pathname !== '/' || url.search !== '') return false;
+	if (request.method !== 'GET' && request.method !== 'HEAD') return false;
+	const cookies = (request.headers.get('cookie') ?? '').split(';');
+	return !cookies.some((cookie) => cookie.trim().startsWith(`${SESSION_COOKIE}=`));
+}
+
+/** The landing page from the Worker's static files, with its own headers only. */
+async function landing(
+	/** @type {Request} */ request,
+	/** @type {URL} */ url,
+	/** @type {{ fetch: (r: Request) => Promise<Response> }} */ assets
+) {
+	const page = await assets.fetch(
+		new Request(new URL(LANDING, url), { method: request.method, headers: request.headers })
+	);
+	const headers = new Headers(LANDING_HEADERS);
+	for (const name of ['content-type', 'content-length', 'etag', 'last-modified']) {
+		const value = page.headers.get(name);
+		if (value) headers.set(name, value);
+	}
+	return new Response(page.body, { status: page.status, headers });
+}
+
 /** The Worker couldn't get a token, or Google didn't take it: the app's own *Can't reach*. */
 const unreachable = () =>
 	new Response("Toe Beans can't reach its server\n", {
@@ -153,12 +204,13 @@ function maintenance(/** @type {Request} */ request) {
 }
 
 export default {
-	/** @param {Request} request @param {{ PROXY_SECRET: string, EDGE_KEY: string }} env */
+	/** @param {Request} request @param {{ PROXY_SECRET: string, EDGE_KEY: string, ASSETS: { fetch: (r: Request) => Promise<Response> } }} env */
 	async fetch(request, env) {
 		const url = new URL(request.url);
 		if (url.hostname !== APEX) {
 			return Response.redirect(`https://${APEX}${url.pathname}${url.search}`, 301);
 		}
+		if (wantsLanding(request, url)) return landing(request, url, env.ASSETS);
 		if (!env.PROXY_SECRET || !env.EDGE_KEY) return new Response('Not configured', { status: 500 });
 
 		const source = tokenSource(env.EDGE_KEY);

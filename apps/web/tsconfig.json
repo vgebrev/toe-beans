@@ -5,6 +5,13 @@
 		"noUncheckedIndexedAccess": true,
 		"noImplicitOverride": true
 	},
-	"include": ["src", "e2e", "vite.config.ts", "vitest.config.ts", "playwright.config.ts"],
+	"include": [
+		"src",
+		"e2e",
+		"vite.config.ts",
+		"vitest.config.ts",
+		"playwright.config.ts",
+		"playwright.landing.config.ts"
+	],
 	"exclude": ["src/service-worker"]
 }

@@ -10,9 +10,10 @@
 		{ "pattern": "toebeans.co.za", "custom_domain": true },
 		{ "pattern": "www.toebeans.co.za", "custom_domain": true }
 	],
-	// The maintenance page's fonts (S19.5), served by Cloudflare before the Worker runs; any other
-	// path goes on to the Worker. Free, and they load while the app is closed.
-	"assets": { "directory": "./assets" },
+	// The maintenance page's fonts (S19.5) and the landing page's files (S21), served by Cloudflare
+	// before the Worker runs; any other path goes on to the Worker. Free, and they load while the
+	// app is closed. ASSETS is how the Worker serves the landing page at / (D44).
+	"assets": { "directory": "./assets", "binding": "ASSETS" },
 	// Request logs hold paths, which can carry invite tokens (D34): kept off.
 	"observability": { "enabled": false }
 }
