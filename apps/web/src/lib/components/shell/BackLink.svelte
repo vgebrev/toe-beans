@@ -9,9 +9,11 @@
 		/** The parent page, resolved. */
 		href: string;
 		label: string;
+		/** Load the parent afresh, for one the edge serves when signed out (the landing page, D44). */
+		reload?: boolean;
 	}
 
-	let { href, label }: Props = $props();
+	let { href, label, reload = false }: Props = $props();
 
 	const trail = getTrail();
 	const from = $derived(trail?.backFrom(page.url.pathname));
@@ -20,7 +22,11 @@
 <!-- Either the parent, resolved by the page, or a page on the trail, which was resolved when the
      person was there. -->
 <!-- eslint-disable svelte/no-navigation-without-resolve -->
-<a href={from?.href ?? href} class="flex min-h-12 items-center gap-1 self-start font-bold">
+<a
+	href={from?.href ?? href}
+	data-sveltekit-reload={reload && !from ? '' : undefined}
+	class="flex min-h-12 items-center gap-1 self-start font-bold"
+>
 	<Icon name="back" />
 	{from ? (from.label ?? 'Back') : label}
 </a>

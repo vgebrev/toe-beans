@@ -13,4 +13,4 @@
 # of search results.
 /landing/
   X-Robots-Tag: noindex
-  Content-Security-Policy: default-src 'none'; style-src 'self'; font-src 'self'; img-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'
+  Content-Security-Policy: default-src 'none'; script-src 'sha256-0SccVS3neAjw4ssByOinr10dkZ4YxTEbAvRku46s9Vc='; style-src 'self'; font-src 'self'; img-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'

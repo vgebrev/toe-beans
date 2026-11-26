@@ -30,9 +30,15 @@ test.describe('signed out', () => {
 		await expect(page).toHaveURL(/\/privacy$/);
 	});
 
-	test('the back link goes to the app, which asks to sign in', async ({ page }) => {
+	test('the back link loads / afresh, so the edge serves the landing page (D44)', async ({
+		page
+	}) => {
 		await page.goto('/terms');
-		await page.getByRole('link', { name: 'Toe Beans' }).click();
+		const back = page.getByRole('link', { name: 'Toe Beans' });
+		await expect(back).toHaveAttribute('href', '/');
+		await expect(back).toHaveAttribute('data-sveltekit-reload', '');
+		// Without the edge, the app's own / asks to sign in.
+		await back.click();
 		await expect(page).toHaveURL(/\/sign-in/);
 	});
 });

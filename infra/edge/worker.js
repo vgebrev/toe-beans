@@ -55,15 +55,19 @@ const MAINTENANCE = 'x-toe-beans-maintenance';
 const SESSION_COOKIE = '__Host-tb_session';
 const LANDING = '/landing/';
 /**
+ * The hash of the landing page's one script, which applies the app's theme choice on this device
+ * (ui.md §4.9). worker.test.js fails if the script changes without it.
+ */
+export const LANDING_THEME_SCRIPT = "'sha256-0SccVS3neAjw4ssByOinr10dkZ4YxTEbAvRku46s9Vc='";
+/**
  * The landing page's headers, the app's own set (packages/backend/src/http/edge.ts) with a CSP for
- * a page with no scripts. Private and revalidated, as the same address serves the app once signed
- * in; HSTS comes from Cloudflare's zone (D32).
+ * a page whose only script is the theme's. Private and revalidated, as the same address serves the
+ * app once signed in; HSTS comes from Cloudflare's zone (D32).
  */
 const LANDING_HEADERS = {
 	'cache-control': 'private, no-cache',
 	vary: 'Cookie',
-	'content-security-policy':
-		"default-src 'none'; style-src 'self'; font-src 'self'; img-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
+	'content-security-policy': `default-src 'none'; script-src ${LANDING_THEME_SCRIPT}; style-src 'self'; font-src 'self'; img-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'`,
 	'referrer-policy': 'same-origin',
 	'x-content-type-options': 'nosniff',
 	'permissions-policy': 'camera=(), microphone=(), geolocation=(), payment=(), usb=(), serial=()',

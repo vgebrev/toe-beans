@@ -1,10 +1,10 @@
 <!doctype html>
 <!--
 	Toe Beans' landing page (backlog S21, ui.md §4.9, architecture D44). The edge Worker serves it
-	at / to anyone without the app's session cookie, so a visitor never wakes Cloud Run. Static, no
-	scripts, styles in landing.css, the fonts from /edge-fonts/, and the app's pictures taken from
-	the app itself (pnpm landing:shots). worker.test.js checks the mark and the outcome icons match
-	the app's.
+	at / to anyone without the app's session cookie, so a visitor never wakes Cloud Run. Static,
+	with one script only (the theme, allowed by its hash), styles in landing.css, the fonts from
+	/edge-fonts/, and the app's pictures taken from the app itself (pnpm landing:shots).
+	worker.test.js checks the mark, the outcome icons and the theme script match the app's.
 -->
 <html lang="en">
 	<head>
@@ -53,6 +53,21 @@
 			crossorigin
 		/>
 		<link rel="stylesheet" href="/landing/landing.css" />
+		<script>
+			// The app's theme choice on this device (ui.md §6.4), as apps/web/src/app.html applies it.
+			// The CSP allows this script by its hash (worker.js), so a change needs a new one.
+			try {
+				var theme = localStorage.getItem('toe-beans:theme');
+				if (theme === 'light' || theme === 'dark') {
+					document.documentElement.dataset.theme = theme;
+					document.querySelectorAll('meta[name="theme-color"]').forEach(function (meta) {
+						meta.content = theme === 'dark' ? '#141110' : '#FFFBF5';
+					});
+				}
+			} catch (e) {
+				// Storage blocked: follow the system setting.
+			}
+		</script>
 	</head>
 	<body>
 		<header class="bar wrap">
@@ -113,7 +128,7 @@
 					<h1>Raise your puppy together.</h1>
 					<p class="lead">
 						Toe Beans keeps everyone who looks after your puppy on the same page: what to practise
-						today, how it's going, and what to work on next.
+						today, how it's going, and what else to try.
 					</p>
 					<div class="actions">
 						<a class="button" href="/auth/sign-in">Get started, it's free</a>
@@ -131,15 +146,23 @@
 						<ellipse cx="480" cy="520" rx="50" ry="40" transform="rotate(-51 480 520)" />
 					</svg>
 					<div class="phone">
-						<picture>
-							<source srcset="/landing/today-dark.webp" media="(prefers-color-scheme: dark)" />
-							<img
-								src="/landing/today-light.webp"
-								width="786"
-								height="1660"
-								alt="Toe Beans' Today screen for Ripley: two sessions planned, two done, and deworming coming up"
-							/>
-						</picture>
+						<!-- One per theme (landing.css), lazy so only the one shown is fetched. -->
+						<img
+							class="shot-light"
+							src="/landing/today-light.webp"
+							width="786"
+							height="1660"
+							loading="lazy"
+							alt="Toe Beans' Today screen for Ripley: two sessions planned, two done, and deworming coming up"
+						/>
+						<img
+							class="shot-dark"
+							src="/landing/today-dark.webp"
+							width="786"
+							height="1660"
+							loading="lazy"
+							alt="Toe Beans' Today screen for Ripley: two sessions planned, two done, and deworming coming up"
+						/>
 					</div>
 				</div>
 			</section>
@@ -147,7 +170,7 @@
 			<section id="how" class="band">
 				<div class="wrap stack">
 					<div class="intro">
-						<h2>Three questions, answered every day</h2>
+						<h2>Plan, track, discover</h2>
 						<p>
 							Short, regular practice is what helps a puppy learn. Toe Beans makes it easy to keep
 							it going, whoever's at home.
@@ -161,9 +184,10 @@
 									<path d="M3.5 10h17M8 3v4M16 3v4"></path>
 								</svg>
 							</span>
+							<p class="pillar">Plan</p>
 							<h3>What should we do today?</h3>
 							<p>
-								Plan a few short sessions for the week. Today shows what's planned, what's overdue
+								Set a few short sessions for the week. Today shows what's planned, what's overdue
 								and what's done, for each dog.
 							</p>
 						</article>
@@ -174,6 +198,7 @@
 									<path d="M7 15v-3M12 15V8M17 15v-6"></path>
 								</svg>
 							</span>
+							<p class="pillar">Track</p>
 							<h3>How is our puppy progressing?</h3>
 							<p>
 								Log a practice in seconds. History puts training, events like a barking fit or a
@@ -189,10 +214,12 @@
 									<path d="M12 6.5V19"></path>
 								</svg>
 							</span>
-							<h3>What should we work on next?</h3>
+							<p class="pillar">Discover</p>
+							<h3>What else could we try?</h3>
 							<p>
-								A library of reward-based exercises, each in small steps, with what to look for and
-								when to ask a vet or trainer.
+								A library of reward-based exercises, from the name game to calm car rides. Each
+								comes in small steps, with what to look for and when to ask a vet or trainer, ready
+								to plan.
 							</p>
 						</article>
 					</div>
@@ -279,16 +306,22 @@
 					</ul>
 				</div>
 				<div class="sheet">
-					<picture>
-						<source srcset="/landing/log-dark.webp" media="(prefers-color-scheme: dark)" />
-						<img
-							src="/landing/log-light.webp"
-							width="786"
-							height="894"
-							loading="lazy"
-							alt="The Log practice sheet, with Not assessed chosen until you say otherwise"
-						/>
-					</picture>
+					<img
+						class="shot-light"
+						src="/landing/log-light.webp"
+						width="786"
+						height="894"
+						loading="lazy"
+						alt="The Log practice sheet, with Not assessed chosen until you say otherwise"
+					/>
+					<img
+						class="shot-dark"
+						src="/landing/log-dark.webp"
+						width="786"
+						height="894"
+						loading="lazy"
+						alt="The Log practice sheet, with Not assessed chosen until you say otherwise"
+					/>
 				</div>
 			</section>
 

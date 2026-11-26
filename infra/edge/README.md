@@ -127,8 +127,10 @@ app opens on `/?source=pwa`), goes to the app as before. It needs nothing from t
 shows while the spending cap has the app paused too.
 
 - **Changing it:** edit the HTML or CSS and deploy the Worker (§Deploy). `pnpm test infra/edge`
-  checks it loads only its own files, has no scripts, and draws the app's mark, outcome icons,
-  colours and favicon.
+  checks it loads only its own files, and draws the app's mark, outcome icons,
+  colours and favicon. Its one script applies the app's theme choice, and the CSP (`worker.js`
+  `LANDING_THEME_SCRIPT`, and `assets/_headers`) allows it by its hash: change the script and the
+  test gives the new hash.
 - **Its pictures of the app:** `pnpm landing:shots` (with Mongo and the mock provider up, as for
   `pnpm test:e2e`) captures Today and the log sheet from the production build and writes the
   `.webp` files here. Take them again after a change to those screens, and commit them.

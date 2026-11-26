@@ -10,6 +10,18 @@ for fixes. Candidates (`-rc.N`) go to prod for the owner to try before the relea
 
 ## Unreleased
 
+### Changed
+
+- The page about Toe Beans now explains it as plan, track and discover, and shows in light or
+  dark to match the theme you chose in the app on that phone.
+
+### Fixed
+
+- The back link on the terms and privacy policy now goes to the page about Toe Beans when you're
+  signed out, rather than to sign-in.
+- The paw-print beans behind the phone on the page about Toe Beans are no longer cut off, and the
+  page no longer scrolls sideways on a phone.
+
 ## 1.4.0 - 2026-11-25
 
 ### Added
