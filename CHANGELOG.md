@@ -10,6 +10,8 @@ for fixes. Candidates (`-rc.N`) go to prod for the owner to try before the relea
 
 ## Unreleased
 
+## 1.4.1 - 2026-11-26
+
 ### Changed
 
 - The page about Toe Beans now explains it as plan, track and discover, and shows in light or
