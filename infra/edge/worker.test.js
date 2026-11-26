@@ -66,10 +66,12 @@ function origin(/** @type {Response} */ answer, { google = 200 } = {}) {
 	vi.stubGlobal(
 		'fetch',
 		vi.fn(async (/** @type {string} */ url, /** @type {RequestInit} */ init) => {
-			if (!url.startsWith(ORIGIN)) {
+			// Whole origins compared, not prefixes (CodeQL js/incomplete-url-substring-sanitization).
+			const to = new URL(url);
+			if (to.origin !== ORIGIN) {
 				exchanges.count++;
 				if (google !== 200) return new Response('{}', { status: google });
-				return url.startsWith('https://sts.')
+				return to.origin === 'https://sts.googleapis.com'
 					? Response.json({ access_token: 'federated' })
 					: Response.json({ token: ID_TOKEN });
 			}
