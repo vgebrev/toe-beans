@@ -52,7 +52,9 @@
 			type="font/woff2"
 			crossorigin
 		/>
-		<link rel="stylesheet" href="/landing/landing.css" />
+		<!-- ?v= is the stylesheet's hash (worker.test.js checks it): the page is never cached, its
+			files are kept a day, so a new page must never meet yesterday's styles. -->
+		<link rel="stylesheet" href="/landing/landing.css?v=f6e1ce8384" />
 		<script>
 			// The app's theme choice on this device (ui.md §6.4), as apps/web/src/app.html applies it.
 			// The CSP allows this script by its hash (worker.js), so a change needs a new one.

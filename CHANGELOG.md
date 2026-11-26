@@ -19,8 +19,9 @@ for fixes. Candidates (`-rc.N`) go to prod for the owner to try before the relea
 
 ### Fixed
 
-- The back link on the terms and privacy policy now goes to the page about Toe Beans when you're
-  signed out, rather than to sign-in.
+- The back link on the terms and privacy policy now goes back where you came from, such as More,
+  rather than to Today, and to the page about Toe Beans when you're signed out, rather than to
+  sign-in.
 - The paw-print beans behind the phone on the page about Toe Beans are no longer cut off, and the
   page no longer scrolls sideways on a phone.
 

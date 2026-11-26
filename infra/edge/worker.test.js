@@ -343,10 +343,17 @@ describe('the edge Worker', () => {
 				expect(loaded.length).toBeGreaterThan(8);
 				for (const url of loaded) {
 					expect(url, url).toMatch(/^\/(landing|edge-fonts)\//);
-					expect(existsSync(new URL(url.slice(1), ASSET_DIR)), url).toBe(true);
+					expect(existsSync(new URL(url.slice(1).split('?')[0], ASSET_DIR)), url).toBe(true);
 				}
 				// Scripts: the next test.
 				expect(html).not.toMatch(/\sstyle="|\son[a-z]+="/);
+			});
+
+			it('asks for its stylesheet by its hash, so a day-old cached copy is never used', () => {
+				// The page is no-cache but /landing/* is kept a day (_headers): a page with new markup
+				// and yesterday's styles showed both themes' screenshots at once.
+				const hash = createHash('sha256').update(css).digest('hex').slice(0, 10);
+				expect(html).toContain(`<link rel="stylesheet" href="/landing/landing.css?v=${hash}"`);
 			});
 
 			it("has one script, the app's theme choice, allowed by its hash", () => {
