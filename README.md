@@ -20,8 +20,8 @@ sessions, recording how they went, and keeping puppy care (vaccinations, medicat
 in one place. Caregivers in one household share it across their phones, and it supports several
 dogs from the start, each with its own history.
 
-It aims to answer three questions: **What should we do today? How is our puppy progressing?
-What should we work on next?**
+It rests on three pillars: **Plan** (what should we do today?), **Track** (how is our puppy
+progressing?) and **Discover** (what else could we try?).
 
 > **Status:** the first usable MVP (P0) is complete. It has been live at
 > [toebeans.co.za](https://toebeans.co.za) since 17 Nov 2026, released as 1.0.0 after acceptance on

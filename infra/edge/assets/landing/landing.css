@@ -1,7 +1,8 @@
 /*
  * The landing page's styles (ui.md §4.9). Phone first, two columns from 960 px. Colours are the
  * app's brand tokens (apps/web/src/lib/theme/tokens.ts) as `--tb-<name>: light-dark(…)`, as in
- * the app's app.css; worker.test.js fails if they drift. The page follows the device's theme.
+ * the app's app.css; worker.test.js fails if they drift. The page follows the app's theme choice
+ * on this device (data-theme, set by the page's script), else the device's.
  */
 
 @font-face {
@@ -42,6 +43,32 @@
 	--frame: light-dark(#2b1d14, #3a312a);
 	--shadow: 0 24px 48px rgb(43 29 20 / 0.18);
 	--display: 'Fredoka Variable', 'Nunito Variable', system-ui, sans-serif;
+}
+
+:root[data-theme='light'] {
+	color-scheme: light;
+}
+:root[data-theme='dark'] {
+	color-scheme: dark;
+}
+
+/* The app's pictures, one per theme: a media query can't see data-theme, so not <picture>. */
+.shot-dark {
+	display: none;
+}
+@media (prefers-color-scheme: dark) {
+	:root:not([data-theme='light']) .shot-light {
+		display: none;
+	}
+	:root:not([data-theme='light']) .shot-dark {
+		display: block;
+	}
+}
+:root[data-theme='dark'] .shot-light {
+	display: none;
+}
+:root[data-theme='dark'] .shot-dark {
+	display: block;
 }
 
 *,
@@ -92,6 +119,10 @@ ul {
 	margin: 0;
 	padding: 0;
 	list-style: none;
+}
+/* The hero's beans bleed off a phone's edges; the page itself never scrolls sideways. */
+main {
+	overflow-x: clip;
 }
 img {
 	display: block;
@@ -256,6 +287,8 @@ h1 {
 	translate: -50% 0;
 	fill: var(--tb-accent);
 	opacity: 0.3;
+	/* Whole beans: the top and right ones reach past the drawing's box. */
+	overflow: visible;
 }
 .phone {
 	position: relative;
@@ -267,7 +300,7 @@ h1 {
 	box-shadow: var(--shadow);
 }
 
-/* The three questions */
+/* Plan, track, discover: the three questions of requirements §1, a card each */
 .band {
 	padding-block: 48px;
 	background: var(--tb-soft);
@@ -292,6 +325,14 @@ h1 {
 	padding: 20px;
 	border-radius: 20px;
 	background: var(--tb-surface);
+}
+.pillar {
+	margin-top: 4px;
+	color: var(--tb-primary);
+	font-size: 0.8125rem;
+	font-weight: 800;
+	letter-spacing: 0.06em;
+	text-transform: uppercase;
 }
 .tile {
 	display: flex;

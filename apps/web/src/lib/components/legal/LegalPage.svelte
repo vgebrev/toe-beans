@@ -1,6 +1,7 @@
 <script lang="ts">
 	// The privacy policy or terms (backlog S16.4): public, readable signed in or out, and from the
-	// sign-in page and More. The back link goes where the person came from, else to the app.
+	// sign-in page, More and the landing page. The back link goes where the person came from, else
+	// to / loaded afresh: the landing page when signed out (from the edge, D44), else the app.
 	import { resolve } from '$app/paths';
 	import BackLink from '#lib/components/shell/BackLink.svelte';
 	import PageHeader from '#lib/components/shell/PageHeader.svelte';
@@ -23,7 +24,7 @@
 
 <main class="mx-auto max-w-2xl pb-12">
 	<PageHeader {title} subtitle={`Last updated ${updated}`}>
-		<BackLink href={resolve('/(app)')} label="Toe Beans" />
+		<BackLink href={resolve('/(app)')} label="Toe Beans" reload />
 	</PageHeader>
 	<!-- Our own Markdown, rendered on the server (lib/server/legal.ts). -->
 	<!-- eslint-disable-next-line svelte/no-at-html-tags -->

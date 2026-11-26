@@ -6,3 +6,10 @@ packages:
 
 onlyBuiltDependencies:
   - esbuild
+
+# Security fixes upstream hasn't taken yet. Drop each once its parent allows the fixed version.
+overrides:
+  # archiver-utils 5.0.2 (testcontainers → archiver, dev only) still asks for glob ^10, whose
+  # glob and minimatch have advisories (GHSA for glob ≤ 14.0.1, minimatch < 11.0.1). 14 keeps the
+  # require() and glob.sync it uses.
+  archiver-utils>glob: ^14.0.2

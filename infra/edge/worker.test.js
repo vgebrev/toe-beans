@@ -4,7 +4,9 @@ import { existsSync } from 'node:fs';
 import { icons } from '../../apps/web/src/lib/components/icon/icons.ts';
 import { markHeart, markLetters } from '../../apps/web/src/lib/assets/brand/mark.ts';
 import { tokens } from '../../apps/web/src/lib/theme/tokens.ts';
-import worker from './worker.js';
+import { createHash } from 'node:crypto';
+import { THEME_STORAGE_KEY } from '../../apps/web/src/lib/client/theme.ts';
+import worker, { LANDING_THEME_SCRIPT } from './worker.js';
 
 const ORIGIN = 'https://toe-beans-1047834821273.africa-south1.run.app';
 
@@ -64,10 +66,12 @@ function origin(/** @type {Response} */ answer, { google = 200 } = {}) {
 	vi.stubGlobal(
 		'fetch',
 		vi.fn(async (/** @type {string} */ url, /** @type {RequestInit} */ init) => {
-			if (!url.startsWith(ORIGIN)) {
+			// Whole origins compared, not prefixes (CodeQL js/incomplete-url-substring-sanitization).
+			const to = new URL(url);
+			if (to.origin !== ORIGIN) {
 				exchanges.count++;
 				if (google !== 200) return new Response('{}', { status: google });
-				return url.startsWith('https://sts.')
+				return to.origin === 'https://sts.googleapis.com'
 					? Response.json({ access_token: 'federated' })
 					: Response.json({ token: ID_TOKEN });
 			}
@@ -221,7 +225,7 @@ describe('the edge Worker', () => {
 			expect(new URL(assets.seen[0].url).pathname).toBe('/landing/');
 		});
 
-		it('sends its own headers: private, varying on the cookie, no scripts, indexable', async () => {
+		it('sends its own headers: private, varying on the cookie, only the theme script, indexable', async () => {
 			origin(fromApp(200));
 			const headers = (await get('/')).headers;
 			expect(headers.get('cache-control')).toBe('private, no-cache');
@@ -230,7 +234,8 @@ describe('the edge Worker', () => {
 			expect(headers.get('x-robots-tag')).toBeNull();
 			const csp = headers.get('content-security-policy');
 			expect(csp).toContain("default-src 'none'");
-			expect(csp).not.toContain('script-src');
+			expect(csp?.match(/script-src ([^;]+);/)?.[1]).toBe(LANDING_THEME_SCRIPT);
+			expect(csp).not.toContain('unsafe');
 			expect(headers.get('x-content-type-options')).toBe('nosniff');
 		});
 
@@ -340,7 +345,26 @@ describe('the edge Worker', () => {
 					expect(url, url).toMatch(/^\/(landing|edge-fonts)\//);
 					expect(existsSync(new URL(url.slice(1), ASSET_DIR)), url).toBe(true);
 				}
-				expect(html).not.toMatch(/<script|\sstyle="|\son[a-z]+="/);
+				// Scripts: the next test.
+				expect(html).not.toMatch(/\sstyle="|\son[a-z]+="/);
+			});
+
+			it("has one script, the app's theme choice, allowed by its hash", () => {
+				const raw = readFileSync(new URL('landing/index.html', ASSET_DIR), 'utf8');
+				// Cut out by position, not a regex (CodeQL js/bad-tag-filter): any spelling of an
+				// opening tag counts, and the one there is must be a bare <script> with no src.
+				expect(raw.toLowerCase().split('<script')).toHaveLength(2);
+				const start = raw.indexOf('<script>') + '<script>'.length;
+				const end = raw.indexOf('</script>', start);
+				expect(start).toBeGreaterThan('<script>'.length - 1);
+				expect(end).toBeGreaterThan(start);
+				const script = raw.slice(start, end);
+				const hash = createHash('sha256').update(script).digest('base64');
+				expect(LANDING_THEME_SCRIPT).toBe(`'sha256-${hash}'`);
+				const headers = readFileSync(new URL('_headers', ASSET_DIR), 'utf8');
+				expect(headers).toContain(`script-src ${LANDING_THEME_SCRIPT};`);
+				expect(script).toContain(`localStorage.getItem('${THEME_STORAGE_KEY}')`);
+				expect(script).toContain(`theme === 'dark' ? '${tokens.bg.dark}' : '${tokens.bg.light}'`);
 			});
 
 			it('has a title, a description and a share card for link previews (S21.3)', () => {

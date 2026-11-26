@@ -1,9 +1,9 @@
 # Toe Beans — UI and Interaction Design
 
-**Version:** 0.49 (draft for iteration)
-**Date:** 25 November 2026
+**Version:** 0.50 (draft for iteration)
+**Date:** 26 November 2026
 **Status:** Proposed. Review-round decisions in §8 are accepted.
-**Inputs:** `docs/requirements.md` v1.1, `docs/architecture.md` v1.61
+**Inputs:** `docs/requirements.md` v1.2, `docs/architecture.md` v1.62
 
 **Changes in 0.7:** the logo landed (S0.9). The mark is now a **TB monogram** with four toe beans above it and a heart-shaped bean in the B, from the AI-assisted design board (Monogram Iteration B), replacing the placeholder paw. It was traced from the board and cleaned up rather than redrawn by hand; the variants are the brown-on-cream mark, a cream-on-brown app-icon tile (favicon and maskable) and a white badge. The wordmark uses Fredoka Bold to match the board (§6.4 Logo).
 
@@ -81,6 +81,8 @@
 
 **Changes in 0.49:** §4.9: the landing page's title, description and share card for search results and link previews (backlog S21.3); the terms and privacy policy describe themselves too.
 
+**Changes in 0.50:** §1 principle 1 and §4.9 follow requirements 1.2's pillars, Plan, Track and Discover, with Discover asking *What else could we try?* (the Library) where *What should we work on next?* overlapped with today's question. §4.9 from the owner's look at the live page (backlog S21.4): it follows the app's own theme choice on the device, by a single script allowed by its hash (architecture 1.62, D44); its hero beans are drawn whole; and the terms' and privacy policy's back link loads `/` afresh, so a signed-out reader gets the landing page rather than sign-in.
+
 **Changes in 0.12:** S3 built. J1 step 4 as built: *Take photo* or *Gallery*, then a framing square with the circle overlay (drag, pinch, a zoom slider and arrow keys), and birth date as *I know the date* or *Approximate* with months old. J2 names the dogs. §2.2: the switcher shows on Today, Plan, History and Care, with name chips. §5.1 gains two rules from using it: one confirm button per context (a sheet is its own context), and a control is never disabled without the reason on screen; the photo moved into its own sheet in J1 to follow the first, and the household, name and email-invite buttons stopped greying out for missing input to follow the second. §4.5: editing is its own page and the overflow sheet holds *Edit details* and *Archive*; the Recent sections wait for their slices. The dog accent palette is defined (§6.4), and More gains *Dogs* (§2.1). The custom dog icon read as a monkey, so it's replaced by Phosphor's *Dog*, the documented fallback library (§6.4).
 
 **Changes in 0.11:** §4.8 gains *Make owner* and *Step down* (architecture 1.5 D19).
@@ -111,7 +113,7 @@ This document covers user journeys, information architecture, screen layouts and
 
 ## 1. Design principles
 
-1. **Answer the three questions:** *What should we do today?* (Today), *How is our puppy progressing?* (History, P1 Progress), *What should we work on next?* (Plan, Library).
+1. **Answer the three questions**, one per pillar (requirements §1): **Plan**, *What should we do today?* (Today, Plan); **Track**, *How is our puppy progressing?* (logging, History, P1 Progress); **Discover**, *What else could we try?* (Library).
 2. **Thumb-first.** Primary actions sit in the bottom half of the screen. Touch targets are at least 48 × 48 dp. Use bottom sheets rather than centred dialogs.
 3. **Log in under 30 seconds** (FR-07). One tap to open, sensible defaults, everything optional except the dog and the exercise.
 4. **Practice is not performance.** The UI never implies that logging means success. `Not assessed` is the pre-selected, neutral-styled default. It is never coloured as a failure.
@@ -403,11 +405,11 @@ On More as **Household & invites**, showing the household's name; the page keeps
 
 ### 4.9 Landing page
 
-*Added in 0.48 (backlog S21).* The public page at `toebeans.co.za` for anyone who isn't signed in on that browser: what Toe Beans is, who it's for and how to start. The edge serves it as a static page (architecture D44), so it's in the brand tokens and fonts but not built from the app's components. It follows the device's theme; the app's own override (§6.4) is per device and lives in the app. Design: direction A on the [landing page canvas](https://claude.ai/artifact/6TbJ3Lcy1CPX4rKqxop4an) (private), chosen by the owner on 25 Nov 2026 over a page built on the three questions as chapters (B) and a short one (C).
+*Added in 0.48 (backlog S21).* The public page at `toebeans.co.za` for anyone who isn't signed in on that browser: what Toe Beans is, who it's for and how to start. The edge serves it as a static page (architecture D44), so it's in the brand tokens and fonts but not built from the app's components. It follows the app's theme choice on that device (§6.4, the same `localStorage` key, read by the page's one script), else the device's theme (*0.50*). Design: direction A on the [landing page canvas](https://claude.ai/artifact/6TbJ3Lcy1CPX4rKqxop4an) (private), chosen by the owner on 25 Nov 2026 over a page built on the three questions as chapters (B) and a short one (C).
 
 - **Header:** the mark and wordmark, and *Sign in*. On a wide screen, *How it works* and *For your household* jump down the page.
 - **Hero:** "Raise your puppy together." and a line on what it's for, then *Get started, it's free* and *I already have an account*, both to sign-in (the provider's page offers sign-up), and "Made for Chrome on Android". Beside it on a wide screen, below it on a phone, Today in a phone frame.
-- **Three questions, answered every day:** the questions of requirements §1, a card each.
+- **Plan, track, discover:** the pillars of requirements §1, a card each with its name over its question (*0.50*).
 - **Practice isn't a test:** principle 4 in a line, the four outcome badges exactly as the app draws them, and the *Log practice* sheet with *Not assessed* chosen.
 - **Made for the whole household:** shared by invitation, reminders that arrive with the app closed, kind training, private and free (no ads, tracking or analytics; the household's data can be downloaded).
 - **Closing:** "Ready when your puppy is" and *Get started*.
@@ -415,11 +417,11 @@ On More as **Household & invites**, showing the household's name; the page keeps
 
 **The app as it is.** Pictures of the app are screenshots of it, never drawings: Today and the log sheet, light and dark, on the Redmi Note 12 Pro's viewport, from the production build with a demo household of Ripley, the owner's dog, and Sam (`pnpm landing:shots`, `apps/web/e2e/landing-shots.ts`). A change to Today, the log sheet or the badges means taking them again. The badges are drawn with the app's own icons and sizes, which the edge's tests check, with its mark, colours and favicon.
 
-**No scripts.** The page has no JavaScript, loads only its own files and the edge's fonts, and links only to sign-in, the terms, the privacy policy and itself. Nothing on it wakes the app.
+**One script.** The page's only JavaScript applies the app's theme choice before first paint, as the app's own `app.html` does; the CSP allows it by its hash and nothing else (*0.50*). It loads only its own files and the edge's fonts, and links only to sign-in, the terms, the privacy policy and itself. Nothing on it wakes the app.
 
 **In search results and link previews** (*added in 0.49*, S21.3): the title *Toe Beans: puppy training and care, shared*, a description of under 160 characters, and a 1200×630 share card: the mark, "Raise your puppy together.", a line on who it's for, and the light Today capture in a phone frame, drawn by `pnpm landing:shots` with the screenshots so it never drifts from them. The terms and privacy policy have descriptions of their own; every other page of the app is kept out of search results.
 
-The sign-in page (J1) links back to it as *About Toe Beans*, a full page load so the edge serves it.
+The sign-in page (J1) links back to it as *About Toe Beans*, a full page load so the edge serves it. So do the terms and privacy policy, whose back link (*Toe Beans*) loads `/` afresh when there's no page to go back to (*0.50*).
 
 ---
 

@@ -1,12 +1,14 @@
 # Toe Beans — Product Requirements
 
-**Version:** 1.1
-**Date:** 23 November 2026  
+**Version:** 1.2
+**Date:** 26 November 2026  
 **Status:** Baselined
 **Baseline date:** 25 October 2026
 **Initial users:** Two caregivers sharing responsibility for one or more dogs
 
 **Changes in 1.1:** the first recorded scope change (§2, *Scope changes after the baseline*): a public landing page at the canonical address, without analytics, and FR-16's export brought forward to before the rest of P1. No FR or NFR is reworded.
+
+**Changes in 1.2:** §1's three questions named as the product's pillars, Plan, Track and Discover, with Discover's question reworded from *What should we work on next?*, which read as the same question as today's, to *What else could we try?* (owner, 26 Nov 2026). A wording change only: no scope, FR or NFR changes.
 
 This document represents the agreed requirements baseline for the Toe Beans MVP. Requirements may evolve through implementation, with material scope changes recorded and versioned.
 
@@ -14,7 +16,11 @@ This document represents the agreed requirements baseline for the Toe Beans MVP.
 
 Toe Beans is an installable, mobile-first puppy training and care companion. It helps caregivers plan short, reward-based training activities, practise consistently, record meaningful results, and keep important puppy-care events in one place.
 
-The product should answer three questions: **What should we do today? How is our puppy progressing? What should we work on next?**
+The product rests on three pillars, each answering a question:
+
+- **Plan:** *What should we do today?* The week's short sessions and care, and what's due, overdue and done.
+- **Track:** *How is our puppy progressing?* What was practised, how it went, and what happened.
+- **Discover:** *What else could we try?* Exercises and skills the household hasn't taken on yet.
 
 ## 2. Scope and priorities
 
