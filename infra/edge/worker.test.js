@@ -118,11 +118,20 @@ describe('the edge Worker', () => {
 			expect(seen[0].headers.get('authorization')).toBe('Bearer from-the-client');
 		});
 
-		it('mints the token once for many requests', async () => {
+		it('mints the token once (two calls to Google), then keeps it for later requests', async () => {
 			const seen = origin(fromApp(200));
-			await Promise.all([get('/plan'), get('/today'), get('/api/v1/me')]);
+			await get('/plan');
+			await Promise.all([get('/today'), get('/api/v1/me')]);
 			await get('/dogs');
 			expect(seen.exchanges.count).toBe(2);
+		});
+
+		// A request that ends early leaves its promises unsettled in the Workers runtime, so a shared
+		// exchange in flight poisoned every later request on the isolate (prod, 26 Nov 2026).
+		it('lets requests that start together each mint, rather than share one in flight', async () => {
+			const seen = origin(fromApp(200));
+			await Promise.all([get('/plan'), get('/today'), get('/api/v1/me')]);
+			expect(seen.exchanges.count).toBe(6);
 		});
 
 		it("answers 502, not the paused page, when Google won't issue a token", async () => {
@@ -343,10 +352,17 @@ describe('the edge Worker', () => {
 				expect(loaded.length).toBeGreaterThan(8);
 				for (const url of loaded) {
 					expect(url, url).toMatch(/^\/(landing|edge-fonts)\//);
-					expect(existsSync(new URL(url.slice(1), ASSET_DIR)), url).toBe(true);
+					expect(existsSync(new URL(url.slice(1).split('?')[0], ASSET_DIR)), url).toBe(true);
 				}
 				// Scripts: the next test.
 				expect(html).not.toMatch(/\sstyle="|\son[a-z]+="/);
+			});
+
+			it('asks for its stylesheet by its hash, so a day-old cached copy is never used', () => {
+				// The page is no-cache but /landing/* is kept a day (_headers): a page with new markup
+				// and yesterday's styles showed both themes' screenshots at once.
+				const hash = createHash('sha256').update(css).digest('hex').slice(0, 10);
+				expect(html).toContain(`<link rel="stylesheet" href="/landing/landing.css?v=${hash}"`);
 			});
 
 			it("has one script, the app's theme choice, allowed by its hash", () => {

@@ -130,7 +130,8 @@ shows while the spending cap has the app paused too.
   checks it loads only its own files, and draws the app's mark, outcome icons,
   colours and favicon. Its one script applies the app's theme choice, and the CSP (`worker.js`
   `LANDING_THEME_SCRIPT`, and `assets/_headers`) allows it by its hash: change the script and the
-  test gives the new hash.
+  test gives the new hash. The page asks for `landing.css?v=` its hash, as the page is never cached
+  but its files are kept a day: after a CSS change, the test gives the new one.
 - **Its pictures of the app:** `pnpm landing:shots` (with Mongo and the mock provider up, as for
   `pnpm test:e2e`) captures Today and the log sheet from the production build and writes the
   `.webp` files here. Take them again after a change to those screens, and commit them.

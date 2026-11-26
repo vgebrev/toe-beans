@@ -221,7 +221,10 @@ export default {
 		let token;
 		try {
 			token = await source.get();
-		} catch {
+		} catch (error) {
+			// The step and Google's answer only: never the request's path, which can hold an invite
+			// token (D34). Seen with wrangler tail; Cloudflare keeps no logs (observability off).
+			console.error(`edge token failed: ${error instanceof Error ? error.message : 'unknown'}`);
 			return unreachable();
 		}
 		const headers = new Headers(request.headers);
@@ -241,6 +244,7 @@ export default {
 		});
 		if (refusedByCloudRun(response, url.pathname)) return maintenance(request);
 		if (response.status === 401 && !response.headers.has(REQUEST_ID)) {
+			console.error('edge token refused by Cloud Run: 401');
 			source.forget();
 			return unreachable();
 		}

@@ -12,7 +12,13 @@
 //      audience is the Cloud Run URL
 //
 // The ID token lasts an hour. Each isolate keeps it in memory and gets a new one five minutes
-// before it runs out; concurrent requests wait on the same exchange. Nothing here is logged.
+// before it runs out. Only the token is shared between requests, never an exchange in flight: a
+// promise belongs to the request that made it, and when that request ends early (the phone closed
+// the app, the client timed out) the Workers runtime drops it, so it never settles. A shared one
+// left every later request on the isolate failing until Cloudflare retired it, which was prod's
+// intermittent 502s of 26 Nov 2026. Requests that start together on a fresh isolate each mint, at
+// worst a few extra calls to Google. Nothing here is logged; the Worker logs a failure's step and
+// status (worker.js).
 
 const STS = 'https://sts.googleapis.com/v1/token';
 const CREDENTIALS = 'https://iamcredentials.googleapis.com/v1/projects/-/serviceAccounts';
@@ -98,13 +104,22 @@ export class TokenError extends Error {}
 export function idTokens({ identity, key, fetch, now = Date.now }) {
 	/** @type {{ token: string, expiresAt: number } | null} */
 	let cached = null;
-	/** @type {Promise<string> | null} */
-	let pending = null;
-
 	/** @param {string} step @param {string} url @param {RequestInit} init */
 	const post = async (step, url, init) => {
 		const response = await fetch(url, { method: 'POST', ...init });
-		if (!response.ok) throw new TokenError(`${step} answered ${response.status}`);
+		if (!response.ok) {
+			// Google's error code and description name the cause (invalid_grant, a clock or quota
+			// problem) and hold nothing secret; the rest of the body isn't kept.
+			const body = await response.json().catch(() => null);
+			const why = [
+				body?.error?.status ?? body?.error,
+				body?.error?.message ?? body?.error_description
+			]
+				.filter((part) => typeof part === 'string')
+				.join(': ')
+				.slice(0, 300);
+			throw new TokenError(`${step} answered ${response.status}${why ? ` (${why})` : ''}`);
+		}
 		return response.json();
 	};
 
@@ -139,10 +154,8 @@ export function idTokens({ identity, key, fetch, now = Date.now }) {
 		/** A token with at least five minutes left. Throws TokenError if Google refuses. */
 		async get() {
 			if (cached && cached.expiresAt - now() > MARGIN_MS) return cached.token;
-			pending ??= mint().finally(() => {
-				pending = null;
-			});
-			return pending;
+			// Never shared: see the top of this file.
+			return mint();
 		},
 		/** Drops the kept token, after Cloud Run refused it. */
 		forget() {

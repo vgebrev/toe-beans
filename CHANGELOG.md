@@ -10,6 +10,15 @@ for fixes. Candidates (`-rc.N`) go to prod for the owner to try before the relea
 
 ## Unreleased
 
+## 1.4.2 - 2026-11-26
+
+### Fixed
+
+- Toe Beans no longer drops out for a few seconds every few minutes with *Can't reach Toe
+  Beans* or a "can't reach its server" page.
+- The back link on the terms and privacy policy now goes back where you came from, such as More,
+  rather than to Today. (1.4.1's notes listed this, but it shipped here.)
+
 ## 1.4.1 - 2026-11-26
 
 ### Changed
@@ -19,8 +28,9 @@ for fixes. Candidates (`-rc.N`) go to prod for the owner to try before the relea
 
 ### Fixed
 
-- The back link on the terms and privacy policy now goes to the page about Toe Beans when you're
-  signed out, rather than to sign-in.
+- The back link on the terms and privacy policy now goes back where you came from, such as More,
+  rather than to Today, and to the page about Toe Beans when you're signed out, rather than to
+  sign-in.
 - The paw-print beans behind the phone on the page about Toe Beans are no longer cut off, and the
   page no longer scrolls sideways on a phone.
 

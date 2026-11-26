@@ -51,4 +51,9 @@ test('More links to both', async ({ page }) => {
 	await page.goBack();
 	await page.getByRole('link', { name: 'Terms of service' }).click();
 	await expect(page.getByRole('heading', { level: 1, name: 'Terms of service' })).toBeVisible();
+	// The back link too: the trail outlives the app shell (ui.md §2.1).
+	const back = page.getByRole('link', { name: 'More' });
+	await expect(back).not.toHaveAttribute('data-sveltekit-reload');
+	await back.click();
+	await expect(page).toHaveURL(/\/more$/);
 });
