@@ -345,21 +345,26 @@ describe('the edge Worker', () => {
 					expect(url, url).toMatch(/^\/(landing|edge-fonts)\//);
 					expect(existsSync(new URL(url.slice(1), ASSET_DIR)), url).toBe(true);
 				}
-				expect(html).not.toMatch(/<script [^>]*src=|\sstyle="|\son[a-z]+="/);
+				// Scripts: the next test.
+				expect(html).not.toMatch(/\sstyle="|\son[a-z]+="/);
 			});
 
 			it("has one script, the app's theme choice, allowed by its hash", () => {
 				const raw = readFileSync(new URL('landing/index.html', ASSET_DIR), 'utf8');
-				const scripts = [...raw.matchAll(/<script>([\s\S]*?)<\/script>/g)].map((m) => m[1]);
-				expect(scripts).toHaveLength(1);
-				const hash = createHash('sha256').update(scripts[0]).digest('base64');
+				// Cut out by position, not a regex (CodeQL js/bad-tag-filter): any spelling of an
+				// opening tag counts, and the one there is must be a bare <script> with no src.
+				expect(raw.toLowerCase().split('<script')).toHaveLength(2);
+				const start = raw.indexOf('<script>') + '<script>'.length;
+				const end = raw.indexOf('</script>', start);
+				expect(start).toBeGreaterThan('<script>'.length - 1);
+				expect(end).toBeGreaterThan(start);
+				const script = raw.slice(start, end);
+				const hash = createHash('sha256').update(script).digest('base64');
 				expect(LANDING_THEME_SCRIPT).toBe(`'sha256-${hash}'`);
 				const headers = readFileSync(new URL('_headers', ASSET_DIR), 'utf8');
 				expect(headers).toContain(`script-src ${LANDING_THEME_SCRIPT};`);
-				expect(scripts[0]).toContain(`localStorage.getItem('${THEME_STORAGE_KEY}')`);
-				expect(scripts[0]).toContain(
-					`theme === 'dark' ? '${tokens.bg.dark}' : '${tokens.bg.light}'`
-				);
+				expect(script).toContain(`localStorage.getItem('${THEME_STORAGE_KEY}')`);
+				expect(script).toContain(`theme === 'dark' ? '${tokens.bg.dark}' : '${tokens.bg.light}'`);
 			});
 
 			it('has a title, a description and a share card for link previews (S21.3)', () => {
