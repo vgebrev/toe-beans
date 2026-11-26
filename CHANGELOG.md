@@ -10,10 +10,14 @@ for fixes. Candidates (`-rc.N`) go to prod for the owner to try before the relea
 
 ## Unreleased
 
+## 1.4.2 - 2026-11-26
+
 ### Fixed
 
 - Toe Beans no longer drops out for a few seconds every few minutes with *Can't reach Toe
-  Beans* or a "can't reach its server" page. (The fix is already live at toebeans.co.za.)
+  Beans* or a "can't reach its server" page.
+- The back link on the terms and privacy policy now goes back where you came from, such as More,
+  rather than to Today. (1.4.1's notes listed this, but it shipped here.)
 
 ## 1.4.1 - 2026-11-26
 
