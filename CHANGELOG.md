@@ -10,6 +10,11 @@ for fixes. Candidates (`-rc.N`) go to prod for the owner to try before the relea
 
 ## Unreleased
 
+### Fixed
+
+- Toe Beans no longer drops out for a few seconds every few minutes with *Can't reach Toe
+  Beans* or a "can't reach its server" page. (The fix is already live at toebeans.co.za.)
+
 ## 1.4.1 - 2026-11-26
 
 ### Changed

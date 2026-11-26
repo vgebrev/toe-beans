@@ -118,11 +118,20 @@ describe('the edge Worker', () => {
 			expect(seen[0].headers.get('authorization')).toBe('Bearer from-the-client');
 		});
 
-		it('mints the token once for many requests', async () => {
+		it('mints the token once (two calls to Google), then keeps it for later requests', async () => {
 			const seen = origin(fromApp(200));
-			await Promise.all([get('/plan'), get('/today'), get('/api/v1/me')]);
+			await get('/plan');
+			await Promise.all([get('/today'), get('/api/v1/me')]);
 			await get('/dogs');
 			expect(seen.exchanges.count).toBe(2);
+		});
+
+		// A request that ends early leaves its promises unsettled in the Workers runtime, so a shared
+		// exchange in flight poisoned every later request on the isolate (prod, 26 Nov 2026).
+		it('lets requests that start together each mint, rather than share one in flight', async () => {
+			const seen = origin(fromApp(200));
+			await Promise.all([get('/plan'), get('/today'), get('/api/v1/me')]);
+			expect(seen.exchanges.count).toBe(6);
 		});
 
 		it("answers 502, not the paused page, when Google won't issue a token", async () => {

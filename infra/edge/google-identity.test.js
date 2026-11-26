@@ -99,11 +99,33 @@ describe('ID tokens', () => {
 		expect(api.calls).toHaveLength(4);
 	});
 
-	it('makes one exchange for requests that arrive together', async () => {
+	// The Workers runtime never settles a promise whose request has ended, so an exchange that one
+	// request started must not hold up the next (prod's intermittent 502s, 26 Nov 2026).
+	it("doesn't wait on another request's exchange, which may never settle", async () => {
+		const api = google();
+		let stuck = /** @type {() => void} */ (() => {});
+		const firstStuck = new Promise((resolve) => (stuck = () => resolve(undefined)));
+		let first = true;
+		/** @type {typeof fetch} */
+		const fetch = (...args) => {
+			if (first) {
+				first = false;
+				stuck();
+				return new Promise(() => {});
+			}
+			return api.fetch(...args);
+		};
+		const tokens = idTokens({ identity, key, fetch, now: () => T0 });
+		void tokens.get();
+		await firstStuck;
+		expect(await tokens.get()).toMatch(/^h\./);
+	});
+
+	it('keeps the token it got for the requests after', async () => {
 		const api = google();
 		const tokens = idTokens({ identity, key, fetch: api.fetch, now: () => T0 });
-		const all = await Promise.all([tokens.get(), tokens.get(), tokens.get()]);
-		expect(new Set(all).size).toBe(1);
+		await tokens.get();
+		await Promise.all([tokens.get(), tokens.get()]);
 		expect(api.calls).toHaveLength(2);
 	});
 
