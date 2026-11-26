@@ -1,5 +1,5 @@
 // The landing page's pictures of the app (backlog S21.2, ui.md §4.9): Today and the *Log practice*
-// sheet, light and dark, on the Redmi Note 12 Pro's viewport, taken from the production build with
+// sheet, light and dark, and the share card for link previews (S21.3), on the Redmi Note 12 Pro's viewport, taken from the production build with
 // a demo household. The page shows the app as it is, so they're captured, never drawn. After a
 // change to Today, the log sheet or the outcome badges, run `pnpm landing:shots` and commit the
 // images it writes to infra/edge/assets/landing/. Not part of `pnpm test:e2e`
@@ -13,7 +13,11 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { expect, test, type Page } from '@playwright/test';
 import sharp from 'sharp';
+import { markHeart, markLetters, markToes, markViewBox } from '../src/lib/assets/brand/mark.js';
 import { blockMockFonts, jsonHeaders, newPerson, signIn } from './mock-sign-in.js';
+
+// The share card is drawn from the Today capture, so the two run in order.
+test.describe.configure({ mode: 'serial' });
 
 const OUT = fileURLToPath(new URL('../../../infra/edge/assets/landing/', import.meta.url));
 const PHOTO = readFileSync(new URL('./fixtures/ripley.jpg', import.meta.url));
@@ -104,4 +108,62 @@ test('Today and the log sheet, light and dark', async ({ page, baseURL }) => {
 		await page.waitForTimeout(400);
 		await save(await sheet.screenshot(), `log-${scheme}.webp`);
 	}
+});
+
+/** As a data URL, so the card's page needs no server. */
+const dataUrl = (file: string, type: string) =>
+	`data:${type};base64,${readFileSync(new URL(file, `file://${OUT}`)).toString('base64')}`;
+
+test('the share card for link previews', async ({ browser }) => {
+	const fonts = `file://${OUT}../edge-fonts/`;
+	const font = (name: string) =>
+		`data:font/woff2;base64,${readFileSync(new URL(`${name}-latin.woff2`, fonts)).toString('base64')}`;
+	const mark = `<svg viewBox="0 0 ${markViewBox.width} ${markViewBox.height}" class="mark">
+		<path fill="#8A4B1F" fill-rule="evenodd" d="${markLetters}"/>
+		<g fill="#C98A4B"><path d="${markHeart}"/>${markToes
+			.map(
+				(t) =>
+					`<ellipse cx="${t.cx}" cy="${t.cy}" rx="${t.rx}" ry="${t.ry}" transform="rotate(${t.deg} ${t.cx} ${t.cy})"/>`
+			)
+			.join('')}</g></svg>`;
+	const page = await browser.newPage({
+		viewport: { width: 1200, height: 630 },
+		deviceScaleFactor: 1
+	});
+	await page.setContent(`<!doctype html><html><head><style>
+		@font-face { font-family: Nunito; font-weight: 200 1000; src: url(${font('nunito')}); }
+		@font-face { font-family: Fredoka; font-weight: 300 700; src: url(${font('fredoka')}); }
+		body { margin: 0; width: 1200px; height: 630px; overflow: hidden; position: relative;
+			background: #FFFBF5; color: #2B1D14; font-family: Nunito, sans-serif; }
+		.text { position: absolute; left: 80px; top: 0; bottom: 0; width: 640px; display: flex;
+			flex-direction: column; justify-content: center; gap: 28px; }
+		.brand { display: flex; align-items: center; gap: 14px; font: 700 34px Fredoka, sans-serif; }
+		.mark { width: 52px; height: 55px; }
+		h1 { margin: 0; font: 600 76px/1.04 Fredoka, sans-serif; letter-spacing: -0.01em; }
+		p { margin: 0; font-size: 28px; line-height: 1.4; color: #6B5444; }
+		.beans { position: absolute; right: 0; top: 0; width: 460px; height: 630px; }
+		.beans ellipse { fill: #C98A4B; opacity: 0.3; }
+		.phone { position: absolute; right: 90px; top: 64px; width: 300px; height: 634px;
+			border: 10px solid #2B1D14; border-radius: 44px; overflow: hidden; background: #FFFBF5;
+			box-shadow: 0 32px 64px rgb(43 29 20 / 0.2); }
+		.phone img { display: block; width: 300px; }
+	</style></head><body>
+		<svg class="beans" viewBox="0 0 460 630">
+			<ellipse cx="60" cy="120" rx="46" ry="38" transform="rotate(62 60 120)"/>
+			<ellipse cx="190" cy="34" rx="52" ry="40" transform="rotate(-82 190 34)"/>
+			<ellipse cx="410" cy="90" rx="46" ry="36" transform="rotate(-56 410 90)"/>
+			<ellipse cx="420" cy="520" rx="50" ry="40" transform="rotate(-51 420 520)"/>
+		</svg>
+		<div class="text">
+			<div class="brand">${mark}Toe Beans</div>
+			<h1>Raise your puppy together.</h1>
+			<p>Puppy training and care for the whole household. Free, private, made in South Africa.</p>
+		</div>
+		<div class="phone"><img src="${dataUrl('today-light.webp', 'image/webp')}" alt=""></div>
+	</body></html>`);
+	await page.evaluate(() => document.fonts.ready);
+	await sharp(await page.screenshot())
+		.png({ compressionLevel: 9, palette: true, quality: 90 })
+		.toFile(`${OUT}share.png`);
+	await page.close();
 });

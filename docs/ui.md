@@ -1,9 +1,9 @@
 # Toe Beans — UI and Interaction Design
 
-**Version:** 0.48 (draft for iteration)
+**Version:** 0.49 (draft for iteration)
 **Date:** 25 November 2026
 **Status:** Proposed. Review-round decisions in §8 are accepted.
-**Inputs:** `docs/requirements.md` v1.1, `docs/architecture.md` v1.60
+**Inputs:** `docs/requirements.md` v1.1, `docs/architecture.md` v1.61
 
 **Changes in 0.7:** the logo landed (S0.9). The mark is now a **TB monogram** with four toe beans above it and a heart-shaped bean in the B, from the AI-assisted design board (Monogram Iteration B), replacing the placeholder paw. It was traced from the board and cleaned up rather than redrawn by hand; the variants are the brown-on-cream mark, a cream-on-brown app-icon tile (favicon and maskable) and a white badge. The wordmark uses Fredoka Bold to match the board (§6.4 Logo).
 
@@ -78,6 +78,8 @@
 **Changes in 0.47:** §4.7 and §2's More row: **Your data** on More, the household's export (backlog S19.7, architecture 1.58 D46). An owner gets *Download a copy*; a caregiver is told which owners can, or to write to `privacy@`.
 
 **Changes in 0.48:** §4.9, the landing page (backlog S21.1, S21.2; architecture D44): direction A of three explored on the [landing page canvas](https://claude.ai/artifact/6TbJ3Lcy1CPX4rKqxop4an) (private), chosen by the owner, with its sections, copy and links. Its pictures of the app are captured from the app, never drawn. The sign-in page links back to it (J1).
+
+**Changes in 0.49:** §4.9: the landing page's title, description and share card for search results and link previews (backlog S21.3); the terms and privacy policy describe themselves too.
 
 **Changes in 0.12:** S3 built. J1 step 4 as built: *Take photo* or *Gallery*, then a framing square with the circle overlay (drag, pinch, a zoom slider and arrow keys), and birth date as *I know the date* or *Approximate* with months old. J2 names the dogs. §2.2: the switcher shows on Today, Plan, History and Care, with name chips. §5.1 gains two rules from using it: one confirm button per context (a sheet is its own context), and a control is never disabled without the reason on screen; the photo moved into its own sheet in J1 to follow the first, and the household, name and email-invite buttons stopped greying out for missing input to follow the second. §4.5: editing is its own page and the overflow sheet holds *Edit details* and *Archive*; the Recent sections wait for their slices. The dog accent palette is defined (§6.4), and More gains *Dogs* (§2.1). The custom dog icon read as a monkey, so it's replaced by Phosphor's *Dog*, the documented fallback library (§6.4).
 
@@ -414,6 +416,8 @@ On More as **Household & invites**, showing the household's name; the page keeps
 **The app as it is.** Pictures of the app are screenshots of it, never drawings: Today and the log sheet, light and dark, on the Redmi Note 12 Pro's viewport, from the production build with a demo household of Ripley, the owner's dog, and Sam (`pnpm landing:shots`, `apps/web/e2e/landing-shots.ts`). A change to Today, the log sheet or the badges means taking them again. The badges are drawn with the app's own icons and sizes, which the edge's tests check, with its mark, colours and favicon.
 
 **No scripts.** The page has no JavaScript, loads only its own files and the edge's fonts, and links only to sign-in, the terms, the privacy policy and itself. Nothing on it wakes the app.
+
+**In search results and link previews** (*added in 0.49*, S21.3): the title *Toe Beans: puppy training and care, shared*, a description of under 160 characters, and a 1200×630 share card: the mark, "Raise your puppy together.", a line on who it's for, and the light Today capture in a phone frame, drawn by `pnpm landing:shots` with the screenshots so it never drifts from them. The terms and privacy policy have descriptions of their own; every other page of the app is kept out of search results.
 
 The sign-in page (J1) links back to it as *About Toe Beans*, a full page load so the edge serves it.
 

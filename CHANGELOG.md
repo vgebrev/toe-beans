@@ -10,6 +10,14 @@ for fixes. Candidates (`-rc.N`) go to prod for the owner to try before the relea
 
 ## Unreleased
 
+## 1.4.0 - 2026-11-25
+
+### Added
+
+- A link to toebeans.co.za now shows a preview with the app, in chats and on social media, and
+  search engines find the landing page, the terms and the privacy policy, but none of your
+  household's pages.
+
 ## 1.3.0 - 2026-11-25
 
 ### Added

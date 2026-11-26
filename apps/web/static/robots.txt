@@ -1,3 +1,5 @@
-# allow crawling everything by default
+# Only where the edge isn't in front: a local server, or run.app, which Google's invoker check
+# closes anyway. Prod's robots.txt is the edge's (infra/edge/assets/robots.txt), served before the
+# request reaches the app (backlog S21.3).
 User-agent: *
-Disallow:
+Disallow: /

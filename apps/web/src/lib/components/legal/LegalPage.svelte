@@ -7,14 +7,19 @@
 
 	interface Props {
 		title: string;
+		/** For search results and link previews: these two are public pages (backlog S21.3). */
+		description: string;
 		updated: string;
 		html: string;
 	}
 
-	let { title, updated, html }: Props = $props();
+	let { title, description, updated, html }: Props = $props();
 </script>
 
-<svelte:head><title>{title} · Toe Beans</title></svelte:head>
+<svelte:head>
+	<title>{title} · Toe Beans</title>
+	<meta name="description" content={description} />
+</svelte:head>
 
 <main class="mx-auto max-w-2xl pb-12">
 	<PageHeader {title} subtitle={`Last updated ${updated}`}>

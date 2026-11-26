@@ -143,6 +143,23 @@ Checks, once deployed:
   CSP with `default-src 'none'`, and `curl -s https://toebeans.co.za/ | grep -c '<script'` prints `0`.
 - The installed app still opens on Today (Chrome picks up the new `start_url` by itself).
 
+### Search and link previews (S21.3)
+
+`assets/robots.txt` and `assets/sitemap.xml` are served by Cloudflare before the Worker, in place
+of the app's own `robots.txt` (which shuts crawlers out, for anywhere the edge isn't in front). The
+sitemap lists `/`, `/terms` and `/privacy`; `robots.txt` keeps crawlers off `/api/`, `/auth/`,
+`/internal/` and `/join/`. The app answers `X-Robots-Tag: noindex` everywhere else. The landing
+page's share card, `landing/share.png`, comes from `pnpm landing:shots` with the screenshots.
+
+Checks, once deployed:
+
+- `curl -s https://toebeans.co.za/robots.txt` and `/sitemap.xml` show the files above, and
+  `curl -sI https://toebeans.co.za/sign-in | grep -i x-robots-tag` prints `noindex`, while
+  `/terms` and `/privacy` have none.
+- A link to `https://toebeans.co.za/` pasted into WhatsApp shows the card.
+- Optional: add the site to Google Search Console (a DNS TXT record in Cloudflare) and submit the
+  sitemap, which shows what it indexed.
+
 ## No scripts added at the edge (S19.3)
 
 Cloudflare can add a script to the app's pages without any change in our code: Web Analytics

@@ -1,0 +1,10 @@
+# toebeans.co.za (backlog S21.3). Served by the edge, so crawlers never wake the app. The landing
+# page, the terms and the privacy policy are public; the app's other pages answer noindex, so
+# crawlers may fetch them to see that. Kept off the API, sign-in and invitation links.
+User-agent: *
+Disallow: /api/
+Disallow: /auth/
+Disallow: /internal/
+Disallow: /join/
+
+Sitemap: https://toebeans.co.za/sitemap.xml
